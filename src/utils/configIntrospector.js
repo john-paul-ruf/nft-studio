@@ -13,16 +13,22 @@ export class ConfigIntrospector {
      */
     static async analyzeConfigClass(effectMetadata) {
         try {
-            // Create an instance of the config class to introspect its properties
+            // Create an instance of the config class with default constructor to get defaults
             const result = await ipcRenderer.invoke('introspect-config', {
                 configModule: effectMetadata.configModule,
                 configClass: effectMetadata.configClass
             });
 
             if (result.success) {
-                const schema = this.convertToSchema(result.properties);
+                // Use the default instance as the source of truth for UI fields
+                console.log('Config introspection result:', result);
+                console.log('Default instance properties:', Object.keys(result.defaultInstance));
+                console.log('Using default config instance for UI generation:', result.defaultInstance);
 
-                // Also include the default instance for proper initialization
+                const schema = this.convertDefaultInstanceToSchema(result.defaultInstance);
+                console.log('Generated schema fields:', schema.fields.map(f => ({name: f.name, type: f.type})));
+
+                // Keep the default instance for initialization
                 schema.defaultInstance = result.defaultInstance;
 
                 return schema;
@@ -37,7 +43,25 @@ export class ConfigIntrospector {
     }
 
     /**
-     * Convert introspected properties to UI schema
+     * Convert default config instance directly to UI schema
+     * @param {Object} defaultInstance - Default config instance from constructor
+     * @returns {Object} UI schema
+     */
+    static convertDefaultInstanceToSchema(defaultInstance) {
+        const fields = [];
+
+        for (const [name, value] of Object.entries(defaultInstance)) {
+            // Create field directly from the default instance value
+            const field = this.convertValueToField(name, value);
+            fields.push(field);
+        }
+
+        console.log(`Generated ${fields.length} UI fields from default config instance`);
+        return { fields };
+    }
+
+    /**
+     * Convert introspected properties to UI schema (legacy method for backward compatibility)
      * @param {Object} properties - Properties from introspection
      * @returns {Object} UI schema
      */
@@ -45,33 +69,232 @@ export class ConfigIntrospector {
         const fields = [];
 
         for (const [name, property] of Object.entries(properties)) {
+            // NEVER skip any property - every property must have a UI field
             const field = this.convertPropertyToField(name, property);
-            if (field) {
-                fields.push(field);
-            }
+            fields.push(field);
         }
 
+        console.log(`Generated ${fields.length} UI fields from ${Object.keys(properties).length} properties`);
         return { fields };
     }
 
     /**
-     * Convert a single property to a UI field definition
+     * Convert a default value directly to a UI field definition
+     * @param {string} name - Property name
+     * @param {*} value - Default value from config instance
+     * @returns {Object} Field definition
+     */
+    static convertValueToField(name, value) {
+        const field = {
+            name,
+            label: this.generateLabel(name),
+            default: value
+        };
+
+        const type = typeof value;
+        const className = value && typeof value === 'object' && value.constructor ? value.constructor.name : null;
+
+        // Handle functions - show as readonly
+        if (type === 'function') {
+            return {
+                ...field,
+                type: 'readonly',
+                default: '[Function]',
+                label: field.label + ' (Function)'
+            };
+        }
+
+        // Handle undefined - show as readonly
+        if (type === 'undefined' || value === null) {
+            return {
+                ...field,
+                type: 'readonly',
+                default: value === null ? '[Null]' : '[Undefined]',
+                label: field.label + ' (Undefined)'
+            };
+        }
+
+        // Handle inaccessible properties - show as readonly
+        if (type === 'inaccessible') {
+            return {
+                ...field,
+                type: 'readonly',
+                default: '[Inaccessible]',
+                label: field.label + ' (Inaccessible)'
+            };
+        }
+
+        // Handle arrays
+        if (Array.isArray(value)) {
+            // Check if it's a FindValueAlgorithm array
+            if (name.toLowerCase().includes('algorithm') || name.toLowerCase().includes('findvalue')) {
+                return {
+                    ...field,
+                    type: 'findvaluealgorithm',
+                    label: field.label + ' Algorithms'
+                };
+            }
+
+            // All other arrays as JSON
+            return {
+                ...field,
+                type: 'json',
+                label: field.label + ' (Array)'
+            };
+        }
+
+        // Handle primitive types
+        switch (type) {
+            case 'boolean':
+                return {
+                    ...field,
+                    type: 'boolean'
+                };
+
+            case 'number':
+                return {
+                    ...field,
+                    type: 'number',
+                    min: 0,
+                    max: name.includes('opacity') || name.includes('Opacity') ? 1 : 100,
+                    step: name.includes('opacity') || name.includes('Opacity') ? 0.01 : 1
+                };
+
+            case 'string':
+                return {
+                    ...field,
+                    type: 'text'
+                };
+
+            case 'object':
+                // Handle known object types by their constructor name
+                if (className) {
+                    switch (className) {
+                        case 'ColorPicker':
+                            return {
+                                ...field,
+                                type: 'colorpicker',
+                                bucketType: 'colorBucket'
+                            };
+
+                        case 'Range':
+                            return {
+                                ...field,
+                                type: 'range',
+                                min: 1,
+                                max: 100,
+                                label: field.label + ' Range'
+                            };
+
+                        case 'PercentageRange':
+                            return {
+                                ...field,
+                                type: 'percentagerange',
+                                label: field.label + ' Range'
+                            };
+
+                        case 'Point2D':
+                            return {
+                                ...field,
+                                type: 'point2d',
+                                label: field.label + ' Position'
+                            };
+
+                        case 'DynamicRange':
+                            return {
+                                ...field,
+                                type: 'dynamicrange',
+                                label: field.label + ' Dynamic Range'
+                            };
+
+                        case 'PercentageShortestSide':
+                        case 'PercentageLongestSide':
+                            return {
+                                ...field,
+                                type: 'percentage',
+                                default: value.value || value.percentage || 0.5,
+                                label: field.label + ' Percentage'
+                            };
+
+                        default:
+                            // Check for common object structures
+                            if (value.hasOwnProperty('lower') && value.hasOwnProperty('upper')) {
+                                return {
+                                    ...field,
+                                    type: 'range',
+                                    min: 0,
+                                    max: name.includes('opacity') || name.includes('Opacity') ? 1 : 100,
+                                    step: name.includes('opacity') || name.includes('Opacity') ? 0.01 : 1
+                                };
+                            }
+                            if (value.hasOwnProperty('x') && value.hasOwnProperty('y')) {
+                                return {
+                                    ...field,
+                                    type: 'point2d'
+                                };
+                            }
+                            // Dynamic range structure
+                            if (value.hasOwnProperty('bottom') && value.hasOwnProperty('top')) {
+                                return {
+                                    ...field,
+                                    type: 'dynamicrange',
+                                    label: field.label + ' Dynamic Range'
+                                };
+                            }
+                            break;
+                    }
+                }
+
+                // Default to JSON for unknown objects
+                return {
+                    ...field,
+                    type: 'json',
+                    label: field.label + ' (Object)'
+                };
+
+            default:
+                // Default everything else to JSON
+                return {
+                    ...field,
+                    type: 'json',
+                    label: field.label + ` (${type})`
+                };
+        }
+    }
+
+    /**
+     * Convert a single property to a UI field definition (legacy method)
      * @param {string} name - Property name
      * @param {Object} property - Property definition
-     * @returns {Object|null} Field definition or null if not supported
+     * @returns {Object} Field definition (never null - all properties must be mapped)
      */
     static convertPropertyToField(name, property) {
         const { type, value, className } = property;
-
-        // Skip functions and complex objects we can't handle
-        if (type === 'function' || type === 'undefined') {
-            return null;
-        }
 
         const field = {
             name,
             label: this.generateLabel(name)
         };
+
+        // Handle functions - show as readonly
+        if (type === 'function') {
+            return {
+                ...field,
+                type: 'readonly',
+                default: '[Function]',
+                label: field.label + ' (Function)'
+            };
+        }
+
+        // Handle undefined - show as readonly
+        if (type === 'undefined') {
+            return {
+                ...field,
+                type: 'readonly',
+                default: '[Undefined]',
+                label: field.label + ' (Undefined)'
+            };
+        }
 
         // Handle special array types
         if (Array.isArray(value)) {
@@ -85,14 +308,27 @@ export class ConfigIntrospector {
                 };
             }
 
-            // Skip other complex arrays for now (like elementGastonMultiStep)
+            // Handle complex arrays as JSON (no skipping)
             if (value.length > 0 && typeof value[0] === 'object' && value[0].constructor.name !== 'Object') {
-                console.log(`Skipping complex array field: ${name}`);
-                return null;
+                return {
+                    ...field,
+                    type: 'json',
+                    default: value,
+                    label: field.label + ' (Complex Array)',
+                    warning: 'Complex object array - edit with care'
+                };
             }
+
+            // Simple arrays get JSON treatment
+            return {
+                ...field,
+                type: 'json',
+                default: value,
+                label: field.label + ' (Array)'
+            };
         }
 
-        // Handle different property types
+        // Handle different property types - prefer specific UI types but fallback to JSON
         switch (type) {
             case 'boolean':
                 return {
@@ -119,14 +355,21 @@ export class ConfigIntrospector {
                 };
 
             case 'object':
-                return this.handleObjectProperty(field, property, name);
+                // Try to use specific UI components, but fall back to JSON for unknown objects
+                const objectField = this.handleObjectProperty(field, property, name);
+                if (objectField.type === 'json') {
+                    // Already handled as JSON
+                    return objectField;
+                }
+                return objectField;
 
             default:
+                // Default everything else to JSON for complete coverage
                 return {
                     ...field,
-                    type: 'text',
-                    default: String(value),
-                    readonly: true
+                    type: 'json',
+                    default: value,
+                    label: field.label + ` (${type})`
                 };
         }
     }

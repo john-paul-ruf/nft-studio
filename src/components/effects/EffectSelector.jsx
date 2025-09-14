@@ -18,11 +18,7 @@ function EffectSelector({ effectType, availableEffects, effects, onEffectSelect,
                             onClick={() => onEffectSelect(effect)}
                             style={{ cursor: 'pointer' }}
                         >
-                            <h4>{effect.displayName || effect.name || 'Unknown Effect'}</h4>
-                            <p style={{ color: '#cccccc' }}>{effect.description || 'No description available'}</p>
-                            <div style={{ fontSize: '0.8rem', color: '#999', marginTop: '0.5rem' }}>
-                                Config: {effect.configClass || 'Unknown'}
-                            </div>
+                            <h4>{effect.name}</h4>
                         </div>
                     ))}
                 </div>
@@ -59,7 +55,7 @@ function EffectSelector({ effectType, availableEffects, effects, onEffectSelect,
                                     gap: '0.5rem'
                                 }}
                             >
-                                <span>{effect.effectClass.displayName}</span>
+                                <span>{effect.effectClass.name}</span>
                                 <button
                                     onClick={() => onEffectRemove(effectType, effect.id)}
                                     style={{

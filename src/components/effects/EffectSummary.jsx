@@ -54,28 +54,10 @@ function EffectSummary({ effects, onStartGeneration }) {
                                             marginBottom: '0.5rem'
                                         }}>
                                             <h5 style={{ margin: 0, color: '#fff' }}>
-                                                {effect.effectClass?.displayName || 'Unknown Effect'}
+                                                {effect.effectClass?.name}
                                             </h5>
-                                            <div style={{
-                                                fontSize: '0.8rem',
-                                                color: '#888',
-                                                background: 'rgba(255,255,255,0.1)',
-                                                padding: '0.25rem 0.5rem',
-                                                borderRadius: '12px'
-                                            }}>
-                                                {effect.effectClass?.configClass || 'Config'}
-                                            </div>
                                         </div>
 
-                                        {effect.effectClass?.description && (
-                                            <p style={{
-                                                margin: '0 0 0.5rem 0',
-                                                fontSize: '0.9rem',
-                                                color: '#ccc'
-                                            }}>
-                                                {effect.effectClass.description}
-                                            </p>
-                                        )}
 
                                         {/* Show key config parameters */}
                                         {effect.config && Object.keys(effect.config).length > 0 && (

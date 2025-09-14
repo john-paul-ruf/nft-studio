@@ -31,6 +31,24 @@ function ConfigInputFactory({ field, value, onChange, projectData }) {
             return <BooleanInput {...commonProps} />;
         case 'findvaluealgorithm':
             return <FindValueAlgorithmInput {...commonProps} />;
+        case 'readonly':
+            return (
+                <div className="readonly-input">
+                    <label style={{ color: '#ffffff', marginBottom: '0.5rem', display: 'block' }}>
+                        {field.label}
+                    </label>
+                    <div style={{
+                        padding: '0.5rem',
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px dashed #666',
+                        borderRadius: '4px',
+                        color: '#999',
+                        fontStyle: 'italic'
+                    }}>
+                        {field.default}
+                    </div>
+                </div>
+            );
         case 'text':
             return (
                 <div className="text-input">
@@ -60,6 +78,19 @@ function ConfigInputFactory({ field, value, onChange, projectData }) {
                     <label style={{ color: '#ffffff', marginBottom: '0.5rem', display: 'block' }}>
                         {field.label}
                     </label>
+                    {field.warning && (
+                        <div style={{
+                            background: 'rgba(255, 193, 7, 0.1)',
+                            border: '1px solid rgba(255, 193, 7, 0.3)',
+                            borderRadius: '4px',
+                            padding: '0.5rem',
+                            marginBottom: '0.5rem',
+                            color: '#ffc107',
+                            fontSize: '0.8rem'
+                        }}>
+                            ⚠️ {field.warning}
+                        </div>
+                    )}
                     <textarea
                         value={typeof value === 'object' ? JSON.stringify(value, null, 2) : value || JSON.stringify(field.default, null, 2) || '{}'}
                         onChange={(e) => {

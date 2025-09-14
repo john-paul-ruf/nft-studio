@@ -56,9 +56,11 @@ function EffectWizard({ onBack, onEffectsCreated, projectData }) {
     };
 
     const handleEffectSelect = (effect) => {
+        console.log('EffectWizard: Effect selected:', effect);
         setSelectedEffect(effect);
         setEffectConfig({});
         setStep(3); // Move to configuration step
+        console.log('EffectWizard: Moving to step 3 (configuration)');
     };
 
     const handleConfigChange = (config) => {

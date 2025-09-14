@@ -121,6 +121,18 @@ ipcMain.handle('discover-effects', async (event) => {
     try {
         const { EffectDiscovery } = await import('my-nft-gen/src/core/discovery/EffectDiscovery.js');
         const effects = await EffectDiscovery.discoverAvailableEffects();
+
+        console.log('=== DISCOVERED EFFECTS ===');
+        Object.keys(effects).forEach(category => {
+            console.log(`${category} effects:`, effects[category].length);
+            effects[category].forEach(effect => {
+                console.log(`  - ${effect.name}:`);
+                console.log(`    configModule: ${effect.configModule}`);
+                console.log(`    configClass: ${effect.configClass}`);
+                console.log(`    effectFile: ${effect.effectFile}`);
+            });
+        });
+
         return { success: true, effects };
     } catch (error) {
         console.error('Error discovering effects:', error);
@@ -378,43 +390,176 @@ ipcMain.handle('list-completed-frames', async (event, projectDirectory) => {
 // Config Introspection IPC handler
 ipcMain.handle('introspect-config', async (event, { configModule, configClass }) => {
     try {
-        // Dynamically import the config module
-        const module = await import(configModule);
-        const ConfigClass = module[configClass];
+        console.log(`=== CONFIG INTROSPECTION ===`);
+        console.log(`Attempting to import: ${configModule}`);
+        console.log(`Looking for class: ${configClass}`);
 
+        // Special handling for known effect configs - try direct instantiation first
+        const effectConfigMap = {
+            // Use actual paths from my-nft-effects-core
+            'CurvedRedEyeConfig': 'my-nft-effects-core/src/effects/primaryEffects/curved-red-eye/CurvedRedEyeConfig.js',
+            'EncircledSpiralConfig': 'my-nft-effects-core/src/effects/primaryEffects/encircledSpiral/EncircledSpiralConfig.js',
+            'GatesConfig': 'my-nft-effects-core/src/effects/primaryEffects/gates/GatesConfig.js',
+            'RayRingConfig': 'my-nft-effects-core/src/effects/primaryEffects/rayRing/RayRingConfig.js',
+            'ViewportConfig': 'my-nft-effects-core/src/effects/primaryEffects/viewport/ViewportConfig.js',
+            'FuzzFlareConfig': 'my-nft-effects-core/src/effects/primaryEffects/fuzz-flare/FuzzFlareConfig.js'
+        };
+
+        let module, ConfigClass;
+
+        // Try direct mapping first for known configs
+        if (effectConfigMap[configClass]) {
+            try {
+                console.log(`Trying direct import for known config: ${effectConfigMap[configClass]}`);
+                module = await import(effectConfigMap[configClass]);
+                ConfigClass = module[configClass];
+                if (ConfigClass) {
+                    console.log(`Successfully loaded ${configClass} via direct mapping`);
+                }
+            } catch (directError) {
+                console.log(`Direct mapping failed: ${directError.message}`);
+            }
+        }
+
+        // Fallback to provided module path if direct mapping failed
         if (!ConfigClass) {
-            throw new Error(`Config class ${configClass} not found in module ${configModule}`);
+            console.log(`Falling back to provided module path: ${configModule}`);
+            module = await import(configModule);
+            console.log(`Module imported successfully. Available exports:`, Object.keys(module));
+
+            ConfigClass = module[configClass];
+            console.log(`ConfigClass found:`, ConfigClass ? ConfigClass.name : 'NOT FOUND');
+
+            if (!ConfigClass) {
+                throw new Error(`Config class ${configClass} not found in module ${configModule}. Available: ${Object.keys(module).join(', ')}`);
+            }
         }
 
         // Create an instance to introspect its properties
-        // Many config classes use destructuring parameters, so provide an empty object
+        // Call constructor with NO parameters to get true defaults
+        console.log(`Creating instance of ${ConfigClass.name}...`);
+
+        // Create instance like the effects do: new ConfigClass({})
+        // This triggers destructuring defaults properly
         const instance = new ConfigClass({});
+        console.log(`Instance created with empty object (triggers destructured defaults):`, instance);
+        console.log(`Instance properties:`, Object.getOwnPropertyNames(instance).sort());
 
-        // Extract all enumerable properties
+        console.log(`Created ${configClass} instance with ${Object.keys(instance).length} properties:`, Object.keys(instance));
+
+        // Extract ALL properties (own + inherited + prototype)
         const properties = {};
+        const allKeys = new Set();
 
-        for (const key of Object.keys(instance)) {
-            const value = instance[key];
-            const type = typeof value;
+        // Get own properties (enumerable and non-enumerable)
+        Object.getOwnPropertyNames(instance).forEach(key => allKeys.add(key));
 
-            let className = null;
-            if (value && typeof value === 'object' && value.constructor) {
-                className = value.constructor.name;
-            }
-
-            properties[key] = {
-                type,
-                value,
-                className
-            };
+        // Get inherited properties from prototype chain
+        let proto = Object.getPrototypeOf(instance);
+        while (proto && proto !== Object.prototype) {
+            Object.getOwnPropertyNames(proto).forEach(key => {
+                if (key !== 'constructor') allKeys.add(key);
+            });
+            proto = Object.getPrototypeOf(proto);
         }
 
-        // Also return the complete default instance for initialization
-        return {
-            success: true,
-            properties,
-            defaultInstance: instance
-        };
+        // Get enumerable properties (for good measure)
+        for (const key in instance) {
+            allKeys.add(key);
+        }
+
+        console.log(`Found ${allKeys.size} total properties (own + inherited):`, Array.from(allKeys).sort());
+
+        // Also log the instance structure
+        console.log('Instance structure:', instance);
+        console.log('Instance prototype:', Object.getPrototypeOf(instance).constructor.name);
+
+        for (const key of allKeys) {
+            try {
+                const value = instance[key];
+                const type = typeof value;
+
+                // Skip common prototype methods but keep actual properties
+                if (type === 'function' &&
+                    (key === 'constructor' || key.startsWith('__') ||
+                     ['toString', 'valueOf', 'hasOwnProperty', 'isPrototypeOf', 'propertyIsEnumerable'].includes(key))) {
+                    continue;
+                }
+
+                let className = null;
+                if (value && typeof value === 'object' && value.constructor) {
+                    className = value.constructor.name;
+                }
+
+                // Make sure the value is serializable
+                let serializableValue = value;
+                try {
+                    // Test if value can be serialized
+                    JSON.stringify(value);
+                } catch (e) {
+                    // If not serializable, convert to string representation
+                    if (type === 'object') {
+                        serializableValue = '[Object]';
+                    } else if (type === 'function') {
+                        serializableValue = '[Function]';
+                    } else {
+                        serializableValue = String(value);
+                    }
+                }
+
+                properties[key] = {
+                    type,
+                    value: serializableValue,
+                    className
+                };
+
+                console.log(`Property ${key}: ${type} = `, value);
+            } catch (error) {
+                console.warn(`Could not access property ${key}:`, error.message);
+                properties[key] = {
+                    type: 'inaccessible',
+                    value: '[Inaccessible]',
+                    className: null
+                };
+            }
+        }
+
+        console.log(`Captured ${Object.keys(properties).length} properties for UI generation`);
+
+        // Create a serializable version of the default instance
+        const serializableInstance = {};
+        for (const [key, prop] of Object.entries(properties)) {
+            if (prop.type !== 'function' && prop.type !== 'inaccessible') {
+                try {
+                    // Test if the value can be JSON serialized
+                    JSON.stringify(prop.value);
+                    serializableInstance[key] = prop.value;
+                } catch (e) {
+                    console.warn(`Skipping non-serializable property ${key}:`, e.message);
+                    // Skip non-serializable values
+                }
+            }
+        }
+
+        console.log(`Created serializable instance with ${Object.keys(serializableInstance).length} properties`);
+
+        // Ensure everything is fully serializable by round-tripping through JSON
+        try {
+            const fullySerializable = JSON.parse(JSON.stringify({
+                success: true,
+                properties,
+                defaultInstance: serializableInstance
+            }));
+            return fullySerializable;
+        } catch (serializeError) {
+            console.error('Failed to serialize result:', serializeError);
+            // Return a minimal fallback
+            return {
+                success: true,
+                properties: {},
+                defaultInstance: {}
+            };
+        }
     } catch (error) {
         console.error('Error introspecting config:', error);
         return { success: false, error: error.message };

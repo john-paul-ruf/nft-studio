@@ -20,25 +20,16 @@ function EffectConfigurer({ selectedEffect, projectData, onConfigChange, onAddEf
             console.log('Generated schema:', schema);
             setConfigSchema(schema);
 
-            // Initialize effect config with the complete default instance
-            let defaultConfig = {};
-
+            // Use the default instance directly - it has all the correct defaults
             if (schema.defaultInstance) {
-                // Use the actual default instance from the constructor
-                defaultConfig = { ...schema.defaultInstance };
-                console.log('Initializing config with constructor defaults:', defaultConfig);
+                console.log('Using config defaults from constructor:', schema.defaultInstance);
+                setEffectConfig(schema.defaultInstance);
+                onConfigChange(schema.defaultInstance);
             } else {
-                // Fallback to extracting defaults from schema fields
-                schema.fields.forEach(field => {
-                    if (field.default !== undefined) {
-                        defaultConfig[field.name] = field.default;
-                    }
-                });
-                console.log('Initializing config with schema defaults:', defaultConfig);
+                console.warn('No default instance available, using empty config');
+                setEffectConfig({});
+                onConfigChange({});
             }
-
-            setEffectConfig(defaultConfig);
-            onConfigChange(defaultConfig);
         } catch (error) {
             console.error('Error loading config schema:', error);
             setConfigSchema({ fields: [] });
@@ -77,8 +68,7 @@ function EffectConfigurer({ selectedEffect, projectData, onConfigChange, onAddEf
 
     return (
         <div style={{ color: '#ffffff' }}>
-            <h3 style={{ color: '#ffffff', marginBottom: '1rem' }}>Configure {selectedEffect.displayName || selectedEffect.name || 'Effect'}</h3>
-            <p style={{ color: '#cccccc', marginBottom: '1.5rem' }}>{selectedEffect.description || 'No description available'}</p>
+            <h3 style={{ color: '#ffffff', marginBottom: '1rem' }}>Configure {selectedEffect.name}</h3>
 
             <div style={{ marginTop: '1.5rem' }}>
                 {configSchema?.fields?.length > 0 ? (
