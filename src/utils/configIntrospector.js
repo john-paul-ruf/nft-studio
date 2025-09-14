@@ -94,6 +94,17 @@ export class ConfigIntrospector {
         const type = typeof value;
         const className = value && typeof value === 'object' && value.constructor ? value.constructor.name : null;
 
+        // Check if property name contains "color" or "Color" - treat as color picker
+        const nameLower = name.toLowerCase();
+        if (nameLower.includes('color') || nameLower.includes('colour')) {
+            return {
+                ...field,
+                type: 'colorpicker',
+                bucketType: 'colorBucket',
+                label: field.label
+            };
+        }
+
         // Handle functions - show as readonly
         if (type === 'function') {
             return {
@@ -275,6 +286,18 @@ export class ConfigIntrospector {
             name,
             label: this.generateLabel(name)
         };
+
+        // Check if property name contains "color" or "Color" - treat as color picker
+        const nameLower = name.toLowerCase();
+        if (nameLower.includes('color') || nameLower.includes('colour')) {
+            return {
+                ...field,
+                type: 'colorpicker',
+                bucketType: 'colorBucket',
+                default: value,
+                label: field.label
+            };
+        }
 
         // Handle functions - show as readonly
         if (type === 'function') {

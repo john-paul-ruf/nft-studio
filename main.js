@@ -191,14 +191,43 @@ ipcMain.handle('preview-effect', async (event, { effectClass, effectConfig, fram
                 throw new Error(`Config class '${effectClass.configClass}' not found in module '${effectClass.configModule}'`);
             }
 
+            // Import ColorPicker for color properties
+            const { ColorPicker } = await import('my-nft-gen/src/core/layer/configType/ColorPicker.js');
+
             // Create proper config instance with user's configuration
             console.log('Creating config instance for preview-effect:', {
                 configClass: effectClass.configClass,
                 userConfig: effectConfig
             });
 
-            // First create a default config to get all defaults, then deep merge with user config
+            // First create a default config to get all defaults
             const defaultConfig = new ConfigClassConstructor({});
+
+            // Process user config to convert color values to ColorPicker instances
+            const processedConfig = {};
+            for (const [key, value] of Object.entries(effectConfig)) {
+                const keyLower = key.toLowerCase();
+                if (keyLower.includes('color') || keyLower.includes('colour')) {
+                    if (typeof value === 'string') {
+                        // Simple string color value
+                        processedConfig[key] = new ColorPicker(ColorPicker.SelectionType.color, value);
+                    } else if (value && typeof value === 'object' && value.selectionType) {
+                        // Object from ColorPickerInput with selectionType
+                        const selectionTypeMap = {
+                            'color': ColorPicker.SelectionType.color,
+                            'colorBucket': ColorPicker.SelectionType.colorBucket,
+                            'neutralBucket': ColorPicker.SelectionType.neutralBucket
+                        };
+                        const mappedType = selectionTypeMap[value.selectionType] || ColorPicker.SelectionType.colorBucket;
+                        processedConfig[key] = new ColorPicker(mappedType, value.colorValue || '#ff0000');
+                    } else {
+                        // Default to color bucket if structure is unexpected
+                        processedConfig[key] = new ColorPicker(ColorPicker.SelectionType.colorBucket, null);
+                    }
+                } else {
+                    processedConfig[key] = value;
+                }
+            }
 
             // Deep merge function to preserve nested objects
             function deepMerge(target, source) {
@@ -217,7 +246,7 @@ ipcMain.handle('preview-effect', async (event, { effectClass, effectConfig, fram
                 return result;
             }
 
-            const mergedConfig = deepMerge(defaultConfig, effectConfig);
+            const mergedConfig = deepMerge(defaultConfig, processedConfig);
             properEffectConfig = new ConfigClassConstructor(mergedConfig);
 
             console.log('Created config instance for preview-effect:', properEffectConfig);
@@ -278,14 +307,43 @@ ipcMain.handle('preview-effect-thumbnail', async (event, { effectClass, effectCo
                 throw new Error(`Config class '${effectClass.configClass}' not found in module '${effectClass.configModule}'`);
             }
 
+            // Import ColorPicker for color properties
+            const { ColorPicker } = await import('my-nft-gen/src/core/layer/configType/ColorPicker.js');
+
             // Create proper config instance with user's configuration
             console.log('Creating config instance for thumbnail:', {
                 configClass: effectClass.configClass,
                 userConfig: effectConfig
             });
 
-            // First create a default config to get all defaults, then deep merge with user config
+            // First create a default config to get all defaults
             const defaultConfig = new ConfigClassConstructor({});
+
+            // Process user config to convert color values to ColorPicker instances
+            const processedConfig = {};
+            for (const [key, value] of Object.entries(effectConfig)) {
+                const keyLower = key.toLowerCase();
+                if (keyLower.includes('color') || keyLower.includes('colour')) {
+                    if (typeof value === 'string') {
+                        // Simple string color value
+                        processedConfig[key] = new ColorPicker(ColorPicker.SelectionType.color, value);
+                    } else if (value && typeof value === 'object' && value.selectionType) {
+                        // Object from ColorPickerInput with selectionType
+                        const selectionTypeMap = {
+                            'color': ColorPicker.SelectionType.color,
+                            'colorBucket': ColorPicker.SelectionType.colorBucket,
+                            'neutralBucket': ColorPicker.SelectionType.neutralBucket
+                        };
+                        const mappedType = selectionTypeMap[value.selectionType] || ColorPicker.SelectionType.colorBucket;
+                        processedConfig[key] = new ColorPicker(mappedType, value.colorValue || '#ff0000');
+                    } else {
+                        // Default to color bucket if structure is unexpected
+                        processedConfig[key] = new ColorPicker(ColorPicker.SelectionType.colorBucket, null);
+                    }
+                } else {
+                    processedConfig[key] = value;
+                }
+            }
 
             // Deep merge function to preserve nested objects
             function deepMerge(target, source) {
@@ -304,7 +362,7 @@ ipcMain.handle('preview-effect-thumbnail', async (event, { effectClass, effectCo
                 return result;
             }
 
-            const mergedConfig = deepMerge(defaultConfig, effectConfig);
+            const mergedConfig = deepMerge(defaultConfig, processedConfig);
             properEffectConfig = new ConfigClassConstructor(mergedConfig);
 
             console.log('Created config instance for thumbnail:', properEffectConfig);
