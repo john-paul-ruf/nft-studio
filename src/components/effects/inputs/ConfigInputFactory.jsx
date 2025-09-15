@@ -8,6 +8,7 @@ import DynamicRangeInput from './DynamicRangeInput';
 import NumberInput from './NumberInput';
 import BooleanInput from './BooleanInput';
 import FindValueAlgorithmInput from './FindValueAlgorithmInput';
+import MultiSelectInput from './MultiSelectInput';
 
 function ConfigInputFactory({ field, value, onChange, projectData }) {
     const commonProps = { field, value, onChange, projectData };
@@ -31,6 +32,8 @@ function ConfigInputFactory({ field, value, onChange, projectData }) {
             return <BooleanInput {...commonProps} />;
         case 'findvaluealgorithm':
             return <FindValueAlgorithmInput {...commonProps} />;
+        case 'multiselect':
+            return <MultiSelectInput {...commonProps} />;
         case 'readonly':
             return (
                 <div className="readonly-input">

@@ -15,8 +15,11 @@ function EffectPreview({
     onPreviewUpdate
 }) {
     const [previewData, setPreviewData] = useState(null);
+    const [fullSizeData, setFullSizeData] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [loadingFullSize, setLoadingFullSize] = useState(false);
     const [error, setError] = useState(null);
+    const [showFullSize, setShowFullSize] = useState(false);
 
     const sizes = {
         small: 150,
@@ -53,8 +56,19 @@ function EffectPreview({
 
         // Step one: choose if isHoz or not (from project settings)
         const autoIsHoz = resolution.width > resolution.height;
-        const isHoz = projectData?.isHoz !== null ? projectData.isHoz : autoIsHoz;
+        const isHoz = projectData?.isHoz !== undefined && projectData?.isHoz !== null ? projectData.isHoz : autoIsHoz;
+
+        // Always calculate aspect ratio the same way regardless of orientation
         const aspectRatio = resolution.width / resolution.height;
+
+        console.log('Preview dimensions calculation:', {
+            resolution,
+            projectIsHoz: projectData?.isHoz,
+            autoIsHoz,
+            finalIsHoz: isHoz,
+            aspectRatio,
+            maxPreviewSize
+        });
 
         let previewWidth, previewHeight;
 
@@ -78,18 +92,14 @@ function EffectPreview({
 
     const previewDimensions = getPreviewDimensions();
 
-    useEffect(() => {
-        if (effectClass && effectConfig) {
-            loadPreview();
-        }
-    }, [effectClass, effectConfig, frameNumber, projectData]);
+    // Removed auto-loading useEffect - now preview only loads on manual render request
 
     const loadPreview = async () => {
         if (!effectClass) return;
 
         // Validate effect metadata before making the preview request
-        if (!effectClass.effectFile || !effectClass.name) {
-            setError('Invalid effect metadata: missing effectFile or name');
+        if (!effectClass.name) {
+            setError('Invalid effect metadata: missing name');
             console.error('Invalid effect metadata:', effectClass);
             return;
         }
@@ -140,7 +150,12 @@ function EffectPreview({
                 effectConfig,
                 frameNumber,
                 totalFrames,
-                projectSettings,
+                projectSettings: {
+                    ...projectSettings,
+                    width: resolution.width,
+                    height: resolution.height,
+                    isHorizontal: previewDimensions.isHoz
+                },
                 thumbnailSize: maxPreviewSize
             });
 
@@ -158,8 +173,83 @@ function EffectPreview({
         }
     };
 
-    const handleRefresh = () => {
+    const loadFullSizePreview = async () => {
+        if (!effectClass || loadingFullSize || fullSizeData) return;
+
+        setLoadingFullSize(true);
+
+        try {
+            const resolution = resolutionMap[projectData?.resolution] || resolutionMap['hd'];
+
+            // Get color scheme data
+            const predefinedColorSchemes = {
+                'neon-cyberpunk': {
+                    neutrals: ['#FFFFFF', '#CCCCCC', '#808080', '#333333'],
+                    backgrounds: ['#000000', '#0a0a0a', '#1a1a1a', '#111111'],
+                    lights: ['#00FFFF', '#FF00FF', '#FFFF00', '#FF0080', '#8000FF', '#00FF80'],
+                    description: 'Electric blues, magentas, and cyans for futuristic vibes'
+                },
+                'neon': {
+                    neutrals: ['#FFFFFF', '#E0E0E0', '#B0B0B0', '#404040'],
+                    backgrounds: ['#000000', '#111111', '#1a0a1a', '#0a0a1a'],
+                    lights: ['#FF1493', '#FF69B4', '#FF6347', '#00CED1', '#7FFF00', '#FFD700'],
+                    description: 'Retro 80s neon with deep purples and hot pinks'
+                }
+            };
+
+            const schemeId = projectData?.colorScheme || 'neon-cyberpunk';
+            const colorSchemeData = predefinedColorSchemes[schemeId] || predefinedColorSchemes['neon-cyberpunk'];
+
+            // Use actual resolution instead of thumbnail size
+            const projectSettings = {
+                width: resolution.width,
+                height: resolution.height,
+                colorScheme: {
+                    colorBucket: colorSchemeData.lights,
+                    colorSchemeInfo: colorSchemeData.description
+                },
+                neutrals: projectData?.customColors?.neutrals || colorSchemeData.neutrals,
+                backgrounds: projectData?.customColors?.backgrounds || colorSchemeData.backgrounds,
+                lights: projectData?.customColors?.lights || colorSchemeData.lights,
+                isHorizontal: previewDimensions.isHoz
+            };
+
+            const totalFrames = projectData?.numberOfFrames || 60;
+
+            console.log('Requesting full-size preview at resolution:', resolution);
+
+            // Use preview-effect instead of preview-effect-thumbnail for full resolution
+            const result = await ipcRenderer.invoke('preview-effect', {
+                effectClass,
+                effectConfig,
+                frameNumber,
+                totalFrames,
+                projectSettings
+            });
+
+            if (result.success) {
+                setFullSizeData(result.imageData);
+            } else {
+                throw new Error(result.error || 'Full-size preview generation failed');
+            }
+        } catch (err) {
+            console.error('Full-size preview error:', err);
+            // Fall back to showing the thumbnail preview
+            setFullSizeData(previewData);
+        } finally {
+            setLoadingFullSize(false);
+        }
+    };
+
+    const handleRender = () => {
         loadPreview();
+    };
+
+    const handleViewFullSize = async () => {
+        setShowFullSize(true);
+        if (!fullSizeData && !loadingFullSize) {
+            await loadFullSizePreview();
+        }
     };
 
     if (!effectClass) {
@@ -189,9 +279,8 @@ function EffectPreview({
             borderRadius: '8px',
             overflow: 'hidden',
             border: '1px solid #333',
-            background: 'linear-gradient(45deg, #222 25%, transparent 25%), linear-gradient(-45deg, #222 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #222 75%), linear-gradient(-45deg, transparent 75%, #222 75%)',
-            backgroundSize: '20px 20px',
-            backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px'
+            backgroundColor: '#1a1a1a',
+            boxShadow: '0 4px 8px rgba(0,0,0,0.3)'
         }}>
             {loading && (
                 <div style={{
@@ -231,7 +320,7 @@ function EffectPreview({
                     <div style={{ marginBottom: '0.5rem' }}>⚠️</div>
                     <div style={{ marginBottom: '0.5rem' }}>{error}</div>
                     <button
-                        onClick={handleRefresh}
+                        onClick={handleRender}
                         style={{
                             background: '#ff6b6b',
                             border: 'none',
@@ -254,9 +343,57 @@ function EffectPreview({
                     style={{
                         width: '100%',
                         height: '100%',
-                        objectFit: 'contain'
+                        objectFit: 'contain',
+                        cursor: 'zoom-in'
                     }}
+                    onClick={handleViewFullSize}
                 />
+            )}
+
+            {/* Render Button - shows when no preview data is available */}
+            {!previewData && !loading && !error && (
+                <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '1rem'
+                }}>
+                    <div style={{
+                        fontSize: '2rem',
+                        opacity: 0.5
+                    }}>🎨</div>
+                    <button
+                        onClick={handleRender}
+                        style={{
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '0.75rem 1.5rem',
+                            color: 'white',
+                            fontSize: '0.9rem',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            transition: 'transform 0.1s ease'
+                        }}
+                        onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.98)'}
+                        onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    >
+                        Render Preview
+                    </button>
+                    <div style={{
+                        fontSize: '0.8rem',
+                        color: '#aaa',
+                        textAlign: 'center'
+                    }}>
+                        {previewDimensions.width} × {previewDimensions.height}
+                        <br />
+                        {previewDimensions.isHoz ? 'Landscape' : 'Portrait'} • {previewDimensions.aspectRatio.toFixed(2)}:1
+                    </div>
+                </div>
             )}
 
             {/* Controls overlay */}
@@ -268,7 +405,7 @@ function EffectPreview({
                 gap: '4px'
             }}>
                 <button
-                    onClick={handleRefresh}
+                    onClick={handleRender}
                     style={{
                         background: 'rgba(0,0,0,0.7)',
                         border: 'none',
@@ -278,11 +415,111 @@ function EffectPreview({
                         fontSize: '0.7rem',
                         cursor: 'pointer'
                     }}
-                    title="Refresh preview"
+                    title="Re-render preview"
                 >
                     🔄
                 </button>
+                {previewData && (
+                    <button
+                        onClick={handleViewFullSize}
+                        style={{
+                            background: 'rgba(0,0,0,0.7)',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '4px 8px',
+                            color: 'white',
+                            fontSize: '0.7rem',
+                            cursor: 'pointer'
+                        }}
+                        title="View full size"
+                    >
+                        🔍
+                    </button>
+                )}
             </div>
+
+            {/* Full-size preview modal */}
+            {showFullSize && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 10000,
+                        cursor: loadingFullSize ? 'wait' : 'zoom-out'
+                    }}
+                    onClick={() => !loadingFullSize && setShowFullSize(false)}
+                >
+                    {loadingFullSize ? (
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '1rem'
+                        }}>
+                            <div style={{
+                                border: '3px solid #333',
+                                borderTop: '3px solid #667eea',
+                                borderRadius: '50%',
+                                width: '50px',
+                                height: '50px',
+                                animation: 'spin 1s linear infinite'
+                            }} />
+                            <div style={{ color: 'white', fontSize: '1rem' }}>
+                                Generating full resolution preview...
+                            </div>
+                            <div style={{ color: '#aaa', fontSize: '0.8rem' }}>
+                                {resolutionMap[projectData?.resolution]?.width || 1920} × {resolutionMap[projectData?.resolution]?.height || 1080}
+                            </div>
+                        </div>
+                    ) : (
+                        <img
+                            src={fullSizeData || previewData}
+                            alt={`${effectClass.displayName} full size`}
+                            style={{
+                                maxWidth: '90vw',
+                                maxHeight: '90vh',
+                                objectFit: 'contain',
+                                borderRadius: '8px',
+                                boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
+                            }}
+                        />
+                    )}
+                    <button
+                        style={{
+                            position: 'absolute',
+                            top: '20px',
+                            right: '20px',
+                            background: 'rgba(255,255,255,0.1)',
+                            border: '1px solid rgba(255,255,255,0.3)',
+                            borderRadius: '50%',
+                            width: '40px',
+                            height: '40px',
+                            color: 'white',
+                            fontSize: '20px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (!loadingFullSize) {
+                                setShowFullSize(false);
+                                setFullSizeData(null); // Clear full-size data when closing
+                            }
+                        }}
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

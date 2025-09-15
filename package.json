@@ -6,10 +6,12 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "webpack && electron .",
+    "start:dev": "webpack --mode=development && electron .",
     "dev": "webpack --watch",
     "build": "webpack --mode=production",
     "electron": "electron .",
-    "rebuild": "electron-rebuild -f -w canvas && electron-rebuild -f -w sharp"
+    "rebuild": "electron-rebuild -f -w canvas && electron-rebuild -f -w sharp",
+    "clean:start": "rm -rf dist/ && webpack && electron ."
   },
   "author": "john.paul.ruf",
   "license": "MIT",

@@ -765,24 +765,58 @@ ipcMain.handle('resume-project', async (event, settingsPath) => {
 // Effect Discovery IPC handlers
 ipcMain.handle('discover-effects', async (event) => {
     try {
-        const { EffectDiscovery } = await import('my-nft-gen/src/core/discovery/EffectDiscovery.js');
-        const effects = await EffectDiscovery.discoverAvailableEffects();
+        console.log('Using registry-based effect discovery');
+
+        // Load the effects into the registry first
+        const { PluginLoader } = await import('my-nft-gen/src/core/plugins/PluginLoader.js');
+        const { EffectRegistry } = await import('my-nft-gen/src/core/registry/EffectRegistry.js');
+
+        console.log('Loading core effects into registry...');
+
+        // Directly call the registration function with proper await
+        const { registerCoreEffects } = await import('my-nft-gen/src/core/registry/CoreEffectsRegistration.js');
+        await registerCoreEffects();
+
+        console.log('Getting all registered effects from global registry...');
+        const registeredEffects = EffectRegistry.getAllGlobal();
+
+        console.log(`Found ${registeredEffects.length} registered effects`);
+
+        const effects = { primary: [], secondary: [], keyFrame: [], final: [] };
+
+        // Use the registry data directly - no import path construction
+        for (const effectInfo of registeredEffects) {
+            try {
+                const { name, effectClass, category, metadata } = effectInfo;
+
+                // Create effect data using the registry information (no complex objects for IPC)
+                const effectData = {
+                    name: name,
+                    displayName: name.replace('Effect', '').replace(/([A-Z])/g, ' $1').trim() || name,
+                    description: metadata?.description || `${name} effect`,
+                    configClass: name.replace('Effect', 'Config'),
+                    category: category
+                };
+
+                // Add to appropriate category
+                const categoryKey = category || 'primary';
+                if (effects[categoryKey]) {
+                    effects[categoryKey].push(effectData);
+                    console.log(`Added from registry: ${effectData.name} -> ${categoryKey}`);
+                } else {
+                    effects.primary.push(effectData);
+                    console.log(`Added to primary (unknown category): ${effectData.name}`);
+                }
+            } catch (effectError) {
+                console.warn(`Failed to process effect ${effectInfo.name}:`, effectError.message);
+            }
+        }
 
         console.log('=== DISCOVERED EFFECTS ===');
         Object.keys(effects).forEach(category => {
             console.log(`${category} effects:`, effects[category].length);
             effects[category].forEach(effect => {
-                console.log(`  - ${effect.name}:`);
-                console.log(`    displayName: ${effect.displayName}`);
-                console.log(`    configModule: ${effect.configModule}`);
-                console.log(`    configClass: ${effect.configClass}`);
-                console.log(`    effectFile: ${effect.effectFile}`);
-
-                // Fix asterisk displayNames
-                if (effect.displayName === '*' || !effect.displayName) {
-                    effect.displayName = effect.name;
-                    console.log(`    Fixed displayName to: ${effect.displayName}`);
-                }
+                console.log(`  - ${effect.name} (${effect.displayName})`);
             });
         });
 
@@ -821,27 +855,34 @@ ipcMain.handle('preview-effect', async (event, { effectClass, effectConfig, fram
         const { EffectPreviewRenderer } = await import('my-nft-gen/src/core/preview/EffectPreviewRenderer.js');
 
         // Validate effect class metadata
-        if (!effectClass || !effectClass.effectFile || !effectClass.name || !effectClass.configModule || !effectClass.configClass) {
+        if (!effectClass || !effectClass.name) {
             console.error('Invalid effect class metadata:', effectClass);
-            return { success: false, error: 'Invalid effect class metadata. Missing required properties (effectFile, name, configModule, configClass).' };
+            return { success: false, error: 'Invalid effect class metadata. Missing required properties (name).' };
         }
 
-        // Dynamically import the effect class and config class
-        let EffectClassConstructor, ConfigClassConstructor, properEffectConfig;
+        // Get effect and config classes from registry instead of dynamic imports
+        const { EffectRegistry } = await import('my-nft-gen/src/core/registry/EffectRegistry.js');
+        const { registerCoreEffects } = await import('my-nft-gen/src/core/registry/CoreEffectsRegistration.js');
+
+        // Ensure effects are loaded
+        await registerCoreEffects();
+
+        // Get the effect class from registry
+        const EffectClassConstructor = EffectRegistry.getGlobal(effectClass.name);
+
+        if (!EffectClassConstructor) {
+            throw new Error(`Effect class '${effectClass.name}' not found in registry`);
+        }
+
+        // Get the config class by creating a default instance and checking its constructor
+        let ConfigClassConstructor, properEffectConfig;
         try {
-            const effectModule = await import(effectClass.effectFile);
-            EffectClassConstructor = effectModule[effectClass.name];
-
-            if (!EffectClassConstructor) {
-                throw new Error(`Effect class '${effectClass.name}' not found in module '${effectClass.effectFile}'`);
-            }
-
-            // Also import the config class to properly instantiate it
-            const configModule = await import(effectClass.configModule);
-            ConfigClassConstructor = configModule[effectClass.configClass];
+            // Create a temporary instance to get the config class
+            const tempEffect = new EffectClassConstructor({});
+            ConfigClassConstructor = tempEffect.config.constructor;
 
             if (!ConfigClassConstructor) {
-                throw new Error(`Config class '${effectClass.configClass}' not found in module '${effectClass.configModule}'`);
+                throw new Error(`Could not determine config class for effect '${effectClass.name}'`);
             }
 
             // Import ColorPicker for color properties
@@ -854,18 +895,38 @@ ipcMain.handle('preview-effect', async (event, { effectClass, effectConfig, fram
             });
 
             // First create a default config to get all defaults
-            const defaultConfig = new ConfigClassConstructor({});
+            let defaultConfig;
+            try {
+                defaultConfig = new ConfigClassConstructor({});
+            } catch (configError) {
+                console.error('Error creating config instance:', configError);
+                // Try creating with explicit base class check
+                if (configError.message.includes('EffectConfig') || configError.message.includes('initialization')) {
+                    // Wait a bit and try again to allow module initialization to complete
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    try {
+                        defaultConfig = new ConfigClassConstructor({});
+                    } catch (retryError) {
+                        console.error('Retry failed, falling back to simple config object');
+                        // Fallback: create a simple config with user values
+                        defaultConfig = effectConfig || {};
+                    }
+                } else {
+                    throw configError;
+                }
+            }
 
             // Process user config to convert values to proper object types
             const processedConfig = {};
             for (const [key, value] of Object.entries(effectConfig)) {
                 const keyLower = key.toLowerCase();
 
-                // Import PercentageShortestSide/PercentageLongestSide for preview processing
+                // Import PercentageShortestSide/PercentageLongestSide/PercentageRange for preview processing
                 const { PercentageShortestSide } = await import('my-nft-gen/src/core/layer/configType/PercentageShortestSide.js');
                 const { PercentageLongestSide } = await import('my-nft-gen/src/core/layer/configType/PercentageLongestSide.js');
+                const { PercentageRange } = await import('my-nft-gen/src/core/layer/configType/PercentageRange.js');
 
-                // Check if this property was originally a PercentageShortestSide or PercentageLongestSide
+                // Check if this property was originally a PercentageShortestSide, PercentageLongestSide, or PercentageRange
                 const originalValue = defaultConfig[key];
                 if (originalValue && typeof originalValue === 'object') {
                     const originalClassName = originalValue.constructor?.name;
@@ -874,6 +935,44 @@ ipcMain.handle('preview-effect', async (event, { effectClass, effectConfig, fram
                         continue;
                     } else if (originalClassName === 'PercentageLongestSide' && typeof value === 'number') {
                         processedConfig[key] = new PercentageLongestSide(value);
+                        continue;
+                    } else if (originalClassName === 'PercentageRange' && value && typeof value === 'object' &&
+                               typeof value.lower !== 'undefined' && typeof value.upper !== 'undefined') {
+                        try {
+                            const testRange = new PercentageRange(value.lower, value.upper);
+                            // Verify the PercentageRange was created properly
+                            if (typeof testRange.lower === 'function' && typeof testRange.upper === 'function') {
+                                processedConfig[key] = testRange;
+                                console.log(`Successfully created PercentageRange for ${key}:`, processedConfig[key]);
+                            } else {
+                                console.warn(`PercentageRange created for ${key} but has invalid properties:`, testRange);
+                                throw new Error('PercentageRange created but properties are not functions');
+                            }
+                        } catch (rangeError) {
+                            console.warn(`Error creating PercentageRange for ${key}:`, rangeError);
+                            console.log(`Attempting fallback with original value for ${key}:`, originalValue);
+                            // Try to extract values from original if it has function getters
+                            try {
+                                const fallbackValue = {
+                                    lower: typeof originalValue.lower === 'function' ? originalValue.lower() : 0.1,
+                                    upper: typeof originalValue.upper === 'function' ? originalValue.upper() : 0.9
+                                };
+                                processedConfig[key] = new PercentageRange(fallbackValue.lower, fallbackValue.upper);
+                                console.log(`Fallback PercentageRange created for ${key}:`, processedConfig[key]);
+                            } catch (fallbackError) {
+                                console.warn(`Fallback also failed for ${key}:`, fallbackError);
+                                // Last resort: create a simple object that mimics PercentageRange interface
+                                const lowerVal = typeof value.lower === 'number' ? value.lower : 0.1;
+                                const upperVal = typeof value.upper === 'number' ? value.upper : 0.9;
+                                processedConfig[key] = {
+                                    lower: function() { return lowerVal; },  // Function getter like real PercentageRange
+                                    upper: function() { return upperVal; },  // Function getter like real PercentageRange
+                                    getValue: function() { return lowerVal; }, // Mock function for compatibility
+                                    getUpperValue: function() { return upperVal; }
+                                };
+                                console.log(`Created mock PercentageRange for ${key}:`, processedConfig[key]);
+                            }
+                        }
                         continue;
                     }
                 }
@@ -942,10 +1041,11 @@ ipcMain.handle('preview-effect', async (event, { effectClass, effectConfig, fram
         });
 
         // Use the color scheme data from the frontend (EffectPreview.jsx)
-        // Fallback to default colors if no color scheme is provided
+        // Use project resolution instead of hardcoded dimensions
         const enhancedProjectSettings = {
-            width: 1920,
-            height: 1080,
+            width: projectSettings.width || 1920,
+            height: projectSettings.height || 1080,
+            isHorizontal: projectSettings.isHorizontal,
             colorScheme: projectSettings.colorScheme || {
                 colorBucket: ['#00FFFF', '#FF00FF', '#FFFF00', '#FF0080', '#8000FF', '#00FF80'],
                 colorSchemeInfo: 'Default preview color scheme'
@@ -978,27 +1078,34 @@ ipcMain.handle('preview-effect-thumbnail', async (event, { effectClass, effectCo
         const { EffectPreviewRenderer } = await import('my-nft-gen/src/core/preview/EffectPreviewRenderer.js');
 
         // Validate effect class metadata
-        if (!effectClass || !effectClass.effectFile || !effectClass.name || !effectClass.configModule || !effectClass.configClass) {
+        if (!effectClass || !effectClass.name) {
             console.error('Invalid effect class metadata:', effectClass);
-            return { success: false, error: 'Invalid effect class metadata. Missing required properties (effectFile, name, configModule, configClass).' };
+            return { success: false, error: 'Invalid effect class metadata. Missing required properties (name).' };
         }
 
-        // Dynamically import the effect class and config class
-        let EffectClassConstructor, ConfigClassConstructor, properEffectConfig;
+        // Get effect and config classes from registry instead of dynamic imports
+        const { EffectRegistry } = await import('my-nft-gen/src/core/registry/EffectRegistry.js');
+        const { registerCoreEffects } = await import('my-nft-gen/src/core/registry/CoreEffectsRegistration.js');
+
+        // Ensure effects are loaded
+        await registerCoreEffects();
+
+        // Get the effect class from registry
+        const EffectClassConstructor = EffectRegistry.getGlobal(effectClass.name);
+
+        if (!EffectClassConstructor) {
+            throw new Error(`Effect class '${effectClass.name}' not found in registry`);
+        }
+
+        // Get the config class by creating a default instance and checking its constructor
+        let ConfigClassConstructor, properEffectConfig;
         try {
-            const effectModule = await import(effectClass.effectFile);
-            EffectClassConstructor = effectModule[effectClass.name];
-
-            if (!EffectClassConstructor) {
-                throw new Error(`Effect class '${effectClass.name}' not found in module '${effectClass.effectFile}'`);
-            }
-
-            // Also import the config class to properly instantiate it
-            const configModule = await import(effectClass.configModule);
-            ConfigClassConstructor = configModule[effectClass.configClass];
+            // Create a temporary instance to get the config class
+            const tempEffect = new EffectClassConstructor({});
+            ConfigClassConstructor = tempEffect.config.constructor;
 
             if (!ConfigClassConstructor) {
-                throw new Error(`Config class '${effectClass.configClass}' not found in module '${effectClass.configModule}'`);
+                throw new Error(`Could not determine config class for effect '${effectClass.name}'`);
             }
 
             // Import ColorPicker for color properties
@@ -1011,18 +1118,38 @@ ipcMain.handle('preview-effect-thumbnail', async (event, { effectClass, effectCo
             });
 
             // First create a default config to get all defaults
-            const defaultConfig = new ConfigClassConstructor({});
+            let defaultConfig;
+            try {
+                defaultConfig = new ConfigClassConstructor({});
+            } catch (configError) {
+                console.error('Error creating config instance:', configError);
+                // Try creating with explicit base class check
+                if (configError.message.includes('EffectConfig') || configError.message.includes('initialization')) {
+                    // Wait a bit and try again to allow module initialization to complete
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    try {
+                        defaultConfig = new ConfigClassConstructor({});
+                    } catch (retryError) {
+                        console.error('Retry failed, falling back to simple config object');
+                        // Fallback: create a simple config with user values
+                        defaultConfig = effectConfig || {};
+                    }
+                } else {
+                    throw configError;
+                }
+            }
 
             // Process user config to convert values to proper object types
             const processedConfig = {};
             for (const [key, value] of Object.entries(effectConfig)) {
                 const keyLower = key.toLowerCase();
 
-                // Import PercentageShortestSide/PercentageLongestSide for preview processing
+                // Import PercentageShortestSide/PercentageLongestSide/PercentageRange for preview processing
                 const { PercentageShortestSide } = await import('my-nft-gen/src/core/layer/configType/PercentageShortestSide.js');
                 const { PercentageLongestSide } = await import('my-nft-gen/src/core/layer/configType/PercentageLongestSide.js');
+                const { PercentageRange } = await import('my-nft-gen/src/core/layer/configType/PercentageRange.js');
 
-                // Check if this property was originally a PercentageShortestSide or PercentageLongestSide
+                // Check if this property was originally a PercentageShortestSide, PercentageLongestSide, or PercentageRange
                 const originalValue = defaultConfig[key];
                 if (originalValue && typeof originalValue === 'object') {
                     const originalClassName = originalValue.constructor?.name;
@@ -1031,6 +1158,44 @@ ipcMain.handle('preview-effect-thumbnail', async (event, { effectClass, effectCo
                         continue;
                     } else if (originalClassName === 'PercentageLongestSide' && typeof value === 'number') {
                         processedConfig[key] = new PercentageLongestSide(value);
+                        continue;
+                    } else if (originalClassName === 'PercentageRange' && value && typeof value === 'object' &&
+                               typeof value.lower !== 'undefined' && typeof value.upper !== 'undefined') {
+                        try {
+                            const testRange = new PercentageRange(value.lower, value.upper);
+                            // Verify the PercentageRange was created properly
+                            if (typeof testRange.lower === 'function' && typeof testRange.upper === 'function') {
+                                processedConfig[key] = testRange;
+                                console.log(`Successfully created PercentageRange for ${key}:`, processedConfig[key]);
+                            } else {
+                                console.warn(`PercentageRange created for ${key} but has invalid properties:`, testRange);
+                                throw new Error('PercentageRange created but properties are not functions');
+                            }
+                        } catch (rangeError) {
+                            console.warn(`Error creating PercentageRange for ${key}:`, rangeError);
+                            console.log(`Attempting fallback with original value for ${key}:`, originalValue);
+                            // Try to extract values from original if it has function getters
+                            try {
+                                const fallbackValue = {
+                                    lower: typeof originalValue.lower === 'function' ? originalValue.lower() : 0.1,
+                                    upper: typeof originalValue.upper === 'function' ? originalValue.upper() : 0.9
+                                };
+                                processedConfig[key] = new PercentageRange(fallbackValue.lower, fallbackValue.upper);
+                                console.log(`Fallback PercentageRange created for ${key}:`, processedConfig[key]);
+                            } catch (fallbackError) {
+                                console.warn(`Fallback also failed for ${key}:`, fallbackError);
+                                // Last resort: create a simple object that mimics PercentageRange interface
+                                const lowerVal = typeof value.lower === 'number' ? value.lower : 0.1;
+                                const upperVal = typeof value.upper === 'number' ? value.upper : 0.9;
+                                processedConfig[key] = {
+                                    lower: function() { return lowerVal; },  // Function getter like real PercentageRange
+                                    upper: function() { return upperVal; },  // Function getter like real PercentageRange
+                                    getValue: function() { return lowerVal; }, // Mock function for compatibility
+                                    getUpperValue: function() { return upperVal; }
+                                };
+                                console.log(`Created mock PercentageRange for ${key}:`, processedConfig[key]);
+                            }
+                        }
                         continue;
                     }
                 }
@@ -1092,10 +1257,28 @@ ipcMain.handle('preview-effect-thumbnail', async (event, { effectClass, effectCo
         }
 
         // Use the color scheme data from the frontend (EffectPreview.jsx)
-        // Fallback to default colors if no color scheme is provided
+        // Use project resolution instead of forcing square thumbnails
+        const projectWidth = projectSettings.width || 1920;
+        const projectHeight = projectSettings.height || 1080;
+
+        // Scale the resolution down to fit within thumbnail size while maintaining aspect ratio
+        const aspectRatio = projectWidth / projectHeight;
+        let renderWidth, renderHeight;
+
+        if (aspectRatio > 1) {
+            // Landscape - constrain width
+            renderWidth = thumbnailSize;
+            renderHeight = Math.round(thumbnailSize / aspectRatio);
+        } else {
+            // Portrait or square - constrain height
+            renderHeight = thumbnailSize;
+            renderWidth = Math.round(thumbnailSize * aspectRatio);
+        }
+
         const enhancedProjectSettings = {
-            width: thumbnailSize,
-            height: thumbnailSize,
+            width: renderWidth,
+            height: renderHeight,
+            isHorizontal: projectSettings.isHorizontal,
             colorScheme: projectSettings.colorScheme || {
                 colorBucket: ['#00FFFF', '#FF00FF', '#FFFF00', '#FF0080', '#8000FF', '#00FF80'],
                 colorSchemeInfo: 'Default preview color scheme'
@@ -1181,55 +1364,36 @@ ipcMain.handle('list-completed-frames', async (event, projectDirectory) => {
 });
 
 // Config Introspection IPC handler
-ipcMain.handle('introspect-config', async (event, { configModule, configClass }) => {
+ipcMain.handle('introspect-config', async (event, { effectName }) => {
     try {
         console.log(`=== CONFIG INTROSPECTION ===`);
-        console.log(`Attempting to import: ${configModule}`);
-        console.log(`Looking for class: ${configClass}`);
+        console.log(`Getting config for effect: ${effectName}`);
 
-        // Special handling for known effect configs - try direct instantiation first
-        const effectConfigMap = {
-            // Use actual paths from my-nft-effects-core
-            'CurvedRedEyeConfig': 'my-nft-effects-core/src/effects/primaryEffects/curved-red-eye/CurvedRedEyeConfig.js',
-            'EncircledSpiralConfig': 'my-nft-effects-core/src/effects/primaryEffects/encircledSpiral/EncircledSpiralConfig.js',
-            'GatesConfig': 'my-nft-effects-core/src/effects/primaryEffects/gates/GatesConfig.js',
-            'RayRingConfig': 'my-nft-effects-core/src/effects/primaryEffects/rayRing/RayRingConfig.js',
-            'ViewportConfig': 'my-nft-effects-core/src/effects/primaryEffects/viewport/ViewportConfig.js',
-            'FuzzFlareConfig': 'my-nft-effects-core/src/effects/primaryEffects/fuzz-flare/FuzzFlareConfig.js'
-        };
+        // Get effect and config classes from registry instead of imports
+        const { EffectRegistry } = await import('my-nft-gen/src/core/registry/EffectRegistry.js');
+        const { registerCoreEffects } = await import('my-nft-gen/src/core/registry/CoreEffectsRegistration.js');
 
-        let module, ConfigClass;
+        // Ensure effects are loaded
+        await registerCoreEffects();
 
-        // Try direct mapping first for known configs
-        if (effectConfigMap[configClass]) {
-            try {
-                console.log(`Trying direct import for known config: ${effectConfigMap[configClass]}`);
-                module = await import(effectConfigMap[configClass]);
-                ConfigClass = module[configClass];
-                if (ConfigClass) {
-                    console.log(`Successfully loaded ${configClass} via direct mapping`);
-                }
-            } catch (directError) {
-                console.log(`Direct mapping failed: ${directError.message}`);
-            }
+        // Get the effect class from registry
+        const EffectClassConstructor = EffectRegistry.getGlobal(effectName);
+
+        if (!EffectClassConstructor) {
+            throw new Error(`Effect class '${effectName}' not found in registry`);
         }
 
-        // Fallback to provided module path if direct mapping failed
+        // Get the config class by creating a default instance and checking its constructor
+        const tempEffect = new EffectClassConstructor({});
+        const ConfigClass = tempEffect.config.constructor;
+
         if (!ConfigClass) {
-            console.log(`Falling back to provided module path: ${configModule}`);
-            module = await import(configModule);
-            console.log(`Module imported successfully. Available exports:`, Object.keys(module));
-
-            ConfigClass = module[configClass];
-            console.log(`ConfigClass found:`, ConfigClass ? ConfigClass.name : 'NOT FOUND');
-
-            if (!ConfigClass) {
-                throw new Error(`Config class ${configClass} not found in module ${configModule}. Available: ${Object.keys(module).join(', ')}`);
-            }
+            throw new Error(`Could not determine config class for effect '${effectName}'`);
         }
+
+        console.log(`Found config class: ${ConfigClass.name} for effect: ${effectName}`);
 
         // Create an instance to introspect its properties
-        // Call constructor with NO parameters to get true defaults
         console.log(`Creating instance of ${ConfigClass.name}...`);
 
         // Create instance like the effects do: new ConfigClass({})
@@ -1238,7 +1402,7 @@ ipcMain.handle('introspect-config', async (event, { configModule, configClass })
         console.log(`Instance created with empty object (triggers destructured defaults):`, instance);
         console.log(`Instance properties:`, Object.getOwnPropertyNames(instance).sort());
 
-        console.log(`Created ${configClass} instance with ${Object.keys(instance).length} properties:`, Object.keys(instance));
+        console.log(`Created ${ConfigClass.name} instance with ${Object.keys(instance).length} properties:`, Object.keys(instance));
 
         // Extract ALL properties (own + inherited + prototype)
         const properties = {};
@@ -1286,23 +1450,35 @@ ipcMain.handle('introspect-config', async (event, { configModule, configClass })
 
                 // Make sure the value is serializable
                 let serializableValue = value;
-                try {
-                    // Special handling for PercentageShortestSide/PercentageLongestSide objects
-                    if (className === 'PercentageShortestSide' || className === 'PercentageLongestSide') {
-                        // Extract only the percent value, not the function
-                        serializableValue = value.percent || 0;
-                    } else {
-                        // Test if value can be serialized
-                        JSON.stringify(value);
+
+                // Special handling for known object types (outside try-catch to avoid fallback to [Object])
+                if (className === 'PercentageShortestSide' || className === 'PercentageLongestSide') {
+                    // Extract only the percent value, not the function
+                    serializableValue = value.percent || 0;
+                } else if (className === 'PercentageRange') {
+                    // Special handling for PercentageRange objects with function getters
+                    try {
+                        serializableValue = {
+                            lower: typeof value.lower === 'function' ? value.lower() : value.lower,
+                            upper: typeof value.upper === 'function' ? value.upper() : value.upper
+                        };
+                    } catch (rangeError) {
+                        console.warn(`Error extracting PercentageRange values for ${key}:`, rangeError);
+                        serializableValue = { lower: 0.1, upper: 0.9 }; // Fallback values
                     }
-                } catch (e) {
-                    // If not serializable, convert to string representation
-                    if (type === 'object') {
-                        serializableValue = '[Object]';
-                    } else if (type === 'function') {
-                        serializableValue = '[Function]';
-                    } else {
-                        serializableValue = String(value);
+                } else {
+                    // Test if value can be serialized for other types
+                    try {
+                        JSON.stringify(value);
+                    } catch (e) {
+                        // If not serializable, convert to string representation
+                        if (type === 'object') {
+                            serializableValue = '[Object]';
+                        } else if (type === 'function') {
+                            serializableValue = '[Function]';
+                        } else {
+                            serializableValue = String(value);
+                        }
                     }
                 }
 

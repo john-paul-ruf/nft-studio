@@ -105,8 +105,8 @@ export class EffectLibrary {
                     displayName: 'Fuzz Flare',
                     description: 'Creates dynamic energy patterns with customizable colors and animations',
                     configClass: 'FuzzFlareConfig',
-                    effectFile: 'my-nft-effects-core/src/effects/primaryEffects/fuzz-flare/FuzzFlareEffect.js',
-                    configModule: 'my-nft-effects-core/src/effects/primaryEffects/fuzz-flare/FuzzFlareConfig.js'
+                    effectFile: 'my-nft-gen/src/effects/primaryEffects/fuzz-flare/FuzzFlareEffect.js',
+                    configModule: 'my-nft-gen/src/effects/primaryEffects/fuzz-flare/FuzzFlareConfig.js'
                 }
             ],
             secondary: [],

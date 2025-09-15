@@ -15,8 +15,7 @@ export class ConfigIntrospector {
         try {
             // Create an instance of the config class with default constructor to get defaults
             const result = await ipcRenderer.invoke('introspect-config', {
-                configModule: effectMetadata.configModule,
-                configClass: effectMetadata.configClass
+                effectName: effectMetadata.name
             });
 
             if (result.success) {
@@ -146,6 +145,26 @@ export class ConfigIntrospector {
                 };
             }
 
+            // Check if it's a strategy array (contains string options)
+            if (nameLower.includes('strategy') && value.length > 0 && typeof value[0] === 'string') {
+                return {
+                    ...field,
+                    type: 'multiselect',
+                    options: value,
+                    label: field.label + ' Options'
+                };
+            }
+
+            // Check if it's a sparsity factor or similar numeric array
+            if (nameLower.includes('sparsity') || nameLower.includes('factor')) {
+                return {
+                    ...field,
+                    type: 'multiselect',
+                    options: value,
+                    label: field.label + ' Values'
+                };
+            }
+
             // All other arrays as JSON
             return {
                 ...field,
@@ -163,12 +182,36 @@ export class ConfigIntrospector {
                 };
 
             case 'number':
+                // Handle specific numeric field types
+                // Stroke and thickness should be regular numbers (0-20 range)
+                if (nameLower.includes('stroke') || nameLower.includes('thickness')) {
+                    return {
+                        ...field,
+                        type: 'number',
+                        min: 0,
+                        max: 20,
+                        step: 1
+                    };
+                }
+
+                // Opacity fields should be percentages (0-1 range with 0.01 step)
+                if (nameLower.includes('opacity')) {
+                    return {
+                        ...field,
+                        type: 'number',
+                        min: 0,
+                        max: 1,
+                        step: 0.01
+                    };
+                }
+
+                // Default number handling
                 return {
                     ...field,
                     type: 'number',
                     min: 0,
-                    max: name.includes('opacity') || name.includes('Opacity') ? 1 : 100,
-                    step: name.includes('opacity') || name.includes('Opacity') ? 0.01 : 1
+                    max: 100,
+                    step: 1
                 };
 
             case 'string':
@@ -198,9 +241,24 @@ export class ConfigIntrospector {
                             };
 
                         case 'PercentageRange':
+                            // Handle PercentageRange objects that may have function getters
+                            let defaultValue = value;
+                            if (value && typeof value.lower === 'function' && typeof value.upper === 'function') {
+                                // Convert function getters to actual values for UI
+                                try {
+                                    defaultValue = {
+                                        lower: value.lower(),
+                                        upper: value.upper()
+                                    };
+                                } catch (e) {
+                                    // If functions fail, use safe defaults
+                                    defaultValue = { lower: 0.1, upper: 0.9 };
+                                }
+                            }
                             return {
                                 ...field,
                                 type: 'percentagerange',
+                                default: defaultValue,
                                 label: field.label + ' Range'
                             };
 
@@ -228,14 +286,17 @@ export class ConfigIntrospector {
                             };
 
                         default:
-                            // Check for common object structures
+                            // For objects without a clear class name, fall back to structure-based detection
+                            // But this should be rare since most objects should have proper class names
                             if (value.hasOwnProperty('lower') && value.hasOwnProperty('upper')) {
+                                // Default to regular range - class-based detection should handle most cases
                                 return {
                                     ...field,
                                     type: 'range',
                                     min: 0,
                                     max: name.includes('opacity') || name.includes('Opacity') ? 1 : 100,
-                                    step: name.includes('opacity') || name.includes('Opacity') ? 0.01 : 1
+                                    step: name.includes('opacity') || name.includes('Opacity') ? 0.01 : 1,
+                                    label: field.label + ' Range'
                                 };
                             }
                             if (value.hasOwnProperty('x') && value.hasOwnProperty('y')) {
@@ -361,13 +422,39 @@ export class ConfigIntrospector {
                 };
 
             case 'number':
+                // Handle specific numeric field types
+                // Stroke and thickness should be regular numbers (0-20 range)
+                if (nameLower.includes('stroke') || nameLower.includes('thickness')) {
+                    return {
+                        ...field,
+                        type: 'number',
+                        default: value,
+                        min: 0,
+                        max: 20,
+                        step: 1
+                    };
+                }
+
+                // Opacity fields should be percentages (0-1 range with 0.01 step)
+                if (nameLower.includes('opacity')) {
+                    return {
+                        ...field,
+                        type: 'number',
+                        default: value,
+                        min: 0,
+                        max: 1,
+                        step: 0.01
+                    };
+                }
+
+                // Default number handling
                 return {
                     ...field,
                     type: 'number',
                     default: value,
                     min: 0,
-                    max: name.includes('opacity') || name.includes('Opacity') ? 1 : 100,
-                    step: name.includes('opacity') || name.includes('Opacity') ? 0.01 : 1
+                    max: 100,
+                    step: 1
                 };
 
             case 'string':
@@ -428,10 +515,24 @@ export class ConfigIntrospector {
                     };
 
                 case 'PercentageRange':
+                    // Handle PercentageRange objects that may have function getters
+                    let defaultValue = value;
+                    if (value && typeof value.lower === 'function' && typeof value.upper === 'function') {
+                        // Convert function getters to actual values for UI
+                        try {
+                            defaultValue = {
+                                lower: value.lower(),
+                                upper: value.upper()
+                            };
+                        } catch (e) {
+                            // If functions fail, use safe defaults
+                            defaultValue = { lower: 0.1, upper: 0.9 };
+                        }
+                    }
                     return {
                         ...field,
                         type: 'percentagerange',
-                        default: value,
+                        default: defaultValue,
                         label: field.label + ' Range'
                     };
 
@@ -461,38 +562,8 @@ export class ConfigIntrospector {
                     };
 
                 default:
-                    // For unknown classes, try to handle as object with properties
-                    if (value && typeof value === 'object') {
-                        // Check for dynamic range structure (bottom/top with lower/upper)
-                        if (value.hasOwnProperty('bottom') && value.hasOwnProperty('top') &&
-                            value.bottom && value.top &&
-                            value.bottom.hasOwnProperty('lower') && value.bottom.hasOwnProperty('upper') &&
-                            value.top.hasOwnProperty('lower') && value.top.hasOwnProperty('upper')) {
-                            return {
-                                ...field,
-                                type: 'dynamicrange',
-                                default: value,
-                                label: field.label + ' Dynamic Range'
-                            };
-                        }
-                        if (value.hasOwnProperty('lower') && value.hasOwnProperty('upper')) {
-                            return {
-                                ...field,
-                                type: 'range',
-                                min: 0,
-                                max: name.includes('opacity') || name.includes('Opacity') ? 1 : 100,
-                                default: value,
-                                step: name.includes('opacity') || name.includes('Opacity') ? 0.01 : 1
-                            };
-                        }
-                        if (value.hasOwnProperty('x') && value.hasOwnProperty('y')) {
-                            return {
-                                ...field,
-                                type: 'point2d',
-                                default: value
-                            };
-                        }
-                    }
+                    // All core configs are standardized to use correct types
+                    // If we reach here, it's an unknown object type - default to JSON
                     break;
             }
         }
