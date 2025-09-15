@@ -9,13 +9,15 @@ export class ConfigIntrospector {
     /**
      * Analyze a config class and extract all its properties and their types
      * @param {Object} effectMetadata - Effect metadata from discovery
+     * @param {Object} projectData - Project data for resolution context (optional)
      * @returns {Promise<Object>} Schema object with fields
      */
-    static async analyzeConfigClass(effectMetadata) {
+    static async analyzeConfigClass(effectMetadata, projectData = null) {
         try {
             // Create an instance of the config class with default constructor to get defaults
             const result = await ipcRenderer.invoke('introspect-config', {
-                effectName: effectMetadata.name
+                effectName: effectMetadata.name,
+                projectData: projectData
             });
 
             if (result.success) {

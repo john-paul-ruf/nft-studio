@@ -1383,8 +1383,78 @@ ipcMain.handle('list-completed-frames', async (event, projectDirectory) => {
     }
 });
 
+/**
+ * Apply Point2D center override based on project resolution
+ * @param {Object} config - The config object to modify
+ * @param {Object} projectData - Project data containing resolution info
+ */
+function applyPoint2DCenterOverride(config, projectData) {
+    if (!projectData?.resolution) {
+        return;
+    }
+
+    // Resolution mapping - same as frontend
+    const resolutions = {
+        'qvga': { width: 320, height: 240 },
+        'vga': { width: 640, height: 480 },
+        'svga': { width: 800, height: 600 },
+        'xga': { width: 1024, height: 768 },
+        'hd720': { width: 1280, height: 720 },
+        'hd': { width: 1920, height: 1080 },
+        'square_small': { width: 720, height: 720 },
+        'square': { width: 1080, height: 1080 },
+        'wqhd': { width: 2560, height: 1440 },
+        '4k': { width: 3840, height: 2160 },
+        '5k': { width: 5120, height: 2880 },
+        '8k': { width: 7680, height: 4320 },
+        'portrait_hd': { width: 1080, height: 1920 },
+        'portrait_4k': { width: 2160, height: 3840 },
+        'ultrawide': { width: 3440, height: 1440 },
+        'cinema_2k': { width: 2048, height: 1080 },
+        'cinema_4k': { width: 4096, height: 2160 }
+    };
+
+    const baseResolution = resolutions[projectData.resolution] || resolutions.hd;
+
+    // Apply isHoz setting - same logic as frontend
+    const autoIsHoz = baseResolution.width > baseResolution.height;
+    const isHoz = projectData?.isHoz !== null ? projectData.isHoz : autoIsHoz;
+
+    // Determine actual dimensions based on orientation setting
+    let width, height;
+    if (isHoz) {
+        width = baseResolution.width;
+        height = baseResolution.height;
+    } else {
+        width = baseResolution.height;
+        height = baseResolution.width;
+    }
+
+    const projectCenter = {
+        x: width / 2,
+        y: height / 2
+    };
+
+    // Find and override Point2D properties that look like center points
+    for (const [key, value] of Object.entries(config)) {
+        if (value && typeof value === 'object' &&
+            typeof value.x === 'number' && typeof value.y === 'number') {
+
+            // Check if this looks like a center property
+            const isCenter = key.toLowerCase().includes('center') ||
+                           key.toLowerCase().includes('position') ||
+                           key.toLowerCase().includes('point');
+
+            if (isCenter) {
+                console.log(`Backend: Overriding Point2D ${key} from {x: ${value.x}, y: ${value.y}} to {x: ${projectCenter.x}, y: ${projectCenter.y}}`);
+                config[key] = projectCenter;
+            }
+        }
+    }
+}
+
 // Config Introspection IPC handler
-ipcMain.handle('introspect-config', async (event, { effectName }) => {
+ipcMain.handle('introspect-config', async (event, { effectName, projectData }) => {
     try {
         console.log(`=== CONFIG INTROSPECTION ===`);
         console.log(`Getting config for effect: ${effectName}`);
@@ -1572,6 +1642,12 @@ ipcMain.handle('introspect-config', async (event, { effectName }) => {
         }
 
         console.log(`Created serializable instance with ${Object.keys(serializableInstance).length} properties`);
+
+        // Override Point2D center properties with project resolution center if projectData is available
+        if (projectData && projectData.resolution) {
+            console.log(`Applying Point2D center override for project resolution: ${projectData.resolution}`);
+            applyPoint2DCenterOverride(serializableInstance, projectData);
+        }
 
         // Ensure everything is fully serializable by round-tripping through JSON
         try {

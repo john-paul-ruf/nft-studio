@@ -2,6 +2,83 @@ import React, { useState, useEffect } from 'react';
 import ConfigInputFactory from './inputs/ConfigInputFactory';
 import { ConfigIntrospector } from '../../utils/configIntrospector';
 
+/**
+ * Override Point2D center properties to use the current project resolution center
+ * @param {Object} config - The effect config object
+ * @param {Object} projectData - Project data containing resolution information
+ * @returns {Object} Updated config with project-based center defaults
+ */
+function overridePoint2DCenterDefaults(config, projectData) {
+    if (!projectData?.resolution) {
+        return config;
+    }
+
+    // Resolution mapping - same as used in Point2DInput and EffectPreview
+    const resolutions = {
+        'qvga': { width: 320, height: 240 },
+        'vga': { width: 640, height: 480 },
+        'svga': { width: 800, height: 600 },
+        'xga': { width: 1024, height: 768 },
+        'hd720': { width: 1280, height: 720 },
+        'hd': { width: 1920, height: 1080 },
+        'square_small': { width: 720, height: 720 },
+        'square': { width: 1080, height: 1080 },
+        'wqhd': { width: 2560, height: 1440 },
+        '4k': { width: 3840, height: 2160 },
+        '5k': { width: 5120, height: 2880 },
+        '8k': { width: 7680, height: 4320 },
+        'portrait_hd': { width: 1080, height: 1920 },
+        'portrait_4k': { width: 2160, height: 3840 },
+        'ultrawide': { width: 3440, height: 1440 },
+        'cinema_2k': { width: 2048, height: 1080 },
+        'cinema_4k': { width: 4096, height: 2160 }
+    };
+
+    const baseResolution = resolutions[projectData.resolution] || resolutions.hd;
+
+    // Apply isHoz setting - same logic as EffectPreview and Point2DInput
+    const autoIsHoz = baseResolution.width > baseResolution.height;
+    const isHoz = projectData?.isHoz !== null ? projectData.isHoz : autoIsHoz;
+
+    // Determine actual dimensions based on orientation setting
+    let width, height;
+    if (isHoz) {
+        width = baseResolution.width;
+        height = baseResolution.height;
+    } else {
+        width = baseResolution.height;
+        height = baseResolution.width;
+    }
+
+    const projectCenter = {
+        x: width / 2,
+        y: height / 2
+    };
+
+    // Deep clone the config to avoid mutations
+    const updatedConfig = JSON.parse(JSON.stringify(config));
+
+    // Find and override Point2D properties that look like center points
+    // Common naming patterns: center, centerPoint, position, etc.
+    for (const [key, value] of Object.entries(updatedConfig)) {
+        if (value && typeof value === 'object' &&
+            typeof value.x === 'number' && typeof value.y === 'number') {
+
+            // Check if this looks like a center property
+            const isCenter = key.toLowerCase().includes('center') ||
+                           key.toLowerCase().includes('position') ||
+                           key.toLowerCase().includes('point');
+
+            if (isCenter) {
+                console.log(`Overriding Point2D ${key} from {x: ${value.x}, y: ${value.y}} to {x: ${projectCenter.x}, y: ${projectCenter.y}}`);
+                updatedConfig[key] = projectCenter;
+            }
+        }
+    }
+
+    return updatedConfig;
+}
+
 function EffectConfigurer({ selectedEffect, projectData, onConfigChange, onAddEffect }) {
     const [configSchema, setConfigSchema] = useState(null);
     const [effectConfig, setEffectConfig] = useState({});
@@ -18,15 +95,20 @@ function EffectConfigurer({ selectedEffect, projectData, onConfigChange, onAddEf
     const loadConfigSchema = async (effect) => {
         try {
             console.log('Loading config schema for effect:', effect);
-            const schema = await ConfigIntrospector.analyzeConfigClass(effect);
+            const schema = await ConfigIntrospector.analyzeConfigClass(effect, projectData);
             console.log('Generated schema:', schema);
             setConfigSchema(schema);
 
             // Use the default instance directly - it has all the correct defaults
             if (schema.defaultInstance) {
                 console.log('Using config defaults from constructor:', schema.defaultInstance);
-                setEffectConfig(schema.defaultInstance);
-                onConfigChange(schema.defaultInstance);
+
+                // Override Point2D center properties with current project resolution center
+                const updatedConfig = overridePoint2DCenterDefaults(schema.defaultInstance, projectData);
+                console.log('Config after Point2D center override:', updatedConfig);
+
+                setEffectConfig(updatedConfig);
+                onConfigChange(updatedConfig);
             } else {
                 console.warn('No default instance available, using empty config');
                 setEffectConfig({});
