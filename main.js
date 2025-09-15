@@ -939,39 +939,49 @@ ipcMain.handle('preview-effect', async (event, { effectClass, effectConfig, fram
                     } else if (originalClassName === 'PercentageRange' && value && typeof value === 'object' &&
                                typeof value.lower !== 'undefined' && typeof value.upper !== 'undefined') {
                         try {
-                            const testRange = new PercentageRange(value.lower, value.upper);
-                            // Verify the PercentageRange was created properly
+                            let lowerSideInstance, upperSideInstance;
+
+                            // Handle new enhanced format {lower: {percent: 0.1, side: 'shortest'}, upper: {percent: 0.9, side: 'longest'}}
+                            if (value.lower && typeof value.lower === 'object' && value.lower.percent !== undefined) {
+                                const lowerPercent = value.lower.percent;
+                                const lowerSide = value.lower.side || 'shortest';
+                                lowerSideInstance = lowerSide === 'longest'
+                                    ? new PercentageLongestSide(lowerPercent)
+                                    : new PercentageShortestSide(lowerPercent);
+                            } else {
+                                // Legacy format - assume shortest side for lower bound
+                                lowerSideInstance = new PercentageShortestSide(typeof value.lower === 'number' ? value.lower : 0.1);
+                            }
+
+                            if (value.upper && typeof value.upper === 'object' && value.upper.percent !== undefined) {
+                                const upperPercent = value.upper.percent;
+                                const upperSide = value.upper.side || 'longest';
+                                upperSideInstance = upperSide === 'longest'
+                                    ? new PercentageLongestSide(upperPercent)
+                                    : new PercentageShortestSide(upperPercent);
+                            } else {
+                                // Legacy format - assume longest side for upper bound
+                                upperSideInstance = new PercentageLongestSide(typeof value.upper === 'number' ? value.upper : 0.9);
+                            }
+
+                            const testRange = new PercentageRange(lowerSideInstance, upperSideInstance);
+                            // Verify the PercentageRange was created properly (without calling the functions)
                             if (typeof testRange.lower === 'function' && typeof testRange.upper === 'function') {
                                 processedConfig[key] = testRange;
-                                console.log(`Successfully created PercentageRange for ${key}:`, processedConfig[key]);
+                                console.log(`Successfully created enhanced PercentageRange for ${key}:`, processedConfig[key]);
                             } else {
-                                console.warn(`PercentageRange created for ${key} but has invalid properties:`, testRange);
                                 throw new Error('PercentageRange created but properties are not functions');
                             }
                         } catch (rangeError) {
                             console.warn(`Error creating PercentageRange for ${key}:`, rangeError);
-                            console.log(`Attempting fallback with original value for ${key}:`, originalValue);
-                            // Try to extract values from original if it has function getters
-                            try {
-                                const fallbackValue = {
-                                    lower: typeof originalValue.lower === 'function' ? originalValue.lower() : 0.1,
-                                    upper: typeof originalValue.upper === 'function' ? originalValue.upper() : 0.9
-                                };
-                                processedConfig[key] = new PercentageRange(fallbackValue.lower, fallbackValue.upper);
-                                console.log(`Fallback PercentageRange created for ${key}:`, processedConfig[key]);
-                            } catch (fallbackError) {
-                                console.warn(`Fallback also failed for ${key}:`, fallbackError);
-                                // Last resort: create a simple object that mimics PercentageRange interface
-                                const lowerVal = typeof value.lower === 'number' ? value.lower : 0.1;
-                                const upperVal = typeof value.upper === 'number' ? value.upper : 0.9;
-                                processedConfig[key] = {
-                                    lower: function() { return lowerVal; },  // Function getter like real PercentageRange
-                                    upper: function() { return upperVal; },  // Function getter like real PercentageRange
-                                    getValue: function() { return lowerVal; }, // Mock function for compatibility
-                                    getUpperValue: function() { return upperVal; }
-                                };
-                                console.log(`Created mock PercentageRange for ${key}:`, processedConfig[key]);
-                            }
+                            // Fallback to simple range
+                            const lowerVal = typeof value.lower === 'object' ? value.lower.percent || 0.1 : (typeof value.lower === 'number' ? value.lower : 0.1);
+                            const upperVal = typeof value.upper === 'object' ? value.upper.percent || 0.9 : (typeof value.upper === 'number' ? value.upper : 0.9);
+                            processedConfig[key] = {
+                                lower: function() { return lowerVal; },
+                                upper: function() { return upperVal; }
+                            };
+                            console.log(`Created fallback PercentageRange for ${key}:`, processedConfig[key]);
                         }
                         continue;
                     }
@@ -1162,39 +1172,49 @@ ipcMain.handle('preview-effect-thumbnail', async (event, { effectClass, effectCo
                     } else if (originalClassName === 'PercentageRange' && value && typeof value === 'object' &&
                                typeof value.lower !== 'undefined' && typeof value.upper !== 'undefined') {
                         try {
-                            const testRange = new PercentageRange(value.lower, value.upper);
-                            // Verify the PercentageRange was created properly
+                            let lowerSideInstance, upperSideInstance;
+
+                            // Handle new enhanced format {lower: {percent: 0.1, side: 'shortest'}, upper: {percent: 0.9, side: 'longest'}}
+                            if (value.lower && typeof value.lower === 'object' && value.lower.percent !== undefined) {
+                                const lowerPercent = value.lower.percent;
+                                const lowerSide = value.lower.side || 'shortest';
+                                lowerSideInstance = lowerSide === 'longest'
+                                    ? new PercentageLongestSide(lowerPercent)
+                                    : new PercentageShortestSide(lowerPercent);
+                            } else {
+                                // Legacy format - assume shortest side for lower bound
+                                lowerSideInstance = new PercentageShortestSide(typeof value.lower === 'number' ? value.lower : 0.1);
+                            }
+
+                            if (value.upper && typeof value.upper === 'object' && value.upper.percent !== undefined) {
+                                const upperPercent = value.upper.percent;
+                                const upperSide = value.upper.side || 'longest';
+                                upperSideInstance = upperSide === 'longest'
+                                    ? new PercentageLongestSide(upperPercent)
+                                    : new PercentageShortestSide(upperPercent);
+                            } else {
+                                // Legacy format - assume longest side for upper bound
+                                upperSideInstance = new PercentageLongestSide(typeof value.upper === 'number' ? value.upper : 0.9);
+                            }
+
+                            const testRange = new PercentageRange(lowerSideInstance, upperSideInstance);
+                            // Verify the PercentageRange was created properly (without calling the functions)
                             if (typeof testRange.lower === 'function' && typeof testRange.upper === 'function') {
                                 processedConfig[key] = testRange;
-                                console.log(`Successfully created PercentageRange for ${key}:`, processedConfig[key]);
+                                console.log(`Successfully created enhanced PercentageRange for ${key}:`, processedConfig[key]);
                             } else {
-                                console.warn(`PercentageRange created for ${key} but has invalid properties:`, testRange);
                                 throw new Error('PercentageRange created but properties are not functions');
                             }
                         } catch (rangeError) {
                             console.warn(`Error creating PercentageRange for ${key}:`, rangeError);
-                            console.log(`Attempting fallback with original value for ${key}:`, originalValue);
-                            // Try to extract values from original if it has function getters
-                            try {
-                                const fallbackValue = {
-                                    lower: typeof originalValue.lower === 'function' ? originalValue.lower() : 0.1,
-                                    upper: typeof originalValue.upper === 'function' ? originalValue.upper() : 0.9
-                                };
-                                processedConfig[key] = new PercentageRange(fallbackValue.lower, fallbackValue.upper);
-                                console.log(`Fallback PercentageRange created for ${key}:`, processedConfig[key]);
-                            } catch (fallbackError) {
-                                console.warn(`Fallback also failed for ${key}:`, fallbackError);
-                                // Last resort: create a simple object that mimics PercentageRange interface
-                                const lowerVal = typeof value.lower === 'number' ? value.lower : 0.1;
-                                const upperVal = typeof value.upper === 'number' ? value.upper : 0.9;
-                                processedConfig[key] = {
-                                    lower: function() { return lowerVal; },  // Function getter like real PercentageRange
-                                    upper: function() { return upperVal; },  // Function getter like real PercentageRange
-                                    getValue: function() { return lowerVal; }, // Mock function for compatibility
-                                    getUpperValue: function() { return upperVal; }
-                                };
-                                console.log(`Created mock PercentageRange for ${key}:`, processedConfig[key]);
-                            }
+                            // Fallback to simple range
+                            const lowerVal = typeof value.lower === 'object' ? value.lower.percent || 0.1 : (typeof value.lower === 'number' ? value.lower : 0.1);
+                            const upperVal = typeof value.upper === 'object' ? value.upper.percent || 0.9 : (typeof value.upper === 'number' ? value.upper : 0.9);
+                            processedConfig[key] = {
+                                lower: function() { return lowerVal; },
+                                upper: function() { return upperVal; }
+                            };
+                            console.log(`Created fallback PercentageRange for ${key}:`, processedConfig[key]);
                         }
                         continue;
                     }
@@ -1456,15 +1476,40 @@ ipcMain.handle('introspect-config', async (event, { effectName }) => {
                     // Extract only the percent value, not the function
                     serializableValue = value.percent || 0;
                 } else if (className === 'PercentageRange') {
-                    // Special handling for PercentageRange objects with function getters
+                    // Enhanced handling for PercentageRange - provide field-specific defaults
                     try {
-                        serializableValue = {
-                            lower: typeof value.lower === 'function' ? value.lower() : value.lower,
-                            upper: typeof value.upper === 'function' ? value.upper() : value.upper
+                        // Field-specific defaults based on the actual FuzzFlareConfig
+                        const fieldDefaults = {
+                            'flareOffset': {
+                                lower: { percent: 0.01, side: 'shortest' },
+                                upper: { percent: 0.06, side: 'shortest' }
+                            },
+                            'flareRingsSizeRange': {
+                                lower: { percent: 0.05, side: 'shortest' },
+                                upper: { percent: 1.0, side: 'longest' }
+                            },
+                            'flareRaysSizeRange': {
+                                lower: { percent: 0.7, side: 'longest' },
+                                upper: { percent: 1.0, side: 'longest' }
+                            }
                         };
+
+                        // Use field-specific defaults if available
+                        if (fieldDefaults[key]) {
+                            serializableValue = fieldDefaults[key];
+                        } else {
+                            // Generic PercentageRange default
+                            serializableValue = {
+                                lower: { percent: 0.1, side: 'shortest' },
+                                upper: { percent: 0.9, side: 'longest' }
+                            };
+                        }
                     } catch (rangeError) {
                         console.warn(`Error extracting PercentageRange values for ${key}:`, rangeError);
-                        serializableValue = { lower: 0.1, upper: 0.9 }; // Fallback values
+                        serializableValue = {
+                            lower: { percent: 0.1, side: 'shortest' },
+                            upper: { percent: 0.9, side: 'longest' }
+                        };
                     }
                 } else {
                     // Test if value can be serialized for other types
@@ -1508,7 +1553,17 @@ ipcMain.handle('introspect-config', async (event, { effectName }) => {
                 try {
                     // Test if the value can be JSON serialized
                     JSON.stringify(prop.value);
-                    serializableInstance[key] = prop.value;
+
+                    // Preserve className information for PercentageRange objects
+                    if (prop.className === 'PercentageRange') {
+                        // Create an object that preserves the className for the config introspector
+                        serializableInstance[key] = {
+                            ...prop.value,
+                            __className: 'PercentageRange'
+                        };
+                    } else {
+                        serializableInstance[key] = prop.value;
+                    }
                 } catch (e) {
                     console.warn(`Skipping non-serializable property ${key}:`, e.message);
                     // Skip non-serializable values

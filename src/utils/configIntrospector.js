@@ -91,7 +91,9 @@ export class ConfigIntrospector {
         };
 
         const type = typeof value;
-        const className = value && typeof value === 'object' && value.constructor ? value.constructor.name : null;
+        // Check for preserved className metadata first, then fall back to constructor name
+        const className = (value && typeof value === 'object' && value.__className) ||
+                         (value && typeof value === 'object' && value.constructor ? value.constructor.name : null);
 
         // Check if property name contains "color" or "Color" - treat as color picker
         const nameLower = name.toLowerCase();
@@ -254,6 +256,10 @@ export class ConfigIntrospector {
                                     // If functions fail, use safe defaults
                                     defaultValue = { lower: 0.1, upper: 0.9 };
                                 }
+                            } else if (value && value.__className) {
+                                // Remove className metadata from the default value
+                                const { __className, ...cleanValue } = value;
+                                defaultValue = cleanValue;
                             }
                             return {
                                 ...field,
@@ -528,6 +534,10 @@ export class ConfigIntrospector {
                             // If functions fail, use safe defaults
                             defaultValue = { lower: 0.1, upper: 0.9 };
                         }
+                    } else if (value && value.__className) {
+                        // Remove className metadata from the default value
+                        const { __className, ...cleanValue } = value;
+                        defaultValue = cleanValue;
                     }
                     return {
                         ...field,

@@ -83,6 +83,7 @@ export class SchemaGenerator {
                 field.default = value;
             }
             else if (this.isPercentageRange(value)) {
+                console.log(`🎯 Detected PercentageRange field: ${name}`, value);
                 field.type = 'percentagerange';
                 field.default = value;
             }
@@ -150,14 +151,41 @@ export class SchemaGenerator {
      * Check if object represents a PercentageRange (has min/max percentage properties)
      */
     static isPercentageRange(value) {
-        return value &&
-               typeof value === 'object' &&
-               'min' in value &&
-               'max' in value &&
-               typeof value.min === 'number' &&
-               typeof value.max === 'number' &&
-               value.min >= 0 && value.min <= 1 &&
-               value.max >= 0 && value.max <= 1;
+        console.log(`🔍 Checking isPercentageRange:`, value);
+        if (!value || typeof value !== 'object') {
+            console.log(`❌ Not object:`, typeof value);
+            return false;
+        }
+
+        // Legacy format: {min: number, max: number}
+        if ('min' in value && 'max' in value) {
+            return typeof value.min === 'number' &&
+                   typeof value.max === 'number' &&
+                   value.min >= 0 && value.min <= 1 &&
+                   value.max >= 0 && value.max <= 1;
+        }
+
+        // Modern format: {lower: any, upper: any}
+        if ('lower' in value && 'upper' in value) {
+            // Enhanced format: {lower: {percent, side}, upper: {percent, side}}
+            if (value.lower && typeof value.lower === 'object' &&
+                value.upper && typeof value.upper === 'object' &&
+                typeof value.lower.percent === 'number' &&
+                typeof value.upper.percent === 'number') {
+                return true;
+            }
+
+            // Simple format: {lower: number, upper: number}
+            if (typeof value.lower === 'number' && typeof value.upper === 'number') {
+                return true;
+            }
+
+            // Failed serialization format: {lower: [Object], upper: [Object]}
+            // We'll treat this as PercentageRange and fix it in the component
+            return true;
+        }
+
+        return false;
     }
 
     /**
