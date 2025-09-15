@@ -5,6 +5,8 @@ import ResumeProject from './pages/ResumeProject';
 import EditProject from './pages/EditProject';
 import EventBusDisplay from './components/EventBusDisplay';
 
+const { ipcRenderer } = window.require('electron');
+
 function App() {
     const [currentView, setCurrentView] = useState('welcome');
     const [projectData, setProjectData] = useState(null);
@@ -20,7 +22,8 @@ function App() {
                         onBack={() => setCurrentView('welcome')}
                         onProjectCreated={(data) => {
                             setProjectData(data);
-                            setCurrentView('generation');
+                            // Don't start generation here - it's already started in NewProjectWizard step 6
+                            // This was causing duplicate generations
                         }}
                         onEventBusCreated={setEventBus}
                     />

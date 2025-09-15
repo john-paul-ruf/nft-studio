@@ -1,4 +1,5 @@
 import { predefinedColorSchemes } from '../data/colorSchemes.js';
+import PreferencesService from './PreferencesService.js';
 
 const { ipcRenderer } = window.require('electron');
 
@@ -31,6 +32,7 @@ export class ColorSchemeService {
      */
     static async getColorSchemesByCategory() {
         const allSchemes = await this.getAllColorSchemes();
+        const favorites = await PreferencesService.getFavoriteColorSchemes();
 
         const categories = {
             'Cyberpunk & Neon': [
@@ -69,6 +71,14 @@ export class ColorSchemeService {
 
         // Convert to format with scheme objects
         const categorizedSchemes = {};
+
+        // Add Favorites category at the top if there are any favorites
+        if (favorites.length > 0) {
+            categorizedSchemes['⭐ Favorites'] = favorites
+                .map(id => allSchemes[id])
+                .filter(scheme => scheme); // Filter out any missing schemes
+        }
+
         for (const [category, schemeIds] of Object.entries(categories)) {
             categorizedSchemes[category] = schemeIds
                 .map(id => allSchemes[id])

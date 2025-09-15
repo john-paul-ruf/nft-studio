@@ -3,6 +3,9 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron')
 const path = require('node:path')
 const fs = require('fs').promises
 
+// Store active projects to keep them in scope for event forwarding
+const activeProjects = new Map();
+
 function createWindow () {
     // Create the browser window.
     const mainWindow = new BrowserWindow({
@@ -83,6 +86,396 @@ ipcMain.handle('write-file', async (event, filePath, content) => {
 });
 
 // NFT Generation IPC handlers
+ipcMain.handle('start-new-project', async (event, projectConfig) => {
+    try {
+        // Import my-nft-gen modules using file paths
+        const path = await import('path');
+        const fs = await import('fs/promises');
+        const { fileURLToPath } = await import('url');
+
+        // Get the absolute path to my-nft-gen
+        const myNftGenPath = path.resolve(process.cwd(), '../my-nft-gen');
+
+        const { Project } = await import(`file://${myNftGenPath}/src/app/Project.js`);
+        const { UnifiedEventBus } = await import(`file://${myNftGenPath}/src/core/events/UnifiedEventBus.js`);
+        const { LayerConfig } = await import(`file://${myNftGenPath}/src/core/layer/LayerConfig.js`);
+        const { ColorScheme } = await import(`file://${myNftGenPath}/src/core/color/ColorScheme.js`);
+
+        // Create event bus
+        const eventBus = new UnifiedEventBus({
+            enableDebug: false,
+            enableMetrics: true,
+            enableEventHistory: true
+        });
+
+        // Set up event forwarding to renderer
+        const originalEmit = eventBus.emit;
+        eventBus.emit = function(eventName, data) {
+            const result = originalEmit.apply(this, arguments);
+            // Forward events to renderer process
+            if (BrowserWindow.getAllWindows().length > 0) {
+                BrowserWindow.getAllWindows()[0].webContents.send('worker-event', { eventName, data });
+            }
+            return result;
+        };
+
+        // Map projectConfig.effects to the Settings constructor format
+        const effects = projectConfig.effects || { primary: [], secondary: [], keyFrame: [], final: [] };
+
+        // Convert effects to LayerConfig instances for Settings constructor
+        const allPrimaryEffects = [];
+        if (effects.primary && effects.primary.length > 0) {
+            for (const effect of effects.primary) {
+                try {
+                    // Dynamically import the effect class
+                    const effectModule = await import(effect.effectClass.effectFile);
+                    const EffectClass = effectModule[effect.effectClass.name];
+
+                    if (!EffectClass) {
+                        console.warn(`Effect class ${effect.effectClass.name} not found in ${effect.effectClass.effectFile}`);
+                        continue;
+                    }
+
+                    // Dynamically import and instantiate the config class
+                    let configInstance = null;
+                    if (effect.effectClass.configModule && effect.effectClass.configClass) {
+                        try {
+                            const configModule = await import(effect.effectClass.configModule);
+                            const ConfigClass = configModule[effect.effectClass.configClass];
+
+                            if (ConfigClass) {
+                                // Import PercentageRange and related classes for proper config handling
+                                const { PercentageRange } = await import(`file://${myNftGenPath}/src/core/layer/configType/PercentageRange.js`);
+                                const { PercentageShortestSide } = await import(`file://${myNftGenPath}/src/core/layer/configType/PercentageShortestSide.js`);
+                                const { PercentageLongestSide } = await import(`file://${myNftGenPath}/src/core/layer/configType/PercentageLongestSide.js`);
+                                const { ColorPicker } = await import(`file://${myNftGenPath}/src/core/layer/configType/ColorPicker.js`);
+
+                                // Create default config first to get all defaults including complex types
+                                const defaultConfig = new ConfigClass({});
+
+                                // Process user config to handle special config types
+                                const userConfig = effect.config || {};
+                                const processedConfig = {};
+
+                                // Process each user config property
+                                for (const [key, value] of Object.entries(userConfig)) {
+                                    const keyLower = key.toLowerCase();
+
+                                    // Handle color properties
+                                    if (keyLower.includes('color') || keyLower.includes('colour')) {
+                                        if (typeof value === 'string') {
+                                            processedConfig[key] = new ColorPicker(ColorPicker.SelectionType.color, value);
+                                        } else if (value && typeof value === 'object' && value.selectionType) {
+                                            const selectionTypeMap = {
+                                                'color': ColorPicker.SelectionType.color,
+                                                'colorBucket': ColorPicker.SelectionType.colorBucket,
+                                                'neutralBucket': ColorPicker.SelectionType.neutralBucket
+                                            };
+                                            const mappedType = selectionTypeMap[value.selectionType] || ColorPicker.SelectionType.colorBucket;
+                                            processedConfig[key] = new ColorPicker(mappedType, value.colorValue || '#ff0000');
+                                        } else {
+                                            processedConfig[key] = new ColorPicker(ColorPicker.SelectionType.colorBucket, null);
+                                        }
+                                    }
+                                    // Handle percentage range properties (like diameterRange)
+                                    else if (value && typeof value === 'object' && value.lower !== undefined && value.upper !== undefined) {
+                                        // Check if this is meant to be a PercentageRange
+                                        if (typeof value.lower === 'number' && typeof value.upper === 'number') {
+                                            // Convert percentages to PercentageRange
+                                            processedConfig[key] = new PercentageRange(
+                                                new PercentageShortestSide(value.lower / 100),
+                                                new PercentageLongestSide(value.upper / 100)
+                                            );
+                                        } else {
+                                            // Keep as simple range
+                                            processedConfig[key] = value;
+                                        }
+                                    }
+                                    // Handle other properties normally
+                                    else {
+                                        processedConfig[key] = value;
+                                    }
+                                }
+
+                                // Merge with defaults, preserving complex types that weren't configured
+                                const mergedConfig = { ...defaultConfig, ...processedConfig };
+
+                                configInstance = new ConfigClass(mergedConfig);
+                            }
+                        } catch (configError) {
+                            console.warn(`Failed to import config class ${effect.effectClass.configClass}:`, configError);
+                        }
+                    }
+
+                    allPrimaryEffects.push(new LayerConfig({
+                        name: effect.effectClass.name,
+                        effect: EffectClass,
+                        percentChance: effect.percentChance || 100,
+                        currentEffectConfig: configInstance
+                    }));
+                } catch (importError) {
+                    console.error(`Failed to import effect ${effect.effectClass.name}:`, importError);
+                }
+            }
+        }
+        // Only add default LayerConfig if we have actual effects
+        // Don't add empty defaults as they might cause issues
+
+        const allFinalImageEffects = [];
+        if (effects.final && effects.final.length > 0) {
+            for (const effect of effects.final) {
+                try {
+                    // Dynamically import the effect class
+                    const effectModule = await import(effect.effectClass.effectFile);
+                    const EffectClass = effectModule[effect.effectClass.name];
+
+                    if (!EffectClass) {
+                        console.warn(`Effect class ${effect.effectClass.name} not found in ${effect.effectClass.effectFile}`);
+                        continue;
+                    }
+
+                    // Dynamically import and instantiate the config class
+                    let configInstance = null;
+                    if (effect.effectClass.configModule && effect.effectClass.configClass) {
+                        try {
+                            const configModule = await import(effect.effectClass.configModule);
+                            const ConfigClass = configModule[effect.effectClass.configClass];
+
+                            if (ConfigClass) {
+                                // Import PercentageRange and related classes for proper config handling
+                                const { PercentageRange } = await import(`file://${myNftGenPath}/src/core/layer/configType/PercentageRange.js`);
+                                const { PercentageShortestSide } = await import(`file://${myNftGenPath}/src/core/layer/configType/PercentageShortestSide.js`);
+                                const { PercentageLongestSide } = await import(`file://${myNftGenPath}/src/core/layer/configType/PercentageLongestSide.js`);
+                                const { ColorPicker } = await import(`file://${myNftGenPath}/src/core/layer/configType/ColorPicker.js`);
+
+                                // Create default config first to get all defaults including complex types
+                                const defaultConfig = new ConfigClass({});
+
+                                // Process user config to handle special config types
+                                const userConfig = effect.config || {};
+                                const processedConfig = {};
+
+                                // Process each user config property
+                                for (const [key, value] of Object.entries(userConfig)) {
+                                    const keyLower = key.toLowerCase();
+
+                                    // Handle color properties
+                                    if (keyLower.includes('color') || keyLower.includes('colour')) {
+                                        if (typeof value === 'string') {
+                                            processedConfig[key] = new ColorPicker(ColorPicker.SelectionType.color, value);
+                                        } else if (value && typeof value === 'object' && value.selectionType) {
+                                            const selectionTypeMap = {
+                                                'color': ColorPicker.SelectionType.color,
+                                                'colorBucket': ColorPicker.SelectionType.colorBucket,
+                                                'neutralBucket': ColorPicker.SelectionType.neutralBucket
+                                            };
+                                            const mappedType = selectionTypeMap[value.selectionType] || ColorPicker.SelectionType.colorBucket;
+                                            processedConfig[key] = new ColorPicker(mappedType, value.colorValue || '#ff0000');
+                                        } else {
+                                            processedConfig[key] = new ColorPicker(ColorPicker.SelectionType.colorBucket, null);
+                                        }
+                                    }
+                                    // Handle percentage range properties (like diameterRange)
+                                    else if (value && typeof value === 'object' && value.lower !== undefined && value.upper !== undefined) {
+                                        // Check if this is meant to be a PercentageRange
+                                        if (typeof value.lower === 'number' && typeof value.upper === 'number') {
+                                            // Convert percentages to PercentageRange
+                                            processedConfig[key] = new PercentageRange(
+                                                new PercentageShortestSide(value.lower / 100),
+                                                new PercentageLongestSide(value.upper / 100)
+                                            );
+                                        } else {
+                                            // Keep as simple range
+                                            processedConfig[key] = value;
+                                        }
+                                    }
+                                    // Handle other properties normally
+                                    else {
+                                        processedConfig[key] = value;
+                                    }
+                                }
+
+                                // Merge with defaults, preserving complex types that weren't configured
+                                const mergedConfig = { ...defaultConfig, ...processedConfig };
+
+                                configInstance = new ConfigClass(mergedConfig);
+                            }
+                        } catch (configError) {
+                            console.warn(`Failed to import config class ${effect.effectClass.configClass}:`, configError);
+                        }
+                    }
+
+                    allFinalImageEffects.push(new LayerConfig({
+                        name: effect.effectClass.name,
+                        effect: EffectClass,
+                        percentChance: effect.percentChance || 100,
+                        currentEffectConfig: configInstance
+                    }));
+                } catch (importError) {
+                    console.error(`Failed to import effect ${effect.effectClass.name}:`, importError);
+                }
+            }
+        }
+
+        // Map resolution string to pixel dimensions
+        const resolutionMap = {
+            'hd': { width: 1920, height: 1080 },
+            'square_small': { width: 720, height: 720 },
+            'square': { width: 1080, height: 1080 },
+            'wqhd': { width: 2560, height: 1440 },
+            '4k': { width: 3840, height: 2160 },
+            '5k': { width: 5120, height: 2880 },
+            '8k': { width: 7680, height: 4320 },
+            'portrait_hd': { width: 1080, height: 1920 },
+            'portrait_4k': { width: 2160, height: 3840 },
+            'ultrawide': { width: 3440, height: 1440 },
+            'cinema_2k': { width: 2048, height: 1080 },
+            'cinema_4k': { width: 4096, height: 2160 }
+        };
+
+        // Determine orientation from resolution
+        const resolution = resolutionMap[projectConfig.resolution] || resolutionMap['hd'];
+        const isHorizontal = resolution.width > resolution.height;
+
+        console.log('Project configuration:', {
+            projectName: projectConfig.projectName,
+            resolutionString: projectConfig.resolution,
+            resolution: resolution,
+            numberOfFrames: projectConfig.numberOfFrames,
+            isHorizontal: isHorizontal,
+            longestSide: Math.max(resolution.width, resolution.height),
+            shortestSide: Math.min(resolution.width, resolution.height)
+        });
+
+        // Validate resolution values
+        if (!resolution.width || !resolution.height || resolution.width <= 0 || resolution.height <= 0) {
+            throw new Error(`Invalid resolution: width=${resolution.width}, height=${resolution.height}`);
+        }
+
+        // Define color schemes inline (since we can't import ES modules in Electron main process)
+        const predefinedColorSchemes = {
+            'neon-cyberpunk': {
+                neutrals: ['#FFFFFF', '#CCCCCC', '#808080', '#333333'],
+                backgrounds: ['#000000', '#0a0a0a', '#1a1a1a', '#111111'],
+                lights: ['#00FFFF', '#FF00FF', '#FFFF00', '#FF0080', '#8000FF', '#00FF80'],
+                description: 'Electric blues, magentas, and cyans for futuristic vibes'
+            },
+            'synthwave': {
+                neutrals: ['#F8F8FF', '#E6E6FA', '#DDA0DD', '#9370DB'],
+                backgrounds: ['#191970', '#301934', '#4B0082', '#2F2F4F'],
+                lights: ['#FF1493', '#FF69B4', '#FF6347', '#00CED1', '#7FFF00', '#FFD700'],
+                description: 'Retro 80s neon with deep purples and hot pinks'
+            }
+        };
+
+        const colorSchemeData = predefinedColorSchemes[projectConfig.colorScheme] || predefinedColorSchemes['neon-cyberpunk'];
+
+        // Create ColorScheme object with colorBucket from lights array
+        const colorScheme = new ColorScheme({
+            colorBucket: colorSchemeData.lights || ['#FFFF00', '#FF00FF', '#00FFFF', '#FF0000', '#00FF00', '#0000FF'],
+            colorSchemeInfo: colorSchemeData.description || 'Custom color scheme'
+        });
+
+        // Initialize and start the project
+        const project = new Project({
+            projectName: projectConfig.projectName,
+            colorScheme: colorScheme,
+            neutrals: projectConfig.customColors?.neutrals || colorSchemeData.neutrals || ['#FFFFFF'],
+            backgrounds: projectConfig.customColors?.backgrounds || colorSchemeData.backgrounds || ['#000000'],
+            lights: projectConfig.customColors?.lights || colorSchemeData.lights || ['#FFFF00', '#FF00FF', '#00FFFF', '#FF0000', '#00FF00', '#0000FF'],
+            numberOfFrame: projectConfig.numberOfFrames,
+            longestSideInPixels: Math.max(resolution.width, resolution.height),
+            shortestSideInPixels: Math.min(resolution.width, resolution.height),
+            isHorizontal: isHorizontal,
+            projectDirectory: projectConfig.projectDirectory,
+            frameStart: 0
+        });
+
+        // Set up event forwarding from project's eventBus to renderer
+        // Create a universal event forwarder
+        const forwardEventToRenderer = (eventName, data) => {
+            console.log(`Forwarding event to renderer: ${eventName}`, data);
+            if (BrowserWindow.getAllWindows().length > 0) {
+                BrowserWindow.getAllWindows()[0].webContents.send('worker-event', { eventName, data });
+            }
+        };
+
+        // Listen to all worker events using the UnifiedEventBus method
+        // This avoids conflicts with the Project's internal event forwarding
+        if (project.eventBus.subscribeToAllEvents) {
+            console.log('Setting up event forwarding using subscribeToAllEvents');
+            project.eventBus.subscribeToAllEvents((enrichedData) => {
+                // The subscribeToAllEvents passes an enrichedData object with eventName included
+                const { eventName, ...data } = enrichedData;
+                console.log('Event received from subscribeToAllEvents:', eventName, data);
+                forwardEventToRenderer(eventName, data);
+            });
+        } else {
+            console.log('subscribeToAllEvents not found, using fallback emit wrapping');
+            // Fallback: wrap the emit method more carefully
+            const originalEmit = project.eventBus.emit.bind(project.eventBus);
+            project.eventBus.emit = function(eventName, ...args) {
+                // Forward to renderer
+                forwardEventToRenderer(eventName, args[0]);
+                // Call original
+                return originalEmit(eventName, ...args);
+            };
+        }
+
+        // Add effects to the project
+        console.log(`Adding ${allPrimaryEffects.length} primary effects and ${allFinalImageEffects.length} final effects`);
+        console.log('Color scheme configured:', {
+            colorBucket: colorScheme.colorBucket,
+            neutrals: projectConfig.customColors?.neutrals || colorSchemeData.neutrals,
+            backgrounds: projectConfig.customColors?.backgrounds || colorSchemeData.backgrounds,
+            lights: projectConfig.customColors?.lights || colorSchemeData.lights
+        });
+
+        for(let i = 0; i < allPrimaryEffects.length; i++) {
+            console.log(`Adding primary effect ${i + 1}:`, allPrimaryEffects[i].name, `percentChance: ${allPrimaryEffects[i].percentChance}%`);
+            project.addPrimaryEffect({ layerConfig: allPrimaryEffects[i] });
+        }
+
+        for(let i = 0; i < allFinalImageEffects.length; i++) {
+            console.log(`Adding final effect ${i + 1}:`, allFinalImageEffects[i].name, `percentChance: ${allFinalImageEffects[i].percentChance}%`);
+            project.addFinalEffect({ layerConfig: allFinalImageEffects[i] });
+        }
+
+        // If no effects were added, warn
+        if (allPrimaryEffects.length === 0 && allFinalImageEffects.length === 0) {
+            console.warn('WARNING: No effects configured! Images will be blank.');
+        }
+
+        // Store project to keep it in scope for event forwarding
+        const projectId = `${projectConfig.projectName}-${Date.now()}`;
+        activeProjects.set(projectId, project);
+
+        // Start generation without blocking (can run for days)
+        project.generateRandomLoop()
+            .then(() => {
+                console.log(`Generation completed for project ${projectId}`);
+                // Clean up after completion
+                activeProjects.delete(projectId);
+            })
+            .catch(error => {
+                console.error('Generation failed:', error);
+                // Send error event to renderer
+                if (BrowserWindow.getAllWindows().length > 0) {
+                    BrowserWindow.getAllWindows()[0].webContents.send('worker-event', {
+                        eventName: 'GENERATION_ERROR',
+                        data: { error: error.message, timestamp: new Date().toISOString() }
+                    });
+                }
+                // Clean up after error
+                activeProjects.delete(projectId);
+            });
+
+        return { success: true, message: 'Generation started successfully', projectId };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
 ipcMain.handle('resume-project', async (event, settingsPath) => {
     try {
         // Import my-nft-gen modules

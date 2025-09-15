@@ -46,9 +46,31 @@ function EffectPreview({
         setError(null);
 
         try {
+            const resolutionMap = {
+                'qvga': { width: 320, height: 240 },
+                'vga': { width: 640, height: 480 },
+                'svga': { width: 800, height: 600 },
+                'xga': { width: 1024, height: 768 },
+                'hd720': { width: 1280, height: 720 },
+                'hd': { width: 1920, height: 1080 },
+                'square_small': { width: 720, height: 720 },
+                'square': { width: 1080, height: 1080 },
+                'wqhd': { width: 2560, height: 1440 },
+                '4k': { width: 3840, height: 2160 },
+                '5k': { width: 5120, height: 2880 },
+                '8k': { width: 7680, height: 4320 },
+                'portrait_hd': { width: 1080, height: 1920 },
+                'portrait_4k': { width: 2160, height: 3840 },
+                'ultrawide': { width: 3440, height: 1440 },
+                'cinema_2k': { width: 2048, height: 1080 },
+                'cinema_4k': { width: 4096, height: 2160 }
+            };
+
+            const resolution = resolutionMap[projectData?.resolution] || resolutionMap['hd'];
+
             const projectSettings = {
-                width: projectData?.resolution === '4k' ? 3840 : projectData?.resolution === 'square' ? 1080 : 1920,
-                height: projectData?.resolution === '4k' ? 2160 : projectData?.resolution === 'square' ? 1080 : 1080,
+                width: resolution.width,
+                height: resolution.height,
                 colorScheme: projectData?.colorScheme || {},
                 neutrals: projectData?.customColors?.neutrals || ['#FFFFFF'],
                 backgrounds: projectData?.customColors?.backgrounds || ['#000000'],

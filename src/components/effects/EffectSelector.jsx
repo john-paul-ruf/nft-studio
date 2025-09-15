@@ -18,7 +18,7 @@ function EffectSelector({ effectType, availableEffects, effects, onEffectSelect,
                             onClick={() => onEffectSelect(effect)}
                             style={{ cursor: 'pointer' }}
                         >
-                            <h4>{effect.name}</h4>
+                            <h4>{effect.displayName || effect.name}</h4>
                         </div>
                     ))}
                 </div>

@@ -5,11 +5,13 @@ import { ConfigIntrospector } from '../../utils/configIntrospector';
 function EffectConfigurer({ selectedEffect, projectData, onConfigChange, onAddEffect }) {
     const [configSchema, setConfigSchema] = useState(null);
     const [effectConfig, setEffectConfig] = useState({});
+    const [percentChance, setPercentChance] = useState(100);
 
     useEffect(() => {
         if (selectedEffect) {
             loadConfigSchema(selectedEffect);
             setEffectConfig({});
+            setPercentChance(100);
         }
     }, [selectedEffect]);
 
@@ -46,7 +48,8 @@ function EffectConfigurer({ selectedEffect, projectData, onConfigChange, onAddEf
     const handleAddEffect = () => {
         onAddEffect({
             effectClass: selectedEffect,
-            config: effectConfig
+            config: effectConfig,
+            percentChance: percentChance
         });
     };
 
@@ -104,6 +107,67 @@ function EffectConfigurer({ selectedEffect, projectData, onConfigChange, onAddEf
                         Loading configuration options...
                     </div>
                 )}
+            </div>
+
+            {/* Percent Chance Section */}
+            <div style={{
+                marginTop: '1.5rem',
+                padding: '1rem',
+                background: 'rgba(102, 126, 234, 0.1)',
+                borderRadius: '8px',
+                border: '1px solid rgba(102, 126, 234, 0.3)'
+            }}>
+                <h4 style={{ color: '#ffffff', marginBottom: '1rem' }}>Effect Probability</h4>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <label style={{
+                        color: '#cccccc',
+                        fontSize: '0.9rem',
+                        minWidth: '120px'
+                    }}>
+                        Chance to occur:
+                    </label>
+                    <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={percentChance}
+                        onChange={(e) => setPercentChance(parseInt(e.target.value))}
+                        style={{
+                            flex: 1,
+                            height: '6px',
+                            background: 'rgba(255,255,255,0.2)',
+                            borderRadius: '3px',
+                            outline: 'none',
+                            cursor: 'pointer'
+                        }}
+                    />
+                    <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={percentChance}
+                        onChange={(e) => setPercentChance(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
+                        style={{
+                            width: '60px',
+                            padding: '0.25rem',
+                            background: 'rgba(255,255,255,0.1)',
+                            border: '1px solid rgba(255,255,255,0.3)',
+                            borderRadius: '4px',
+                            color: '#ffffff',
+                            textAlign: 'center'
+                        }}
+                    />
+                    <span style={{ color: '#cccccc', fontSize: '0.9rem' }}>%</span>
+                </div>
+                <div style={{
+                    marginTop: '0.5rem',
+                    fontSize: '0.8rem',
+                    color: '#aaaaaa'
+                }}>
+                    {percentChance === 0 ? 'Effect will never occur' :
+                     percentChance === 100 ? 'Effect will always occur' :
+                     `Effect will occur ${percentChance}% of the time`}
+                </div>
             </div>
 
             {/* Configuration Preview */}

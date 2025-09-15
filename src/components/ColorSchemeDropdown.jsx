@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ColorSchemeService from '../services/ColorSchemeService';
+import PreferencesService from '../services/PreferencesService';
 import ColorSchemeCreator from './ColorSchemeCreator';
 
 function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true }) {
@@ -10,6 +11,8 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true 
     const [editingScheme, setEditingScheme] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
+    const [favorites, setFavorites] = useState([]);
+    const [defaultScheme, setDefaultScheme] = useState(null);
 
     useEffect(() => {
         loadColorSchemes();
@@ -18,17 +21,35 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true 
     const loadColorSchemes = async () => {
         try {
             setLoading(true);
-            const [schemes, categorized] = await Promise.all([
+            const [schemes, categorized, favs, defaultSch] = await Promise.all([
                 ColorSchemeService.getAllColorSchemes(),
-                ColorSchemeService.getColorSchemesByCategory()
+                ColorSchemeService.getColorSchemesByCategory(),
+                PreferencesService.getFavoriteColorSchemes(),
+                PreferencesService.getDefaultColorScheme()
             ]);
 
             setAllSchemes(schemes);
             setCategorizedSchemes(categorized);
+            setFavorites(favs);
+            setDefaultScheme(defaultSch);
         } catch (error) {
             console.error('Error loading color schemes:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleToggleFavorite = async (schemeId, event) => {
+        event.stopPropagation();
+        const isFavorited = await PreferencesService.toggleFavoriteColorScheme(schemeId);
+        await loadColorSchemes(); // Refresh to update favorites list
+    };
+
+    const handleSetDefault = async (schemeId, event) => {
+        event.stopPropagation();
+        const success = await PreferencesService.setDefaultColorScheme(schemeId);
+        if (success) {
+            setDefaultScheme(schemeId);
         }
     };
 
@@ -132,6 +153,9 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true 
 
     const renderSchemeOption = (scheme) => {
         const isSelected = value === scheme.id;
+        const isFavorited = favorites.includes(scheme.id);
+        const isDefault = defaultScheme === scheme.id;
+
         return (
             <div
                 key={scheme.id}
@@ -157,6 +181,12 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true 
                     }}>
                     <div>
                         <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>
+                            {isFavorited && (
+                                <span style={{ color: '#ffd700', marginRight: '4px' }}>⭐</span>
+                            )}
+                            {isDefault && (
+                                <span style={{ color: '#22c55e', marginRight: '4px' }}>🎯</span>
+                            )}
                             {scheme.name}
                             {scheme.isCustom && (
                                 <span style={{
@@ -199,41 +229,81 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true 
                     top: '8px',
                     right: '8px',
                     display: 'flex',
-                    gap: '4px',
-                    opacity: 0.7
+                    flexDirection: 'column',
+                    gap: '2px',
+                    opacity: 0.8
                 }}>
-                    <button
-                        onClick={(e) => handleCopyScheme(scheme, e)}
-                        style={{
-                            background: 'rgba(102, 126, 234, 0.8)',
-                            border: 'none',
-                            borderRadius: '4px',
-                            padding: '4px 8px',
-                            color: 'white',
-                            fontSize: '0.7rem',
-                            cursor: 'pointer'
-                        }}
-                        title="Copy and edit"
-                    >
-                        Copy
-                    </button>
-                    {scheme.isCustom && (
+                    {/* Favorite and Default buttons */}
+                    <div style={{ display: 'flex', gap: '2px' }}>
                         <button
-                            onClick={(e) => handleEditScheme(scheme, e)}
+                            onClick={(e) => handleToggleFavorite(scheme.id, e)}
                             style={{
-                                background: 'rgba(34, 197, 94, 0.8)',
+                                background: isFavorited ? 'rgba(255, 215, 0, 0.8)' : 'rgba(128, 128, 128, 0.6)',
                                 border: 'none',
-                                borderRadius: '4px',
-                                padding: '4px 8px',
+                                borderRadius: '3px',
+                                padding: '3px 6px',
+                                color: isFavorited ? '#000' : '#fff',
+                                fontSize: '0.7rem',
+                                cursor: 'pointer',
+                                fontWeight: 'bold'
+                            }}
+                            title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+                        >
+                            ⭐
+                        </button>
+                        <button
+                            onClick={(e) => handleSetDefault(scheme.id, e)}
+                            style={{
+                                background: isDefault ? 'rgba(34, 197, 94, 0.8)' : 'rgba(128, 128, 128, 0.6)',
+                                border: 'none',
+                                borderRadius: '3px',
+                                padding: '3px 6px',
+                                color: 'white',
+                                fontSize: '0.7rem',
+                                cursor: 'pointer',
+                                fontWeight: 'bold'
+                            }}
+                            title={isDefault ? 'Current default' : 'Set as default'}
+                        >
+                            🎯
+                        </button>
+                    </div>
+
+                    {/* Edit/Copy buttons */}
+                    <div style={{ display: 'flex', gap: '2px' }}>
+                        <button
+                            onClick={(e) => handleCopyScheme(scheme, e)}
+                            style={{
+                                background: 'rgba(102, 126, 234, 0.8)',
+                                border: 'none',
+                                borderRadius: '3px',
+                                padding: '3px 6px',
                                 color: 'white',
                                 fontSize: '0.7rem',
                                 cursor: 'pointer'
                             }}
-                            title="Edit"
+                            title="Copy and edit"
                         >
-                            Edit
+                            Copy
                         </button>
-                    )}
+                        {scheme.isCustom && (
+                            <button
+                                onClick={(e) => handleEditScheme(scheme, e)}
+                                style={{
+                                    background: 'rgba(34, 197, 94, 0.8)',
+                                    border: 'none',
+                                    borderRadius: '3px',
+                                    padding: '3px 6px',
+                                    color: 'white',
+                                    fontSize: '0.7rem',
+                                    cursor: 'pointer'
+                                }}
+                                title="Edit"
+                            >
+                                Edit
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
         );

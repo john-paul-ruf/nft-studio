@@ -8,16 +8,6 @@ function EffectTypeSelector({ effectType, onEffectTypeChange }) {
             description: 'Core visual effects that create the main imagery'
         },
         {
-            id: 'secondary',
-            title: '✨ Secondary Effects',
-            description: 'Effects that enhance primary effects (glow, blur, etc.)'
-        },
-        {
-            id: 'keyFrame',
-            title: '🔑 Key Frame Effects',
-            description: 'Time-based animation effects'
-        },
-        {
             id: 'final',
             title: '🎭 Final Effects',
             description: 'Post-processing effects applied to the entire image'

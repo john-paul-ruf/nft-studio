@@ -1,12 +1,25 @@
 import React from 'react';
 
 function EffectSummary({ effects, onStartGeneration }) {
-    const totalEffects = Object.values(effects).flat().length;
+    // Calculate total effects including attached effects
+    const calculateTotalEffects = () => {
+        let total = effects.final ? effects.final.length : 0;
+        if (effects.primary) {
+            total += effects.primary.length;
+            effects.primary.forEach(primaryEffect => {
+                if (primaryEffect.attachedEffects) {
+                    total += (primaryEffect.attachedEffects.secondary || []).length;
+                    total += (primaryEffect.attachedEffects.keyFrame || []).length;
+                }
+            });
+        }
+        return total;
+    };
+
+    const totalEffects = calculateTotalEffects();
 
     const effectCategories = [
         { key: 'primary', name: 'Primary Effects', icon: '🎨', description: 'Core visual effects' },
-        { key: 'secondary', name: 'Secondary Effects', icon: '✨', description: 'Enhancement effects' },
-        { key: 'keyFrame', name: 'Key Frame Effects', icon: '🔑', description: 'Animation effects' },
         { key: 'final', name: 'Final Effects', icon: '🎭', description: 'Post-processing effects' }
     ];
 
@@ -58,14 +71,14 @@ function EffectSummary({ effects, onStartGeneration }) {
                                             </h5>
                                         </div>
 
-
                                         {/* Show key config parameters */}
                                         {effect.config && Object.keys(effect.config).length > 0 && (
                                             <div style={{
                                                 fontSize: '0.8rem',
                                                 color: '#aaa',
                                                 maxHeight: '100px',
-                                                overflow: 'auto'
+                                                overflow: 'auto',
+                                                marginBottom: '0.5rem'
                                             }}>
                                                 <strong>Configuration:</strong>
                                                 <div style={{
@@ -86,6 +99,65 @@ function EffectSummary({ effects, onStartGeneration }) {
                                                         </div>
                                                     )}
                                                 </div>
+                                            </div>
+                                        )}
+
+                                        {/* Show attached effects for primary effects */}
+                                        {category.key === 'primary' && effect.attachedEffects && (
+                                            <div style={{ marginTop: '0.75rem' }}>
+                                                {/* Secondary Effects */}
+                                                {effect.attachedEffects.secondary && effect.attachedEffects.secondary.length > 0 && (
+                                                    <div style={{ marginBottom: '0.5rem' }}>
+                                                        <div style={{
+                                                            fontSize: '0.8rem',
+                                                            color: '#667eea',
+                                                            fontWeight: 'bold',
+                                                            marginBottom: '0.25rem'
+                                                        }}>
+                                                            ✨ Attached Secondary Effects:
+                                                        </div>
+                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                                                            {effect.attachedEffects.secondary.map(secEffect => (
+                                                                <span key={secEffect.id} style={{
+                                                                    fontSize: '0.7rem',
+                                                                    background: 'rgba(102, 126, 234, 0.2)',
+                                                                    padding: '0.2rem 0.5rem',
+                                                                    borderRadius: '10px',
+                                                                    border: '1px solid rgba(102, 126, 234, 0.4)'
+                                                                }}>
+                                                                    {secEffect.effectClass?.name}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* KeyFrame Effects */}
+                                                {effect.attachedEffects.keyFrame && effect.attachedEffects.keyFrame.length > 0 && (
+                                                    <div>
+                                                        <div style={{
+                                                            fontSize: '0.8rem',
+                                                            color: '#ffa726',
+                                                            fontWeight: 'bold',
+                                                            marginBottom: '0.25rem'
+                                                        }}>
+                                                            🔑 Attached KeyFrame Effects:
+                                                        </div>
+                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                                                            {effect.attachedEffects.keyFrame.map(keyEffect => (
+                                                                <span key={keyEffect.id} style={{
+                                                                    fontSize: '0.7rem',
+                                                                    background: 'rgba(255, 167, 38, 0.2)',
+                                                                    padding: '0.2rem 0.5rem',
+                                                                    borderRadius: '10px',
+                                                                    border: '1px solid rgba(255, 167, 38, 0.4)'
+                                                                }}>
+                                                                    {keyEffect.effectClass?.name}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>
