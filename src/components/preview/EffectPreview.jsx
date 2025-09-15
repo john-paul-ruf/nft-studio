@@ -24,7 +24,59 @@ function EffectPreview({
         large: 500
     };
 
-    const previewSize = sizes[size] || sizes.medium;
+    const maxPreviewSize = sizes[size] || sizes.medium;
+
+    // Resolution mapping - centralized for consistency
+    const resolutionMap = {
+        'qvga': { width: 320, height: 240 },
+        'vga': { width: 640, height: 480 },
+        'svga': { width: 800, height: 600 },
+        'xga': { width: 1024, height: 768 },
+        'hd720': { width: 1280, height: 720 },
+        'hd': { width: 1920, height: 1080 },
+        'square_small': { width: 720, height: 720 },
+        'square': { width: 1080, height: 1080 },
+        'wqhd': { width: 2560, height: 1440 },
+        '4k': { width: 3840, height: 2160 },
+        '5k': { width: 5120, height: 2880 },
+        '8k': { width: 7680, height: 4320 },
+        'portrait_hd': { width: 1080, height: 1920 },
+        'portrait_4k': { width: 2160, height: 3840 },
+        'ultrawide': { width: 3440, height: 1440 },
+        'cinema_2k': { width: 2048, height: 1080 },
+        'cinema_4k': { width: 4096, height: 2160 }
+    };
+
+    // Calculate preview dimensions based on project resolution
+    const getPreviewDimensions = () => {
+        const resolution = resolutionMap[projectData?.resolution] || resolutionMap['hd'];
+
+        // Step one: choose if isHoz or not (from project settings)
+        const autoIsHoz = resolution.width > resolution.height;
+        const isHoz = projectData?.isHoz !== null ? projectData.isHoz : autoIsHoz;
+        const aspectRatio = resolution.width / resolution.height;
+
+        let previewWidth, previewHeight;
+
+        if (isHoz) {
+            // Horizontal (landscape) - constrain width to maxPreviewSize
+            previewWidth = maxPreviewSize;
+            previewHeight = maxPreviewSize / aspectRatio;
+        } else {
+            // Vertical (portrait) - constrain height to maxPreviewSize
+            previewHeight = maxPreviewSize;
+            previewWidth = maxPreviewSize * aspectRatio;
+        }
+
+        return {
+            width: Math.round(previewWidth),
+            height: Math.round(previewHeight),
+            aspectRatio,
+            isHoz
+        };
+    };
+
+    const previewDimensions = getPreviewDimensions();
 
     useEffect(() => {
         if (effectClass && effectConfig) {
@@ -46,26 +98,6 @@ function EffectPreview({
         setError(null);
 
         try {
-            const resolutionMap = {
-                'qvga': { width: 320, height: 240 },
-                'vga': { width: 640, height: 480 },
-                'svga': { width: 800, height: 600 },
-                'xga': { width: 1024, height: 768 },
-                'hd720': { width: 1280, height: 720 },
-                'hd': { width: 1920, height: 1080 },
-                'square_small': { width: 720, height: 720 },
-                'square': { width: 1080, height: 1080 },
-                'wqhd': { width: 2560, height: 1440 },
-                '4k': { width: 3840, height: 2160 },
-                '5k': { width: 5120, height: 2880 },
-                '8k': { width: 7680, height: 4320 },
-                'portrait_hd': { width: 1080, height: 1920 },
-                'portrait_4k': { width: 2160, height: 3840 },
-                'ultrawide': { width: 3440, height: 1440 },
-                'cinema_2k': { width: 2048, height: 1080 },
-                'cinema_4k': { width: 4096, height: 2160 }
-            };
-
             const resolution = resolutionMap[projectData?.resolution] || resolutionMap['hd'];
 
             // Convert color scheme ID to actual color scheme data
@@ -109,7 +141,7 @@ function EffectPreview({
                 frameNumber,
                 totalFrames,
                 projectSettings,
-                thumbnailSize: previewSize
+                thumbnailSize: maxPreviewSize
             });
 
             if (result.success) {
@@ -133,15 +165,16 @@ function EffectPreview({
     if (!effectClass) {
         return (
             <div style={{
-                width: previewSize,
-                height: previewSize,
+                width: previewDimensions.width,
+                height: previewDimensions.height,
                 border: '2px dashed #555',
                 borderRadius: '8px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#888',
-                fontSize: '0.9rem'
+                fontSize: '0.9rem',
+                position: 'relative'
             }}>
                 Select an effect to preview
             </div>
@@ -150,8 +183,8 @@ function EffectPreview({
 
     return (
         <div style={{
-            width: previewSize,
-            height: previewSize,
+            width: previewDimensions.width,
+            height: previewDimensions.height,
             position: 'relative',
             borderRadius: '8px',
             overflow: 'hidden',

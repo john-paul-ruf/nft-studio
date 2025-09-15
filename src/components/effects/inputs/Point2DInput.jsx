@@ -4,14 +4,44 @@ function Point2DInput({ field, value, onChange, projectData }) {
     const currentValue = value || field.default || { x: 0, y: 0 };
     const [showPresets, setShowPresets] = useState(false);
 
-    // Get resolution from project data or use defaults
+    // Get resolution from project data or use defaults - complete resolution mapping
     const resolution = projectData?.resolution || 'hd';
     const resolutions = {
-        hd: { width: 1920, height: 1080 },
-        square: { width: 1080, height: 1080 },
-        '4k': { width: 3840, height: 2160 }
+        'qvga': { width: 320, height: 240 },
+        'vga': { width: 640, height: 480 },
+        'svga': { width: 800, height: 600 },
+        'xga': { width: 1024, height: 768 },
+        'hd720': { width: 1280, height: 720 },
+        'hd': { width: 1920, height: 1080 },
+        'square_small': { width: 720, height: 720 },
+        'square': { width: 1080, height: 1080 },
+        'wqhd': { width: 2560, height: 1440 },
+        '4k': { width: 3840, height: 2160 },
+        '5k': { width: 5120, height: 2880 },
+        '8k': { width: 7680, height: 4320 },
+        'portrait_hd': { width: 1080, height: 1920 },
+        'portrait_4k': { width: 2160, height: 3840 },
+        'ultrawide': { width: 3440, height: 1440 },
+        'cinema_2k': { width: 2048, height: 1080 },
+        'cinema_4k': { width: 4096, height: 2160 }
     };
-    const { width, height } = resolutions[resolution] || resolutions.hd;
+    const baseResolution = resolutions[resolution] || resolutions.hd;
+
+    // Apply isHoz setting - same logic as EffectPreview
+    const autoIsHoz = baseResolution.width > baseResolution.height;
+    const isHoz = projectData?.isHoz !== null ? projectData.isHoz : autoIsHoz;
+
+    // Determine actual dimensions based on orientation setting
+    let width, height;
+    if (isHoz) {
+        // Use resolution as-is for horizontal
+        width = baseResolution.width;
+        height = baseResolution.height;
+    } else {
+        // Swap dimensions for vertical orientation
+        width = baseResolution.height;
+        height = baseResolution.width;
+    }
 
     const positionPresets = [
         { name: 'Center', x: width / 2, y: height / 2, icon: '⊙' },
@@ -96,7 +126,7 @@ function Point2DInput({ field, value, onChange, projectData }) {
                             color: '#888',
                             textAlign: 'center'
                         }}>
-                            Canvas: {width} × {height}
+                            Canvas: {width} × {height} {projectData?.isHoz !== null && (projectData.isHoz ? '(Forced Horizontal)' : '(Forced Vertical)')}
                         </div>
                     </div>
                 )}

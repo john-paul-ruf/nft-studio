@@ -13,6 +13,7 @@ function NewProjectWizard({ onBack, onProjectCreated, onEventBusCreated }) {
         colorScheme: 'neon-cyberpunk', // Will be updated with default preference
         numberOfFrames: 1800,
         resolution: 'hd',
+        isHoz: null, // null = auto-detect, true = horizontal, false = vertical
         projectDirectory: '',
         customColors: {
             neutrals: ['#FFFFFF'],
@@ -319,6 +320,60 @@ function NewProjectWizard({ onBack, onProjectCreated, onEventBusCreated }) {
                                     </option>
                                 ))}
                             </select>
+                        </div>
+
+                        <div className="form-group">
+                            <label>Orientation (Step One)</label>
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setProjectData({...projectData, isHoz: null})}
+                                    style={{
+                                        background: projectData.isHoz === null ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'rgba(255,255,255,0.1)',
+                                        border: '1px solid #333',
+                                        borderRadius: '4px',
+                                        padding: '0.5rem 1rem',
+                                        color: 'white',
+                                        fontSize: '0.8rem',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Auto-detect
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setProjectData({...projectData, isHoz: true})}
+                                    style={{
+                                        background: projectData.isHoz === true ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'rgba(255,255,255,0.1)',
+                                        border: '1px solid #333',
+                                        borderRadius: '4px',
+                                        padding: '0.5rem 1rem',
+                                        color: 'white',
+                                        fontSize: '0.8rem',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    ⬌ Force Horizontal
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setProjectData({...projectData, isHoz: false})}
+                                    style={{
+                                        background: projectData.isHoz === false ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'rgba(255,255,255,0.1)',
+                                        border: '1px solid #333',
+                                        borderRadius: '4px',
+                                        padding: '0.5rem 1rem',
+                                        color: 'white',
+                                        fontSize: '0.8rem',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    ⬍ Force Vertical
+                                </button>
+                            </div>
+                            <small style={{ color: '#aaa', fontSize: '0.7rem', marginTop: '0.25rem', display: 'block' }}>
+                                Choose how to determine orientation. This affects all effect previews and generation.
+                            </small>
                         </div>
                     </div>
                 );
