@@ -6,6 +6,121 @@ const fs = require('fs').promises
 // Store active projects to keep them in scope for event forwarding
 const activeProjects = new Map();
 
+// Enhanced logging utilities for better readability
+const logger = {
+    header: (title) => {
+        console.log('\n' + '='.repeat(60));
+        console.log(`📋 ${title.toUpperCase()}`);
+        console.log('='.repeat(60));
+    },
+
+    section: (title) => {
+        console.log('\n' + '-'.repeat(40));
+        console.log(`🔹 ${title}`);
+        console.log('-'.repeat(40));
+    },
+
+    info: (message, data = null) => {
+        const timestamp = new Date().toLocaleTimeString();
+        console.log(`ℹ️  [${timestamp}] ${message}`);
+        if (data && typeof data === 'object') {
+            console.log('   📊 Data:', JSON.stringify(data, null, 2));
+        }
+    },
+
+    success: (message) => {
+        const timestamp = new Date().toLocaleTimeString();
+        console.log(`✅ [${timestamp}] ${message}`);
+    },
+
+    warn: (message, details = null) => {
+        const timestamp = new Date().toLocaleTimeString();
+        console.log(`⚠️  [${timestamp}] ${message}`);
+        if (details) console.log('   🔍 Details:', details);
+    },
+
+    error: (message, error = null) => {
+        const timestamp = new Date().toLocaleTimeString();
+        console.log(`❌ [${timestamp}] ${message}`);
+        if (error) console.log('   💥 Error:', error);
+    },
+
+    event: (eventName, data = null) => {
+        const timestamp = new Date().toLocaleTimeString();
+
+        // Format events based on their type for better readability
+        switch (eventName) {
+            case 'frameCompleted':
+                if (data) {
+                    const progress = Math.round((data.progress || 0) * 100);
+                    const timeStr = data.durationMs ? `${data.durationMs}ms` : 'N/A';
+                    console.log(`🖼️  [${timestamp}] Frame ${data.frameNumber}/${data.totalFrames} completed (${progress}%) - ${timeStr}`);
+                    if (data.outputPath) {
+                        console.log(`   💾 Saved: ${data.outputPath.split('/').pop()}`);
+                    }
+                }
+                break;
+
+            case 'workerStarted':
+                if (data && data.config) {
+                    const { frameStart, frameEnd, totalFrames } = data.config;
+                    console.log(`🔨 [${timestamp}] Worker started: frames ${frameStart}-${frameEnd} (${totalFrames} total) - ${data.workerId}`);
+                }
+                break;
+
+            case 'workerCompleted':
+                if (data) {
+                    const avgTime = data.avgFrameTimeMs ? `${data.avgFrameTimeMs}ms avg` : 'N/A';
+                    console.log(`✅ [${timestamp}] Worker completed: ${data.framesProcessed} frames in ${data.totalDurationMs}ms (${avgTime}) - ${data.workerId}`);
+                }
+                break;
+
+            case 'projectProgress':
+                if (data) {
+                    const progress = Math.round((data.completedFrames / data.totalFrames) * 100);
+                    console.log(`📊 [${timestamp}] Project Progress: ${data.completedFrames}/${data.totalFrames} frames (${progress}%)`);
+                    if (data.estimatedTimeRemaining) {
+                        console.log(`   ⏱️  ETA: ${data.estimatedTimeRemaining}`);
+                    }
+                }
+                break;
+
+            case 'GENERATION_ERROR':
+                console.log(`❌ [${timestamp}] Generation Error: ${data?.error || 'Unknown error'}`);
+                break;
+
+            case 'effectApplied':
+                if (data) {
+                    console.log(`🎨 [${timestamp}] Effect applied: ${data.effectName} on frame ${data.frameNumber}`);
+                }
+                break;
+
+            default:
+                // Default formatting for unknown events
+                console.log(`🔔 [${timestamp}] Event: ${eventName}`);
+                if (data && Object.keys(data).length > 0) {
+                    // Only show essential data, not all the verbose details
+                    const essentialData = {};
+                    if (data.frameNumber !== undefined) essentialData.frame = data.frameNumber;
+                    if (data.progress !== undefined) essentialData.progress = `${Math.round(data.progress * 100)}%`;
+                    if (data.durationMs !== undefined) essentialData.duration = `${data.durationMs}ms`;
+                    if (data.workerId !== undefined) essentialData.worker = data.workerId.split('-').pop();
+
+                    if (Object.keys(essentialData).length > 0) {
+                        console.log('   📦', JSON.stringify(essentialData));
+                    }
+                }
+                break;
+        }
+    },
+
+    progress: (current, total, description) => {
+        const percentage = Math.round((current / total) * 100);
+        const progressBar = '█'.repeat(Math.floor(percentage / 5)) + '░'.repeat(20 - Math.floor(percentage / 5));
+        console.log(`🚀 Progress: [${progressBar}] ${percentage}% - ${description}`);
+    }
+};
+
 function createWindow () {
     // Create the browser window.
     const mainWindow = new BrowserWindow({
@@ -87,8 +202,17 @@ ipcMain.handle('write-file', async (event, filePath, content) => {
 
 // NFT Generation IPC handlers
 ipcMain.handle('start-new-project', async (event, projectConfig) => {
-    console.log('start-new-project received projectConfig:', JSON.stringify(projectConfig, null, 2));
-    console.log('Effects structure:', JSON.stringify(projectConfig.effects, null, 2));
+    logger.header('Starting New NFT Project');
+    logger.info('Project Configuration Received', {
+        projectName: projectConfig.projectName,
+        resolution: projectConfig.resolution,
+        numberOfFrames: projectConfig.numberOfFrames,
+        colorScheme: projectConfig.colorScheme,
+        effectsCount: {
+            primary: projectConfig.effects?.primary?.length || 0,
+            final: projectConfig.effects?.final?.length || 0
+        }
+    });
 
     try {
         // Import my-nft-gen modules using file paths
@@ -111,16 +235,8 @@ ipcMain.handle('start-new-project', async (event, projectConfig) => {
             enableEventHistory: true
         });
 
-        // Set up event forwarding to renderer
-        const originalEmit = eventBus.emit;
-        eventBus.emit = function(eventName, data) {
-            const result = originalEmit.apply(this, arguments);
-            // Forward events to renderer process
-            if (BrowserWindow.getAllWindows().length > 0) {
-                BrowserWindow.getAllWindows()[0].webContents.send('worker-event', { eventName, data });
-            }
-            return result;
-        };
+        // Note: Event forwarding will be set up later to use project's eventBus
+        // This manual eventBus is only for setup/initialization events
 
         // Map projectConfig.effects to the Settings constructor format
         const effects = projectConfig.effects || { primary: [], secondary: [], keyFrame: [], final: [] };
@@ -432,8 +548,13 @@ ipcMain.handle('start-new-project', async (event, projectConfig) => {
             }
         }
 
-        // Map resolution string to pixel dimensions
+        // Map resolution string to pixel dimensions - matches wizard options
         const resolutionMap = {
+            'qvga': { width: 320, height: 240 },
+            'vga': { width: 640, height: 480 },
+            'svga': { width: 800, height: 600 },
+            'xga': { width: 1024, height: 768 },
+            'hd720': { width: 1280, height: 720 },
             'hd': { width: 1920, height: 1080 },
             'square_small': { width: 720, height: 720 },
             'square': { width: 1080, height: 1080 },
@@ -513,27 +634,28 @@ ipcMain.handle('start-new-project', async (event, projectConfig) => {
             frameStart: 0
         });
 
+        logger.section('Event System Setup');
+
         // Set up event forwarding from project's eventBus to renderer
-        // Create a universal event forwarder
+        // Create a universal event forwarder using enhanced logger
         const forwardEventToRenderer = (eventName, data) => {
-            console.log(`Forwarding event to renderer: ${eventName}`, data);
+            logger.event(eventName, data);
             if (BrowserWindow.getAllWindows().length > 0) {
                 BrowserWindow.getAllWindows()[0].webContents.send('worker-event', { eventName, data });
             }
         };
 
         // Listen to all worker events using the UnifiedEventBus method
-        // This avoids conflicts with the Project's internal event forwarding
+        // This connects to the Project's internal event forwarding
         if (project.eventBus.subscribeToAllEvents) {
-            console.log('Setting up event forwarding using subscribeToAllEvents');
+            logger.info('Setting up event forwarding using subscribeToAllEvents');
             project.eventBus.subscribeToAllEvents((enrichedData) => {
                 // The subscribeToAllEvents passes an enrichedData object with eventName included
                 const { eventName, ...data } = enrichedData;
-                console.log('Event received from subscribeToAllEvents:', eventName, data);
                 forwardEventToRenderer(eventName, data);
             });
         } else {
-            console.log('subscribeToAllEvents not found, using fallback emit wrapping');
+            logger.warn('subscribeToAllEvents not found, using fallback emit wrapping');
             // Fallback: wrap the emit method more carefully
             const originalEmit = project.eventBus.emit.bind(project.eventBus);
             project.eventBus.emit = function(eventName, ...args) {
@@ -544,9 +666,9 @@ ipcMain.handle('start-new-project', async (event, projectConfig) => {
             };
         }
 
-        // Add effects to the project
-        console.log(`Adding ${allPrimaryEffects.length} primary effects and ${allFinalImageEffects.length} final effects`);
-        console.log('Color scheme configured:', {
+        logger.section('Adding Effects to Project');
+        logger.info(`Adding ${allPrimaryEffects.length} primary effects and ${allFinalImageEffects.length} final effects`);
+        logger.info('Color scheme configured', {
             colorBucket: colorScheme.colorBucket,
             neutrals: projectConfig.customColors?.neutrals || colorSchemeData.neutrals,
             backgrounds: projectConfig.customColors?.backgrounds || colorSchemeData.backgrounds,
@@ -554,12 +676,12 @@ ipcMain.handle('start-new-project', async (event, projectConfig) => {
         });
 
         for(let i = 0; i < allPrimaryEffects.length; i++) {
-            console.log(`Adding primary effect ${i + 1}:`, allPrimaryEffects[i].name, `percentChance: ${allPrimaryEffects[i].percentChance}%`);
+            logger.progress(i + 1, allPrimaryEffects.length, `Adding primary effect: ${allPrimaryEffects[i].name} (${allPrimaryEffects[i].percentChance}% chance)`);
             project.addPrimaryEffect({ layerConfig: allPrimaryEffects[i] });
         }
 
         for(let i = 0; i < allFinalImageEffects.length; i++) {
-            console.log(`Adding final effect ${i + 1}:`, allFinalImageEffects[i].name, `percentChance: ${allFinalImageEffects[i].percentChance}%`);
+            logger.progress(i + 1, allFinalImageEffects.length, `Adding final effect: ${allFinalImageEffects[i].name} (${allFinalImageEffects[i].percentChance}% chance)`);
             project.addFinalEffect({ layerConfig: allFinalImageEffects[i] });
         }
 
@@ -572,15 +694,19 @@ ipcMain.handle('start-new-project', async (event, projectConfig) => {
         const projectId = `${projectConfig.projectName}-${Date.now()}`;
         activeProjects.set(projectId, project);
 
+        logger.section('Starting Generation Process');
+        logger.success(`Project '${projectConfig.projectName}' initialized successfully!`);
+        logger.info('Generation started - this may run for hours or days depending on settings');
+
         // Start generation without blocking (can run for days)
         project.generateRandomLoop()
             .then(() => {
-                console.log(`Generation completed for project ${projectId}`);
+                logger.success(`Generation completed for project ${projectId}`);
                 // Clean up after completion
                 activeProjects.delete(projectId);
             })
             .catch(error => {
-                console.error('Generation failed:', error);
+                logger.error('Generation failed', error);
                 // Send error event to renderer
                 if (BrowserWindow.getAllWindows().length > 0) {
                     BrowserWindow.getAllWindows()[0].webContents.send('worker-event', {
@@ -611,14 +737,19 @@ ipcMain.handle('resume-project', async (event, settingsPath) => {
             enableEventHistory: true
         });
 
-        // Set up event forwarding to renderer
-        const originalEmit = eventBus.emit;
-        eventBus.emit = function(eventName, data) {
-            const result = originalEmit.apply(this, arguments);
-            // Forward events to renderer process
+        // Set up enhanced event forwarding for worker thread events
+        const forwardEventToRenderer = (eventName, data) => {
+            logger.event(eventName, data);
             if (BrowserWindow.getAllWindows().length > 0) {
                 BrowserWindow.getAllWindows()[0].webContents.send('worker-event', { eventName, data });
             }
+        };
+
+        // Wrap the eventBus emit to use enhanced logging
+        const originalEmit = eventBus.emit.bind(eventBus);
+        eventBus.emit = function(eventName, data) {
+            const result = originalEmit(eventName, data);
+            forwardEventToRenderer(eventName, data);
             return result;
         };
 
@@ -642,9 +773,16 @@ ipcMain.handle('discover-effects', async (event) => {
             console.log(`${category} effects:`, effects[category].length);
             effects[category].forEach(effect => {
                 console.log(`  - ${effect.name}:`);
+                console.log(`    displayName: ${effect.displayName}`);
                 console.log(`    configModule: ${effect.configModule}`);
                 console.log(`    configClass: ${effect.configClass}`);
                 console.log(`    effectFile: ${effect.effectFile}`);
+
+                // Fix asterisk displayNames
+                if (effect.displayName === '*' || !effect.displayName) {
+                    effect.displayName = effect.name;
+                    console.log(`    Fixed displayName to: ${effect.displayName}`);
+                }
             });
         });
 

@@ -31,6 +31,75 @@ function NewProjectWizard({ onBack, onProjectCreated, onEventBusCreated }) {
     const [isGenerating, setIsGenerating] = useState(false);
     const logContainerRef = useRef(null);
 
+    // Enhanced event formatting function
+    const formatEventData = (eventName, data) => {
+        switch (eventName) {
+            case 'frameCompleted':
+                if (data) {
+                    const progress = Math.round((data.progress || 0) * 100);
+                    const timeStr = data.durationMs ? ` - ${data.durationMs}ms` : '';
+                    const frameInfo = `🖼️ Frame ${data.frameNumber}/${data.totalFrames} completed (${progress}%)${timeStr}`;
+                    const fileInfo = data.outputPath ? `\n   💾 Saved: ${data.outputPath.split('/').pop()}` : '';
+                    return frameInfo + fileInfo;
+                }
+                return `🖼️ Frame completed`;
+
+            case 'workerStarted':
+                if (data && data.config) {
+                    const { frameStart, frameEnd, totalFrames } = data.config;
+                    return `🔨 Worker started: frames ${frameStart}-${frameEnd} (${totalFrames} total) - ${data.workerId}`;
+                }
+                return `🔨 Worker started`;
+
+            case 'workerCompleted':
+                if (data) {
+                    const avgTime = data.avgFrameTimeMs ? ` (${data.avgFrameTimeMs}ms avg)` : '';
+                    return `✅ Worker completed: ${data.framesProcessed} frames in ${data.totalDurationMs}ms${avgTime} - ${data.workerId}`;
+                }
+                return `✅ Worker completed`;
+
+            case 'projectProgress':
+                if (data) {
+                    const progress = Math.round((data.completedFrames / data.totalFrames) * 100);
+                    const eta = data.estimatedTimeRemaining ? `\n   ⏱️ ETA: ${data.estimatedTimeRemaining}` : '';
+                    return `📊 Project Progress: ${data.completedFrames}/${data.totalFrames} frames (${progress}%)${eta}`;
+                }
+                return `📊 Project Progress`;
+
+            case 'GENERATION_ERROR':
+                return `❌ Generation Error: ${data?.error || 'Unknown error'}`;
+
+            case 'effectApplied':
+                if (data) {
+                    return `🎨 Effect applied: ${data.effectName} on frame ${data.frameNumber}`;
+                }
+                return `🎨 Effect applied`;
+
+            case 'frameStarted':
+                return `🎬 Frame ${data.frameNumber}/${data.totalFrames} started`;
+            case 'effectStarted':
+                return `🎨 Effect ${data.effectName} started`;
+            case 'effectCompleted':
+                return `✨ Effect ${data.effectName} completed`;
+
+            default:
+                // Enhanced default formatting for unknown events
+                const essentialData = {};
+                if (data && typeof data === 'object') {
+                    if (data.frameNumber !== undefined) essentialData.frame = data.frameNumber;
+                    if (data.progress !== undefined) essentialData.progress = `${Math.round(data.progress * 100)}%`;
+                    if (data.durationMs !== undefined) essentialData.duration = `${data.durationMs}ms`;
+                    if (data.workerId !== undefined) essentialData.worker = data.workerId.split('-').pop();
+                }
+
+                if (Object.keys(essentialData).length > 0) {
+                    return `🔔 ${eventName}: ${JSON.stringify(essentialData)}`;
+                }
+
+                return `🔔 ${eventName}`;
+        }
+    };
+
     // Load default preferences on component mount
     useEffect(() => {
         const loadDefaults = async () => {
@@ -387,13 +456,10 @@ function NewProjectWizard({ onBack, onProjectCreated, onEventBusCreated }) {
                                             borderRadius: '4px',
                                             fontSize: '0.9rem'
                                         }}>
-                                            <span style={{ color: '#888' }}>[{event.timestamp}]</span>
-                                            <span style={{ color: '#4CAF50', fontWeight: 'bold' }}> {event.eventName}</span>
-                                            {event.data && (
-                                                <div style={{ marginTop: '0.25rem', color: '#ddd' }}>
-                                                    {typeof event.data === 'string' ? event.data : JSON.stringify(event.data, null, 2)}
-                                                </div>
-                                            )}
+                                            <span style={{ color: '#888' }}>[{event.timestamp}] </span>
+                                            <div style={{ color: '#ddd' }}>
+                                                {formatEventData(event.eventName, event.data)}
+                                            </div>
                                         </div>
                                     ))}
                                 </div>

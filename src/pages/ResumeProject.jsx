@@ -90,20 +90,69 @@ function ResumeProject({ onBack, onEventBusCreated }) {
 
     const formatEventData = (eventName, data) => {
         switch (eventName) {
+            case 'frameCompleted':
+                if (data) {
+                    const progress = Math.round((data.progress || 0) * 100);
+                    const timeStr = data.durationMs ? ` - ${data.durationMs}ms` : '';
+                    const frameInfo = `🖼️ Frame ${data.frameNumber}/${data.totalFrames} completed (${progress}%)${timeStr}`;
+                    const fileInfo = data.outputPath ? `\n   💾 Saved: ${data.outputPath.split('/').pop()}` : '';
+                    return frameInfo + fileInfo;
+                }
+                return `🖼️ Frame completed`;
+
+            case 'workerStarted':
+                if (data && data.config) {
+                    const { frameStart, frameEnd, totalFrames } = data.config;
+                    return `🔨 Worker started: frames ${frameStart}-${frameEnd} (${totalFrames} total) - ${data.workerId}`;
+                }
+                return `🔨 Worker started`;
+
+            case 'workerCompleted':
+                if (data) {
+                    const avgTime = data.avgFrameTimeMs ? ` (${data.avgFrameTimeMs}ms avg)` : '';
+                    return `✅ Worker completed: ${data.framesProcessed} frames in ${data.totalDurationMs}ms${avgTime} - ${data.workerId}`;
+                }
+                return `✅ Worker completed`;
+
+            case 'projectProgress':
+                if (data) {
+                    const progress = Math.round((data.completedFrames / data.totalFrames) * 100);
+                    const eta = data.estimatedTimeRemaining ? `\n   ⏱️ ETA: ${data.estimatedTimeRemaining}` : '';
+                    return `📊 Project Progress: ${data.completedFrames}/${data.totalFrames} frames (${progress}%)${eta}`;
+                }
+                return `📊 Project Progress`;
+
+            case 'GENERATION_ERROR':
+                return `❌ Generation Error: ${data?.error || 'Unknown error'}`;
+
+            case 'effectApplied':
+                if (data) {
+                    return `🎨 Effect applied: ${data.effectName} on frame ${data.frameNumber}`;
+                }
+                return `🎨 Effect applied`;
+
             case 'frameStarted':
                 return `🎬 Frame ${data.frameNumber}/${data.totalFrames} started`;
-            case 'frameCompleted':
-                return `✅ Frame ${data.frameNumber}/${data.totalFrames} completed`;
             case 'effectStarted':
                 return `🎨 Effect ${data.effectName} started`;
             case 'effectCompleted':
                 return `✨ Effect ${data.effectName} completed`;
-            case 'workerStarted':
-                return `🚀 Worker thread started`;
-            case 'workerCompleted':
-                return `🎉 Generation completed successfully!`;
+
             default:
-                return `${eventName}: ${JSON.stringify(data)}`;
+                // Enhanced default formatting for unknown events
+                const essentialData = {};
+                if (data && typeof data === 'object') {
+                    if (data.frameNumber !== undefined) essentialData.frame = data.frameNumber;
+                    if (data.progress !== undefined) essentialData.progress = `${Math.round(data.progress * 100)}%`;
+                    if (data.durationMs !== undefined) essentialData.duration = `${data.durationMs}ms`;
+                    if (data.workerId !== undefined) essentialData.worker = data.workerId.split('-').pop();
+                }
+
+                if (Object.keys(essentialData).length > 0) {
+                    return `🔔 ${eventName}: ${JSON.stringify(essentialData)}`;
+                }
+
+                return `🔔 ${eventName}`;
         }
     };
 
