@@ -223,7 +223,7 @@ export class ConfigIntrospector {
                             return {
                                 ...field,
                                 type: 'percentage',
-                                default: value.value || value.percentage || 0.5,
+                                default: value.percent || value.value || value.percentage || 0.5,
                                 label: field.label + ' Percentage'
                             };
 

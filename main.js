@@ -87,6 +87,9 @@ ipcMain.handle('write-file', async (event, filePath, content) => {
 
 // NFT Generation IPC handlers
 ipcMain.handle('start-new-project', async (event, projectConfig) => {
+    console.log('start-new-project received projectConfig:', JSON.stringify(projectConfig, null, 2));
+    console.log('Effects structure:', JSON.stringify(projectConfig.effects, null, 2));
+
     try {
         // Import my-nft-gen modules using file paths
         const path = await import('path');
@@ -161,9 +164,27 @@ ipcMain.handle('start-new-project', async (event, projectConfig) => {
                                 for (const [key, value] of Object.entries(userConfig)) {
                                     const keyLower = key.toLowerCase();
 
+                                    // Check if this property was originally a PercentageShortestSide or PercentageLongestSide
+                                    const originalValue = defaultConfig[key];
+                                    if (originalValue && typeof originalValue === 'object') {
+                                        const originalClassName = originalValue.constructor?.name;
+                                        if (originalClassName === 'PercentageShortestSide' && typeof value === 'number') {
+                                            processedConfig[key] = new PercentageShortestSide(value);
+                                            continue;
+                                        } else if (originalClassName === 'PercentageLongestSide' && typeof value === 'number') {
+                                            processedConfig[key] = new PercentageLongestSide(value);
+                                            continue;
+                                        }
+                                    }
+
                                     // Handle color properties
                                     if (keyLower.includes('color') || keyLower.includes('colour')) {
-                                        if (typeof value === 'string') {
+                                        // Skip processing if value is already a proper ColorPicker instance
+                                        if (value && typeof value === 'object' && typeof value.getColor === 'function') {
+                                            // This is already a ColorPicker object, don't process it
+                                            // Let the default config be preserved
+                                            continue;
+                                        } else if (typeof value === 'string') {
                                             processedConfig[key] = new ColorPicker(ColorPicker.SelectionType.color, value);
                                         } else if (value && typeof value === 'object' && value.selectionType) {
                                             const selectionTypeMap = {
@@ -172,22 +193,31 @@ ipcMain.handle('start-new-project', async (event, projectConfig) => {
                                                 'neutralBucket': ColorPicker.SelectionType.neutralBucket
                                             };
                                             const mappedType = selectionTypeMap[value.selectionType] || ColorPicker.SelectionType.colorBucket;
-                                            processedConfig[key] = new ColorPicker(mappedType, value.colorValue || '#ff0000');
-                                        } else {
+                                            // For colorBucket and neutralBucket types, colorValue should be null so they use Settings methods
+                                            const colorValue = (mappedType === ColorPicker.SelectionType.colorBucket || mappedType === ColorPicker.SelectionType.neutralBucket)
+                                                ? null
+                                                : (value.colorValue || '#ff0000');
+                                            processedConfig[key] = new ColorPicker(mappedType, colorValue);
+                                        } else if (value !== undefined && value !== null) {
+                                            // Only override if the user actually provided a value
                                             processedConfig[key] = new ColorPicker(ColorPicker.SelectionType.colorBucket, null);
                                         }
+                                        // If no valid value provided, preserve the default from defaultConfig
                                     }
-                                    // Handle percentage range properties (like diameterRange)
+                                    // Handle range properties
                                     else if (value && typeof value === 'object' && value.lower !== undefined && value.upper !== undefined) {
-                                        // Check if this is meant to be a PercentageRange
-                                        if (typeof value.lower === 'number' && typeof value.upper === 'number') {
-                                            // Convert percentages to PercentageRange
+                                        // Check the original config to see what type of range this should be
+                                        const originalValue = defaultConfig[key];
+                                        const originalClassName = originalValue?.constructor?.name;
+
+                                        if (originalClassName === 'PercentageRange') {
+                                            // Only create PercentageRange if the original was a PercentageRange
                                             processedConfig[key] = new PercentageRange(
-                                                new PercentageShortestSide(value.lower / 100),
-                                                new PercentageLongestSide(value.upper / 100)
+                                                new PercentageShortestSide(value.lower),
+                                                new PercentageLongestSide(value.upper)
                                             );
                                         } else {
-                                            // Keep as simple range
+                                            // Keep as simple range object for Range class
                                             processedConfig[key] = value;
                                         }
                                     }
@@ -197,8 +227,23 @@ ipcMain.handle('start-new-project', async (event, projectConfig) => {
                                     }
                                 }
 
+                                // Deep merge function to preserve nested objects and ColorPicker instances
+                                function deepMerge(target, source) {
+                                    const result = { ...target };
+                                    for (const key in source) {
+                                        // Special handling for ColorPicker objects - preserve them as-is
+                                        if (source[key] && typeof source[key] === 'object' && typeof source[key].getColor === 'function') {
+                                            result[key] = source[key]; // Preserve ColorPicker instance
+                                        } else if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                                            result[key] = deepMerge(target[key] || {}, source[key]);
+                                        } else {
+                                            result[key] = source[key];
+                                        }
+                                    }
+                                    return result;
+                                }
                                 // Merge with defaults, preserving complex types that weren't configured
-                                const mergedConfig = { ...defaultConfig, ...processedConfig };
+                                const mergedConfig = deepMerge(defaultConfig, processedConfig);
 
                                 configInstance = new ConfigClass(mergedConfig);
                             }
@@ -207,12 +252,26 @@ ipcMain.handle('start-new-project', async (event, projectConfig) => {
                         }
                     }
 
-                    allPrimaryEffects.push(new LayerConfig({
+                    console.log(`Creating LayerConfig for ${effect.effectClass.name}:`, {
+                        configInstance: configInstance,
+                        hasConfig: configInstance !== null,
+                        configKeys: configInstance ? Object.keys(configInstance) : []
+                    });
+
+                    const layerConfig = new LayerConfig({
                         name: effect.effectClass.name,
                         effect: EffectClass,
                         percentChance: effect.percentChance || 100,
                         currentEffectConfig: configInstance
-                    }));
+                    });
+
+                    console.log(`Created LayerConfig:`, {
+                        name: layerConfig.name,
+                        hasCurrentEffectConfig: layerConfig.currentEffectConfig !== null,
+                        configKeys: layerConfig.currentEffectConfig ? Object.keys(layerConfig.currentEffectConfig) : []
+                    });
+
+                    allPrimaryEffects.push(layerConfig);
                 } catch (importError) {
                     console.error(`Failed to import effect ${effect.effectClass.name}:`, importError);
                 }
@@ -259,9 +318,27 @@ ipcMain.handle('start-new-project', async (event, projectConfig) => {
                                 for (const [key, value] of Object.entries(userConfig)) {
                                     const keyLower = key.toLowerCase();
 
+                                    // Check if this property was originally a PercentageShortestSide or PercentageLongestSide
+                                    const originalValue = defaultConfig[key];
+                                    if (originalValue && typeof originalValue === 'object') {
+                                        const originalClassName = originalValue.constructor?.name;
+                                        if (originalClassName === 'PercentageShortestSide' && typeof value === 'number') {
+                                            processedConfig[key] = new PercentageShortestSide(value);
+                                            continue;
+                                        } else if (originalClassName === 'PercentageLongestSide' && typeof value === 'number') {
+                                            processedConfig[key] = new PercentageLongestSide(value);
+                                            continue;
+                                        }
+                                    }
+
                                     // Handle color properties
                                     if (keyLower.includes('color') || keyLower.includes('colour')) {
-                                        if (typeof value === 'string') {
+                                        // Skip processing if value is already a proper ColorPicker instance
+                                        if (value && typeof value === 'object' && typeof value.getColor === 'function') {
+                                            // This is already a ColorPicker object, don't process it
+                                            // Let the default config be preserved
+                                            continue;
+                                        } else if (typeof value === 'string') {
                                             processedConfig[key] = new ColorPicker(ColorPicker.SelectionType.color, value);
                                         } else if (value && typeof value === 'object' && value.selectionType) {
                                             const selectionTypeMap = {
@@ -270,22 +347,31 @@ ipcMain.handle('start-new-project', async (event, projectConfig) => {
                                                 'neutralBucket': ColorPicker.SelectionType.neutralBucket
                                             };
                                             const mappedType = selectionTypeMap[value.selectionType] || ColorPicker.SelectionType.colorBucket;
-                                            processedConfig[key] = new ColorPicker(mappedType, value.colorValue || '#ff0000');
-                                        } else {
+                                            // For colorBucket and neutralBucket types, colorValue should be null so they use Settings methods
+                                            const colorValue = (mappedType === ColorPicker.SelectionType.colorBucket || mappedType === ColorPicker.SelectionType.neutralBucket)
+                                                ? null
+                                                : (value.colorValue || '#ff0000');
+                                            processedConfig[key] = new ColorPicker(mappedType, colorValue);
+                                        } else if (value !== undefined && value !== null) {
+                                            // Only override if the user actually provided a value
                                             processedConfig[key] = new ColorPicker(ColorPicker.SelectionType.colorBucket, null);
                                         }
+                                        // If no valid value provided, preserve the default from defaultConfig
                                     }
-                                    // Handle percentage range properties (like diameterRange)
+                                    // Handle range properties
                                     else if (value && typeof value === 'object' && value.lower !== undefined && value.upper !== undefined) {
-                                        // Check if this is meant to be a PercentageRange
-                                        if (typeof value.lower === 'number' && typeof value.upper === 'number') {
-                                            // Convert percentages to PercentageRange
+                                        // Check the original config to see what type of range this should be
+                                        const originalValue = defaultConfig[key];
+                                        const originalClassName = originalValue?.constructor?.name;
+
+                                        if (originalClassName === 'PercentageRange') {
+                                            // Only create PercentageRange if the original was a PercentageRange
                                             processedConfig[key] = new PercentageRange(
-                                                new PercentageShortestSide(value.lower / 100),
-                                                new PercentageLongestSide(value.upper / 100)
+                                                new PercentageShortestSide(value.lower),
+                                                new PercentageLongestSide(value.upper)
                                             );
                                         } else {
-                                            // Keep as simple range
+                                            // Keep as simple range object for Range class
                                             processedConfig[key] = value;
                                         }
                                     }
@@ -295,8 +381,23 @@ ipcMain.handle('start-new-project', async (event, projectConfig) => {
                                     }
                                 }
 
+                                // Deep merge function to preserve nested objects and ColorPicker instances
+                                function deepMerge(target, source) {
+                                    const result = { ...target };
+                                    for (const key in source) {
+                                        // Special handling for ColorPicker objects - preserve them as-is
+                                        if (source[key] && typeof source[key] === 'object' && typeof source[key].getColor === 'function') {
+                                            result[key] = source[key]; // Preserve ColorPicker instance
+                                        } else if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                                            result[key] = deepMerge(target[key] || {}, source[key]);
+                                        } else {
+                                            result[key] = source[key];
+                                        }
+                                    }
+                                    return result;
+                                }
                                 // Merge with defaults, preserving complex types that weren't configured
-                                const mergedConfig = { ...defaultConfig, ...processedConfig };
+                                const mergedConfig = deepMerge(defaultConfig, processedConfig);
 
                                 configInstance = new ConfigClass(mergedConfig);
                             }
@@ -305,12 +406,26 @@ ipcMain.handle('start-new-project', async (event, projectConfig) => {
                         }
                     }
 
-                    allFinalImageEffects.push(new LayerConfig({
+                    console.log(`Creating LayerConfig for final effect ${effect.effectClass.name}:`, {
+                        configInstance: configInstance,
+                        hasConfig: configInstance !== null,
+                        configKeys: configInstance ? Object.keys(configInstance) : []
+                    });
+
+                    const layerConfig = new LayerConfig({
                         name: effect.effectClass.name,
                         effect: EffectClass,
                         percentChance: effect.percentChance || 100,
                         currentEffectConfig: configInstance
-                    }));
+                    });
+
+                    console.log(`Created final LayerConfig:`, {
+                        name: layerConfig.name,
+                        hasCurrentEffectConfig: layerConfig.currentEffectConfig !== null,
+                        configKeys: layerConfig.currentEffectConfig ? Object.keys(layerConfig.currentEffectConfig) : []
+                    });
+
+                    allFinalImageEffects.push(layerConfig);
                 } catch (importError) {
                     console.error(`Failed to import effect ${effect.effectClass.name}:`, importError);
                 }
@@ -371,12 +486,19 @@ ipcMain.handle('start-new-project', async (event, projectConfig) => {
         const colorSchemeData = predefinedColorSchemes[projectConfig.colorScheme] || predefinedColorSchemes['neon-cyberpunk'];
 
         // Create ColorScheme object with colorBucket from lights array
+        const colorBucket = colorSchemeData.lights || ['#FFFF00', '#FF00FF', '#00FFFF', '#FF0000', '#00FF00', '#0000FF'];
+        console.log('Creating ColorScheme with colorBucket:', colorBucket);
         const colorScheme = new ColorScheme({
-            colorBucket: colorSchemeData.lights || ['#FFFF00', '#FF00FF', '#00FFFF', '#FF0000', '#00FF00', '#0000FF'],
+            colorBucket: colorBucket,
             colorSchemeInfo: colorSchemeData.description || 'Custom color scheme'
         });
+        console.log('Created ColorScheme:', colorScheme);
+
 
         // Initialize and start the project
+        console.log('Passing colorScheme to Project constructor:', colorScheme);
+        console.log('ColorScheme colorBucket before Project:', colorScheme.colorBucket);
+
         const project = new Project({
             projectName: projectConfig.projectName,
             colorScheme: colorScheme,
@@ -596,10 +718,28 @@ ipcMain.handle('preview-effect', async (event, { effectClass, effectConfig, fram
             // First create a default config to get all defaults
             const defaultConfig = new ConfigClassConstructor({});
 
-            // Process user config to convert color values to ColorPicker instances
+            // Process user config to convert values to proper object types
             const processedConfig = {};
             for (const [key, value] of Object.entries(effectConfig)) {
                 const keyLower = key.toLowerCase();
+
+                // Import PercentageShortestSide/PercentageLongestSide for preview processing
+                const { PercentageShortestSide } = await import('my-nft-gen/src/core/layer/configType/PercentageShortestSide.js');
+                const { PercentageLongestSide } = await import('my-nft-gen/src/core/layer/configType/PercentageLongestSide.js');
+
+                // Check if this property was originally a PercentageShortestSide or PercentageLongestSide
+                const originalValue = defaultConfig[key];
+                if (originalValue && typeof originalValue === 'object') {
+                    const originalClassName = originalValue.constructor?.name;
+                    if (originalClassName === 'PercentageShortestSide' && typeof value === 'number') {
+                        processedConfig[key] = new PercentageShortestSide(value);
+                        continue;
+                    } else if (originalClassName === 'PercentageLongestSide' && typeof value === 'number') {
+                        processedConfig[key] = new PercentageLongestSide(value);
+                        continue;
+                    }
+                }
+
                 if (keyLower.includes('color') || keyLower.includes('colour')) {
                     if (typeof value === 'string') {
                         // Simple string color value
@@ -612,21 +752,29 @@ ipcMain.handle('preview-effect', async (event, { effectClass, effectConfig, fram
                             'neutralBucket': ColorPicker.SelectionType.neutralBucket
                         };
                         const mappedType = selectionTypeMap[value.selectionType] || ColorPicker.SelectionType.colorBucket;
-                        processedConfig[key] = new ColorPicker(mappedType, value.colorValue || '#ff0000');
-                    } else {
-                        // Default to color bucket if structure is unexpected
+                        // For colorBucket and neutralBucket types, colorValue should be null so they use Settings methods
+                        const colorValue = (mappedType === ColorPicker.SelectionType.colorBucket || mappedType === ColorPicker.SelectionType.neutralBucket)
+                            ? null
+                            : (value.colorValue || '#ff0000');
+                        processedConfig[key] = new ColorPicker(mappedType, colorValue);
+                    } else if (value !== undefined && value !== null) {
+                        // Only override if the user actually provided a value, default to color bucket
                         processedConfig[key] = new ColorPicker(ColorPicker.SelectionType.colorBucket, null);
                     }
+                    // If no valid value provided, preserve the default from defaultConfig
                 } else {
                     processedConfig[key] = value;
                 }
             }
 
-            // Deep merge function to preserve nested objects
+            // Deep merge function to preserve nested objects and ColorPicker instances
             function deepMerge(target, source) {
                 const result = { ...target };
                 for (const key in source) {
-                    if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                    // Special handling for ColorPicker objects - preserve them as-is
+                    if (source[key] && typeof source[key] === 'object' && typeof source[key].getColor === 'function') {
+                        result[key] = source[key]; // Preserve ColorPicker instance
+                    } else if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
                         if (target[key] && typeof target[key] === 'object') {
                             result[key] = deepMerge(target[key], source[key]);
                         } else {
@@ -655,12 +803,27 @@ ipcMain.handle('preview-effect', async (event, { effectClass, effectConfig, fram
             totalFrames
         });
 
+        // Use the color scheme data from the frontend (EffectPreview.jsx)
+        // Fallback to default colors if no color scheme is provided
+        const enhancedProjectSettings = {
+            width: 1920,
+            height: 1080,
+            colorScheme: projectSettings.colorScheme || {
+                colorBucket: ['#00FFFF', '#FF00FF', '#FFFF00', '#FF0080', '#8000FF', '#00FF80'],
+                colorSchemeInfo: 'Default preview color scheme'
+            },
+            neutrals: projectSettings.neutrals || ['#FFFFFF'],
+            backgrounds: projectSettings.backgrounds || ['#000000'],
+            lights: projectSettings.lights || ['#FFFF00', '#FF00FF', '#00FFFF', '#FF0000', '#00FF00', '#0000FF'],
+            ...projectSettings // Allow other settings to override
+        };
+
         const buffer = await EffectPreviewRenderer.renderSingleEffect({
             effectClass: EffectClassConstructor,
             effectConfig: properEffectConfig,
             frameNumber,
             totalFrames,
-            projectSettings
+            projectSettings: enhancedProjectSettings
         });
 
         // Convert buffer to base64 for transmission
@@ -712,10 +875,28 @@ ipcMain.handle('preview-effect-thumbnail', async (event, { effectClass, effectCo
             // First create a default config to get all defaults
             const defaultConfig = new ConfigClassConstructor({});
 
-            // Process user config to convert color values to ColorPicker instances
+            // Process user config to convert values to proper object types
             const processedConfig = {};
             for (const [key, value] of Object.entries(effectConfig)) {
                 const keyLower = key.toLowerCase();
+
+                // Import PercentageShortestSide/PercentageLongestSide for preview processing
+                const { PercentageShortestSide } = await import('my-nft-gen/src/core/layer/configType/PercentageShortestSide.js');
+                const { PercentageLongestSide } = await import('my-nft-gen/src/core/layer/configType/PercentageLongestSide.js');
+
+                // Check if this property was originally a PercentageShortestSide or PercentageLongestSide
+                const originalValue = defaultConfig[key];
+                if (originalValue && typeof originalValue === 'object') {
+                    const originalClassName = originalValue.constructor?.name;
+                    if (originalClassName === 'PercentageShortestSide' && typeof value === 'number') {
+                        processedConfig[key] = new PercentageShortestSide(value);
+                        continue;
+                    } else if (originalClassName === 'PercentageLongestSide' && typeof value === 'number') {
+                        processedConfig[key] = new PercentageLongestSide(value);
+                        continue;
+                    }
+                }
+
                 if (keyLower.includes('color') || keyLower.includes('colour')) {
                     if (typeof value === 'string') {
                         // Simple string color value
@@ -728,21 +909,29 @@ ipcMain.handle('preview-effect-thumbnail', async (event, { effectClass, effectCo
                             'neutralBucket': ColorPicker.SelectionType.neutralBucket
                         };
                         const mappedType = selectionTypeMap[value.selectionType] || ColorPicker.SelectionType.colorBucket;
-                        processedConfig[key] = new ColorPicker(mappedType, value.colorValue || '#ff0000');
-                    } else {
-                        // Default to color bucket if structure is unexpected
+                        // For colorBucket and neutralBucket types, colorValue should be null so they use Settings methods
+                        const colorValue = (mappedType === ColorPicker.SelectionType.colorBucket || mappedType === ColorPicker.SelectionType.neutralBucket)
+                            ? null
+                            : (value.colorValue || '#ff0000');
+                        processedConfig[key] = new ColorPicker(mappedType, colorValue);
+                    } else if (value !== undefined && value !== null) {
+                        // Only override if the user actually provided a value, default to color bucket
                         processedConfig[key] = new ColorPicker(ColorPicker.SelectionType.colorBucket, null);
                     }
+                    // If no valid value provided, preserve the default from defaultConfig
                 } else {
                     processedConfig[key] = value;
                 }
             }
 
-            // Deep merge function to preserve nested objects
+            // Deep merge function to preserve nested objects and ColorPicker instances
             function deepMerge(target, source) {
                 const result = { ...target };
                 for (const key in source) {
-                    if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                    // Special handling for ColorPicker objects - preserve them as-is
+                    if (source[key] && typeof source[key] === 'object' && typeof source[key].getColor === 'function') {
+                        result[key] = source[key]; // Preserve ColorPicker instance
+                    } else if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
                         if (target[key] && typeof target[key] === 'object') {
                             result[key] = deepMerge(target[key], source[key]);
                         } else {
@@ -764,12 +953,27 @@ ipcMain.handle('preview-effect-thumbnail', async (event, { effectClass, effectCo
             return { success: false, error: `Cannot import effect '${effectClass.name}' or config '${effectClass.configClass}': ${importError.message}` };
         }
 
+        // Use the color scheme data from the frontend (EffectPreview.jsx)
+        // Fallback to default colors if no color scheme is provided
+        const enhancedProjectSettings = {
+            width: thumbnailSize,
+            height: thumbnailSize,
+            colorScheme: projectSettings.colorScheme || {
+                colorBucket: ['#00FFFF', '#FF00FF', '#FFFF00', '#FF0080', '#8000FF', '#00FF80'],
+                colorSchemeInfo: 'Default preview color scheme'
+            },
+            neutrals: projectSettings.neutrals || ['#FFFFFF'],
+            backgrounds: projectSettings.backgrounds || ['#000000'],
+            lights: projectSettings.lights || ['#FFFF00', '#FF00FF', '#00FFFF', '#FF0000', '#00FF00', '#0000FF'],
+            ...projectSettings // Allow other settings to override
+        };
+
         const buffer = await EffectPreviewRenderer.renderThumbnail({
             effectClass: EffectClassConstructor,
             effectConfig: properEffectConfig,
             frameNumber,
             totalFrames,
-            projectSettings,
+            projectSettings: enhancedProjectSettings,
             thumbnailSize
         });
 
@@ -945,8 +1149,14 @@ ipcMain.handle('introspect-config', async (event, { configModule, configClass })
                 // Make sure the value is serializable
                 let serializableValue = value;
                 try {
-                    // Test if value can be serialized
-                    JSON.stringify(value);
+                    // Special handling for PercentageShortestSide/PercentageLongestSide objects
+                    if (className === 'PercentageShortestSide' || className === 'PercentageLongestSide') {
+                        // Extract only the percent value, not the function
+                        serializableValue = value.percent || 0;
+                    } else {
+                        // Test if value can be serialized
+                        JSON.stringify(value);
+                    }
                 } catch (e) {
                     // If not serializable, convert to string representation
                     if (type === 'object') {

@@ -69,12 +69,14 @@ function EffectWizard({ onBack, onEffectsCreated, projectData }) {
     };
 
     const handleAddEffect = (effectData) => {
+        console.log('handleAddEffect received effectData:', effectData);
         const newEffect = {
             id: Date.now(),
             effectClass: effectData.effectClass,
             config: effectData.config,
             percentChance: effectData.percentChance || 100
         };
+        console.log('Created newEffect:', newEffect);
 
         if (effectType === 'primary') {
             // Primary effects get attached effects structure
@@ -181,45 +183,60 @@ function EffectWizard({ onBack, onEffectsCreated, projectData }) {
 
     // Transform nested effect structure back to flat structure for backend compatibility
     const transformEffectsForBackend = (nestedEffects) => {
+        console.log('transformEffectsForBackend input:', JSON.stringify(nestedEffects, null, 2));
+
         const flatEffects = {
             primary: [],
             secondary: [],
             keyFrame: [],
-            final: (nestedEffects.final || []).map(effect => ({
-                ...effect,
-                percentChance: effect.percentChance || 100
-            }))
+            final: (nestedEffects.final || []).map(effect => {
+                console.log('Processing final effect:', effect);
+                return {
+                    ...effect,
+                    percentChance: effect.percentChance || 100
+                };
+            })
         };
 
         // Process primary effects and extract attached effects
         if (nestedEffects.primary) {
             nestedEffects.primary.forEach(primaryEffect => {
+                console.log('Processing primary effect:', primaryEffect);
                 // Add the primary effect itself
-                flatEffects.primary.push({
+                const transformedPrimary = {
                     id: primaryEffect.id,
                     effectClass: primaryEffect.effectClass,
                     config: primaryEffect.config,
                     percentChance: primaryEffect.percentChance || 100
-                });
+                };
+                console.log('Transformed primary effect:', transformedPrimary);
+                flatEffects.primary.push(transformedPrimary);
 
                 // Extract attached secondary effects
                 if (primaryEffect.attachedEffects?.secondary) {
-                    flatEffects.secondary.push(...primaryEffect.attachedEffects.secondary.map(effect => ({
-                        ...effect,
-                        percentChance: effect.percentChance || 100
-                    })));
+                    primaryEffect.attachedEffects.secondary.forEach(effect => {
+                        console.log('Processing attached secondary effect:', effect);
+                        flatEffects.secondary.push({
+                            ...effect,
+                            percentChance: effect.percentChance || 100
+                        });
+                    });
                 }
 
                 // Extract attached keyframe effects
                 if (primaryEffect.attachedEffects?.keyFrame) {
-                    flatEffects.keyFrame.push(...primaryEffect.attachedEffects.keyFrame.map(effect => ({
-                        ...effect,
-                        percentChance: effect.percentChance || 100
-                    })));
+                    primaryEffect.attachedEffects.keyFrame.forEach(effect => {
+                        console.log('Processing attached keyFrame effect:', effect);
+                        flatEffects.keyFrame.push({
+                            ...effect,
+                            percentChance: effect.percentChance || 100
+                        });
+                    });
                 }
             });
         }
 
+        console.log('transformEffectsForBackend output:', JSON.stringify(flatEffects, null, 2));
         return flatEffects;
     };
 

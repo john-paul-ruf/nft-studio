@@ -68,13 +68,35 @@ function EffectPreview({
 
             const resolution = resolutionMap[projectData?.resolution] || resolutionMap['hd'];
 
+            // Convert color scheme ID to actual color scheme data
+            const predefinedColorSchemes = {
+                'neon-cyberpunk': {
+                    neutrals: ['#FFFFFF', '#CCCCCC', '#808080', '#333333'],
+                    backgrounds: ['#000000', '#0a0a0a', '#1a1a1a', '#111111'],
+                    lights: ['#00FFFF', '#FF00FF', '#FFFF00', '#FF0080', '#8000FF', '#00FF80'],
+                    description: 'Electric blues, magentas, and cyans for futuristic vibes'
+                },
+                'neon': {
+                    neutrals: ['#FFFFFF', '#E0E0E0', '#B0B0B0', '#404040'],
+                    backgrounds: ['#000000', '#111111', '#1a0a1a', '#0a0a1a'],
+                    lights: ['#FF1493', '#FF69B4', '#FF6347', '#00CED1', '#7FFF00', '#FFD700'],
+                    description: 'Retro 80s neon with deep purples and hot pinks'
+                }
+            };
+
+            const schemeId = projectData?.colorScheme || 'neon-cyberpunk';
+            const colorSchemeData = predefinedColorSchemes[schemeId] || predefinedColorSchemes['neon-cyberpunk'];
+
             const projectSettings = {
                 width: resolution.width,
                 height: resolution.height,
-                colorScheme: projectData?.colorScheme || {},
-                neutrals: projectData?.customColors?.neutrals || ['#FFFFFF'],
-                backgrounds: projectData?.customColors?.backgrounds || ['#000000'],
-                lights: projectData?.customColors?.lights || ['#FFFF00', '#FF00FF', '#00FFFF']
+                colorScheme: {
+                    colorBucket: colorSchemeData.lights,
+                    colorSchemeInfo: colorSchemeData.description
+                },
+                neutrals: projectData?.customColors?.neutrals || colorSchemeData.neutrals,
+                backgrounds: projectData?.customColors?.backgrounds || colorSchemeData.backgrounds,
+                lights: projectData?.customColors?.lights || colorSchemeData.lights
             };
 
             const totalFrames = projectData?.numberOfFrames || 60;
