@@ -140,6 +140,17 @@ export class ConfigIntrospector {
 
         // Handle arrays
         if (Array.isArray(value)) {
+            // Check if it's a MultiStep array (contains objects with minPercentage, maxPercentage, etc.)
+            if (value.length > 0 && value[0] && typeof value[0] === 'object' &&
+                'minPercentage' in value[0] && 'maxPercentage' in value[0] &&
+                'max' in value[0] && 'times' in value[0] && 'type' in value[0]) {
+                return {
+                    ...field,
+                    type: 'multistep',
+                    label: field.label + ' Timeline'
+                };
+            }
+
             // Check if it's a FindValueAlgorithm array
             if (name.toLowerCase().includes('algorithm') || name.toLowerCase().includes('findvalue')) {
                 return {

@@ -9,6 +9,7 @@ import NumberInput from './NumberInput';
 import BooleanInput from './BooleanInput';
 import FindValueAlgorithmInput from './FindValueAlgorithmInput';
 import MultiSelectInput from './MultiSelectInput';
+import MultiStepInput from './MultiStepInput';
 
 function ConfigInputFactory({ field, value, onChange, projectData }) {
     const commonProps = { field, value, onChange, projectData };
@@ -34,6 +35,8 @@ function ConfigInputFactory({ field, value, onChange, projectData }) {
             return <FindValueAlgorithmInput {...commonProps} />;
         case 'multiselect':
             return <MultiSelectInput {...commonProps} />;
+        case 'multistep':
+            return <MultiStepInput {...commonProps} />;
         case 'readonly':
             return (
                 <div className="readonly-input">
