@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { predefinedColorSchemes } from '../../data/colorSchemes';
 
 const { ipcRenderer } = window.require('electron');
 
@@ -92,8 +93,6 @@ function EffectPreview({
 
     const previewDimensions = getPreviewDimensions();
 
-    // Removed auto-loading useEffect - now preview only loads on manual render request
-
     const loadPreview = async () => {
         if (!effectClass) return;
 
@@ -111,23 +110,10 @@ function EffectPreview({
             const resolution = resolutionMap[projectData?.resolution] || resolutionMap['hd'];
 
             // Convert color scheme ID to actual color scheme data
-            const predefinedColorSchemes = {
-                'neon-cyberpunk': {
-                    neutrals: ['#FFFFFF', '#CCCCCC', '#808080', '#333333'],
-                    backgrounds: ['#000000', '#0a0a0a', '#1a1a1a', '#111111'],
-                    lights: ['#00FFFF', '#FF00FF', '#FFFF00', '#FF0080', '#8000FF', '#00FF80'],
-                    description: 'Electric blues, magentas, and cyans for futuristic vibes'
-                },
-                'neon': {
-                    neutrals: ['#FFFFFF', '#E0E0E0', '#B0B0B0', '#404040'],
-                    backgrounds: ['#000000', '#111111', '#1a0a1a', '#0a0a1a'],
-                    lights: ['#FF1493', '#FF69B4', '#FF6347', '#00CED1', '#7FFF00', '#FFD700'],
-                    description: 'Retro 80s neon with deep purples and hot pinks'
-                }
-            };
-
             const schemeId = projectData?.colorScheme || 'neon-cyberpunk';
             const colorSchemeData = predefinedColorSchemes[schemeId] || predefinedColorSchemes['neon-cyberpunk'];
+
+            console.log('Preview using color scheme:', schemeId, colorSchemeData);
 
             const projectSettings = {
                 width: resolution.width,
@@ -143,9 +129,9 @@ function EffectPreview({
 
             const totalFrames = projectData?.numberOfFrames || 60;
 
-            console.log('Requesting preview for effect:', effectClass);
+            console.log('Requesting full-resolution preview for effect:', effectClass);
 
-            const result = await ipcRenderer.invoke('preview-effect-thumbnail', {
+            const result = await ipcRenderer.invoke('preview-effect', {
                 effectClass,
                 effectConfig,
                 frameNumber,
@@ -155,8 +141,7 @@ function EffectPreview({
                     width: resolution.width,
                     height: resolution.height,
                     isHorizontal: previewDimensions.isHoz
-                },
-                thumbnailSize: maxPreviewSize
+                }
             });
 
             if (result.success) {
@@ -179,62 +164,17 @@ function EffectPreview({
         setLoadingFullSize(true);
 
         try {
-            const resolution = resolutionMap[projectData?.resolution] || resolutionMap['hd'];
-
-            // Get color scheme data
-            const predefinedColorSchemes = {
-                'neon-cyberpunk': {
-                    neutrals: ['#FFFFFF', '#CCCCCC', '#808080', '#333333'],
-                    backgrounds: ['#000000', '#0a0a0a', '#1a1a1a', '#111111'],
-                    lights: ['#00FFFF', '#FF00FF', '#FFFF00', '#FF0080', '#8000FF', '#00FF80'],
-                    description: 'Electric blues, magentas, and cyans for futuristic vibes'
-                },
-                'neon': {
-                    neutrals: ['#FFFFFF', '#E0E0E0', '#B0B0B0', '#404040'],
-                    backgrounds: ['#000000', '#111111', '#1a0a1a', '#0a0a1a'],
-                    lights: ['#FF1493', '#FF69B4', '#FF6347', '#00CED1', '#7FFF00', '#FFD700'],
-                    description: 'Retro 80s neon with deep purples and hot pinks'
-                }
-            };
-
-            const schemeId = projectData?.colorScheme || 'neon-cyberpunk';
-            const colorSchemeData = predefinedColorSchemes[schemeId] || predefinedColorSchemes['neon-cyberpunk'];
-
-            // Use actual resolution instead of thumbnail size
-            const projectSettings = {
-                width: resolution.width,
-                height: resolution.height,
-                colorScheme: {
-                    colorBucket: colorSchemeData.lights,
-                    colorSchemeInfo: colorSchemeData.description
-                },
-                neutrals: projectData?.customColors?.neutrals || colorSchemeData.neutrals,
-                backgrounds: projectData?.customColors?.backgrounds || colorSchemeData.backgrounds,
-                lights: projectData?.customColors?.lights || colorSchemeData.lights,
-                isHorizontal: previewDimensions.isHoz
-            };
-
-            const totalFrames = projectData?.numberOfFrames || 60;
-
-            console.log('Requesting full-size preview at resolution:', resolution);
-
-            // Use preview-effect instead of preview-effect-thumbnail for full resolution
-            const result = await ipcRenderer.invoke('preview-effect', {
-                effectClass,
-                effectConfig,
-                frameNumber,
-                totalFrames,
-                projectSettings
-            });
-
-            if (result.success) {
-                setFullSizeData(result.imageData);
+            // Since preview is now rendered at full resolution, just use the same data
+            if (previewData) {
+                console.log('Using existing full-resolution preview data');
+                setFullSizeData(previewData);
             } else {
-                throw new Error(result.error || 'Full-size preview generation failed');
+                console.log('No preview data available, regenerating...');
+                await loadPreview();
+                setFullSizeData(previewData);
             }
         } catch (err) {
             console.error('Full-size preview error:', err);
-            // Fall back to showing the thumbnail preview
             setFullSizeData(previewData);
         } finally {
             setLoadingFullSize(false);
