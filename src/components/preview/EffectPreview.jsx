@@ -10,6 +10,7 @@ const { ipcRenderer } = window.require('electron');
 function EffectPreview({
     effectClass,
     effectConfig,
+    attachedEffects,
     projectData,
     frameNumber = 0,
     size = 'medium',
@@ -131,9 +132,34 @@ function EffectPreview({
 
             console.log('Requesting full-resolution preview for effect:', effectClass);
 
+            // Create complete effect structure for backend
+            const completeEffectData = attachedEffects ? {
+                // Primary effect
+                primaryEffect: {
+                    effectClass,
+                    config: effectConfig
+                },
+                // Attached effects in flat arrays for backend compatibility
+                secondaryEffects: (attachedEffects.secondary || []).map(effect => ({
+                    effectClass: effect.effectClass,
+                    config: effect.config,
+                    percentChance: effect.percentChance || 100
+                })),
+                keyFrameEffects: (attachedEffects.keyFrame || []).map(effect => ({
+                    effectClass: effect.effectClass,
+                    config: effect.config,
+                    percentChance: effect.percentChance || 100
+                }))
+            } : null;
+
+            console.log('Attached effects for preview:', attachedEffects);
+            console.log('Complete effect data for backend:', completeEffectData);
+
             const result = await ipcRenderer.invoke('preview-effect', {
                 effectClass,
                 effectConfig,
+                attachedEffects,
+                completeEffectData, // Additional structure for backend processing
                 frameNumber,
                 totalFrames,
                 projectSettings: {

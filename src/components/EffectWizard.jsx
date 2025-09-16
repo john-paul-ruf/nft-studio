@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import EffectTypeSelector from './effects/EffectTypeSelector';
 import EffectSelector from './effects/EffectSelector';
 import EffectConfigurer from './effects/EffectConfigurer';
-import EffectAttacher from './effects/EffectAttacher';
 import EffectSummary from './effects/EffectSummary';
 import EffectPreviewViewer from './preview/EffectPreviewViewer';
 import { EffectLibrary } from '../data/effectLibrary';
@@ -17,6 +16,7 @@ function EffectWizard({ onBack, onEffectsCreated, projectData }) {
         final: []
     });
     const [currentPrimaryEffect, setCurrentPrimaryEffect] = useState(null); // For attaching secondary/keyframe
+    const [stagedPrimaryEffect, setStagedPrimaryEffect] = useState(null); // Primary effect being built before adding to project
     const [availableEffects, setAvailableEffects] = useState({
         primary: [],
         secondary: [],
@@ -60,42 +60,67 @@ function EffectWizard({ onBack, onEffectsCreated, projectData }) {
         console.log('EffectWizard: Effect selected:', effect);
         setSelectedEffect(effect);
         setEffectConfig({});
+
+        // If selecting a primary effect, create staged effect immediately to show attachment UI
+        if (effectType === 'primary') {
+            const stagedEffect = {
+                id: Date.now(),
+                effectClass: effect,
+                config: {},
+                percentChance: 100,
+                attachedEffects: {
+                    secondary: [],
+                    keyFrame: []
+                }
+            };
+            setStagedPrimaryEffect(stagedEffect);
+            setCurrentPrimaryEffect(stagedEffect);
+            console.log('Created initial staged primary effect for attachment UI');
+        }
+
         setStep(3); // Move to configuration step
         console.log('EffectWizard: Moving to step 3 (configuration)');
     };
 
     const handleConfigChange = (config) => {
         setEffectConfig(config);
+
+        // Update staged primary effect configuration in real-time
+        if (effectType === 'primary' && stagedPrimaryEffect) {
+            const updatedStagedEffect = {
+                ...stagedPrimaryEffect,
+                config: config
+            };
+            setStagedPrimaryEffect(updatedStagedEffect);
+            setCurrentPrimaryEffect(updatedStagedEffect);
+        }
     };
 
     const handleAddEffect = (effectData) => {
         console.log('handleAddEffect received effectData:', effectData);
-        const newEffect = {
-            id: Date.now(),
-            effectClass: effectData.effectClass,
-            config: effectData.config,
-            percentChance: effectData.percentChance || 100
-        };
-        console.log('Created newEffect:', newEffect);
 
-        if (effectType === 'primary') {
-            // Primary effects get attached effects structure
-            newEffect.attachedEffects = {
-                secondary: [],
-                keyFrame: []
+        if (effectType === 'primary' && stagedPrimaryEffect) {
+            // Update existing staged primary effect with new configuration
+            const updatedStagedEffect = {
+                ...stagedPrimaryEffect,
+                config: effectData.config,
+                percentChance: effectData.percentChance || 100
             };
 
-            setEffects(prev => ({
-                ...prev,
-                primary: [...prev.primary, newEffect]
-            }));
+            console.log('Updated staged primary effect:', updatedStagedEffect);
 
-            // Set this as current primary effect and move to attach effects step
-            setCurrentPrimaryEffect(newEffect);
-            setSelectedEffect(null);
-            setEffectConfig({});
-            setStep(4); // Skip to attach effects step
+            // Update staged effect
+            setStagedPrimaryEffect(updatedStagedEffect);
+            setCurrentPrimaryEffect(updatedStagedEffect);
+            // Stay on step 3 to allow attachment
         } else if (effectType === 'final') {
+            const newEffect = {
+                id: Date.now(),
+                effectClass: effectData.effectClass,
+                config: effectData.config,
+                percentChance: effectData.percentChance || 100
+            };
+
             setEffects(prev => ({
                 ...prev,
                 final: [...prev.final, newEffect]
@@ -105,34 +130,6 @@ function EffectWizard({ onBack, onEffectsCreated, projectData }) {
             setSelectedEffect(null);
             setEffectConfig({});
             setStep(2);
-        } else if (currentPrimaryEffect && (effectType === 'secondary' || effectType === 'keyFrame')) {
-            // Attach to current primary effect
-            const updatedEffects = effects.primary.map(effect => {
-                if (effect.id === currentPrimaryEffect.id) {
-                    return {
-                        ...effect,
-                        attachedEffects: {
-                            ...effect.attachedEffects,
-                            [effectType]: [...effect.attachedEffects[effectType], newEffect]
-                        }
-                    };
-                }
-                return effect;
-            });
-
-            setEffects(prev => ({
-                ...prev,
-                primary: updatedEffects
-            }));
-
-            // Update current primary effect reference
-            const updatedCurrentPrimary = updatedEffects.find(e => e.id === currentPrimaryEffect.id);
-            setCurrentPrimaryEffect(updatedCurrentPrimary);
-
-            // Reset for next attachment
-            setSelectedEffect(null);
-            setEffectConfig({});
-            setStep(4); // Stay on attach effects step
         }
     };
 
@@ -143,42 +140,86 @@ function EffectWizard({ onBack, onEffectsCreated, projectData }) {
         }));
     };
 
-    const handleAttachEffect = (effect, attachmentType) => {
-        setEffectType(attachmentType);
-        setSelectedEffect(effect);
-        setEffectConfig({});
-        setStep(3); // Go to configuration step
+    const handleAttachEffect = (effectData, attachmentType, isEditing = false) => {
+        if (!stagedPrimaryEffect) return;
+
+        if (isEditing && effectData.id) {
+            // Update existing attached effect
+            console.log('Updating existing attached effect:', effectData);
+            const updatedStagedEffect = {
+                ...stagedPrimaryEffect,
+                attachedEffects: {
+                    ...stagedPrimaryEffect.attachedEffects,
+                    [attachmentType]: stagedPrimaryEffect.attachedEffects[attachmentType].map(effect =>
+                        effect.id === effectData.id ? {
+                            ...effect,
+                            config: effectData.config,
+                            percentChance: effectData.percentChance || 100
+                        } : effect
+                    )
+                }
+            };
+
+            setStagedPrimaryEffect(updatedStagedEffect);
+            setCurrentPrimaryEffect(updatedStagedEffect);
+            console.log('Updated attached effect in staged primary:', updatedStagedEffect);
+        } else {
+            // Add new attached effect
+            const newAttachedEffect = {
+                id: Date.now(),
+                effectClass: effectData.effectClass,
+                config: effectData.config,
+                percentChance: effectData.percentChance || 100
+            };
+
+            const updatedStagedEffect = {
+                ...stagedPrimaryEffect,
+                attachedEffects: {
+                    ...stagedPrimaryEffect.attachedEffects,
+                    [attachmentType]: [...stagedPrimaryEffect.attachedEffects[attachmentType], newAttachedEffect]
+                }
+            };
+
+            setStagedPrimaryEffect(updatedStagedEffect);
+            setCurrentPrimaryEffect(updatedStagedEffect);
+            console.log('Attached effect to staged primary:', updatedStagedEffect);
+        }
     };
 
-    const handleSkipAttachment = () => {
-        setCurrentPrimaryEffect(null);
-        setStep(2); // Go back to effect selection
-    };
 
     const handleRemoveAttachedEffect = (attachmentType, effectId) => {
-        if (!currentPrimaryEffect) return;
+        if (!stagedPrimaryEffect) return;
 
-        const updatedEffects = effects.primary.map(effect => {
-            if (effect.id === currentPrimaryEffect.id) {
-                return {
-                    ...effect,
-                    attachedEffects: {
-                        ...effect.attachedEffects,
-                        [attachmentType]: effect.attachedEffects[attachmentType].filter(e => e.id !== effectId)
-                    }
-                };
+        const updatedStagedEffect = {
+            ...stagedPrimaryEffect,
+            attachedEffects: {
+                ...stagedPrimaryEffect.attachedEffects,
+                [attachmentType]: stagedPrimaryEffect.attachedEffects[attachmentType].filter(e => e.id !== effectId)
             }
-            return effect;
-        });
+        };
 
+        setStagedPrimaryEffect(updatedStagedEffect);
+        setCurrentPrimaryEffect(updatedStagedEffect);
+        console.log('Removed attached effect from staged primary:', updatedStagedEffect);
+    };
+
+    const handleAddCompleteEffectToProject = () => {
+        if (!stagedPrimaryEffect) return;
+
+        console.log('Adding complete staged effect to project:', stagedPrimaryEffect);
+
+        // Add the staged primary effect with all attachments to the project
         setEffects(prev => ({
             ...prev,
-            primary: updatedEffects
+            primary: [...prev.primary, stagedPrimaryEffect]
         }));
 
-        // Update current primary effect reference
-        const updatedCurrentPrimary = updatedEffects.find(e => e.id === currentPrimaryEffect.id);
-        setCurrentPrimaryEffect(updatedCurrentPrimary);
+        // Clear staging area and reset
+        setStagedPrimaryEffect(null);
+        setCurrentPrimaryEffect(null);
+        setSelectedEffect(null);
+        setEffectConfig({});
+        setStep(2); // Go back to effect selection
     };
 
     // Transform nested effect structure back to flat structure for backend compatibility
@@ -298,6 +339,12 @@ function EffectWizard({ onBack, onEffectsCreated, projectData }) {
                                 projectData={projectData}
                                 onConfigChange={handleConfigChange}
                                 onAddEffect={handleAddEffect}
+                                onAddCompleteEffect={handleAddCompleteEffectToProject}
+                                effectType={effectType}
+                                availableEffects={availableEffects}
+                                attachedEffects={currentPrimaryEffect?.attachedEffects}
+                                onAttachEffect={handleAttachEffect}
+                                onRemoveAttachedEffect={handleRemoveAttachedEffect}
                             />
                         </div>
                         <div style={{
@@ -315,6 +362,7 @@ function EffectWizard({ onBack, onEffectsCreated, projectData }) {
                             <EffectPreviewViewer
                                 effectClass={selectedEffect}
                                 effectConfig={effectConfig}
+                                attachedEffects={stagedPrimaryEffect?.attachedEffects}
                                 projectData={projectData}
                                 size="medium"
                                 showControls={true}
@@ -324,15 +372,7 @@ function EffectWizard({ onBack, onEffectsCreated, projectData }) {
                 );
 
             case 4:
-                return currentPrimaryEffect ? (
-                    <EffectAttacher
-                        primaryEffect={currentPrimaryEffect}
-                        availableEffects={availableEffects}
-                        onAttachEffect={handleAttachEffect}
-                        onSkip={handleSkipAttachment}
-                        onRemoveAttachedEffect={handleRemoveAttachedEffect}
-                    />
-                ) : (
+                return (
                     <EffectSummary
                         effects={effects}
                         onStartGeneration={() => onEffectsCreated(transformEffectsForBackend(effects))}
@@ -349,7 +389,7 @@ function EffectWizard({ onBack, onEffectsCreated, projectData }) {
             case 1: return '1. Effect Type';
             case 2: return '2. Select Effect';
             case 3: return '3. Configure';
-            case 4: return currentPrimaryEffect ? '4. Attach Effects' : '4. Review';
+            case 4: return '4. Review';
             default: return '';
         }
     };
@@ -403,7 +443,7 @@ function EffectWizard({ onBack, onEffectsCreated, projectData }) {
                                 case 1: return '1. Effect Type';
                                 case 2: return '2. Select Effect';
                                 case 3: return '3. Configure';
-                                case 4: return step === 4 && currentPrimaryEffect ? '4. Attach Effects' : '4. Review';
+                                case 4: return '4. Review';
                                 default: return '';
                             }
                         })();

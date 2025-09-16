@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ConfigInputFactory from './inputs/ConfigInputFactory';
 import { ConfigIntrospector } from '../../utils/configIntrospector';
+import EffectAttachmentModal from './EffectAttachmentModal';
 
 /**
  * Override Point2D center properties to use the current project resolution center
@@ -79,18 +80,39 @@ function overridePoint2DCenterDefaults(config, projectData) {
     return updatedConfig;
 }
 
-function EffectConfigurer({ selectedEffect, projectData, onConfigChange, onAddEffect }) {
+function EffectConfigurer({
+    selectedEffect,
+    projectData,
+    onConfigChange,
+    onAddEffect,
+    onAddCompleteEffect = null,
+    isModal = false,
+    effectType = null,
+    availableEffects = null,
+    attachedEffects = null,
+    onAttachEffect = null,
+    onRemoveAttachedEffect = null,
+    initialConfig = null,
+    initialPercentChance = null
+}) {
     const [configSchema, setConfigSchema] = useState(null);
     const [effectConfig, setEffectConfig] = useState({});
     const [percentChance, setPercentChance] = useState(100);
+    const [modalState, setModalState] = useState({
+        isOpen: false,
+        attachmentType: null,
+        editingEffect: null,
+        isEditing: false
+    });
 
     useEffect(() => {
         if (selectedEffect) {
             loadConfigSchema(selectedEffect);
-            setEffectConfig({});
-            setPercentChance(100);
+            // Use initial values if provided (for editing mode), otherwise reset
+            setEffectConfig(initialConfig || {});
+            setPercentChance(initialPercentChance || 100);
         }
-    }, [selectedEffect]);
+    }, [selectedEffect, initialConfig, initialPercentChance]);
 
     const loadConfigSchema = async (effect) => {
         try {
@@ -99,8 +121,12 @@ function EffectConfigurer({ selectedEffect, projectData, onConfigChange, onAddEf
             console.log('Generated schema:', schema);
             setConfigSchema(schema);
 
-            // Use the default instance directly - it has all the correct defaults
-            if (schema.defaultInstance) {
+            // Use initial config if provided (editing mode), otherwise use defaults
+            if (initialConfig) {
+                console.log('Using initial config for editing:', initialConfig);
+                setEffectConfig(initialConfig);
+                onConfigChange(initialConfig);
+            } else if (schema.defaultInstance) {
                 console.log('Using config defaults from constructor:', schema.defaultInstance);
 
                 // Override Point2D center properties with current project resolution center
@@ -133,6 +159,51 @@ function EffectConfigurer({ selectedEffect, projectData, onConfigChange, onAddEf
             config: effectConfig,
             percentChance: percentChance
         });
+    };
+
+    const handleOpenAttachmentModal = (attachmentType) => {
+        setModalState({
+            isOpen: true,
+            attachmentType
+        });
+    };
+
+    const handleCloseAttachmentModal = () => {
+        setModalState({
+            isOpen: false,
+            attachmentType: null,
+            editingEffect: null,
+            isEditing: false
+        });
+    };
+
+    const handleEditAttachedEffect = (attachmentType, effect) => {
+        console.log('Editing attached effect:', attachmentType, effect);
+        setModalState({
+            isOpen: true,
+            attachmentType,
+            editingEffect: effect,
+            isEditing: true
+        });
+    };
+
+    const handleAttachEffect = (effectData, attachmentType) => {
+        if (onAttachEffect) {
+            onAttachEffect(effectData, attachmentType);
+        }
+    };
+
+    const handleEditComplete = (effectData, attachmentType) => {
+        // For editing mode, we need to handle the update differently
+        console.log('Edit complete for attached effect:', effectData, attachmentType);
+        if (onAttachEffect) {
+            // Pass along the original effect ID to identify which effect to update
+            const updatedEffectData = {
+                ...effectData,
+                id: modalState.editingEffect?.id // Preserve the original ID
+            };
+            onAttachEffect(updatedEffectData, attachmentType, true); // true indicates editing mode
+        }
     };
 
     if (!selectedEffect) {
@@ -190,6 +261,183 @@ function EffectConfigurer({ selectedEffect, projectData, onConfigChange, onAddEf
                     </div>
                 )}
             </div>
+
+            {/* Attached Effects Display (for primary effects) */}
+            {effectType === 'primary' && (
+                <div style={{
+                    marginTop: '1.5rem',
+                    padding: '1rem',
+                    background: 'rgba(255, 193, 7, 0.1)',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255, 193, 7, 0.3)'
+                }}>
+                    <h4 style={{ color: '#ffc107', marginBottom: '1rem' }}>Attached Effects</h4>
+
+                    {/* Secondary Effects */}
+                    <div style={{ marginBottom: '1rem' }}>
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '0.5rem'
+                        }}>
+                            <h5 style={{ color: '#28a745', margin: 0, fontSize: '0.9rem' }}>
+                                ✨ Secondary Effects ({(attachedEffects?.secondary || []).length})
+                            </h5>
+                            <button
+                                onClick={() => handleOpenAttachmentModal('secondary')}
+                                style={{
+                                    background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    padding: '0.25rem 0.75rem',
+                                    color: 'white',
+                                    fontSize: '0.8rem',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                + Attach Secondary
+                            </button>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', minHeight: '2rem' }}>
+                            {(attachedEffects?.secondary || []).map(effect => (
+                                <div
+                                    key={effect.id}
+                                    style={{
+                                        background: 'rgba(40, 167, 69, 0.2)',
+                                        padding: '0.4rem 0.8rem',
+                                        borderRadius: '15px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        fontSize: '0.8rem',
+                                        color: '#28a745',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                    onClick={() => handleEditAttachedEffect('secondary', effect)}
+                                    onMouseOver={(e) => {
+                                        e.currentTarget.style.background = 'rgba(40, 167, 69, 0.3)';
+                                        e.currentTarget.style.transform = 'scale(1.05)';
+                                    }}
+                                    onMouseOut={(e) => {
+                                        e.currentTarget.style.background = 'rgba(40, 167, 69, 0.2)';
+                                        e.currentTarget.style.transform = 'scale(1)';
+                                    }}
+                                    title="Click to edit this effect"
+                                >
+                                    <span>{effect.effectClass.name} ({effect.percentChance}%)</span>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onRemoveAttachedEffect && onRemoveAttachedEffect('secondary', effect.id);
+                                        }}
+                                        style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            color: '#dc3545',
+                                            cursor: 'pointer',
+                                            fontSize: '1rem',
+                                            padding: '0',
+                                            lineHeight: '1'
+                                        }}
+                                        title="Remove this effect"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            ))}
+                            {(attachedEffects?.secondary || []).length === 0 && (
+                                <div style={{ color: '#888', fontSize: '0.85rem', fontStyle: 'italic', padding: '0.5rem 0' }}>
+                                    No secondary effects attached
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Key Frame Effects */}
+                    <div>
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '0.5rem'
+                        }}>
+                            <h5 style={{ color: '#007bff', margin: 0, fontSize: '0.9rem' }}>
+                                🔑 Key Frame Effects ({(attachedEffects?.keyFrame || []).length})
+                            </h5>
+                            <button
+                                onClick={() => handleOpenAttachmentModal('keyFrame')}
+                                style={{
+                                    background: 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    padding: '0.25rem 0.75rem',
+                                    color: 'white',
+                                    fontSize: '0.8rem',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                + Attach Key Frame
+                            </button>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', minHeight: '2rem' }}>
+                            {(attachedEffects?.keyFrame || []).map(effect => (
+                                <div
+                                    key={effect.id}
+                                    style={{
+                                        background: 'rgba(0, 123, 255, 0.2)',
+                                        padding: '0.4rem 0.8rem',
+                                        borderRadius: '15px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        fontSize: '0.8rem',
+                                        color: '#007bff',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                    onClick={() => handleEditAttachedEffect('keyFrame', effect)}
+                                    onMouseOver={(e) => {
+                                        e.currentTarget.style.background = 'rgba(0, 123, 255, 0.3)';
+                                        e.currentTarget.style.transform = 'scale(1.05)';
+                                    }}
+                                    onMouseOut={(e) => {
+                                        e.currentTarget.style.background = 'rgba(0, 123, 255, 0.2)';
+                                        e.currentTarget.style.transform = 'scale(1)';
+                                    }}
+                                    title="Click to edit this effect"
+                                >
+                                    <span>{effect.effectClass.name} ({effect.percentChance}%)</span>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onRemoveAttachedEffect && onRemoveAttachedEffect('keyFrame', effect.id);
+                                        }}
+                                        style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            color: '#dc3545',
+                                            cursor: 'pointer',
+                                            fontSize: '1rem',
+                                            padding: '0',
+                                            lineHeight: '1'
+                                        }}
+                                        title="Remove this effect"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            ))}
+                            {(attachedEffects?.keyFrame || []).length === 0 && (
+                                <div style={{ color: '#888', fontSize: '0.85rem', fontStyle: 'italic', padding: '0.5rem 0' }}>
+                                    No key frame effects attached
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Percent Chance Section */}
             <div style={{
@@ -275,8 +523,10 @@ function EffectConfigurer({ selectedEffect, projectData, onConfigChange, onAddEf
                 </pre>
             </div>
 
-            {/* Add Effect Button */}
-            <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+
+            {/* Add Effect Button(s) */}
+            <div style={{ marginTop: '1.5rem', textAlign: 'center', display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                {/* Primary button - create/stage or attach in modal */}
                 <button
                     onClick={handleAddEffect}
                     className="btn"
@@ -287,9 +537,38 @@ function EffectConfigurer({ selectedEffect, projectData, onConfigChange, onAddEf
                         fontWeight: 'bold'
                     }}
                 >
-                    Add Effect to Project
+                    {isModal ? 'Attach Effect' : (effectType === 'primary' && !attachedEffects ? 'Create Primary Effect' : 'Add Effect to Project')}
                 </button>
+
+                {/* Add Complete Effect to Project button - only show when we have a staged primary with potential attachments */}
+                {effectType === 'primary' && attachedEffects && onAddCompleteEffect && (
+                    <button
+                        onClick={onAddCompleteEffect}
+                        className="btn"
+                        style={{
+                            background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+                            padding: '0.75rem 2rem',
+                            fontSize: '1rem',
+                            fontWeight: 'bold',
+                            border: '2px solid #28a745'
+                        }}
+                    >
+                        Add Complete Effect to Project
+                    </button>
+                )}
             </div>
+
+            {/* Attachment Modal */}
+            <EffectAttachmentModal
+                isOpen={modalState.isOpen}
+                onClose={handleCloseAttachmentModal}
+                attachmentType={modalState.attachmentType}
+                availableEffects={availableEffects || {}}
+                onAttachEffect={modalState.isEditing ? handleEditComplete : handleAttachEffect}
+                projectData={projectData}
+                editingEffect={modalState.editingEffect}
+                isEditing={modalState.isEditing}
+            />
         </div>
     );
 }

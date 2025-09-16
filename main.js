@@ -849,8 +849,9 @@ ipcMain.handle('validate-effect', async (event, effectMetadata) => {
     }
 });
 
+
 // Effect Preview IPC handlers
-ipcMain.handle('preview-effect', async (event, { effectClass, effectConfig, frameNumber = 0, totalFrames = 60, projectSettings = {} }) => {
+ipcMain.handle('preview-effect', async (event, { effectClass, effectConfig, attachedEffects = null, completeEffectData = null, frameNumber = 0, totalFrames = 60, projectSettings = {} }) => {
     try {
         const { EffectPreviewRenderer } = await import('my-nft-gen/src/core/preview/EffectPreviewRenderer.js');
 
@@ -1043,11 +1044,12 @@ ipcMain.handle('preview-effect', async (event, { effectClass, effectConfig, fram
             return { success: false, error: `Cannot import effect '${effectClass.name}' or config '${effectClass.configClass}': ${importError.message}` };
         }
 
-        console.log('Calling EffectPreviewRenderer.renderSingleEffect with:', {
+        console.log('Calling EffectPreviewRenderer with attached effects:', {
             effectClass: EffectClassConstructor.name,
             effectConfig: typeof properEffectConfig,
             frameNumber,
-            totalFrames
+            totalFrames,
+            hasAttachedEffects: !!attachedEffects || !!completeEffectData
         });
 
         // Use the color scheme data from the frontend (EffectPreview.jsx)
@@ -1066,13 +1068,108 @@ ipcMain.handle('preview-effect', async (event, { effectClass, effectConfig, fram
             ...projectSettings // Allow other settings to override
         };
 
-        const buffer = await EffectPreviewRenderer.renderSingleEffect({
-            effectClass: EffectClassConstructor,
-            effectConfig: properEffectConfig,
-            frameNumber,
-            totalFrames,
-            projectSettings: enhancedProjectSettings
-        });
+        let buffer;
+
+        // Check if we have attached effects and need composite rendering
+        if (attachedEffects && (attachedEffects.secondary?.length > 0 || attachedEffects.keyFrame?.length > 0)) {
+            console.log('Rendering effect with attached effects:', attachedEffects);
+
+            // Create additionalEffects array for the primary effect
+            const additionalEffects = [];
+
+            // Add secondary effects to the additionalEffects array
+            if (attachedEffects.secondary) {
+                for (const secondaryEffect of attachedEffects.secondary) {
+                    try {
+                        const SecondaryEffectClass = EffectRegistry.getGlobal(secondaryEffect.effectClass.name);
+                        if (SecondaryEffectClass) {
+                            // Get config class from registry instead of dynamic import
+                            const ConfigClass = EffectRegistry.getConfigGlobal(secondaryEffect.effectClass.configClass);
+
+                            if (ConfigClass) {
+                                const config = new ConfigClass(secondaryEffect.config);
+                                const effect = new SecondaryEffectClass({ config });
+                                additionalEffects.push(effect);
+                                console.log(`Added secondary effect: ${secondaryEffect.effectClass.name}`);
+                            } else {
+                                console.error(`ConfigClass not found in registry for secondary effect ${secondaryEffect.effectClass.configClass}`);
+                            }
+                        } else {
+                            console.error(`SecondaryEffectClass not found for ${secondaryEffect.effectClass.name}`);
+                        }
+                    } catch (err) {
+                        console.error(`Error creating secondary effect ${secondaryEffect.effectClass.name}:`, err);
+                    }
+                }
+            }
+
+            // Add keyframe effects to the additionalEffects array
+            if (attachedEffects.keyFrame) {
+                console.log(`Processing ${attachedEffects.keyFrame.length} keyframe effects`);
+                for (const keyFrameEffect of attachedEffects.keyFrame) {
+                    console.log(`Processing keyframe effect:`, {
+                        name: keyFrameEffect.effectClass.name,
+                        configClass: keyFrameEffect.effectClass.configClass,
+                        config: keyFrameEffect.config
+                    });
+                    try {
+                        const KeyFrameEffectClass = EffectRegistry.getGlobal(keyFrameEffect.effectClass.name);
+                        console.log(`KeyFrameEffectClass found:`, !!KeyFrameEffectClass);
+                        if (KeyFrameEffectClass) {
+                            // Get config class from registry instead of dynamic import
+                            const ConfigClass = EffectRegistry.getConfigGlobal(keyFrameEffect.effectClass.configClass);
+                            console.log(`ConfigClass found via registry:`, !!ConfigClass);
+
+                            if (ConfigClass) {
+                                const config = new ConfigClass(keyFrameEffect.config);
+                                console.log(`Created config instance:`, config);
+                                const effect = new KeyFrameEffectClass({ config });
+                                console.log(`Created effect instance:`, effect);
+                                additionalEffects.push(effect);
+                                console.log(`Added keyframe effect: ${keyFrameEffect.effectClass.name}`);
+                            } else {
+                                console.error(`ConfigClass not found in registry for ${keyFrameEffect.effectClass.configClass}`);
+                            }
+                        } else {
+                            console.error(`KeyFrameEffectClass not found for ${keyFrameEffect.effectClass.name}`);
+                        }
+                    } catch (err) {
+                        console.error(`Error creating keyframe effect ${keyFrameEffect.effectClass.name}:`, err);
+                    }
+                }
+            }
+
+            // Create a config object that includes additionalEffects
+            const configWithAdditionalEffects = {
+                ...properEffectConfig,
+                additionalEffects
+            };
+
+            console.log(`Final additionalEffects array length: ${additionalEffects.length}`);
+            console.log(`AdditionalEffects array:`, additionalEffects.map(effect => ({
+                name: effect.constructor.name,
+                config: effect.config
+            })));
+            console.log(`Config with additionalEffects:`, configWithAdditionalEffects);
+
+            // Render the composite effect as a single unit
+            buffer = await EffectPreviewRenderer.renderSingleEffect({
+                effectClass: EffectClassConstructor,
+                effectConfig: configWithAdditionalEffects,
+                frameNumber,
+                totalFrames,
+                projectSettings: enhancedProjectSettings
+            });
+        } else {
+            // Fallback to single effect rendering
+            buffer = await EffectPreviewRenderer.renderSingleEffect({
+                effectClass: EffectClassConstructor,
+                effectConfig: properEffectConfig,
+                frameNumber,
+                totalFrames,
+                projectSettings: enhancedProjectSettings
+            });
+        }
 
         // Convert buffer to base64 for transmission
         const base64 = buffer.toString('base64');

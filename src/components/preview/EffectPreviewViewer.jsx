@@ -8,6 +8,7 @@ import EffectPreview from './EffectPreview';
 function EffectPreviewViewer({
     effectClass,
     effectConfig,
+    attachedEffects,
     projectData,
     size = 'medium',
     showControls = true
@@ -97,6 +98,7 @@ function EffectPreviewViewer({
             <EffectPreview
                 effectClass={effectClass}
                 effectConfig={effectConfig}
+                attachedEffects={attachedEffects}
                 projectData={projectData}
                 frameNumber={currentFrame}
                 size={size}
