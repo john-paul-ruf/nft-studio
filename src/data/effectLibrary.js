@@ -1,4 +1,4 @@
-const { ipcRenderer } = window.require('electron');
+// Remove the electron import since we'll use window.api
 
 /**
  * Dynamic effect library that discovers effects from the file system
@@ -22,7 +22,7 @@ export class EffectLibrary {
         }
 
         try {
-            const result = await ipcRenderer.invoke('discover-effects');
+            const result = await window.api.discoverEffects();
 
             if (result.success) {
                 this._cachedEffects = result.effects;
@@ -56,7 +56,7 @@ export class EffectLibrary {
      */
     static async getEffectMetadata(effectName, category) {
         try {
-            const result = await ipcRenderer.invoke('get-effect-metadata', { effectName, category });
+            const result = await window.api.getEffectMetadata({ effectName, category });
 
             if (result.success) {
                 return result.metadata;
@@ -77,7 +77,7 @@ export class EffectLibrary {
      */
     static async validateEffect(effectMetadata) {
         try {
-            const result = await ipcRenderer.invoke('validate-effect', effectMetadata);
+            const result = await window.api.validateEffect(effectMetadata);
             return result.success ? result.isValid : false;
         } catch (error) {
             console.error('Error validating effect:', error);

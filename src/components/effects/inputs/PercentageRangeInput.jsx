@@ -8,6 +8,7 @@ function PercentageRangeInput({ field, value, onChange }) {
         upper: { percent: 0.9, side: 'longest' }
     };
 
+
     // Convert legacy format if needed
     if (currentValue.min !== undefined || currentValue.max !== undefined) {
         currentValue = {
@@ -16,11 +17,36 @@ function PercentageRangeInput({ field, value, onChange }) {
         };
     }
 
-    // Convert simple number format if needed
-    if (typeof currentValue.lower === 'number') {
+    // Convert simple number format if needed (more robust check)
+    if (typeof currentValue.lower === 'number' ||
+        (currentValue.lower && typeof currentValue.lower.percent === 'undefined') ||
+        currentValue.lower === '[Function]') {
+
+        let lowerPercent, upperPercent;
+
+        // Handle different input formats
+        if (typeof currentValue.lower === 'number') {
+            lowerPercent = currentValue.lower;
+            upperPercent = currentValue.upper;
+        } else if (currentValue.lower === '[Function]' || currentValue.upper === '[Function]') {
+            // Use field-specific defaults for serialized functions
+            const fieldDefaults = {
+                'flareOffset': { lower: 0.01, upper: 0.06 },
+                'flareRingsSizeRange': { lower: 0.05, upper: 1.0 },
+                'flareRaysSizeRange': { lower: 0.7, upper: 1.0 }
+            };
+            const defaults = fieldDefaults[field.name] || { lower: 0.1, upper: 0.9 };
+            lowerPercent = defaults.lower;
+            upperPercent = defaults.upper;
+        } else {
+            // Fallback for other cases
+            lowerPercent = 0.1;
+            upperPercent = 0.9;
+        }
+
         currentValue = {
-            lower: { percent: currentValue.lower, side: 'shortest' },
-            upper: { percent: currentValue.upper, side: 'longest' }
+            lower: { percent: lowerPercent, side: 'shortest' },
+            upper: { percent: upperPercent, side: 'longest' }
         };
     }
 
@@ -72,12 +98,12 @@ function PercentageRangeInput({ field, value, onChange }) {
                             Lower bound
                         </label>
                         <span style={{ fontSize: '0.8rem', color: '#67eea5', fontWeight: 'bold' }}>
-                            {Math.round(currentValue.lower.percent * 100)}%
+                            {Math.round((currentValue.lower?.percent || 0) * 100)}%
                         </span>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                         <select
-                            value={currentValue.lower.side}
+                            value={currentValue.lower?.side || 'shortest'}
                             onChange={(e) => {
                                 onChange(field.name, {
                                     ...currentValue,
@@ -106,7 +132,7 @@ function PercentageRangeInput({ field, value, onChange }) {
                         min={0}
                         max={1}
                         step={0.01}
-                        value={currentValue.lower.percent}
+                        value={currentValue.lower?.percent || 0}
                         onChange={(e) => {
                             const newValue = parseFloat(e.target.value);
                             onChange(field.name, {
@@ -135,12 +161,12 @@ function PercentageRangeInput({ field, value, onChange }) {
                             Upper bound
                         </label>
                         <span style={{ fontSize: '0.8rem', color: '#67eea5', fontWeight: 'bold' }}>
-                            {Math.round(currentValue.upper.percent * 100)}%
+                            {Math.round((currentValue.upper?.percent || 0) * 100)}%
                         </span>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                         <select
-                            value={currentValue.upper.side}
+                            value={currentValue.upper?.side || 'longest'}
                             onChange={(e) => {
                                 onChange(field.name, {
                                     ...currentValue,
@@ -169,7 +195,7 @@ function PercentageRangeInput({ field, value, onChange }) {
                         min={0}
                         max={1}
                         step={0.01}
-                        value={currentValue.upper.percent}
+                        value={currentValue.upper?.percent || 0}
                         onChange={(e) => {
                             const newValue = parseFloat(e.target.value);
                             onChange(field.name, {
@@ -193,7 +219,7 @@ function PercentageRangeInput({ field, value, onChange }) {
                     color: '#888',
                     textAlign: 'center'
                 }}>
-                    Range: {Math.round(currentValue.lower.percent * 100)}% ({currentValue.lower.side}) - {Math.round(currentValue.upper.percent * 100)}% ({currentValue.upper.side})
+                    Range: {Math.round((currentValue.lower?.percent || 0) * 100)}% ({currentValue.lower?.side || 'shortest'}) - {Math.round((currentValue.upper?.percent || 0) * 100)}% ({currentValue.upper?.side || 'longest'})
                 </div>
             </div>
         </div>

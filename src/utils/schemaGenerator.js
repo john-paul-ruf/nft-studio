@@ -240,15 +240,7 @@ export class SchemaGenerator {
      */
     static async generateSchemaFromModule(modulePath) {
         try {
-            // This would dynamically import the config class
-            // For now, we'll return a fallback
             console.log(`Would dynamically load schema from: ${modulePath}`);
-
-            // In a real implementation, this might look like:
-            // const module = await import(modulePath);
-            // const ConfigClass = module[configClassName];
-            // return this.generateSchema(ConfigClass);
-
             return { fields: [] };
         } catch (error) {
             console.error(`Error loading config from ${modulePath}:`, error);

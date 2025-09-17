@@ -1,12 +1,12 @@
 import { predefinedColorSchemes } from '../data/colorSchemes.js';
 import PreferencesService from './PreferencesService.js';
 
-const { ipcRenderer } = window.require('electron');
+// Use the exposed API from preload script instead of direct electron access
 
 /**
  * Service for managing color schemes (predefined and custom)
  */
-export class ColorSchemeService {
+class ColorSchemeService {
     static CUSTOM_SCHEMES_FILE = 'custom-color-schemes.json';
 
     /**
@@ -156,7 +156,7 @@ export class ColorSchemeService {
      */
     static async loadCustomSchemes() {
         try {
-            const result = await ipcRenderer.invoke('read-file', this.CUSTOM_SCHEMES_FILE);
+            const result = await window.api.readFile(this.CUSTOM_SCHEMES_FILE);
 
             if (result.success) {
                 return JSON.parse(result.content);
@@ -176,7 +176,7 @@ export class ColorSchemeService {
      * @returns {Promise<void>}
      */
     static async saveCustomSchemes(customSchemes) {
-        const result = await ipcRenderer.invoke('write-file', this.CUSTOM_SCHEMES_FILE, JSON.stringify(customSchemes, null, 2));
+        const result = await window.api.writeFile(this.CUSTOM_SCHEMES_FILE, JSON.stringify(customSchemes, null, 2));
 
         if (!result.success) {
             throw new Error(`Failed to save custom schemes: ${result.error}`);

@@ -1,77 +1,123 @@
-import React, { useState } from 'react';
-import WelcomeScreen from './pages/WelcomeScreen';
-import NewProjectWizard from './pages/NewProjectWizard';
-import ResumeProject from './pages/ResumeProject';
-import EditProject from './pages/EditProject';
-import EventBusDisplay from './components/EventBusDisplay';
+import React from 'react';
+import { ServiceProvider } from './contexts/ServiceContext';
+import { useNavigation } from './hooks/useNavigation';
+import Intro from './pages/Intro';
+import ProjectWizard from './pages/ProjectWizard';
+import Canvas from './pages/Canvas';
+const ApplicationFactory = require('./ApplicationFactory');
 
-const { ipcRenderer } = window.require('electron');
-
-function App() {
-    const [currentView, setCurrentView] = useState('welcome');
-    const [projectData, setProjectData] = useState(null);
-    const [eventBus, setEventBus] = useState(null);
+/**
+ * Main application router component
+ * Follows Single Responsibility Principle - only handles view routing
+ */
+function AppRouter() {
+    const { currentView, currentParams, navigateToWizard, navigateToCanvas, navigateToIntro } = useNavigation();
 
     const renderCurrentView = () => {
         switch (currentView) {
-            case 'welcome':
-                return <WelcomeScreen onNavigate={setCurrentView} />;
-            case 'new':
+            case 'intro':
                 return (
-                    <NewProjectWizard
-                        onBack={() => setCurrentView('welcome')}
-                        onProjectCreated={(data) => {
-                            setProjectData(data);
-                            // Don't start generation here - it's already started in NewProjectWizard step 6
-                            // This was causing duplicate generations
+                    <Intro
+                        onNewProject={navigateToWizard}
+                        onEditProject={async () => {
+                            try {
+                                const result = await window.api.selectFile({
+                                    filters: [
+                                        { name: 'JSON Files', extensions: ['json'] },
+                                        { name: 'All Files', extensions: ['*'] }
+                                    ]
+                                });
+
+                                if (!result.canceled && result.filePaths?.[0]) {
+                                    const filePath = result.filePaths[0];
+                                    const projectResult = await window.api.loadProject(filePath);
+
+                                    if (projectResult.success) {
+                                        navigateToCanvas({
+                                            projectConfig: projectResult.config,
+                                            loadedFromFile: true,
+                                            filePath
+                                        });
+                                    }
+                                }
+                            } catch (error) {
+                                console.error('Error loading project:', error);
+                            }
                         }}
-                        onEventBusCreated={setEventBus}
                     />
                 );
-            case 'resume':
+            case 'wizard':
                 return (
-                    <ResumeProject
-                        onBack={() => setCurrentView('welcome')}
-                        onEventBusCreated={setEventBus}
-                    />
-                );
-            case 'edit':
-                return (
-                    <EditProject
-                        onBack={() => setCurrentView('welcome')}
-                        onProjectLoaded={(data) => {
-                            setProjectData(data);
-                            setCurrentView('wizard');
+                    <ProjectWizard
+                        onComplete={(config) => {
+                            navigateToCanvas({ projectConfig: config });
                         }}
+                        onCancel={navigateToIntro}
                     />
                 );
-            case 'generation':
-                return (
-                    <div className="generation-view">
-                        <div className="generation-header">
-                            <h2>Generating: {projectData?.projectName}</h2>
-                            <button onClick={() => setCurrentView('welcome')}>
-                                Back to Home
-                            </button>
-                        </div>
-                        <EventBusDisplay eventBus={eventBus} />
-                    </div>
-                );
+            case 'canvas':
+                return <Canvas
+                    projectConfig={currentParams.projectConfig}
+                    onUpdateConfig={(updatedConfig) => {
+                        // Update the current params with the new config
+                        // This ensures the config changes are maintained during the session
+                        currentParams.projectConfig = updatedConfig;
+                    }}
+                />;
             default:
-                return <WelcomeScreen onNavigate={setCurrentView} />;
+                return (
+                    <Intro
+                        onNewProject={navigateToWizard}
+                        onEditProject={async () => {
+                            try {
+                                const result = await window.api.selectFile({
+                                    filters: [
+                                        { name: 'JSON Files', extensions: ['json'] },
+                                        { name: 'All Files', extensions: ['*'] }
+                                    ]
+                                });
+
+                                if (!result.canceled && result.filePaths?.[0]) {
+                                    const filePath = result.filePaths[0];
+                                    const projectResult = await window.api.loadProject(filePath);
+
+                                    if (projectResult.success) {
+                                        navigateToCanvas({
+                                            projectConfig: projectResult.config,
+                                            loadedFromFile: true,
+                                            filePath
+                                        });
+                                    }
+                                }
+                            } catch (error) {
+                                console.error('Error loading project:', error);
+                            }
+                        }}
+                    />
+                );
         }
     };
 
     return (
         <div className="app">
-            <div className="app-header">
-                <h1>🎨 NFT Studio</h1>
-                <p>Professional NFT Generation Suite</p>
-            </div>
-            <div className="app-content">
-                {renderCurrentView()}
-            </div>
+            {renderCurrentView()}
         </div>
+    );
+}
+
+/**
+ * SOLID-compliant App component
+ * Follows Dependency Inversion Principle - depends on abstractions (ApplicationFactory)
+ * Follows Single Responsibility Principle - only provides services and renders router
+ */
+function App() {
+    // Initialize application factory
+    const contextValue = ApplicationFactory.createReactContextValue();
+
+    return (
+        <ServiceProvider value={contextValue}>
+            <AppRouter />
+        </ServiceProvider>
     );
 }
 

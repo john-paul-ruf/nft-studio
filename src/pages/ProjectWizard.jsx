@@ -1,0 +1,195 @@
+import React, { useState, useEffect } from 'react';
+import Spinner from '../components/Spinner';
+import PreferencesService from '../services/PreferencesService';
+import './ProjectWizard.css';
+
+export default function ProjectWizard({ onComplete, onCancel }) {
+    const [step, setStep] = useState(1);
+    const [artistName, setArtistName] = useState('');
+    const [projectName, setProjectName] = useState('');
+    const [projectDirectory, setProjectDirectory] = useState('');
+    const [isCompleting, setIsCompleting] = useState(false);
+
+    // Load default values from preferences
+    useEffect(() => {
+        const loadDefaults = async () => {
+            try {
+                // Clean up any corrupted preferences structure first
+                await PreferencesService.cleanupPreferences();
+
+                const lastArtist = await PreferencesService.getLastArtist();
+                const lastProjectName = await PreferencesService.getLastProjectName();
+                const lastDirectory = await PreferencesService.getLastProjectDirectory();
+
+                if (lastArtist) setArtistName(lastArtist);
+                if (lastProjectName) setProjectName(lastProjectName);
+                if (lastDirectory) setProjectDirectory(lastDirectory);
+            } catch (error) {
+                console.error('Error loading defaults:', error);
+            }
+        };
+
+        loadDefaults();
+    }, []);
+
+    const handleNext = () => {
+        if (step < 3) {
+            setStep(step + 1);
+        } else {
+            handleComplete();
+        }
+    };
+
+    const handleBack = () => {
+        if (step > 1) {
+            setStep(step - 1);
+        }
+    };
+
+    const handleComplete = async () => {
+        if (artistName && projectName && projectDirectory) {
+            setIsCompleting(true);
+            try {
+                const config = {
+                    artistName,
+                    projectName,
+                    outputDirectory: projectDirectory,
+                    targetResolution: 512,
+                    isHorizontal: false,
+                    numFrames: 100,
+                    effects: [],
+                    colorScheme: null
+                };
+
+                // Save these values as preferences for next time
+                await PreferencesService.saveLastProjectInfo(
+                    projectName,
+                    artistName,
+                    null, // resolution
+                    projectDirectory
+                );
+
+                onComplete(config);
+            } finally {
+                setIsCompleting(false);
+            }
+        }
+    };
+
+    const selectDirectory = async () => {
+        try {
+            const result = await window.api.selectDirectory();
+            if (result && !result.canceled && result.filePaths[0]) {
+                setProjectDirectory(result.filePaths[0]);
+            }
+        } catch (error) {
+            console.error('Error selecting directory:', error);
+        }
+    };
+
+    const canProceed = () => {
+        switch (step) {
+            case 1:
+                return artistName.trim() !== '';
+            case 2:
+                return projectName.trim() !== '';
+            case 3:
+                return projectDirectory !== '';
+            default:
+                return false;
+        }
+    };
+
+    return (
+        <div className="wizard-container">
+            <div className="wizard-content">
+                <div className="wizard-header">
+                    <h2>New Project</h2>
+                    <div className="wizard-steps">
+                        <div className={`step ${step >= 1 ? 'active' : ''}`}>1</div>
+                        <div className={`step-line ${step >= 2 ? 'active' : ''}`}></div>
+                        <div className={`step ${step >= 2 ? 'active' : ''}`}>2</div>
+                        <div className={`step-line ${step >= 3 ? 'active' : ''}`}></div>
+                        <div className={`step ${step >= 3 ? 'active' : ''}`}>3</div>
+                    </div>
+                </div>
+
+                <div className="wizard-body">
+                    {step === 1 && (
+                        <div className="wizard-step-content">
+                            <label className="wizard-label">Artist Name</label>
+                            <input
+                                type="text"
+                                className="wizard-input"
+                                value={artistName}
+                                onChange={(e) => setArtistName(e.target.value)}
+                                placeholder="Enter your artist name"
+                                autoFocus
+                            />
+                        </div>
+                    )}
+
+                    {step === 2 && (
+                        <div className="wizard-step-content">
+                            <label className="wizard-label">Project Name</label>
+                            <input
+                                type="text"
+                                className="wizard-input"
+                                value={projectName}
+                                onChange={(e) => setProjectName(e.target.value)}
+                                placeholder="Enter project name"
+                                autoFocus
+                            />
+                        </div>
+                    )}
+
+                    {step === 3 && (
+                        <div className="wizard-step-content">
+                            <label className="wizard-label">Project Directory</label>
+                            <div className="directory-selector">
+                                <input
+                                    type="text"
+                                    className="wizard-input"
+                                    value={projectDirectory}
+                                    readOnly
+                                    placeholder="Select project directory"
+                                />
+                                <button
+                                    className="browse-button"
+                                    onClick={selectDirectory}
+                                >
+                                    Browse
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="wizard-footer">
+                    <button className="wizard-button cancel" onClick={onCancel}>
+                        Cancel
+                    </button>
+                    <div className="wizard-nav-buttons">
+                        {step > 1 && (
+                            <button className="wizard-button back" onClick={handleBack}>
+                                Back
+                            </button>
+                        )}
+                        <button
+                            className="wizard-button next"
+                            onClick={handleNext}
+                            disabled={!canProceed() || isCompleting}
+                        >
+                            {isCompleting ? (
+                                <div className="button-spinner-content">
+                                    <Spinner size="small" color="white" />
+                                    <span>Creating...</span>
+                                </div>
+                            ) : (step === 3 ? 'Create' : 'Next')}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}

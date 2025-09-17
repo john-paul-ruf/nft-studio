@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ConfigInputFactory from './inputs/ConfigInputFactory';
 import { ConfigIntrospector } from '../../utils/configIntrospector';
 import EffectAttachmentModal from './EffectAttachmentModal';
@@ -10,8 +10,8 @@ import EffectAttachmentModal from './EffectAttachmentModal';
  * @returns {Object} Updated config with project-based center defaults
  */
 function overridePoint2DCenterDefaults(config, projectData) {
-    if (!projectData?.resolution) {
-        return config;
+    if (!config || !projectData?.resolution) {
+        return config || {};
     }
 
     // Resolution mapping - same as used in Point2DInput and EffectPreview
@@ -57,6 +57,10 @@ function overridePoint2DCenterDefaults(config, projectData) {
     };
 
     // Deep clone the config to avoid mutations
+    // If config is still null/undefined after the check above, return empty object
+    if (!config) {
+        return {};
+    }
     const updatedConfig = JSON.parse(JSON.stringify(config));
 
     // Find and override Point2D properties that look like center points
@@ -71,7 +75,6 @@ function overridePoint2DCenterDefaults(config, projectData) {
                            key.toLowerCase().includes('point');
 
             if (isCenter) {
-                console.log(`Overriding Point2D ${key} from {x: ${value.x}, y: ${value.y}} to {x: ${projectCenter.x}, y: ${projectCenter.y}}`);
                 updatedConfig[key] = projectCenter;
             }
         }
@@ -105,33 +108,50 @@ function EffectConfigurer({
         isEditing: false
     });
 
+    // Cache to prevent repeated introspection calls for the same effect
+    const introspectionCache = useRef(new Map());
+
     useEffect(() => {
         if (selectedEffect) {
             loadConfigSchema(selectedEffect);
-            // Use initial values if provided (for editing mode), otherwise reset
-            setEffectConfig(initialConfig || {});
+            // Only set percentChance here, let loadConfigSchema handle effectConfig
             setPercentChance(initialPercentChance || 100);
         }
-    }, [selectedEffect, initialConfig, initialPercentChance]);
+    }, [selectedEffect?.name, selectedEffect?.className, initialPercentChance]); // Remove initialConfig from dependencies to prevent loops
 
     const loadConfigSchema = async (effect) => {
         try {
-            console.log('Loading config schema for effect:', effect);
-            const schema = await ConfigIntrospector.analyzeConfigClass(effect, projectData);
-            console.log('Generated schema:', schema);
-            setConfigSchema(schema);
+            // Create cache key based on effect name
+            const cacheKey = effect.name || effect.className || 'unknown';
+
+            // Check if we already have this schema cached
+            if (introspectionCache.current.has(cacheKey)) {
+                console.log(`🚀 Using cached schema for ${cacheKey}`);
+                const schema = introspectionCache.current.get(cacheKey);
+                setConfigSchema(schema);
+            } else {
+                console.log(`🔍 Loading new schema for ${cacheKey}`);
+                const schema = await ConfigIntrospector.analyzeConfigClass(effect, projectData);
+
+                // Cache the result
+                introspectionCache.current.set(cacheKey, schema);
+                setConfigSchema(schema);
+            }
+
+            // Get the current schema (from cache or fresh)
+            const currentSchema = introspectionCache.current.get(cacheKey);
 
             // Use initial config if provided (editing mode), otherwise use defaults
-            if (initialConfig) {
-                console.log('Using initial config for editing:', initialConfig);
+            if (initialConfig && Object.keys(initialConfig).length > 0) {
                 setEffectConfig(initialConfig);
                 onConfigChange(initialConfig);
-            } else if (schema.defaultInstance) {
-                console.log('Using config defaults from constructor:', schema.defaultInstance);
-
+            } else if (initialConfig && Object.keys(initialConfig).length === 0) {
+                const updatedConfig = overridePoint2DCenterDefaults(currentSchema.defaultInstance, projectData);
+                setEffectConfig(updatedConfig);
+                onConfigChange(updatedConfig);
+            } else if (currentSchema?.defaultInstance) {
                 // Override Point2D center properties with current project resolution center
-                const updatedConfig = overridePoint2DCenterDefaults(schema.defaultInstance, projectData);
-                console.log('Config after Point2D center override:', updatedConfig);
+                const updatedConfig = overridePoint2DCenterDefaults(currentSchema.defaultInstance, projectData);
 
                 setEffectConfig(updatedConfig);
                 onConfigChange(updatedConfig);
@@ -178,7 +198,6 @@ function EffectConfigurer({
     };
 
     const handleEditAttachedEffect = (attachmentType, effect) => {
-        console.log('Editing attached effect:', attachmentType, effect);
         setModalState({
             isOpen: true,
             attachmentType,
@@ -195,7 +214,6 @@ function EffectConfigurer({
 
     const handleEditComplete = (effectData, attachmentType) => {
         // For editing mode, we need to handle the update differently
-        console.log('Edit complete for attached effect:', effectData, attachmentType);
         if (onAttachEffect) {
             // Pass along the original effect ID to identify which effect to update
             const updatedEffectData = {
@@ -521,41 +539,6 @@ function EffectConfigurer({
                 }}>
                     {JSON.stringify(effectConfig, null, 2)}
                 </pre>
-            </div>
-
-
-            {/* Add Effect Button(s) */}
-            <div style={{ marginTop: '1.5rem', textAlign: 'center', display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                {/* Primary button - create/stage or attach in modal */}
-                <button
-                    onClick={handleAddEffect}
-                    className="btn"
-                    style={{
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        padding: '0.75rem 2rem',
-                        fontSize: '1rem',
-                        fontWeight: 'bold'
-                    }}
-                >
-                    {isModal ? 'Attach Effect' : (effectType === 'primary' && !attachedEffects ? 'Create Primary Effect' : 'Add Effect to Project')}
-                </button>
-
-                {/* Add Complete Effect to Project button - only show when we have a staged primary with potential attachments */}
-                {effectType === 'primary' && attachedEffects && onAddCompleteEffect && (
-                    <button
-                        onClick={onAddCompleteEffect}
-                        className="btn"
-                        style={{
-                            background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
-                            padding: '0.75rem 2rem',
-                            fontSize: '1rem',
-                            fontWeight: 'bold',
-                            border: '2px solid #28a745'
-                        }}
-                    >
-                        Add Complete Effect to Project
-                    </button>
-                )}
             </div>
 
             {/* Attachment Modal */}

@@ -1,10 +1,10 @@
-const { ipcRenderer } = window.require('electron');
+// Use the exposed API from preload script instead of direct electron access
 
 /**
  * Configuration Introspector
  * Dynamically analyzes effect configuration classes to extract their properties
  */
-export class ConfigIntrospector {
+class ConfigIntrospector {
 
     /**
      * Analyze a config class and extract all its properties and their types
@@ -15,7 +15,7 @@ export class ConfigIntrospector {
     static async analyzeConfigClass(effectMetadata, projectData = null) {
         try {
             // Create an instance of the config class with default constructor to get defaults
-            const result = await ipcRenderer.invoke('introspect-config', {
+            const result = await window.api.introspectConfig({
                 effectName: effectMetadata.name,
                 projectData: projectData
             });
@@ -35,11 +35,11 @@ export class ConfigIntrospector {
                 return schema;
             } else {
                 console.error('Config introspection failed:', result.error);
-                return this.getFallbackSchema(effectMetadata.configClass);
+                return this.getFallbackSchema(effectMetadata.configClassName || effectMetadata.name);
             }
         } catch (error) {
             console.error('Error analyzing config class:', error);
-            return this.getFallbackSchema(effectMetadata.configClass);
+            return this.getFallbackSchema(effectMetadata.configClassName || effectMetadata.name);
         }
     }
 
@@ -52,6 +52,16 @@ export class ConfigIntrospector {
         const fields = [];
 
         for (const [name, value] of Object.entries(defaultInstance)) {
+            // Skip metadata properties that shouldn't be editable
+            if (name.startsWith('__') && name.endsWith('__')) {
+                console.log(`Skipping metadata property: ${name}`);
+                continue;
+            }
+            if (name === '__className') {
+                console.log(`Skipping __className metadata property`);
+                continue;
+            }
+
             // Create field directly from the default instance value
             const field = this.convertValueToField(name, value);
             fields.push(field);
@@ -269,6 +279,10 @@ export class ConfigIntrospector {
                                     // If functions fail, use safe defaults
                                     defaultValue = { lower: 0.1, upper: 0.9 };
                                 }
+                            } else if (value && (value.lower === '[Function]' || value.upper === '[Function]')) {
+                                // After IPC serialization, functions become "[Function]" strings
+                                console.log('PercentageRange with serialized functions, using defaults');
+                                defaultValue = { lower: 0.1, upper: 0.9 };
                             } else if (value && value.__className) {
                                 // Remove className metadata from the default value
                                 const { __className, ...cleanValue } = value;
@@ -307,6 +321,18 @@ export class ConfigIntrospector {
                         default:
                             // For objects without a clear class name, fall back to structure-based detection
                             // But this should be rare since most objects should have proper class names
+
+                            // Check for Point2D structure (x, y properties)
+                            if (value.hasOwnProperty('x') && value.hasOwnProperty('y') &&
+                                typeof value.x === 'number' && typeof value.y === 'number') {
+                                console.log(`Detected Point2D structure for field: ${name}`, value);
+                                return {
+                                    ...field,
+                                    type: 'point2d',
+                                    label: field.label + ' Position'
+                                };
+                            }
+
                             if (value.hasOwnProperty('lower') && value.hasOwnProperty('upper')) {
                                 // Default to regular range - class-based detection should handle most cases
                                 return {
@@ -334,6 +360,17 @@ export class ConfigIntrospector {
                             }
                             break;
                     }
+                }
+
+                // Final fallback: Check for Point2D structure even without className
+                if (value.hasOwnProperty('x') && value.hasOwnProperty('y') &&
+                    typeof value.x === 'number' && typeof value.y === 'number') {
+                    console.log(`Fallback detected Point2D structure for field: ${name}`, value);
+                    return {
+                        ...field,
+                        type: 'point2d',
+                        label: field.label + ' Position'
+                    };
                 }
 
                 // Default to JSON for unknown objects
@@ -654,3 +691,5 @@ export class ConfigIntrospector {
         return { fields: commonFields };
     }
 }
+
+module.exports = { ConfigIntrospector };

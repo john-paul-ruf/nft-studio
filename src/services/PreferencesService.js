@@ -1,9 +1,9 @@
-const { ipcRenderer } = window.require('electron');
+// Use the exposed API from preload script instead of direct electron access
 
 /**
  * Service for managing user preferences that persist between runs
  */
-export class PreferencesService {
+class PreferencesService {
     static PREFERENCES_FILE = 'user-preferences.json';
 
     /**
@@ -12,7 +12,10 @@ export class PreferencesService {
      */
     static async getPreferences() {
         try {
-            const result = await ipcRenderer.invoke('read-file', this.PREFERENCES_FILE);
+            if (!window.api || !window.api.readFile) {
+                return this.getDefaultPreferences();
+            }
+            const result = await window.api.readFile(this.PREFERENCES_FILE);
 
             if (result.success) {
                 return JSON.parse(result.content);
@@ -58,7 +61,7 @@ export class PreferencesService {
                 lastModified: new Date().toISOString()
             };
 
-            const result = await ipcRenderer.invoke('write-file',
+            const result = await window.api.writeFile(
                 this.PREFERENCES_FILE,
                 JSON.stringify(updatedPreferences, null, 2)
             );
@@ -193,6 +196,12 @@ export class PreferencesService {
      */
     static async getLastProjectName() {
         const preferences = await this.getPreferences();
+
+        // Handle nested structure (legacy issue)
+        if (preferences.project?.lastProjectName && typeof preferences.project.lastProjectName === 'object') {
+            return preferences.project.lastProjectName.projectName || '';
+        }
+
         return preferences.project?.lastProjectName || '';
     }
 
@@ -202,7 +211,51 @@ export class PreferencesService {
      */
     static async getLastArtist() {
         const preferences = await this.getPreferences();
+
+        // Handle nested structure (legacy issue)
+        if (preferences.project?.lastProjectName && typeof preferences.project.lastProjectName === 'object') {
+            return preferences.project.lastProjectName.artistName || '';
+        }
+
         return preferences.project?.lastArtist || '';
+    }
+
+    /**
+     * Get the last used project directory
+     * @returns {Promise<string>} Last project directory
+     */
+    static async getLastProjectDirectory() {
+        const preferences = await this.getPreferences();
+
+        // Handle nested structure (legacy issue)
+        if (preferences.project?.lastProjectName && typeof preferences.project.lastProjectName === 'object') {
+            return preferences.project.lastProjectName.projectDirectory || '';
+        }
+
+        return preferences.project?.lastProjectDirectory || '';
+    }
+
+    /**
+     * Clean up corrupted preferences structure
+     * @returns {Promise<boolean>} Success status
+     */
+    static async cleanupPreferences() {
+        try {
+            const preferences = await this.getPreferences();
+
+            // Fix nested structure issue
+            if (preferences.project?.lastProjectName && typeof preferences.project.lastProjectName === 'object') {
+                const nestedData = preferences.project.lastProjectName;
+                preferences.project.lastProjectName = nestedData.projectName || '';
+                preferences.project.lastArtist = nestedData.artistName || '';
+                preferences.project.lastProjectDirectory = nestedData.projectDirectory || '';
+            }
+
+            return await this.savePreferences(preferences);
+        } catch (error) {
+            console.error('Error cleaning up preferences:', error);
+            return false;
+        }
     }
 
     /**
