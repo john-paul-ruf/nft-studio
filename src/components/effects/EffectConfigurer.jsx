@@ -131,6 +131,7 @@ function EffectConfigurer({
                 setConfigSchema(schema);
             } else {
                 console.log(`🔍 Loading new schema for ${cacheKey}`);
+                console.log('🔍 Effect object being sent to analyzeConfigClass:', effect);
                 const schema = await ConfigIntrospector.analyzeConfigClass(effect, projectData);
 
                 // Cache the result

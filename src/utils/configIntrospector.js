@@ -14,9 +14,15 @@ class ConfigIntrospector {
      */
     static async analyzeConfigClass(effectMetadata, projectData = null) {
         try {
-            // Create an instance of the config class with default constructor to get defaults
+            // Use the actual effect name from the registry (name field, not className)
+            // The name should match what's registered in the plugin registry
+            console.log('🔍 Introspecting config for effect:', {
+                name: effectMetadata.name,
+                className: effectMetadata.className
+            });
+
             const result = await window.api.introspectConfig({
-                effectName: effectMetadata.name,
+                effectName: effectMetadata.name, // Keep using name, it should match registry
                 projectData: projectData
             });
 

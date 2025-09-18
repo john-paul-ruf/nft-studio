@@ -40,6 +40,9 @@ export default function EffectsPanel({
     };
 
     const formatEffectName = (className) => {
+        if (!className || typeof className !== 'string') {
+            return 'Unknown Effect';
+        }
         return className.replace(/([A-Z])/g, ' $1').trim();
     };
 

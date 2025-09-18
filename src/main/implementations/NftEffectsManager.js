@@ -25,6 +25,37 @@ class NftEffectsManager {
     }
 
     /**
+     * Get available effects for dropdown menus (simplified version of discoverEffects)
+     * @returns {Promise<Object>} Available effects by category
+     */
+    async getAvailableEffects() {
+        try {
+            const effects = await this.effectRegistryService.getAllEffectsWithConfigs();
+
+            // Return primary and secondary effects for the dropdown
+            return {
+                primary: effects.primary.map(plugin => ({
+                    name: plugin.name,
+                    displayName: plugin.metadata?.displayName || plugin.name,
+                    description: plugin.metadata?.description || '',
+                    className: this.deriveClassName(plugin.name),
+                    configClassName: plugin.configClass ? plugin.configClass.name : (this.deriveClassName(plugin.name) + 'Config')
+                })),
+                secondary: effects.secondary.map(plugin => ({
+                    name: plugin.name,
+                    displayName: plugin.metadata?.displayName || plugin.name,
+                    description: plugin.metadata?.description || '',
+                    className: this.deriveClassName(plugin.name),
+                    configClassName: plugin.configClass ? plugin.configClass.name : (this.deriveClassName(plugin.name) + 'Config')
+                }))
+            };
+        } catch (error) {
+            console.error('Error getting available effects:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Discover available effects
      * @returns {Promise<Object>} Effects discovery result
      */
@@ -98,7 +129,14 @@ class NftEffectsManager {
             await this.effectRegistryService.ensureCoreEffectsRegistered();
 
             // Use modern plugin registry with linked config classes
-            const plugin = await this.effectRegistryService.getEffectWithConfig(effectName);
+            let plugin = await this.effectRegistryService.getEffectWithConfig(effectName);
+
+            // If not found, try lowercase version as fallback
+            if (!plugin && effectName !== effectName.toLowerCase()) {
+                console.log(`🔍 Backend getEffectDefaults: Trying lowercase version "${effectName.toLowerCase()}"`);
+                plugin = await this.effectRegistryService.getEffectWithConfig(effectName.toLowerCase());
+            }
+
             if (!plugin) {
                 throw new Error(`Effect not found: ${effectName}`);
             }
@@ -249,10 +287,28 @@ class NftEffectsManager {
         try {
             await this.effectRegistryService.ensureCoreEffectsRegistered();
 
+            console.log(`🔍 Backend: Looking for effect "${effectName}"`);
+
             // Use modern plugin registry with linked config classes
-            const plugin = await this.effectRegistryService.getEffectWithConfig(effectName);
+            let plugin = await this.effectRegistryService.getEffectWithConfig(effectName);
+
+            // If not found, try lowercase version as fallback
+            if (!plugin && effectName !== effectName.toLowerCase()) {
+                console.log(`🔍 Backend: Trying lowercase version "${effectName.toLowerCase()}"`);
+                plugin = await this.effectRegistryService.getEffectWithConfig(effectName.toLowerCase());
+            }
+
             if (!plugin) {
-                throw new Error(`Effect not found: ${effectName}`);
+                // Get all available effects to help debug
+                const allEffects = await this.effectRegistryService.getAllEffectsWithConfigs();
+                const allNames = [
+                    ...allEffects.primary.map(e => e.name),
+                    ...allEffects.secondary.map(e => e.name),
+                    ...allEffects.keyFrame.map(e => e.name),
+                    ...allEffects.final.map(e => e.name)
+                ];
+                console.log(`🔍 Available effect names:`, allNames);
+                throw new Error(`Effect not found: ${effectName}. Available effects: ${allNames.join(', ')}`);
             }
 
             if (!plugin.configClass) {

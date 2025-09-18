@@ -116,6 +116,22 @@ class NftProjectManager {
             firstEffectKeys: config?.effects?.[0] ? Object.keys(config.effects[0]) : 'no first effect'
         });
 
+        // Debug each effect in detail
+        if (config?.effects?.length > 0) {
+            console.log('🔍 DEBUG: Effects breakdown:');
+            config.effects.forEach((effect, index) => {
+                console.log(`  Effect ${index}:`, {
+                    name: effect.name,
+                    className: effect.className,
+                    type: effect.type,
+                    visible: effect.visible,
+                    hasConfig: !!effect.config,
+                    configKeys: effect.config ? Object.keys(effect.config) : null,
+                    fullEffect: effect
+                });
+            });
+        }
+
         try {
             // Create a new NFT gen project every time
             const project = await this.createProject(config);
@@ -161,7 +177,14 @@ class NftProjectManager {
      * @returns {Promise<void>}
      */
     async configureProjectFromUI(project, config) {
+        console.log('🔍 DEBUG: configureProjectFromUI called with effects:', {
+            hasEffects: !!config.effects,
+            isArray: Array.isArray(config.effects),
+            length: config.effects?.length || 0
+        });
+
         if (!config.effects || !Array.isArray(config.effects) || config.effects.length === 0) {
+            console.log('🔍 DEBUG: No effects to configure, returning early');
             return;
         }
 
@@ -196,12 +219,20 @@ class NftProjectManager {
 
         // Process and add primary effects in order
         if (primaryEffects.length > 0) {
+            console.log('🔍 DEBUG: Processing primary effects:', primaryEffects.length);
             const processedEffects = await effectProcessor.processEffects(
                 primaryEffects,
                 myNftGenPath
             );
 
+            console.log('🔍 DEBUG: Processed effects count:', processedEffects.length);
             for (const layerConfig of processedEffects) {
+                console.log('🔍 DEBUG: Adding primary effect to project:', {
+                    layerConfigName: layerConfig.name,
+                    layerConfigType: layerConfig.constructor.name,
+                    hasEffect: !!layerConfig.effect,
+                    effectName: layerConfig.effect?.name || layerConfig.effect?.constructor?.name
+                });
                 project.addPrimaryEffect({layerConfig});
             }
         }

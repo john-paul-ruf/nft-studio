@@ -54,6 +54,23 @@ class EffectsHandlers {
         ipcMain.handle('introspect-config', async (event, { effectName, projectData }) => {
             return await this.effectsManager.introspectConfig({ effectName, projectData });
         });
+
+        ipcMain.handle('get-available-effects', async (event) => {
+            try {
+                const effects = await this.effectsManager.getAvailableEffects();
+                return {
+                    success: true,
+                    effects: effects
+                };
+            } catch (error) {
+                console.error('Error getting available effects via IPC:', error);
+                return {
+                    success: false,
+                    error: error.message,
+                    effects: { primary: [], secondary: [] }
+                };
+            }
+        });
     }
 
     /**
@@ -66,7 +83,8 @@ class EffectsHandlers {
             'get-effect-defaults',
             'get-effect-schema',
             'validate-effect',
-            'introspect-config'
+            'introspect-config',
+            'get-available-effects'
         ];
 
         handlers.forEach(handler => {

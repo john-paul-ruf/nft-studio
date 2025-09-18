@@ -37,7 +37,7 @@ class EffectProcessingService {
                 const effectName = effect.className || effect.effectClass?.name;
 
                 // Get the actual Effect class from registry
-                const registryData = EffectRegistry.getGlobal(effectName);
+                let registryData = EffectRegistry.getGlobal(effectName);
                 let EffectClass = registryData;
 
                 // Handle wrapped registry entries
@@ -47,8 +47,23 @@ class EffectProcessingService {
                     EffectClass = registryData[effectName];
                 }
 
+                // If not found, try with lowercase name (case sensitivity fallback)
+                if (!EffectClass && effectName) {
+                    const lowerEffectName = effectName.toLowerCase();
+                    console.log(`🔍 Effect class ${effectName} not found, trying lowercase: ${lowerEffectName}`);
+                    registryData = EffectRegistry.getGlobal(lowerEffectName);
+                    EffectClass = registryData;
+
+                    // Handle wrapped registry entries for lowercase lookup
+                    if (registryData && registryData.EffectClass) {
+                        EffectClass = registryData.EffectClass;
+                    } else if (registryData && registryData[lowerEffectName]) {
+                        EffectClass = registryData[lowerEffectName];
+                    }
+                }
+
                 if (!EffectClass) {
-                    console.warn(`Effect class ${effectName} not found in registry`);
+                    console.warn(`Effect class ${effectName} not found in registry (tried both '${effectName}' and '${effectName?.toLowerCase()}')`);
                     console.warn(`Registry data:`, registryData);
                     continue;
                 }

@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('api', {
 
     // Effect management
     discoverEffects: () => ipcRenderer.invoke('discover-effects'),
+    getAvailableEffects: () => ipcRenderer.invoke('get-available-effects'),
     getEffectDefaults: (className) => ipcRenderer.invoke('get-effect-defaults', className),
     getEffectSchema: (className) => ipcRenderer.invoke('get-effect-schema', className),
     getEffectMetadata: (params) => ipcRenderer.invoke('get-effect-metadata', params),

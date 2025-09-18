@@ -48,6 +48,21 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const frameHolderRef = useRef(null);
 
+    // Dropdown menu state
+    const [showRenderMenu, setShowRenderMenu] = useState(false);
+    const [showZoomMenu, setShowZoomMenu] = useState(false);
+    const [showAddEffectMenu, setShowAddEffectMenu] = useState(false);
+    const [showColorSchemeMenu, setShowColorSchemeMenu] = useState(false);
+
+    // Effects state
+    const [availableEffects, setAvailableEffects] = useState({
+        primary: [],
+        secondary: []
+    });
+    const [effectsLoaded, setEffectsLoaded] = useState(false);
+    const [showSubmenu, setShowSubmenu] = useState(null); // 'primary' or 'secondary'
+    const [submenuTimeout, setSubmenuTimeout] = useState(null);
+
     // Update config when initial resolution loads (for non-projectConfig cases)
     useEffect(() => {
         console.log('🔍 Resolution update effect:', {
@@ -311,16 +326,127 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
         }
     };
 
+    // Close all dropdown menus
+    const closeAllDropdowns = () => {
+        setShowRenderMenu(false);
+        setShowZoomMenu(false);
+        setShowAddEffectMenu(false);
+        setShowColorSchemeMenu(false);
+        setShowSubmenu(null);
+        if (submenuTimeout) {
+            clearTimeout(submenuTimeout);
+            setSubmenuTimeout(null);
+        }
+    };
+
+    // Enhanced submenu handlers with proper delays
+    const handleSubmenuEnter = (submenuType) => {
+        if (submenuTimeout) {
+            clearTimeout(submenuTimeout);
+            setSubmenuTimeout(null);
+        }
+        setShowSubmenu(submenuType);
+    };
+
+    const handleSubmenuLeave = () => {
+        const timeout = setTimeout(() => {
+            setShowSubmenu(null);
+        }, 150); // 150ms delay before closing
+        setSubmenuTimeout(timeout);
+    };
+
+    const handleSubmenuAreaEnter = () => {
+        if (submenuTimeout) {
+            clearTimeout(submenuTimeout);
+            setSubmenuTimeout(null);
+        }
+    };
+
+    // Close dropdowns when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (!event.target.closest('.dropdown-container')) {
+                closeAllDropdowns();
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     const handleColorSchemeChange = (schemeId) => {
         updateConfig({
             colorScheme: schemeId
         });
     };
 
+    // Load available effects
+    const loadAvailableEffects = async () => {
+        try {
+            const result = await window.api.getAvailableEffects();
+            if (result.success) {
+                setAvailableEffects({
+                    primary: result.effects.primary || [],
+                    secondary: result.effects.secondary || []
+                });
+                setEffectsLoaded(true);
+            }
+        } catch (error) {
+            console.error('Failed to load available effects:', error);
+        }
+    };
+
+    // Load effects on component mount
+    useEffect(() => {
+        loadAvailableEffects();
+    }, []);
+
     const handleAddEffect = (effect) => {
         const newEffects = [...(config.effects || []), effect];
         updateConfig({ effects: newEffects });
         setShowEffectPicker(false);
+    };
+
+    // Add effect directly from dropdown (without opening picker)
+    const handleAddEffectDirect = async (effectName, effectType = 'primary') => {
+        try {
+            // Get effect defaults from backend
+            const result = await window.api.getEffectDefaults(effectName);
+            if (result.success) {
+                // Find the effect in our available effects to get the className
+                const effectCategory = availableEffects[effectType] || [];
+                const effectData = effectCategory.find(e => e.name === effectName);
+
+                console.log('🔍 Creating effect:', {
+                    effectName,
+                    effectType,
+                    effectData,
+                    foundInCategory: !!effectData
+                });
+
+                const effect = {
+                    name: effectName, // Keep original name from registry
+                    className: effectData?.className || effectName, // Use className from effect data or fallback to name
+                    type: effectType,
+                    config: result.defaults,
+                    visible: true
+                };
+
+                console.log('🔍 Created effect object:', effect);
+
+                const newEffects = [...(config.effects || []), effect];
+                updateConfig({ effects: newEffects });
+                setShowAddEffectMenu(false);
+
+                console.log(`✅ Added ${effectType} effect: ${effectName}`, effect);
+            } else {
+                console.error('Failed to get effect defaults:', result.error);
+                alert(`Failed to add effect: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Error adding effect:', error);
+            alert(`Error adding effect: ${error.message}`);
+        }
     };
 
     const handleEffectUpdate = (index, updatedEffect) => {
@@ -348,6 +474,12 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
             visible: newEffects[index].visible === false ? true : false
         };
         updateConfig({ effects: newEffects });
+    };
+
+    const handleRenderLoop = async () => {
+        // TODO: Implement loop rendering functionality
+        console.log('🔄 Render Loop functionality not yet implemented');
+        alert('Render Loop functionality coming soon!');
     };
 
     const handleRender = async () => {
@@ -414,6 +546,20 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                 visibleEffects: visibleEffects.length,
                 colorScheme: config.colorScheme,
                 hasColorSchemeData: !!colorSchemeData
+            });
+
+            // Debug the actual effects being passed
+            console.log('🔍 Effects debug:', {
+                allEffects: config.effects,
+                visibleEffects: visibleEffects,
+                effectDetails: visibleEffects.map(effect => ({
+                    name: effect.name,
+                    className: effect.className,
+                    type: effect.type,
+                    visible: effect.visible,
+                    hasConfig: !!effect.config,
+                    configKeys: effect.config ? Object.keys(effect.config) : null
+                }))
             });
 
             const result = await window.api.renderFrame(renderConfig, selectedFrame);
@@ -568,8 +714,44 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
     return (
         <div className="canvas-container">
             <div className="toolbar">
+                <div className="toolbar-group dropdown-container">
+                    <button
+                        className="toolbar-button"
+                        onClick={() => {
+                            closeAllDropdowns();
+                            setShowRenderMenu(!showRenderMenu);
+                        }}
+                        disabled={isRendering}
+                        title="Render options"
+                    >
+                        {isRendering ? 'Rendering...' : 'Render'} ▼
+                    </button>
+                    {showRenderMenu && (
+                        <div className="dropdown-menu">
+                            <button
+                                className="dropdown-item"
+                                onClick={() => {
+                                    handleRender();
+                                    setShowRenderMenu(false);
+                                }}
+                            >
+                                🎬 Render Frame
+                            </button>
+                            <button
+                                className="dropdown-item"
+                                onClick={() => {
+                                    handleRenderLoop();
+                                    setShowRenderMenu(false);
+                                }}
+                            >
+                                🔄 Render Loop
+                            </button>
+                        </div>
+                    )}
+                </div>
+
                 <div className="toolbar-group">
-                    <label className="toolbar-label">Resolution</label>
+                    <label className="toolbar-label"></label>
                     <select
                         className="toolbar-select"
                         value={config.targetResolution}
@@ -590,32 +772,6 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                         title={config.isHorizontal ? 'Horizontal' : 'Vertical'}
                     >
                         {config.isHorizontal ? '↔' : '↕'}
-                    </button>
-                </div>
-
-                <div className="toolbar-group">
-                    <label className="toolbar-label">Zoom</label>
-                    <button
-                        className="toolbar-button zoom-button"
-                        onClick={handleZoomOut}
-                        title="Zoom out"
-                    >
-                        −
-                    </button>
-                    <span className="zoom-level">{Math.round(zoom * 100)}%</span>
-                    <button
-                        className="toolbar-button zoom-button"
-                        onClick={handleZoomIn}
-                        title="Zoom in"
-                    >
-                        +
-                    </button>
-                    <button
-                        className="toolbar-button zoom-button"
-                        onClick={handleZoomReset}
-                        title="Reset zoom and pan"
-                    >
-                        ⌂
                     </button>
                 </div>
 
@@ -643,38 +799,167 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                     />
                 </div>
 
-                <div className="color-scheme-group">
-                    <ColorSchemeDropdown
-                        value={config.colorScheme || 'neon-cyberpunk'}
-                        onChange={handleColorSchemeChange}
-                        projectData={{
-                            resolution: 'hd',
-                            isHoz: config.isHorizontal
+                <div className="toolbar-group dropdown-container">
+                    <button
+                        className="toolbar-button"
+                        onClick={() => {
+                            closeAllDropdowns();
+                            setShowZoomMenu(!showZoomMenu);
                         }}
-                        showPreview={true}
-                    />
+                        title="Zoom actions"
+                    >
+                        {Math.round(zoom * 100)}% ▼
+                    </button>
+                    {showZoomMenu && (
+                        <div className="dropdown-menu">
+                            <button
+                                className="dropdown-item"
+                                onClick={() => {
+                                    handleZoomIn();
+                                    setShowZoomMenu(false);
+                                }}
+                            >
+                                🔍+ Zoom In
+                            </button>
+                            <button
+                                className="dropdown-item"
+                                onClick={() => {
+                                    handleZoomOut();
+                                    setShowZoomMenu(false);
+                                }}
+                            >
+                                🔍− Zoom Out
+                            </button>
+                            <button
+                                className="dropdown-item"
+                                onClick={() => {
+                                    handleZoomReset();
+                                    setShowZoomMenu(false);
+                                }}
+                            >
+                                ⌂ Reset
+                            </button>
+                        </div>
+                    )}
                 </div>
 
-                <div className="toolbar-group">
+                <div className="toolbar-group dropdown-container">
                     <button
-                        className="toolbar-button add-effect"
-                        onClick={() => setShowEffectPicker(true)}
+                        className="toolbar-button"
+                        onClick={() => {
+                            closeAllDropdowns();
+                            setShowColorSchemeMenu(!showColorSchemeMenu);
+                        }}
+                        title="Select color scheme"
                     >
-                        + Add Effect
+                        Color Scheme ▼
                     </button>
+                    {showColorSchemeMenu && (
+                        <div className="dropdown-menu" style={{
+                            minWidth: '600px',
+                            maxWidth: '700px',
+                            maxHeight: '400px',
+                            overflow: 'auto',
+                            left: '-200px' // Offset to center it better
+                        }}>
+                            <ColorSchemeDropdown
+                                value={config.colorScheme || 'neon-cyberpunk'}
+                                onChange={(schemeId) => {
+                                    handleColorSchemeChange(schemeId);
+                                    setShowColorSchemeMenu(false);
+                                }}
+                                projectData={{
+                                    resolution: 'hd',
+                                    isHoz: config.isHorizontal
+                                }}
+                                showPreview={true}
+                                isInDropdown={true}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                <div className="toolbar-group dropdown-container">
+                    <button
+                        className="toolbar-button"
+                        onClick={() => {
+                            closeAllDropdowns();
+                            setShowAddEffectMenu(!showAddEffectMenu);
+                        }}
+                        title="Add effect options"
+                    >
+                        Add Effect ▼
+                    </button>
+                    {showAddEffectMenu && (
+                        <div className="dropdown-menu" style={{ minWidth: '150px' }}>
+                            {!effectsLoaded ? (
+                                <div className="dropdown-item" style={{ color: '#888', fontStyle: 'italic' }}>
+                                    Loading effects...
+                                </div>
+                            ) : (
+                                <>
+                                    <div
+                                        className="dropdown-item dropdown-submenu-trigger"
+                                        onMouseEnter={() => handleSubmenuEnter('primary')}
+                                        onMouseLeave={handleSubmenuLeave}
+                                    >
+                                        Primary ▶
+                                        {showSubmenu === 'primary' && (
+                                            <div
+                                                className="dropdown-submenu"
+                                                onMouseEnter={handleSubmenuAreaEnter}
+                                                onMouseLeave={handleSubmenuLeave}
+                                            >
+                                                {availableEffects.primary.map((effect) => (
+                                                    <div
+                                                        key={effect.name}
+                                                        className="dropdown-item submenu-item"
+                                                        onClick={() => handleAddEffectDirect(effect.name, 'primary')}
+                                                        title={effect.description}
+                                                    >
+                                                        {effect.displayName}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div
+                                        className="dropdown-item dropdown-submenu-trigger"
+                                        onMouseEnter={() => handleSubmenuEnter('secondary')}
+                                        onMouseLeave={handleSubmenuLeave}
+                                    >
+                                        Secondary ▶
+                                        {showSubmenu === 'secondary' && (
+                                            <div
+                                                className="dropdown-submenu"
+                                                onMouseEnter={handleSubmenuAreaEnter}
+                                                onMouseLeave={handleSubmenuLeave}
+                                            >
+                                                {availableEffects.secondary.map((effect) => (
+                                                    <div
+                                                        key={effect.name}
+                                                        className="dropdown-item submenu-item"
+                                                        onClick={() => handleAddEffectDirect(effect.name, 'secondary')}
+                                                        title={effect.description}
+                                                    >
+                                                        {effect.displayName}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="dropdown-divider"></div>
+                                </>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="toolbar-spacer"></div>
 
-                <div className="toolbar-group">
-                    <button
-                        className="toolbar-button render"
-                        onClick={handleRender}
-                        disabled={isRendering}
-                    >
-                        {isRendering ? 'Rendering...' : 'Render'}
-                    </button>
-                </div>
+
             </div>
 
             <div className="canvas-main">
@@ -740,7 +1025,7 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                         <div className="modal-body">
                             <EffectConfigurer
                                 selectedEffect={{
-                                    name: config.effects[editingEffect].className,
+                                    name: config.effects[editingEffect].name,
                                     className: config.effects[editingEffect].className
                                 }}
                                 initialConfig={config.effects[editingEffect].config || {}}

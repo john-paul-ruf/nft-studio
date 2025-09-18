@@ -3,7 +3,7 @@ import ColorSchemeService from '../services/ColorSchemeService';
 import PreferencesService from '../services/PreferencesService';
 import ColorSchemeCreator from './ColorSchemeCreator';
 
-function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true }) {
+function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true, isInDropdown = false }) {
     const [allSchemes, setAllSchemes] = useState({});
     const [categorizedSchemes, setCategorizedSchemes] = useState({});
     const [showDropdown, setShowDropdown] = useState(false);
@@ -321,6 +321,87 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true 
         Object.assign(filteredSchemes, categorizedSchemes);
     }
 
+
+    // If embedded in dropdown, just return the content without wrapper
+    if (isInDropdown) {
+        return (
+            <div>
+                {/* Search and Create */}
+                <div style={{
+                    padding: '12px',
+                    borderBottom: '1px solid #333',
+                    background: '#0f0f0f'
+                }}>
+                    <input
+                        type="text"
+                        placeholder="Search color schemes..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={{
+                            width: '100%',
+                            background: 'rgba(255,255,255,0.1)',
+                            border: '1px solid #333',
+                            borderRadius: '4px',
+                            padding: '8px',
+                            color: 'white',
+                            marginBottom: '8px'
+                        }}
+                    />
+                    <button
+                        onClick={() => {
+                            setEditingScheme(null);
+                            setShowCreator(true);
+                        }}
+                        style={{
+                            width: '100%',
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '8px',
+                            color: 'white',
+                            cursor: 'pointer',
+                            fontWeight: 'bold'
+                        }}
+                    >
+                        + Create Custom Scheme
+                    </button>
+                </div>
+
+                {/* Scheme Categories */}
+                <div style={{ padding: '8px' }}>
+                    {Object.entries(filteredSchemes).map(([category, schemes]) => {
+                        if (schemes.length === 0) return null;
+                        return (
+                            <div key={category} style={{ marginBottom: '16px' }}>
+                                <div style={{
+                                    fontSize: '0.8rem',
+                                    fontWeight: 'bold',
+                                    color: '#667eea',
+                                    marginBottom: '8px',
+                                    paddingLeft: '8px'
+                                }}>
+                                    {category}
+                                </div>
+                                {schemes.map(renderSchemeOption)}
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Color Scheme Creator Modal */}
+                {showCreator && (
+                    <ColorSchemeCreator
+                        onClose={() => {
+                            setShowCreator(false);
+                            setEditingScheme(null);
+                        }}
+                        onSave={handleCustomSchemeCreated}
+                        editingScheme={editingScheme}
+                    />
+                )}
+            </div>
+        );
+    }
 
     return (
         <div style={{ position: 'relative' }}>
