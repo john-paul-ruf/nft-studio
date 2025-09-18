@@ -4,8 +4,8 @@
  * This test checks if the color bucket system is working correctly
  */
 
-const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
-const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
+import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
+import NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
 
 class ColorBucketDiagnosisTest {
     constructor() {
@@ -196,7 +196,7 @@ class ColorBucketDiagnosisTest {
 }
 
 // Run diagnosis if executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const diagnosis = new ColorBucketDiagnosisTest();
     diagnosis.runDiagnosis().then(() => {
         console.log('\n✅ Color bucket diagnosis completed');
@@ -206,4 +206,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = ColorBucketDiagnosisTest;
+export default ColorBucketDiagnosisTest;

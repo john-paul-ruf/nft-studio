@@ -4,12 +4,12 @@
  * Simulates the exact Canvas.jsx image handling to identify black screen cause
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 class ImageDisplayVerificationTest {
     constructor() {
-        this.debugOutputDir = path.join(__dirname, '../debug-output');
+        this.debugOutputDir = path.join(new URL('.', import.meta.url).pathname, '../debug-output');
     }
 
     async runImageDisplayTest() {
@@ -236,7 +236,7 @@ class ImageDisplayVerificationTest {
 }
 
 // Run test if executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const test = new ImageDisplayVerificationTest();
     test.runImageDisplayTest().then(results => {
         console.log('\n✅ Image display verification completed');
@@ -254,4 +254,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = ImageDisplayVerificationTest;
+export default ImageDisplayVerificationTest;

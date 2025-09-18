@@ -56,4 +56,4 @@ class IColorSchemeService {
     }
 }
 
-module.exports = IColorSchemeService;
+export default IColorSchemeService;

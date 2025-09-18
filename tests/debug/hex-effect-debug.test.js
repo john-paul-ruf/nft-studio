@@ -3,7 +3,7 @@
  * Debug test specifically for hex effect center property issue
  */
 
-const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
+import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
 
 class HexEffectDebugTest {
     constructor() {
@@ -320,9 +320,9 @@ class HexEffectDebugTest {
 }
 
 // Run if executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const debugTest = new HexEffectDebugTest();
     debugTest.runDebugTests().catch(console.error);
 }
 
-module.exports = HexEffectDebugTest;
+export default HexEffectDebugTest;

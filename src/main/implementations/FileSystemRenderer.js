@@ -1,8 +1,18 @@
-const path = require('path');
-const fs = require('fs');
-const { app } = require('electron');
-const crypto = require('crypto');
-const { pathToFileURL } = require('url');
+import path from 'path';
+import fs from 'fs';
+import os from 'os';
+import crypto from 'crypto';
+import { pathToFileURL } from 'url';
+
+// Try to get app from electron, but provide fallback for testing
+let app;
+try {
+    const electronModule = await import('electron');
+    app = electronModule.app;
+} catch (e) {
+    // Electron not available (e.g., in tests)
+    app = null;
+}
 
 /**
  * File System based rendering approach
@@ -10,7 +20,9 @@ const { pathToFileURL } = require('url');
  */
 class FileSystemRenderer {
     constructor() {
-        this.tempDir = path.join(app.getPath('temp'), 'nft-studio-frames');
+        // Use app temp dir if available, otherwise use OS temp dir
+        const tempBase = app ? app.getPath('temp') : os.tmpdir();
+        this.tempDir = path.join(tempBase, 'nft-studio-frames');
         this.frameCache = new Map();
         this.ensureTempDir();
         this.cleanOldFrames(); // Clean up on startup
@@ -135,4 +147,4 @@ class FileSystemRenderer {
     }
 }
 
-module.exports = FileSystemRenderer;
+export default FileSystemRenderer;

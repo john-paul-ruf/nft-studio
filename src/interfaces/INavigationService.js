@@ -45,4 +45,4 @@ class INavigationService {
     }
 }
 
-module.exports = INavigationService;
+export default INavigationService;

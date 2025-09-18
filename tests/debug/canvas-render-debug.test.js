@@ -4,7 +4,7 @@
  * Tests the frontend render logic and state management
  */
 
-const fs = require('fs');
+import fs from 'fs';
 
 class CanvasRenderDebugTest {
     constructor() {
@@ -272,7 +272,7 @@ class CanvasRenderDebugTest {
 }
 
 // Run the tests if this file is executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const tests = new CanvasRenderDebugTest();
     tests.runAllTests().then(results => {
         console.log('\n✅ Frontend analysis complete!');
@@ -284,4 +284,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = CanvasRenderDebugTest;
+export default CanvasRenderDebugTest;

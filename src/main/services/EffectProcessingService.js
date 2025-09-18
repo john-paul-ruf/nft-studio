@@ -10,7 +10,7 @@ class EffectProcessingService {
      * @returns {Promise<Array>} Array of LayerConfig instances
      */
     static async processEffects(effects, myNftGenPath) {
-        const EffectRegistryService = require('./EffectRegistryService');
+        const { default: EffectRegistryService } = await import('./EffectRegistryService.js');
         const registryService = new EffectRegistryService();
         const EffectRegistry = await registryService.getEffectRegistry();
         const ConfigRegistry = await registryService.getConfigRegistry();
@@ -138,7 +138,7 @@ class EffectProcessingService {
         const userConfig = effect.config || {};
 
         try {
-            const EffectRegistryService = require('./EffectRegistryService');
+            const { default: EffectRegistryService } = await import('./EffectRegistryService.js');
             const registryService = new EffectRegistryService();
 
             // Ensure effects are registered with configs linked
@@ -198,4 +198,4 @@ class EffectProcessingService {
     }
 }
 
-module.exports = EffectProcessingService;
+export default EffectProcessingService;

@@ -9,7 +9,7 @@ describe('App Component', () => {
     let mockUseNavigation;
     let App;
 
-    beforeEach(() => {
+    beforeEach(async () => {
         // Reset all mocks
         jest.clearAllMocks();
         resetApiMocks();
@@ -69,7 +69,7 @@ describe('App Component', () => {
         });
 
         // Import App after mocks are set up
-        App = require('../src/App.jsx').default;
+        App = (await import('../src/App.jsx')).default;
     });
 
     afterEach(() => {

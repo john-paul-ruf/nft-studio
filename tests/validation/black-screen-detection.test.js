@@ -4,8 +4,8 @@
  * This test confirms the solution to the "black screen" issue reported by the user
  */
 
-const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
-const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
+import NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
+import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
 
 class BlackScreenDetectionTest {
     constructor() {
@@ -292,7 +292,7 @@ class BlackScreenDetectionTest {
 }
 
 // Run the tests if this file is executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const tests = new BlackScreenDetectionTest();
     tests.runAllTests().then(results => {
         if (results.blackScreenResolved) {
@@ -310,4 +310,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = BlackScreenDetectionTest;
+export default BlackScreenDetectionTest;

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useMemo } from 'react';
-const FrontendServiceFactory = require('../container/FrontendServiceFactory');
+import FrontendServiceFactory from '../container/FrontendServiceFactory.js';
 
 /**
  * Service Context for dependency injection in React components

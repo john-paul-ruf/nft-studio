@@ -4,10 +4,14 @@
  * Examines the exact frameBuffer data returned by renderFrame
  */
 
-const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
-const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
-const fs = require('fs');
-const path = require('path');
+import { fileURLToPath } from 'node:url';
+import NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
+import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
+import fs from 'fs';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class FrameBufferInspector {
     constructor() {
@@ -348,7 +352,7 @@ class FrameBufferInspector {
 }
 
 // Run if executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const inspector = new FrameBufferInspector();
     inspector.run().then(success => {
         process.exit(success ? 0 : 1);
@@ -358,4 +362,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = FrameBufferInspector;
+export default FrameBufferInspector;

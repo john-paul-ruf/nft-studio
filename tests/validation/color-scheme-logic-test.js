@@ -8,7 +8,7 @@ console.log('🎨 Color Scheme Logic Test\n');
 
 async function testColorSchemeLogic() {
     try {
-        const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
+        import NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
 
         console.log('🔍 Testing color scheme application in project creation...\n');
 

@@ -1,4 +1,4 @@
-const { ipcMain } = require('electron');
+import { ipcMain } from 'electron';
 
 /**
  * Preview-specific IPC handlers
@@ -59,7 +59,7 @@ class PreviewHandlers {
      */
     async handleEffectPreview(params) {
         try {
-            const path = require('path');
+            const path = await import('path');
             const myNftGenPath = path.resolve(process.cwd(), '../my-nft-gen');
 
             // Import required modules
@@ -202,4 +202,4 @@ class PreviewHandlers {
     }
 }
 
-module.exports = PreviewHandlers;
+export default PreviewHandlers;

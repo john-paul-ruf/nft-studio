@@ -227,7 +227,7 @@ class CanvasIntegrationTest {
 
         // Test 1: End-to-end simulation
         await this.test('Complete Canvas->Backend simulation works', async () => {
-            const NftProjectManagerClass = require('../../src/main/implementations/NftProjectManager');
+            import NftProjectManagerClass from '../../src/main/implementations/NftProjectManager.js';
             const testInstance = Object.create(NftProjectManagerClass.prototype);
 
             // Simulate Canvas.jsx creating colorSchemeData
@@ -281,7 +281,7 @@ class CanvasIntegrationTest {
 
         // Test 2: Backend validation catches Canvas errors
         await this.test('Backend validation catches incomplete Canvas data', async () => {
-            const NftProjectManagerClass = require('../../src/main/implementations/NftProjectManager');
+            import NftProjectManagerClass from '../../src/main/implementations/NftProjectManager.js';
             const testInstance = Object.create(NftProjectManagerClass.prototype);
 
             // Simulate Canvas.jsx sending incomplete data (missing colors)
@@ -341,7 +341,7 @@ class CanvasIntegrationTest {
 }
 
 // Run the canvas integration test suite
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const testSuite = new CanvasIntegrationTest();
     testSuite.runAllTests().then(success => {
         process.exit(success ? 0 : 1);
@@ -351,4 +351,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = CanvasIntegrationTest;
+export default CanvasIntegrationTest;

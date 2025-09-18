@@ -1,12 +1,16 @@
-const path = require('path');
+import path from 'path';
+import {fileURLToPath} from "node:url";
 
-module.exports = {
-    mode: 'development', // Set mode to avoid warnings
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export default {
+    mode: 'development',
     entry: './render.js',
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: 'bundle.js',
-        clean: true, // Clean dist folder before each build
+        clean: true,
     },
     module: {
         rules: [
@@ -15,6 +19,9 @@ module.exports = {
                 exclude: /node_modules/,
                 use: {
                     loader: 'babel-loader',
+                    options: {
+                        presets: ['@babel/preset-env', '@babel/preset-react']
+                    }
                 },
             },
             {
@@ -24,8 +31,18 @@ module.exports = {
         ],
     },
     resolve: {
-        extensions: ['.js', '.jsx'],
+        extensions: ['.js', '.jsx', '.ts', '.tsx'],
+        // More aggressive resolution options
+        extensionAlias: {
+            '.js': ['.js', '.jsx'],
+        },
+        // Try this instead of fullySpecified
+        symlinks: false,
     },
     target: 'electron-renderer',
-    devtool: 'source-map', // Enable source maps for debugging
+    devtool: 'source-map',
+    // Add this to handle ES modules better
+    experiments: {
+        outputModule: false,
+    },
 };

@@ -1,6 +1,6 @@
-const ISchemaGenerator = require('../interfaces/ISchemaGenerator');
-const PropertyTypeAnalyzer = require('../services/PropertyTypeAnalyzer');
-const LabelFormatter = require('../services/LabelFormatter');
+import ISchemaGenerator from '../interfaces/ISchemaGenerator.js';
+import PropertyTypeAnalyzer from '../services/PropertyTypeAnalyzer.js';
+import LabelFormatter from '../services/LabelFormatter.js';
 
 /**
  * Configuration schema generator implementation
@@ -240,4 +240,4 @@ class ConfigSchemaGenerator extends ISchemaGenerator {
     }
 }
 
-module.exports = ConfigSchemaGenerator;
+export default ConfigSchemaGenerator;

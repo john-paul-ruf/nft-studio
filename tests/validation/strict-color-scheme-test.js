@@ -11,7 +11,7 @@ async function testStrictColorSchemeImplementation() {
         console.log('🔍 Testing strict colorSchemeData requirements...\n');
 
         // Import the class without instantiating to avoid constructor issues
-        const NftProjectManagerClass = require('../../src/main/implementations/NftProjectManager');
+        import NftProjectManagerClass from '../../src/main/implementations/NftProjectManager.js';
         const testInstance = Object.create(NftProjectManagerClass.prototype);
 
         // Test 1: No colorSchemeData provided - should fail hard

@@ -1,11 +1,11 @@
 // Frontend services
-const FrontendServiceFactory = require('./container/FrontendServiceFactory');
+import FrontendServiceFactory from './container/FrontendServiceFactory.js';
 
 // Utils
-const { utilsFactory } = require('./utils/UtilsFactory');
+import { utilsFactory } from './utils/UtilsFactory.js';
 
 // Data repositories
-const FileColorSchemeRepository = require('./data/repositories/FileColorSchemeRepository');
+import FileColorSchemeRepository from './data/repositories/FileColorSchemeRepository.js';
 
 /**
  * Main application factory
@@ -252,4 +252,4 @@ class ApplicationFactory {
 }
 
 // Export singleton instance
-module.exports = new ApplicationFactory();
+export default new ApplicationFactory();

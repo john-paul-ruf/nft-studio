@@ -1,9 +1,9 @@
-const path = require('path');
-const { createCanvas, loadImage } = require('canvas');
+import path from 'path';
+import { createCanvas, loadImage } from 'canvas';
 
 // Import the project manager to test
-const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
-const ConsoleLogger = require('../../src/main/implementations/ConsoleLogger');
+import NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
+import ConsoleLogger from '../../src/main/implementations/ConsoleLogger.js';
 const ResolutionMapper = require('../../src/utils/ResolutionMapper').default;
 
 describe('Lowest Resolution Frame Measurement', () => {

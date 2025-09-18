@@ -698,4 +698,5 @@ class ConfigIntrospector {
     }
 }
 
-module.exports = { ConfigIntrospector };
+export { ConfigIntrospector };
+export default ConfigIntrospector;

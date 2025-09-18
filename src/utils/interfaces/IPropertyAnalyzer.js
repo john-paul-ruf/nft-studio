@@ -33,4 +33,4 @@ class IPropertyAnalyzer {
     }
 }
 
-module.exports = IPropertyAnalyzer;
+export default IPropertyAnalyzer;

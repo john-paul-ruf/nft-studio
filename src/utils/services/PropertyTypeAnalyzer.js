@@ -1,4 +1,4 @@
-const IPropertyAnalyzer = require('../interfaces/IPropertyAnalyzer');
+import IPropertyAnalyzer from '../interfaces/IPropertyAnalyzer.js';
 
 /**
  * Service for analyzing property types
@@ -267,4 +267,4 @@ class PropertyTypeAnalyzer extends IPropertyAnalyzer {
     }
 }
 
-module.exports = PropertyTypeAnalyzer;
+export default PropertyTypeAnalyzer;

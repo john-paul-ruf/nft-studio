@@ -1,4 +1,4 @@
-const { ipcMain } = require('electron');
+import { ipcMain } from 'electron';
 
 /**
  * File-specific IPC handlers
@@ -65,4 +65,4 @@ class FileHandlers {
     }
 }
 
-module.exports = FileHandlers;
+export default FileHandlers;

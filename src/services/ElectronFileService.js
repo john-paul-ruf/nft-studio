@@ -216,4 +216,4 @@ class ElectronFileService {
     }
 }
 
-module.exports = ElectronFileService;
+export default ElectronFileService;

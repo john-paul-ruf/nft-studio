@@ -4,8 +4,8 @@
  * Simulates exact behavior when user clicks render button in Canvas.jsx
  */
 
-const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
-const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
+import NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
+import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
 
 class RenderButtonFrameTest {
     constructor() {
@@ -369,7 +369,7 @@ class RenderButtonFrameTest {
 }
 
 // Run the tests if this file is executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const tests = new RenderButtonFrameTest();
     tests.runAllTests().then(results => {
         if (results.failed === 0) {
@@ -386,4 +386,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = RenderButtonFrameTest;
+export default RenderButtonFrameTest;

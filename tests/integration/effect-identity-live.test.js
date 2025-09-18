@@ -6,9 +6,9 @@
  */
 
 // Mock electron for testing
-require('../setup.js');
+import '../setup.js';
 
-const EffectProcessingService = require('../../src/main/services/EffectProcessingService');
+import EffectProcessingService from '../../src/main/services/EffectProcessingService.js';
 
 class EffectIdentityLiveTest {
     constructor() {
@@ -21,7 +21,7 @@ class EffectIdentityLiveTest {
         try {
             // First, initialize the registry system
             console.log('🔧 Initializing effect registry...');
-            const EffectRegistryService = require('../../src/main/services/EffectRegistryService');
+            import EffectRegistryService from '../../src/main/services/EffectRegistryService.js';
             const registryService = new EffectRegistryService();
             await registryService.ensureCoreEffectsRegistered();
 

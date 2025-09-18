@@ -27,7 +27,7 @@ class ColorSchemeEdgeCasesTest {
     async testColorSchemeDataStructure() {
         console.log('📋 Testing colorSchemeData Structure Edge Cases...\n');
 
-        const NftProjectManagerClass = require('../../src/main/implementations/NftProjectManager');
+        import NftProjectManagerClass from '../../src/main/implementations/NftProjectManager.js';
         const testInstance = Object.create(NftProjectManagerClass.prototype);
 
         // Test 1: colorSchemeData with extra fields (should work)
@@ -165,7 +165,7 @@ class ColorSchemeEdgeCasesTest {
     async testErrorMessages() {
         console.log('\n📋 Testing Error Message Quality...\n');
 
-        const NftProjectManagerClass = require('../../src/main/implementations/NftProjectManager');
+        import NftProjectManagerClass from '../../src/main/implementations/NftProjectManager.js';
         const testInstance = Object.create(NftProjectManagerClass.prototype);
 
         // Test 1: Detailed error messages
@@ -277,7 +277,7 @@ class ColorSchemeEdgeCasesTest {
     async testColorSchemeObjectBehavior() {
         console.log('\n📋 Testing ColorScheme Object Behavior...\n');
 
-        const NftProjectManagerClass = require('../../src/main/implementations/NftProjectManager');
+        import NftProjectManagerClass from '../../src/main/implementations/NftProjectManager.js';
         const testInstance = Object.create(NftProjectManagerClass.prototype);
 
         // Test 1: ColorScheme methods work correctly
@@ -388,7 +388,7 @@ class ColorSchemeEdgeCasesTest {
 }
 
 // Run the edge cases test suite
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const testSuite = new ColorSchemeEdgeCasesTest();
     testSuite.runAllTests().then(success => {
         process.exit(success ? 0 : 1);
@@ -398,4 +398,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = ColorSchemeEdgeCasesTest;
+export default ColorSchemeEdgeCasesTest;

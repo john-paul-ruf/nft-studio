@@ -4,7 +4,11 @@
  * Tests how values are stored in UI, then creates a project and validates frame rendering
  */
 
-const path = require('path');
+import { fileURLToPath } from 'node:url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 console.log('🧪 UI → Backend → Render Pipeline Test with FuzzFlareEffect\n');
 
@@ -166,7 +170,7 @@ class UIToRenderPipelineTest {
 
         return this.test('Real EffectProcessingService processes FuzzFlareEffect config', async () => {
             // Import real backend services
-            const EffectProcessingService = require('../../src/main/services/EffectProcessingService');
+            import EffectProcessingService from '../../src/main/services/EffectProcessingService.js';
 
             console.log('   🔄 Using real EffectProcessingService...');
 
@@ -345,7 +349,7 @@ class UIToRenderPipelineTest {
 
             // Step 3: Real Backend Processing with NftProjectManager
             try {
-                const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
+                import NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
 
                 console.log('   3. Using real NftProjectManager...');
 

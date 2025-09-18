@@ -3,10 +3,14 @@
  * Test to find a working bright color scheme that produces visible output
  */
 
-const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
-const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
-const fs = require('fs');
-const path = require('path');
+import { fileURLToPath } from 'node:url';
+import NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
+import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
+import fs from 'fs';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 async function testBrightColors() {
     const projectManager = new NftProjectManager();
@@ -201,7 +205,7 @@ async function testBrightColors() {
 }
 
 // Run the test
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     testBrightColors().then(() => {
         console.log('\n✅ Brightness testing completed!');
         process.exit(0);
@@ -211,4 +215,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = testBrightColors;
+export default testBrightColors;

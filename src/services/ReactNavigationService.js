@@ -200,4 +200,4 @@ class ReactNavigationService {
     }
 }
 
-module.exports = ReactNavigationService;
+export default ReactNavigationService;

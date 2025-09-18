@@ -4,8 +4,8 @@
  * Ensures adding and editing effects works correctly
  */
 
-const EffectRegistryService = require('../../src/main/services/EffectRegistryService');
-const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
+import EffectRegistryService from '../../src/main/services/EffectRegistryService.js';
+import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
 
 class EffectDialogIntegrationTests {
     constructor() {
@@ -292,11 +292,11 @@ async function runIntegrationTests() {
     process.exit(success ? 0 : 1);
 }
 
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     runIntegrationTests().catch(error => {
         console.error('❌ Integration test runner failed:', error);
         process.exit(1);
     });
 }
 
-module.exports = EffectDialogIntegrationTests;
+export default EffectDialogIntegrationTests;

@@ -5,7 +5,7 @@
  */
 
 // Mock electron for testing
-require('../setup.js');
+import '../setup.js';
 
 class ColorPickerConfigTest {
     constructor() {

@@ -4,10 +4,14 @@
  * Tests the entire pipeline from frontend effect configuration to backend rendering to frontend display
  */
 
-const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
-const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
-const fs = require('fs');
-const path = require('path');
+import { fileURLToPath } from 'node:url';
+import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
+import NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
+import fs from 'fs';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class FrontendBackendPipelineTest {
     constructor() {
@@ -255,7 +259,7 @@ class FrontendBackendPipelineTest {
 }
 
 // Run test if executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const test = new FrontendBackendPipelineTest();
     test.runFullPipelineTest().then(results => {
         console.log('\n✅ Frontend-Backend pipeline test completed');
@@ -275,4 +279,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = FrontendBackendPipelineTest;
+export default FrontendBackendPipelineTest;

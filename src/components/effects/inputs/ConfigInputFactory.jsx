@@ -1,15 +1,15 @@
 import React from 'react';
-import RangeInput from './RangeInput';
-import Point2DInput from './Point2DInput';
-import ColorPickerInput from './ColorPickerInput';
-import PercentageInput from './PercentageInput';
-import PercentageRangeInput from './PercentageRangeInput';
-import DynamicRangeInput from './DynamicRangeInput';
-import NumberInput from './NumberInput';
-import BooleanInput from './BooleanInput';
-import FindValueAlgorithmInput from './FindValueAlgorithmInput';
-import MultiSelectInput from './MultiSelectInput';
-import MultiStepInput from './MultiStepInput';
+import RangeInput from './RangeInput.jsx';
+import Point2DInput from './Point2DInput.jsx';
+import ColorPickerInput from './ColorPickerInput.jsx';
+import PercentageInput from './PercentageInput.jsx';
+import PercentageRangeInput from './PercentageRangeInput.jsx';
+import DynamicRangeInput from './DynamicRangeInput.jsx';
+import NumberInput from './NumberInput.jsx';
+import BooleanInput from './BooleanInput.jsx';
+import FindValueAlgorithmInput from './FindValueAlgorithmInput.jsx';
+import MultiSelectInput from './MultiSelectInput.jsx';
+import MultiStepInput from './MultiStepInput.jsx';
 
 function ConfigInputFactory({ field, value, onChange, projectData }) {
     const commonProps = { field, value, onChange, projectData };

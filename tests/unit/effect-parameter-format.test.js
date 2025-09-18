@@ -7,7 +7,7 @@
  */
 
 // Mock electron for testing
-require('../setup.js');
+import '../setup.js';
 
 class EffectParameterFormatTest {
     constructor() {
@@ -266,5 +266,9 @@ class EffectParameterFormatTest {
 }
 
 // Run the tests
-const tests = new EffectParameterFormatTest();
-tests.runAllTests();
+if (import.meta.url === `file://${process.argv[1]}`) {
+    const tests = new EffectParameterFormatTest();
+    tests.runAllTests();
+}
+
+export default EffectParameterFormatTest;

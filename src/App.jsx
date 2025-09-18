@@ -1,10 +1,10 @@
 import React from 'react';
-import { ServiceProvider } from './contexts/ServiceContext';
-import { useNavigation } from './hooks/useNavigation';
-import Intro from './pages/Intro';
-import ProjectWizard from './pages/ProjectWizard';
-import Canvas from './pages/Canvas';
-const ApplicationFactory = require('./ApplicationFactory');
+import { ServiceProvider } from './contexts/ServiceContext.js';
+import { useNavigation } from './hooks/useNavigation.js';
+import Intro from './pages/Intro.jsx';
+import ProjectWizard from './pages/ProjectWizard.jsx';
+import Canvas from './pages/Canvas.jsx';
+import ApplicationFactory from './ApplicationFactory.js';
 
 /**
  * Main application router component

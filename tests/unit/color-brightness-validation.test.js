@@ -4,10 +4,10 @@
  * This addresses the root cause of the "black screen" issue - dark color schemes
  */
 
-const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
-const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
-const fs = require('fs');
-const path = require('path');
+import NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
+import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
+import fs from 'fs';
+import path from 'path';
 
 class ColorBrightnessValidationTest {
     constructor() {
@@ -374,7 +374,7 @@ class ColorBrightnessValidationTest {
 }
 
 // Run the tests if this file is executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const tests = new ColorBrightnessValidationTest();
     tests.runAllTests().then(results => {
         if (results.failed === 0) {
@@ -391,4 +391,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = ColorBrightnessValidationTest;
+export default ColorBrightnessValidationTest;

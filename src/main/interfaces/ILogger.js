@@ -64,4 +64,4 @@ class ILogger {
     }
 }
 
-module.exports = ILogger;
+export default ILogger;

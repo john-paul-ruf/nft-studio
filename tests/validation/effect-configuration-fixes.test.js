@@ -27,7 +27,7 @@ class EffectConfigurationFixesTest {
     async testEffectDefaults() {
         console.log('📋 Testing Effect Default Configuration...\\n');
 
-        const NftEffectsManagerClass = require('../../src/main/implementations/NftEffectsManager');
+        import NftEffectsManagerClass from '../../src/main/implementations/NftEffectsManager.js';
         const testInstance = new NftEffectsManagerClass();
 
         // Test 1: getEffectDefaults returns proper structure
@@ -104,7 +104,7 @@ class EffectConfigurationFixesTest {
     async testEffectProcessing() {
         console.log('\\n📋 Testing Effect Processing Service...\\n');
 
-        const EffectProcessingService = require('../../src/main/services/EffectProcessingService');
+        import EffectProcessingService from '../../src/main/services/EffectProcessingService.js';
 
         // Test 1: createConfigInstance handles range objects properly
         await this.test('createConfigInstance preserves range object methods', async () => {
@@ -177,7 +177,7 @@ class EffectConfigurationFixesTest {
 
         // Test 2: Range object serialization preserves structure
         await this.test('Serialized range objects preserve lower/upper properties', async () => {
-            const NftEffectsManagerClass = require('../../src/main/implementations/NftEffectsManager');
+            import NftEffectsManagerClass from '../../src/main/implementations/NftEffectsManager.js';
             const testInstance = new NftEffectsManagerClass();
 
             const mockRangeObject = {
@@ -241,7 +241,7 @@ class EffectConfigurationFixesTest {
 }
 
 // Run the effect configuration fixes test suite
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const testSuite = new EffectConfigurationFixesTest();
     testSuite.runAllTests().then(success => {
         process.exit(success ? 0 : 1);
@@ -251,4 +251,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = EffectConfigurationFixesTest;
+export default EffectConfigurationFixesTest;

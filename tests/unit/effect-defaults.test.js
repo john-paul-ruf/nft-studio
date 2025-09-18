@@ -4,7 +4,7 @@
  * Tests the response format fix for effects without configs
  */
 
-const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
+import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
 
 class EffectDefaultsTests {
     constructor() {
@@ -317,11 +317,11 @@ async function runEffectDefaultsTests() {
     process.exit(success ? 0 : 1);
 }
 
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     runEffectDefaultsTests().catch(error => {
         console.error('❌ Effect defaults test runner failed:', error);
         process.exit(1);
     });
 }
 
-module.exports = EffectDefaultsTests;
+export default EffectDefaultsTests;

@@ -1,6 +1,8 @@
-const {BrowserWindow} = require('electron');
-const path = require('path');
-const FileSystemRenderer = require('./FileSystemRenderer');
+import electron from 'electron';
+const { BrowserWindow } = electron;
+import path from 'path';
+import FileSystemRenderer from './FileSystemRenderer.js';
+import defaultLogger from '../utils/logger.js';
 
 /**
  * NFT-specific implementation of project management
@@ -9,7 +11,7 @@ const FileSystemRenderer = require('./FileSystemRenderer');
 class NftProjectManager {
     constructor(logger = null) {
         // Dependency injection following Dependency Inversion Principle
-        this.logger = logger || require('../utils/logger');
+        this.logger = logger || defaultLogger;
         this.activeProjects = new Map();
         this.fileSystemRenderer = new FileSystemRenderer();
         this.renderMethod = process.env.RENDER_METHOD || 'hybrid'; // 'base64', 'filesystem', or 'hybrid'
@@ -189,7 +191,7 @@ class NftProjectManager {
         }
 
         const myNftGenPath = path.resolve(process.cwd(), '../my-nft-gen');
-        const effectProcessor = require('../services/EffectProcessingService');
+        const { default: effectProcessor } = await import('../services/EffectProcessingService.js');
 
         // Group effects by type while maintaining order
         const primaryEffects = [];
@@ -407,7 +409,7 @@ class NftProjectManager {
         const {Settings} = await import('my-nft-gen/src/app/Settings.js');
 
         // Process effects into LayerConfig instances
-        const effectProcessor = require('../services/EffectProcessingService');
+        const { default: effectProcessor } = await import('../services/EffectProcessingService.js');
 
         // Extract primary effects from the effects array
         let primaryEffects = [];
@@ -529,4 +531,4 @@ class NftProjectManager {
     }
 }
 
-module.exports = NftProjectManager;
+export default NftProjectManager;

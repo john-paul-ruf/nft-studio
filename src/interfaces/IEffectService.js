@@ -48,4 +48,4 @@ class IEffectService {
     }
 }
 
-module.exports = IEffectService;
+export default IEffectService;

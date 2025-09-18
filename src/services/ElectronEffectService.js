@@ -235,4 +235,4 @@ class ElectronEffectService {
     }
 }
 
-module.exports = ElectronEffectService;
+export default ElectronEffectService;

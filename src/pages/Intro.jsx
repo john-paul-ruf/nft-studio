@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import PreferencesService from '../services/PreferencesService';
+import PreferencesService from '../services/PreferencesService.js';
 import './Intro.css';
 
 export default function Intro({ onNewProject, onEditProject }) {

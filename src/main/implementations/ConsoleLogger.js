@@ -194,4 +194,4 @@ class ConsoleLogger {
     }
 }
 
-module.exports = ConsoleLogger;
+export default ConsoleLogger;

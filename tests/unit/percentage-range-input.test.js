@@ -3,7 +3,7 @@
  * Test for PercentageRangeInput component to debug NaN issues
  */
 
-const React = require('react');
+import React from 'react';
 
 // Mock React since we're testing in Node.js
 const originalConsoleLog = console.log;
@@ -298,10 +298,10 @@ class PercentageRangeInputTest {
 }
 
 // Run the tests if this file is executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const tests = new PercentageRangeInputTest();
     const results = tests.runAllTests();
     process.exit(results.failed === 0 ? 0 : 1);
 }
 
-module.exports = PercentageRangeInputTest;
+export default PercentageRangeInputTest;

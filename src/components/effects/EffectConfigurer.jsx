@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import ConfigInputFactory from './inputs/ConfigInputFactory';
-import { ConfigIntrospector } from '../../utils/configIntrospector';
-import EffectAttachmentModal from './EffectAttachmentModal';
+import ConfigInputFactory from './inputs/ConfigInputFactory.jsx';
+import { ConfigIntrospector } from '../../utils/configIntrospector.js';
+import EffectAttachmentModal from './EffectAttachmentModal.jsx';
 import {
     Box,
     Typography,

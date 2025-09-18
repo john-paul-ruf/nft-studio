@@ -122,4 +122,4 @@ class ConfigProcessingService {
     }
 }
 
-module.exports = ConfigProcessingService;
+export default ConfigProcessingService;

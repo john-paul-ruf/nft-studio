@@ -4,7 +4,7 @@
  * Ensures config registry lookups use effect _name_ property consistently
  */
 
-const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
+import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
 
 class EffectNameLookupTests {
     constructor() {
@@ -218,11 +218,11 @@ async function runEffectNameLookupTests() {
     process.exit(success ? 0 : 1);
 }
 
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     runEffectNameLookupTests().catch(error => {
         console.error('❌ Effect name lookup test runner failed:', error);
         process.exit(1);
     });
 }
 
-module.exports = EffectNameLookupTests;
+export default EffectNameLookupTests;

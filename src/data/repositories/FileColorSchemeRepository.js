@@ -1,4 +1,4 @@
-const IColorSchemeRepository = require('../interfaces/IColorSchemeRepository');
+import IColorSchemeRepository from '../interfaces/IColorSchemeRepository.js';
 
 /**
  * File-based color scheme repository implementation
@@ -237,4 +237,4 @@ class FileColorSchemeRepository extends IColorSchemeRepository {
     }
 }
 
-module.exports = FileColorSchemeRepository;
+export default FileColorSchemeRepository;

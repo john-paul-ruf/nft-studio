@@ -1,5 +1,5 @@
-const EffectRegistryService = require('../services/EffectRegistryService');
-const ConfigProcessingService = require('../services/ConfigProcessingService');
+import EffectRegistryService from '../services/EffectRegistryService.js';
+import ConfigProcessingService from '../services/ConfigProcessingService.js';
 
 /**
  * NFT-specific implementation of effects management
@@ -599,4 +599,4 @@ class NftEffectsManager {
     }
 }
 
-module.exports = NftEffectsManager;
+export default NftEffectsManager;

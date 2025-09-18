@@ -179,4 +179,4 @@ class ElectronProjectService {
     }
 }
 
-module.exports = ElectronProjectService;
+export default ElectronProjectService;

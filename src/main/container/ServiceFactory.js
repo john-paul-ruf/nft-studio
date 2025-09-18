@@ -1,18 +1,18 @@
-const DependencyContainer = require('./DependencyContainer');
+import DependencyContainer from './DependencyContainer.js';
 
 // Services
-const DialogService = require('../services/DialogService');
-const FileSystemService = require('../services/FileSystemService');
-const ImageService = require('../services/ImageService');
-const FrameService = require('../services/FrameService');
-const EffectRegistryService = require('../services/EffectRegistryService');
-const ConfigProcessingService = require('../services/ConfigProcessingService');
+import DialogService from '../services/DialogService.js';
+import FileSystemService from '../services/FileSystemService.js';
+import ImageService from '../services/ImageService.js';
+import FrameService from '../services/FrameService.js';
+import EffectRegistryService from '../services/EffectRegistryService.js';
+import ConfigProcessingService from '../services/ConfigProcessingService.js';
 
 // Implementations
-const ElectronFileOperations = require('../implementations/ElectronFileOperations');
-const NftEffectsManager = require('../implementations/NftEffectsManager');
-const NftProjectManager = require('../implementations/NftProjectManager');
-const ConsoleLogger = require('../implementations/ConsoleLogger');
+import ElectronFileOperations from '../implementations/ElectronFileOperations.js';
+import NftEffectsManager from '../implementations/NftEffectsManager.js';
+import NftProjectManager from '../implementations/NftProjectManager.js';
+import ConsoleLogger from '../implementations/ConsoleLogger.js';
 
 /**
  * Service Factory
@@ -138,4 +138,4 @@ class ServiceFactory {
 }
 
 // Export singleton instance
-module.exports = new ServiceFactory();
+export default new ServiceFactory();

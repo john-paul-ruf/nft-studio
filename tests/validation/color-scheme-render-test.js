@@ -4,6 +4,12 @@
  * Tests neutrals, backgrounds, and lights arrays from different color schemes
  */
 
+import { fileURLToPath } from 'node:url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 console.log('🎨 Color Scheme Render Test\n');
 
 class ColorSchemeRenderTest {
@@ -28,7 +34,7 @@ class ColorSchemeRenderTest {
         console.log('📋 Testing Color Scheme Application in renderFrame...\n');
 
         return this.test('Color schemes are properly applied with neutrals, backgrounds, lights', async () => {
-            const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
+            const { default: NftProjectManager } = await import('../../src/main/implementations/NftProjectManager.js');
 
             // Test different color schemes
             const colorSchemes = [
@@ -162,7 +168,7 @@ class ColorSchemeRenderTest {
         console.log('\n📋 Testing ColorPicker Uses Color Scheme...\n');
 
         return this.test('ColorPicker getColor() uses selected color scheme', async () => {
-            const EffectProcessingService = require('../../src/main/services/EffectProcessingService');
+            const { default: EffectProcessingService } = await import('../../src/main/services/EffectProcessingService.js');
 
             // Create config that uses colorBucket selection
             const effectConfig = {
@@ -176,7 +182,7 @@ class ColorSchemeRenderTest {
 
             console.log('   🎯 Testing ColorPicker with colorBucket selection...');
 
-            const myNftGenPath = require('path').resolve(__dirname, '../../../my-nft-gen');
+            const myNftGenPath = path.resolve(__dirname, '../../../my-nft-gen');
             const processedConfig = await EffectProcessingService.createConfigInstance(
                 effectConfig,
                 myNftGenPath
@@ -257,7 +263,7 @@ class ColorSchemeRenderTest {
                     renderJumpFrames: 1
                 };
 
-                const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
+                const { default: NftProjectManager } = await import('../../src/main/implementations/NftProjectManager.js');
                 const projectManager = new NftProjectManager();
 
                 try {

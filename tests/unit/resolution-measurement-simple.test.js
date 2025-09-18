@@ -1,4 +1,4 @@
-const ResolutionMapper = require('../../src/utils/ResolutionMapper').default;
+import ResolutionMapper from '../../src/utils/ResolutionMapper.js';
 
 describe('Resolution Measurement - Simple Tests', () => {
 

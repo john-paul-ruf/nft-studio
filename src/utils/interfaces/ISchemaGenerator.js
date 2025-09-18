@@ -32,4 +32,4 @@ class ISchemaGenerator {
     }
 }
 
-module.exports = ISchemaGenerator;
+export default ISchemaGenerator;

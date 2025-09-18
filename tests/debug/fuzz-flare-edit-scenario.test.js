@@ -29,7 +29,7 @@ class FuzzFlareEditTest {
         console.log('📋 Testing Original Add Scenario (should work)...\n');
 
         return this.test('Initial FuzzFlareEffect add with defaults', async () => {
-            const EffectProcessingService = require('../../src/main/services/EffectProcessingService');
+            const { default: EffectProcessingService } = await import('../../src/main/services/EffectProcessingService.js');
 
             // Step 1: User adds FuzzFlareEffect - uses complete default config
             const initialEffectConfig = {
@@ -43,7 +43,8 @@ class FuzzFlareEditTest {
 
             console.log('   🎯 Step 1: Initial add with empty config (backend provides defaults)');
 
-            const myNftGenPath = require('path').resolve(__dirname, '../../../my-nft-gen');
+            const path = await import('path');
+            const myNftGenPath = path.resolve(new URL('.', import.meta.url).pathname, '../../../my-nft-gen');
             const processedConfig = await EffectProcessingService.createConfigInstance(
                 initialEffectConfig,
                 myNftGenPath
@@ -79,7 +80,7 @@ class FuzzFlareEditTest {
         console.log('\n📋 Testing Edited Config Scenario (currently failing)...\n');
 
         return this.test('FuzzFlareEffect after user edit (5 rings, 5 rays)', async () => {
-            const EffectProcessingService = require('../../src/main/services/EffectProcessingService');
+            const { default: EffectProcessingService } = await import('../../src/main/services/EffectProcessingService.js');
 
             // Step 2: User edits the config in UI - UI stores simple values
             const editedEffectConfig = {
@@ -106,7 +107,8 @@ class FuzzFlareEditTest {
             console.log('   🎯 Step 2: After user edit - simple values stored, complex objects lost');
             console.log('   📝 User config:', JSON.stringify(editedEffectConfig.config, null, 2));
 
-            const myNftGenPath = require('path').resolve(__dirname, '../../../my-nft-gen');
+            const path = await import('path');
+            const myNftGenPath = path.resolve(new URL('.', import.meta.url).pathname, '../../../my-nft-gen');
             const processedConfig = await EffectProcessingService.createConfigInstance(
                 editedEffectConfig,
                 myNftGenPath
@@ -192,7 +194,7 @@ class FuzzFlareEditTest {
         console.log('\n📋 Testing Full Render with Edited Config...\n');
 
         return this.test('Complete render pipeline with edited FuzzFlareEffect', async () => {
-            const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
+            const { default: NftProjectManager } = await import('../../src/main/implementations/NftProjectManager.js');
 
             // Full render config as sent by UI after user edits
             const renderConfig = {

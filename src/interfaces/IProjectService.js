@@ -48,4 +48,4 @@ class IProjectService {
     }
 }
 
-module.exports = IProjectService;
+export default IProjectService;

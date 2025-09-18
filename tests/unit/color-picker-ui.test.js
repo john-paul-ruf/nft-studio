@@ -4,8 +4,8 @@
  * The problem is color pickers have colorValue: null, causing effects to render with no colors
  */
 
-const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
-const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
+import NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
+import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
 
 class ColorPickerUITest {
     constructor() {
@@ -446,7 +446,7 @@ class ColorPickerUITest {
 }
 
 // Run the tests if this file is executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const tests = new ColorPickerUITest();
     tests.runAllTests().then(results => {
         console.log('\\n🎨 Color picker UI testing completed!');
@@ -458,4 +458,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = ColorPickerUITest;
+export default ColorPickerUITest;

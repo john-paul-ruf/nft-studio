@@ -3,7 +3,7 @@
  * Debug script to inspect color picker values and prove the null colorValue issue
  */
 
-const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
+import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
 
 async function debugColorPickers() {
     const effectsManager = new NftEffectsManager();
@@ -118,7 +118,7 @@ async function debugColorPickers() {
 }
 
 // Run the debug
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     debugColorPickers().then(() => {
         console.log('\n✅ Color picker debug completed');
     }).catch(error => {
@@ -127,4 +127,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = debugColorPickers;
+export default debugColorPickers;

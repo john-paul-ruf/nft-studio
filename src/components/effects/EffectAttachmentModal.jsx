@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import EffectConfigurer from './EffectConfigurer';
+import EffectConfigurer from './EffectConfigurer.jsx';
 
 function EffectAttachmentModal({
     isOpen,

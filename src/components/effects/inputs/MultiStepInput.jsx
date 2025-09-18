@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import RangeInput from './RangeInput';
+import RangeInput from './RangeInput.jsx';
 
 function MultiStepInput({ field, value, onChange, projectData }) {
     const [steps, setSteps] = useState(value || field.default || []);

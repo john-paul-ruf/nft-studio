@@ -1,4 +1,4 @@
-const { ipcMain } = require('electron');
+import { ipcMain } from 'electron';
 
 /**
  * Effects-specific IPC handlers
@@ -93,4 +93,4 @@ class EffectsHandlers {
     }
 }
 
-module.exports = EffectsHandlers;
+export default EffectsHandlers;

@@ -1,8 +1,8 @@
-const ServiceFactory = require('../container/ServiceFactory');
-const FileHandlers = require('../handlers/FileHandlers');
-const ProjectHandlers = require('../handlers/ProjectHandlers');
-const EffectsHandlers = require('../handlers/EffectsHandlers');
-const PreviewHandlers = require('../handlers/PreviewHandlers');
+import ServiceFactory from '../container/ServiceFactory.js';
+import FileHandlers from '../handlers/FileHandlers.js';
+import ProjectHandlers from '../handlers/ProjectHandlers.js';
+import EffectsHandlers from '../handlers/EffectsHandlers.js';
+import PreviewHandlers from '../handlers/PreviewHandlers.js';
 
 /**
  * SOLID-compliant IPC handlers manager
@@ -112,4 +112,4 @@ class SolidIpcHandlers {
     }
 }
 
-module.exports = SolidIpcHandlers;
+export default SolidIpcHandlers;

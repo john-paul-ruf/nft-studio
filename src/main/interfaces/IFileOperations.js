@@ -40,4 +40,4 @@ class IFileOperations {
     }
 }
 
-module.exports = IFileOperations;
+export default IFileOperations;

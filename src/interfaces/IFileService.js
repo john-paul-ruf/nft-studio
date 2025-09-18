@@ -49,4 +49,4 @@ class IFileService {
     }
 }
 
-module.exports = IFileService;
+export default IFileService;

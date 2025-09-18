@@ -3,7 +3,7 @@
  * Debug test specifically for fuzz-flare effect PercentageRange NaN issue
  */
 
-const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
+import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
 
 class FuzzFlareDebugTest {
     constructor() {
@@ -291,9 +291,9 @@ class FuzzFlareDebugTest {
 }
 
 // Run if executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const debugTest = new FuzzFlareDebugTest();
     debugTest.runDebugTests().catch(console.error);
 }
 
-module.exports = FuzzFlareDebugTest;
+export default FuzzFlareDebugTest;

@@ -6,9 +6,9 @@
  */
 
 // Mock electron for testing
-require('../setup.js');
+import '../setup.js';
 
-const EffectProcessingService = require('../../src/main/services/EffectProcessingService');
+import EffectProcessingService from '../../src/main/services/EffectProcessingService.js';
 
 class EffectClassIdentityTests {
     constructor() {

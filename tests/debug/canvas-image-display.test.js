@@ -4,10 +4,14 @@
  * Tests the exact flow from renderFrame result to canvas display
  */
 
-const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
-const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
-const fs = require('fs');
-const path = require('path');
+import { fileURLToPath } from 'node:url';
+import NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
+import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
+import fs from 'fs';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class CanvasImageDisplayTest {
     constructor() {
@@ -423,7 +427,7 @@ class CanvasImageDisplayTest {
 }
 
 // Run the tests if this file is executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const tests = new CanvasImageDisplayTest();
     tests.runAllTests().then(results => {
         if (results.failed === 0) {
@@ -440,4 +444,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = CanvasImageDisplayTest;
+export default CanvasImageDisplayTest;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import PreferencesService from '../services/PreferencesService';
-import ResolutionMapper from '../utils/ResolutionMapper';
+import PreferencesService from '../services/PreferencesService.js';
+import ResolutionMapper from '../utils/ResolutionMapper.js';
 
 /**
  * Custom hook to load initial resolution from preferences

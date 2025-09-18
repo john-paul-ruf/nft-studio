@@ -97,4 +97,4 @@ class DependencyContainer {
     }
 }
 
-module.exports = DependencyContainer;
+export default DependencyContainer;

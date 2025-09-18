@@ -4,13 +4,13 @@
  * Runs all tests and provides a summary report
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 console.log('Test runner loaded');
 
 // Mock globals setup
-require('./setup.js');
+import './setup.js';
 
 // Color codes for console output
 const colors = {
@@ -273,7 +273,7 @@ class AppVerificationTests {
 process.stdout.write = process.stdout.write.bind(process.stdout);
 
 // CLI Interface
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const runner = new TestRunner();
     const args = process.argv.slice(2);
 
@@ -322,4 +322,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { TestRunner, AppVerificationTests };
+export { TestRunner, AppVerificationTests };

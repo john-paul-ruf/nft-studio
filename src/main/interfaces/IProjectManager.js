@@ -32,4 +32,4 @@ class IProjectManager {
     }
 }
 
-module.exports = IProjectManager;
+export default IProjectManager;

@@ -1,12 +1,12 @@
 // Services
-const ElectronProjectService = require('../services/ElectronProjectService');
-const ElectronEffectService = require('../services/ElectronEffectService');
-const ElectronFileService = require('../services/ElectronFileService');
-const ReactNavigationService = require('../services/ReactNavigationService');
+import ElectronProjectService from '../services/ElectronProjectService.js';
+import ElectronEffectService from '../services/ElectronEffectService.js';
+import ElectronFileService from '../services/ElectronFileService.js';
+import ReactNavigationService from '../services/ReactNavigationService.js';
 
 // Import existing services
-const ColorSchemeService = require('../services/ColorSchemeService');
-const PreferencesService = require('../services/PreferencesService');
+import ColorSchemeService from '../services/ColorSchemeService.js';
+import PreferencesService from '../services/PreferencesService.js';
 
 /**
  * Frontend Service Factory
@@ -189,4 +189,4 @@ class FrontendServiceFactory {
 }
 
 // Export singleton instance
-module.exports = new FrontendServiceFactory();
+export default new FrontendServiceFactory();

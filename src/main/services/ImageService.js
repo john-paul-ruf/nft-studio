@@ -1,5 +1,5 @@
-const fs = require('fs').promises;
-const path = require('path');
+import { promises as fs } from 'fs';
+import path from 'path';
 
 /**
  * Service responsible for image operations only
@@ -72,4 +72,4 @@ class ImageService {
     }
 }
 
-module.exports = ImageService;
+export default ImageService;

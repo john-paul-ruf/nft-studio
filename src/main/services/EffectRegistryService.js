@@ -126,4 +126,4 @@ class EffectRegistryService {
     }
 }
 
-module.exports = EffectRegistryService;
+export default EffectRegistryService;

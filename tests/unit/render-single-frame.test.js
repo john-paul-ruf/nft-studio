@@ -5,7 +5,7 @@
  */
 
 // Mock electron for testing environment
-const Module = require('module');
+import Module from 'module';
 const originalRequire = Module.prototype.require;
 
 Module.prototype.require = function(id) {
@@ -23,7 +23,7 @@ Module.prototype.require = function(id) {
     return originalRequire.apply(this, arguments);
 };
 
-const ServiceFactory = require('../../src/main/container/ServiceFactory');
+import ServiceFactory from '../../src/main/container/ServiceFactory.js';
 
 class RenderSingleFrameTests {
     constructor() {
@@ -197,7 +197,7 @@ class RenderSingleFrameTests {
 
         await this.test('should identify IPC handler duplication issue', async () => {
             // Check if there are duplicate handlers registered
-            const { ipcMain } = require('electron');
+            import { ipcMain } from 'electron';
 
             // Count how many listeners are registered for 'render-frame'
             const listeners = ipcMain.listeners('render-frame');

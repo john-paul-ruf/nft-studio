@@ -208,7 +208,7 @@ class DefaultSchemeSelectionTest {
 
         // Test that Canvas.jsx has the expected imports and logic
         await this.test('Canvas.jsx imports PreferencesService', async () => {
-            const fs = require('fs');
+            import fs from 'fs';
             const canvasContent = fs.readFileSync('/Users/the.phoenix/WebstormProjects/nft-studio/src/pages/Canvas.jsx', 'utf8');
 
             if (!canvasContent.includes("import PreferencesService from '../services/PreferencesService';")) {
@@ -217,7 +217,7 @@ class DefaultSchemeSelectionTest {
         });
 
         await this.test('Canvas.jsx has default scheme loading useEffect', async () => {
-            const fs = require('fs');
+            import fs from 'fs';
             const canvasContent = fs.readFileSync('/Users/the.phoenix/WebstormProjects/nft-studio/src/pages/Canvas.jsx', 'utf8');
 
             if (!canvasContent.includes('Load default color scheme on component mount')) {
@@ -234,7 +234,7 @@ class DefaultSchemeSelectionTest {
         });
 
         await this.test('Canvas.jsx initial state uses null for colorScheme', async () => {
-            const fs = require('fs');
+            import fs from 'fs';
             const canvasContent = fs.readFileSync('/Users/the.phoenix/WebstormProjects/nft-studio/src/pages/Canvas.jsx', 'utf8');
 
             if (!canvasContent.includes('colorScheme: null')) {
@@ -243,7 +243,7 @@ class DefaultSchemeSelectionTest {
         });
 
         await this.test('Canvas.jsx properly handles updateConfig calls', async () => {
-            const fs = require('fs');
+            import fs from 'fs';
             const canvasContent = fs.readFileSync('/Users/the.phoenix/WebstormProjects/nft-studio/src/pages/Canvas.jsx', 'utf8');
 
             // Check that updateConfig is called with colorScheme
@@ -293,7 +293,7 @@ class DefaultSchemeSelectionTest {
 }
 
 // Run the default scheme selection test
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const testSuite = new DefaultSchemeSelectionTest();
     testSuite.runAllTests().then(success => {
         process.exit(success ? 0 : 1);
@@ -303,4 +303,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = DefaultSchemeSelectionTest;
+export default DefaultSchemeSelectionTest;

@@ -71,12 +71,12 @@ async function testFinalColorSchemeImplementation() {
         let successCount = 0;
         let environmentIssues = 0;
 
-        for (const testCase of testConfigs) {
+        for (import testCase of testConfigs) {
             console.log(`📋 Testing ${testCase.name}...`);
             console.log(`   Color scheme: ${testCase.config.colorScheme}`);
 
             try {
-                const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
+                const NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
                 const projectManager = new NftProjectManager();
 
                 console.log('   🔧 Calling renderFrame...');
@@ -134,7 +134,7 @@ async function testFinalColorSchemeImplementation() {
         // Test the buildColorSchemeInfo method directly (this should always work)
         console.log('\n📋 Testing buildColorSchemeInfo method directly...');
 
-        const NftProjectManagerClass = require('../../src/main/implementations/NftProjectManager');
+        import NftProjectManagerClass from '../../src/main/implementations/NftProjectManager.js';
 
         // Create test instance (avoiding constructor issues)
         const testInstance = Object.create(NftProjectManagerClass.prototype);

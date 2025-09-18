@@ -28,7 +28,7 @@ class EffectConfigLookupFixTest {
     async testEffectConfigLookup() {
         console.log('📋 Testing Effect Config Lookup Fix...\\n');
 
-        const NftEffectsManagerClass = require('../../src/main/implementations/NftEffectsManager');
+        import NftEffectsManagerClass from '../../src/main/implementations/NftEffectsManager.js';
         const testInstance = new NftEffectsManagerClass();
 
         // Test 1: Verify getEffectDefaults uses EffectClass._name_ for config lookup
@@ -147,7 +147,7 @@ class EffectConfigLookupFixTest {
         // Test 3: Verify the fix implementation uses correct method
         await this.test('getEffectDefaults implementation uses EffectClass._name_', async () => {
             // Check the source code to ensure correct implementation
-            const fs = require('fs');
+            import fs from 'fs';
             const sourceCode = fs.readFileSync('/Users/the.phoenix/WebstormProjects/nft-studio/src/main/implementations/NftEffectsManager.js', 'utf8');
 
             // Check for the correct pattern
@@ -168,7 +168,7 @@ class EffectConfigLookupFixTest {
 
         // Test 4: Verify no fallback configs are used
         await this.test('No fallback configs are used - proper error handling only', async () => {
-            const fs = require('fs');
+            import fs from 'fs';
 
             // Check NftEffectsManager doesn't have fallback configs
             const effectsManagerCode = fs.readFileSync('/Users/the.phoenix/WebstormProjects/nft-studio/src/main/implementations/NftEffectsManager.js', 'utf8');
@@ -193,7 +193,7 @@ class EffectConfigLookupFixTest {
 
         // Test 5: Verify error messages are informative
         await this.test('Error messages include effect _name_ for debugging', async () => {
-            const NftEffectsManagerClass = require('../../src/main/implementations/NftEffectsManager');
+            import NftEffectsManagerClass from '../../src/main/implementations/NftEffectsManager.js';
             const testInstance = new NftEffectsManagerClass();
 
             try {
@@ -267,7 +267,7 @@ class EffectConfigLookupFixTest {
 }
 
 // Run the effect config lookup fix test suite
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const testSuite = new EffectConfigLookupFixTest();
     testSuite.runAllTests().then(success => {
         process.exit(success ? 0 : 1);
@@ -277,4 +277,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = EffectConfigLookupFixTest;
+export default EffectConfigLookupFixTest;

@@ -4,7 +4,7 @@
  * Ensures config introspection data can be safely passed through Electron IPC
  */
 
-const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
+import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
 
 class IPCSerializationTests {
     constructor() {
@@ -400,11 +400,11 @@ async function runIPCSerializationTests() {
     process.exit(success ? 0 : 1);
 }
 
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     runIPCSerializationTests().catch(error => {
         console.error('❌ IPC serialization test runner failed:', error);
         process.exit(1);
     });
 }
 
-module.exports = IPCSerializationTests;
+export default IPCSerializationTests;

@@ -1,6 +1,6 @@
-const fs = require('fs').promises;
-const path = require('path');
-const { app } = require('electron');
+import { promises as fs } from 'fs';
+import path from 'path';
+import { app } from 'electron';
 
 /**
  * Service responsible for file system operations only
@@ -96,4 +96,4 @@ class FileSystemService {
     }
 }
 
-module.exports = FileSystemService;
+export default FileSystemService;

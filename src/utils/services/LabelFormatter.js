@@ -187,4 +187,4 @@ class LabelFormatter {
     }
 }
 
-module.exports = LabelFormatter;
+export default LabelFormatter;

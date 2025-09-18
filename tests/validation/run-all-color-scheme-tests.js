@@ -160,7 +160,7 @@ async function runAllColorSchemeTests() {
 }
 
 // Run all tests if called directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     runAllColorSchemeTests().then(success => {
         process.exit(success ? 0 : 1);
     }).catch(error => {
@@ -169,4 +169,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = runAllColorSchemeTests;
+export default runAllColorSchemeTests;

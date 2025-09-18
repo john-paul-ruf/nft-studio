@@ -47,4 +47,4 @@ class IColorSchemeRepository {
     }
 }
 
-module.exports = IColorSchemeRepository;
+export default IColorSchemeRepository;

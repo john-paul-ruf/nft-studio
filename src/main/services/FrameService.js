@@ -1,6 +1,6 @@
-const path = require('path');
-const FileSystemService = require('./FileSystemService');
-const ImageService = require('./ImageService');
+import path from 'path';
+import FileSystemService from './FileSystemService.js';
+import ImageService from './ImageService.js';
 
 /**
  * Service responsible for frame-related operations only
@@ -99,4 +99,4 @@ class FrameService {
     }
 }
 
-module.exports = FrameService;
+export default FrameService;

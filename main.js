@@ -1,6 +1,10 @@
-const { app, BrowserWindow } = require('electron')
-const path = require('node:path')
-const SolidIpcHandlers = require('./src/main/modules/SolidIpcHandlers')
+import electron from 'electron'
+const { app, BrowserWindow } = electron
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import SolidIpcHandlers from './src/main/modules/SolidIpcHandlers.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 /**
  * Create the main application window

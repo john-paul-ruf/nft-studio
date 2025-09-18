@@ -4,8 +4,8 @@
  * Tests the specific fixes applied to prevent regressions
  */
 
-const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
-const { ConfigIntrospector } = require('../../src/utils/configIntrospector');
+import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
+import { ConfigIntrospector } from '../../src/utils/configIntrospector.js';
 
 class DialogFixesRegressionTests {
     constructor() {
@@ -402,11 +402,11 @@ async function runRegressionTests() {
     process.exit(success ? 0 : 1);
 }
 
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     runRegressionTests().catch(error => {
         console.error('❌ Regression test runner failed:', error);
         process.exit(1);
     });
 }
 
-module.exports = DialogFixesRegressionTests;
+export default DialogFixesRegressionTests;

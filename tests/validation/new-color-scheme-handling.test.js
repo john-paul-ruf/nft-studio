@@ -28,7 +28,7 @@ class NewColorSchemeTest {
         console.log('📋 Testing buildColorSchemeInfo method...\n');
 
         return this.test('buildColorSchemeInfo creates proper colorSchemeInfo from projectConfig.colorScheme', async () => {
-            const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
+            import NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
             const projectManager = new NftProjectManager();
 
             // Test each predefined color scheme
@@ -151,7 +151,7 @@ class NewColorSchemeTest {
         console.log('\n📋 Testing Error Handling...\n');
 
         return this.test('buildColorSchemeInfo throws error for invalid color scheme', async () => {
-            const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
+            import NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
             const projectManager = new NftProjectManager();
 
             const projectConfig = {
@@ -183,7 +183,7 @@ class NewColorSchemeTest {
         console.log('\n📋 Testing colorSchemeInfo Passthrough...\n');
 
         return this.test('buildColorSchemeInfo uses provided colorSchemeInfo directly', async () => {
-            const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
+            import NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
             const projectManager = new NftProjectManager();
 
             // Create mock colorSchemeInfo
@@ -256,11 +256,11 @@ class NewColorSchemeTest {
                 }
             ];
 
-            for (const config of projectConfigs) {
+            for (import config of projectConfigs) {
                 console.log(`   🎯 Testing project creation with ${config.colorScheme}...`);
 
                 try {
-                    const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
+                    const NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
                     const projectManager = new NftProjectManager();
 
                     const project = await projectManager.createProject(config);

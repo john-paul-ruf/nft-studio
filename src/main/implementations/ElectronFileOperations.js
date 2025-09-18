@@ -1,6 +1,6 @@
-const DialogService = require('../services/DialogService');
-const FileSystemService = require('../services/FileSystemService');
-const FrameService = require('../services/FrameService');
+import DialogService from '../services/DialogService.js';
+import FileSystemService from '../services/FileSystemService.js';
+import FrameService from '../services/FrameService.js';
 
 /**
  * Electron-specific implementation of file operations
@@ -77,4 +77,4 @@ class ElectronFileOperations {
     }
 }
 
-module.exports = ElectronFileOperations;
+export default ElectronFileOperations;

@@ -4,9 +4,9 @@
  * Simulates: Create project with hex effect -> Render frame
  */
 
-const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
-const path = require('path');
-const fs = require('fs');
+import NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
+import path from 'path';
+import fs from 'fs';
 
 class FullRenderPipelineTest {
     constructor() {
@@ -64,7 +64,7 @@ class FullRenderPipelineTest {
         console.log('\n⚙️ Setting up hex effect config...');
 
         // We need to get the hex config the same way the UI does
-        const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
+        import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
         const effectsManager = new NftEffectsManager();
 
         const configResult = await effectsManager.introspectConfig({
@@ -332,7 +332,7 @@ class FullRenderPipelineTest {
 }
 
 // Run the tests if this file is executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const tests = new FullRenderPipelineTest();
     tests.runAllTests().then(results => {
         if (results.failed === 0) {
@@ -352,4 +352,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = FullRenderPipelineTest;
+export default FullRenderPipelineTest;

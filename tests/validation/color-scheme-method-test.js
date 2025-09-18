@@ -11,7 +11,7 @@ async function testBuildColorSchemeInfoMethod() {
         console.log('🔍 Testing buildColorSchemeInfo method directly...\n');
 
         // Import the NftProjectManager class
-        const NftProjectManagerClass = require('../../src/main/implementations/NftProjectManager');
+        import NftProjectManagerClass from '../../src/main/implementations/NftProjectManager.js';
 
         // Test the method directly by calling it on the prototype
         const buildColorSchemeInfo = NftProjectManagerClass.prototype.buildColorSchemeInfo;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import PreferencesService from '../services/PreferencesService';
-import ResolutionMapper from '../utils/ResolutionMapper';
+import PreferencesService from '../services/PreferencesService.js';
+import ResolutionMapper from '../utils/ResolutionMapper.js';
 import './ProjectWizard.css';
 
 export default function ProjectWizard({ onComplete, onCancel }) {

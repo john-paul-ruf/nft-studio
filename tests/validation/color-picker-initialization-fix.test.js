@@ -4,10 +4,14 @@
  * This test ensures ColorPicker objects get proper default colors from color schemes
  */
 
-const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
-const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
-const fs = require('fs');
-const path = require('path');
+import { fileURLToPath } from 'node:url';
+import NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
+import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
+import fs from 'fs';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class ColorPickerInitializationFixTest {
     constructor() {
@@ -370,7 +374,7 @@ class ColorPickerInitializationFixTest {
 }
 
 // Run the tests if this file is executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const tests = new ColorPickerInitializationFixTest();
     tests.runAllTests().then(results => {
         if (results.fixValidated) {
@@ -388,4 +392,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = ColorPickerInitializationFixTest;
+export default ColorPickerInitializationFixTest;

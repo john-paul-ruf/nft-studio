@@ -27,7 +27,7 @@ class FixedColorSchemeTestSuite {
     async testBackendValidation() {
         console.log('📋 Testing Backend Validation (buildColorSchemeInfo)...\n');
 
-        const NftProjectManagerClass = require('../../src/main/implementations/NftProjectManager');
+        import NftProjectManagerClass from '../../src/main/implementations/NftProjectManager.js';
         const testInstance = Object.create(NftProjectManagerClass.prototype);
 
         // Test 1: Complete valid colorSchemeData
@@ -209,7 +209,7 @@ class FixedColorSchemeTestSuite {
         // Test predefined color schemes structure (mock)
         await this.test('Mock: Predefined color schemes have required structure', async () => {
             // Mock predefined schemes from the data file
-            const { predefinedColorSchemes } = require('../../src/data/colorSchemes.js');
+            import { predefinedColorSchemes } from '../../src/data/colorSchemes.js.js';
 
             const testSchemeIds = ['neon-cyberpunk', 'fire-ember', 'ocean-depth'];
             for (const schemeId of testSchemeIds) {
@@ -285,7 +285,7 @@ class FixedColorSchemeTestSuite {
 
         // Test Canvas.jsx import structure
         await this.test('Canvas.jsx imports ColorSchemeService correctly', async () => {
-            const fs = require('fs');
+            import fs from 'fs';
             const canvasContent = fs.readFileSync('/Users/the.phoenix/WebstormProjects/nft-studio/src/pages/Canvas.jsx', 'utf8');
 
             if (!canvasContent.includes("import ColorSchemeService from '../services/ColorSchemeService';")) {
@@ -307,11 +307,11 @@ class FixedColorSchemeTestSuite {
 
         // Test complete flow: UI -> Backend -> ColorScheme creation
         await this.test('Mock: Complete UI to Backend color scheme flow', async () => {
-            const NftProjectManagerClass = require('../../src/main/implementations/NftProjectManager');
+            import NftProjectManagerClass from '../../src/main/implementations/NftProjectManager.js';
             const testInstance = Object.create(NftProjectManagerClass.prototype);
 
             // Mock UI getting scheme data from predefined schemes
-            const { predefinedColorSchemes } = require('../../src/data/colorSchemes.js');
+            import { predefinedColorSchemes } from '../../src/data/colorSchemes.js.js';
             const mockFullScheme = predefinedColorSchemes['fire-ember'];
 
             // Simulate UI creating colorSchemeData for backend
@@ -361,7 +361,7 @@ class FixedColorSchemeTestSuite {
 
         // Test edge case: missing colorSchemeData
         await this.test('Missing colorSchemeData handled with proper error', async () => {
-            const NftProjectManagerClass = require('../../src/main/implementations/NftProjectManager');
+            import NftProjectManagerClass from '../../src/main/implementations/NftProjectManager.js';
             const testInstance = Object.create(NftProjectManagerClass.prototype);
 
             let errorThrown = false;
@@ -420,7 +420,7 @@ class FixedColorSchemeTestSuite {
 }
 
 // Run the test suite
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const testSuite = new FixedColorSchemeTestSuite();
     testSuite.runAllTests().then(success => {
         process.exit(success ? 0 : 1);
@@ -430,4 +430,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = FixedColorSchemeTestSuite;
+export default FixedColorSchemeTestSuite;

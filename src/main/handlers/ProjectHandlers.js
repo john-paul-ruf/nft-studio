@@ -1,4 +1,4 @@
-const { ipcMain } = require('electron');
+import { ipcMain } from 'electron';
 
 /**
  * Project-specific IPC handlers
@@ -42,4 +42,4 @@ class ProjectHandlers {
     }
 }
 
-module.exports = ProjectHandlers;
+export default ProjectHandlers;

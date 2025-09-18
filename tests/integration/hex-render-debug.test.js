@@ -4,7 +4,7 @@
  * Tests the complete render pipeline: project creation -> add hex effect -> render frame
  */
 
-const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
+import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
 
 class HexRenderDebugTest {
     constructor() {
@@ -324,7 +324,7 @@ class HexRenderDebugTest {
 }
 
 // Run the tests if this file is executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const tests = new HexRenderDebugTest();
     tests.runAllTests().then(results => {
         console.log('\n🏁 Hex render debug tests complete!');
@@ -336,4 +336,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = HexRenderDebugTest;
+export default HexRenderDebugTest;

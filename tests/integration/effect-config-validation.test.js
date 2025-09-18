@@ -4,7 +4,7 @@
  * Tests the complete flow: discover effects -> add effect -> edit config -> verify properties
  */
 
-const NftEffectsManager = require('../../src/main/implementations/NftEffectsManager');
+import NftEffectsManager from '../../src/main/implementations/NftEffectsManager.js';
 
 class EffectConfigValidationTests {
     constructor() {
@@ -104,7 +104,7 @@ class EffectConfigValidationTests {
 
             try {
                 // Import config introspector to analyze the config
-                const ConfigIntrospector = require('../../src/utils/configIntrospector.js');
+                import ConfigIntrospector from '../../src/utils/configIntrospector.js.js';
                 const configIntrospector = new ConfigIntrospector();
 
                 const fields = configIntrospector.introspectConfig(
@@ -404,7 +404,7 @@ class EffectConfigValidationTests {
 }
 
 // Run the tests if this file is executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     const tests = new EffectConfigValidationTests();
     tests.runAllTests().then(results => {
         // Exit with appropriate code
@@ -421,4 +421,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = EffectConfigValidationTests;
+export default EffectConfigValidationTests;

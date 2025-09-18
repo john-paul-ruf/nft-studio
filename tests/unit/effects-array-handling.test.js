@@ -5,9 +5,9 @@
  */
 
 // Mock electron
-require('../setup.js');
+import '../setup.js';
 
-const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
+import NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
 
 class EffectsArrayHandlingTest {
     constructor() {

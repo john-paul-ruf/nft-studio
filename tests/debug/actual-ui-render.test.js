@@ -7,7 +7,7 @@ console.log('🖥️ Actual UI Render Test\n');
 
 async function testActualUIRender() {
     try {
-        const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
+        const { default: NftProjectManager } = await import('../../src/main/implementations/NftProjectManager.js');
 
         // This is the exact config that would come from UI after editing FuzzFlareEffect
         const uiConfig = {

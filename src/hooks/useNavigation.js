@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigationService } from '../contexts/ServiceContext';
+import { useNavigationService } from '../contexts/ServiceContext.js';
 
 /**
  * Custom hook for navigation operations

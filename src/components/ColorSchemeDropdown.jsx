@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import ColorSchemeService from '../services/ColorSchemeService';
-import PreferencesService from '../services/PreferencesService';
-import ColorSchemeCreator from './ColorSchemeCreator';
+import ColorSchemeService from '../services/ColorSchemeService.js';
+import PreferencesService from '../services/PreferencesService.js';
+import ColorSchemeCreator from './ColorSchemeCreator.jsx';
 
 function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true, isInDropdown = false }) {
     const [allSchemes, setAllSchemes] = useState({});

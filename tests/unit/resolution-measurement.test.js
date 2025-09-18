@@ -5,7 +5,7 @@
  */
 
 // Mock electron for testing environment
-const Module = require('module');
+import Module from 'module';
 const originalRequire = Module.prototype.require;
 
 Module.prototype.require = function(id) {
@@ -23,12 +23,12 @@ Module.prototype.require = function(id) {
     return originalRequire.apply(this, arguments);
 };
 
-const path = require('path');
+import path from 'path';
 
 // Import the components we need to test
-const ResolutionMapper = require('../../src/utils/ResolutionMapper').default;
-const NftProjectManager = require('../../src/main/implementations/NftProjectManager');
-const ConsoleLogger = require('../../src/main/implementations/ConsoleLogger');
+const ResolutionMapper = (await import('../../src/utils/ResolutionMapper.js')).default;
+import NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
+import ConsoleLogger from '../../src/main/implementations/ConsoleLogger.js';
 
 async function testLowestResolution() {
     console.log('🔍 Starting lowest resolution measurement test...');
@@ -191,10 +191,10 @@ async function testLowestResolution() {
 }
 
 // Run the test
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     testLowestResolution().then(success => {
         process.exit(success ? 0 : 1);
     });
 }
 
-module.exports = { testLowestResolution };
+export default { testLowestResolution };

@@ -48,4 +48,4 @@ class IEffectsManager {
     }
 }
 
-module.exports = IEffectsManager;
+export default IEffectsManager;

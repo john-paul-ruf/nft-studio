@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import EffectPicker from '../components/EffectPicker';
-import EffectsPanel from '../components/EffectsPanel';
-import EffectConfigurer from '../components/effects/EffectConfigurer';
-import EffectContextMenu from '../components/EffectContextMenu';
-import ColorSchemeDropdown from '../components/ColorSchemeDropdown';
-import ColorSchemeService from '../services/ColorSchemeService';
-import PreferencesService from '../services/PreferencesService';
-import ResolutionMapper from '../utils/ResolutionMapper';
-import { useInitialResolution } from '../hooks/useInitialResolution';
+import EffectPicker from '../components/EffectPicker.jsx';
+import EffectsPanel from '../components/EffectsPanel.jsx';
+import EffectConfigurer from '../components/effects/EffectConfigurer.jsx';
+import EffectContextMenu from '../components/EffectContextMenu.jsx';
+import ColorSchemeDropdown from '../components/ColorSchemeDropdown.jsx';
+import ColorSchemeService from '../services/ColorSchemeService.js';
+import PreferencesService from '../services/PreferencesService.js';
+import ResolutionMapper from '../utils/ResolutionMapper.js';
+import { useInitialResolution } from '../hooks/useInitialResolution.js';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
 // Material-UI imports
@@ -959,7 +959,7 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                 <Divider orientation="vertical" flexItem sx={{ mx: 2, backgroundColor: 'divider' }} />
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <FormControl size="small" sx={{ minWidth: 140 }}>
+                    <FormControl size="small" sx={{ minWidth: 140 }}>stop
                         <Select
                             value={config.targetResolution}
                             onChange={handleResolutionChange}

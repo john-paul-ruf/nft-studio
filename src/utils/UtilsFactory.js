@@ -1,6 +1,6 @@
-const ConfigSchemaGenerator = require('./implementations/ConfigSchemaGenerator');
-const PropertyTypeAnalyzer = require('./services/PropertyTypeAnalyzer');
-const LabelFormatter = require('./services/LabelFormatter');
+import ConfigSchemaGenerator from './implementations/ConfigSchemaGenerator.js';
+import PropertyTypeAnalyzer from './services/PropertyTypeAnalyzer.js';
+import LabelFormatter from './services/LabelFormatter.js';
 
 /**
  * Utils factory for creating utility instances
@@ -68,17 +68,19 @@ class UtilsFactory {
 // Export singleton instance and legacy exports for backward compatibility
 const utilsFactory = new UtilsFactory();
 
-module.exports = {
+export {
     // New SOLID factory interface
     UtilsFactory,
     utilsFactory,
-
-    // Legacy exports for backward compatibility
-    SchemaGenerator: utilsFactory.getSchemaGenerator(),
-    generateSchema: (configClass) => utilsFactory.getSchemaGenerator().generateSchema(configClass),
 
     // Direct access to services
     PropertyTypeAnalyzer,
     LabelFormatter,
     ConfigSchemaGenerator
 };
+
+// Legacy exports for backward compatibility
+export const SchemaGenerator = utilsFactory.getSchemaGenerator();
+export const generateSchema = (configClass) => utilsFactory.getSchemaGenerator().generateSchema(configClass);
+
+export default utilsFactory;

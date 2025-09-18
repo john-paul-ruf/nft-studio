@@ -1,4 +1,4 @@
-const { dialog } = require('electron');
+import { dialog } from 'electron';
 
 /**
  * Service responsible for dialog operations only
@@ -61,4 +61,4 @@ class DialogService {
     }
 }
 
-module.exports = DialogService;
+export default DialogService;
