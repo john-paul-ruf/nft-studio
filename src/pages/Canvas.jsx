@@ -8,6 +8,7 @@ import ColorSchemeService from '../services/ColorSchemeService';
 import PreferencesService from '../services/PreferencesService';
 import ResolutionMapper from '../utils/ResolutionMapper';
 import { useInitialResolution } from '../hooks/useInitialResolution';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
 // Material-UI imports
 import {
@@ -56,6 +57,7 @@ import {
     DarkMode,
     Brightness4,
     KeyboardArrowDown,
+    KeyboardArrowRight,
     SwapHoriz,
     SwapVert,
     Search,
@@ -165,9 +167,7 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
     // MUI Menu anchor elements
     const [renderMenuAnchor, setRenderMenuAnchor] = useState(null);
     const [zoomMenuAnchor, setZoomMenuAnchor] = useState(null);
-    const [addEffectMenuAnchor, setAddEffectMenuAnchor] = useState(null);
-    const [primaryEffectsAnchor, setPrimaryEffectsAnchor] = useState(null);
-    const [finalImageEffectsAnchor, setFinalImageEffectsAnchor] = useState(null);
+    const [addEffectMenuOpen, setAddEffectMenuOpen] = useState(false);
     const [colorSchemeMenuAnchor, setColorSchemeMenuAnchor] = useState(null);
 
     // Theme state
@@ -446,9 +446,7 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
         setColorSchemeMenuAnchor(null);
         setRenderMenuAnchor(null);
         setZoomMenuAnchor(null);
-        setAddEffectMenuAnchor(null);
-        setPrimaryEffectsAnchor(null);
-        setFinalImageEffectsAnchor(null);
+        setAddEffectMenuOpen(false);
         if (submenuTimeout) {
             clearTimeout(submenuTimeout);
             setSubmenuTimeout(null);
@@ -560,7 +558,7 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
 
                 const newEffects = [...(config.effects || []), effect];
                 updateConfig({ effects: newEffects });
-                setShowAddEffectMenu(false);
+                setAddEffectMenuOpen(false);
 
                 console.log(`✅ Added ${effectType} effect: ${effectName}`, effect);
             } else {
@@ -779,61 +777,112 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
         setContextMenuPos({ x: e.clientX, y: e.clientY });
     };
 
-    const handleEditEffect = () => {
-        if (contextMenuEffect) {
-            setEditingEffect(contextMenuEffect.index);
-            setContextMenuEffect(null);
+    const handleEditEffect = (effectIndex, effectType = 'primary', subIndex = null) => {
+        setEditingEffect({
+            effectIndex,
+            effectType,
+            subIndex
+        });
+    };
+
+    const getEditingEffectData = () => {
+        if (!editingEffect || !config.effects[editingEffect.effectIndex]) {
+            return null;
+        }
+
+        const mainEffect = config.effects[editingEffect.effectIndex];
+
+        if (editingEffect.effectType === 'primary') {
+            return mainEffect;
+        } else if (editingEffect.effectType === 'secondary' && mainEffect.secondaryEffects && editingEffect.subIndex !== null) {
+            return mainEffect.secondaryEffects[editingEffect.subIndex];
+        } else if (editingEffect.effectType === 'keyframe' && mainEffect.keyframeEffects && editingEffect.subIndex !== null) {
+            return mainEffect.keyframeEffects[editingEffect.subIndex];
+        }
+
+        return null;
+    };
+
+    const handleSubEffectUpdate = (newConfig) => {
+        if (!editingEffect || !config.effects[editingEffect.effectIndex]) {
+            return;
+        }
+
+        const mainEffect = config.effects[editingEffect.effectIndex];
+
+        if (editingEffect.effectType === 'primary') {
+            const updatedEffect = {
+                ...mainEffect,
+                config: newConfig
+            };
+            handleEffectUpdate(editingEffect.effectIndex, updatedEffect);
+        } else if (editingEffect.effectType === 'secondary' && editingEffect.subIndex !== null) {
+            const updatedSecondaryEffects = [...(mainEffect.secondaryEffects || [])];
+            updatedSecondaryEffects[editingEffect.subIndex] = {
+                ...updatedSecondaryEffects[editingEffect.subIndex],
+                config: newConfig
+            };
+            const updatedEffect = {
+                ...mainEffect,
+                secondaryEffects: updatedSecondaryEffects
+            };
+            handleEffectUpdate(editingEffect.effectIndex, updatedEffect);
+        } else if (editingEffect.effectType === 'keyframe' && editingEffect.subIndex !== null) {
+            const updatedKeyframeEffects = [...(mainEffect.keyframeEffects || [])];
+            updatedKeyframeEffects[editingEffect.subIndex] = {
+                ...updatedKeyframeEffects[editingEffect.subIndex],
+                config: newConfig
+            };
+            const updatedEffect = {
+                ...mainEffect,
+                keyframeEffects: updatedKeyframeEffects
+            };
+            handleEffectUpdate(editingEffect.effectIndex, updatedEffect);
         }
     };
 
-    const handleAddSecondaryEffect = async (effect) => {
-        if (contextMenuEffect) {
-            try {
-                const defaults = await window.api.getEffectDefaults(effect.name);
-                const newSecondaryEffect = {
-                    className: effect.name,
-                    config: defaults || {}
-                };
+    const handleAddSecondaryEffect = async (targetEffect, effectIndex, newSecondaryEffect) => {
+        try {
+            const defaults = await window.api.getEffectDefaults(newSecondaryEffect.name);
+            const secondaryEffectToAdd = {
+                className: newSecondaryEffect.name,
+                config: defaults || {}
+            };
 
-                const updatedEffect = {
-                    ...contextMenuEffect.effect,
-                    secondaryEffects: [
-                        ...(contextMenuEffect.effect.secondaryEffects || []),
-                        newSecondaryEffect
-                    ]
-                };
-                handleEffectUpdate(contextMenuEffect.index, updatedEffect);
-            } catch (error) {
-                console.error('Failed to add secondary effect:', error);
-            }
+            const updatedEffect = {
+                ...targetEffect,
+                secondaryEffects: [
+                    ...(targetEffect.secondaryEffects || []),
+                    secondaryEffectToAdd
+                ]
+            };
+            handleEffectUpdate(effectIndex, updatedEffect);
+        } catch (error) {
+            console.error('Failed to add secondary effect:', error);
         }
-        setContextMenuEffect(null);
     };
 
-    const handleAddKeyframeEffect = async (effect) => {
-        if (contextMenuEffect) {
-            try {
-                const defaults = await window.api.getEffectDefaults(effect.name);
-                const frameNumber = selectedFrame; // Use current frame
-                const newKeyframeEffect = {
-                    frame: frameNumber,
-                    className: effect.name,
-                    config: defaults || {}
-                };
+    const handleAddKeyframeEffect = async (targetEffect, effectIndex, newKeyframeEffect) => {
+        try {
+            const defaults = await window.api.getEffectDefaults(newKeyframeEffect.name);
+            const frameNumber = selectedFrame; // Use current frame
+            const keyframeEffectToAdd = {
+                frame: frameNumber,
+                className: newKeyframeEffect.name,
+                config: defaults || {}
+            };
 
-                const updatedEffect = {
-                    ...contextMenuEffect.effect,
-                    keyframeEffects: [
-                        ...(contextMenuEffect.effect.keyframeEffects || []),
-                        newKeyframeEffect
-                    ]
-                };
-                handleEffectUpdate(contextMenuEffect.index, updatedEffect);
-            } catch (error) {
-                console.error('Failed to add keyframe effect:', error);
-            }
+            const updatedEffect = {
+                ...targetEffect,
+                keyframeEffects: [
+                    ...(targetEffect.keyframeEffects || []),
+                    keyframeEffectToAdd
+                ]
+            };
+            handleEffectUpdate(effectIndex, updatedEffect);
+        } catch (error) {
+            console.error('Failed to add keyframe effect:', error);
         }
-        setContextMenuEffect(null);
     };
 
     return (
@@ -1081,250 +1130,303 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                 <Divider orientation="vertical" flexItem sx={{ mx: 2, backgroundColor: 'divider' }} />
 
                 <Box sx={{ position: 'relative' }}>
-                    <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<Add />}
-                        onClick={(event) => {
-                            closeAllDropdowns();
-                            setAddEffectMenuAnchor(event.currentTarget);
-                        }}
-                        endIcon={<KeyboardArrowDown />}
-                        sx={{ minWidth: '120px' }}
-                        title="Add effect options"
-                    >
-                        Add Effect
-                    </Button>
-                    <Menu
-                        anchorEl={addEffectMenuAnchor}
-                        open={Boolean(addEffectMenuAnchor)}
-                        onClose={() => {
-                            setAddEffectMenuAnchor(null);
-                            setPrimaryEffectsAnchor(null);
-                            setFinalImageEffectsAnchor(null);
-                        }}
-                        MenuListProps={{
-                            onMouseLeave: () => {
-                                // Only close submenus if we're leaving the entire menu area
-                                setTimeout(() => {
-                                    if (!primaryEffectsAnchor && !finalImageEffectsAnchor) {
-                                        setPrimaryEffectsAnchor(null);
-                                        setFinalImageEffectsAnchor(null);
-                                    }
-                                }, 100);
-                            }
-                        }}
-                        PaperProps={{
-                            sx: {
-                                backgroundColor: 'background.paper',
-                                border: '1px solid #444',
-                                minWidth: '200px'
-                            }
+                    <DropdownMenu.Root
+                        open={addEffectMenuOpen}
+                        onOpenChange={(open) => {
+                            console.log('🔥 Dropdown state changed:', open);
+                            setAddEffectMenuOpen(open);
                         }}
                     >
-                        {!effectsLoaded ? (
-                            <MenuItem disabled>
-                                <ListItemText>Loading effects...</ListItemText>
-                            </MenuItem>
-                        ) : (
-                            <>
-                                <MenuItem
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        if (primaryEffectsAnchor) {
-                                            setPrimaryEffectsAnchor(null);
-                                        } else {
-                                            setPrimaryEffectsAnchor(event.currentTarget);
-                                            setFinalImageEffectsAnchor(null);
-                                        }
-                                    }}
-                                    onMouseEnter={(event) => {
-                                        setPrimaryEffectsAnchor(event.currentTarget);
-                                        setFinalImageEffectsAnchor(null);
-                                    }}
-                                    sx={{
-                                        justifyContent: 'space-between',
-                                        pr: 1,
-                                        backgroundColor: primaryEffectsAnchor ? 'action.selected' : 'transparent'
-                                    }}
-                                >
-                                    <ListItemText>Primary Effects</ListItemText>
-                                    <Typography variant="body2" sx={{ ml: 3 }}>▶</Typography>
-                                </MenuItem>
-                                <MenuItem
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        if (finalImageEffectsAnchor) {
-                                            setFinalImageEffectsAnchor(null);
-                                        } else {
-                                            setFinalImageEffectsAnchor(event.currentTarget);
-                                            setPrimaryEffectsAnchor(null);
-                                        }
-                                    }}
-                                    onMouseEnter={(event) => {
-                                        setFinalImageEffectsAnchor(event.currentTarget);
-                                        setPrimaryEffectsAnchor(null);
-                                    }}
-                                    sx={{
-                                        justifyContent: 'space-between',
-                                        pr: 1,
-                                        backgroundColor: finalImageEffectsAnchor ? 'action.selected' : 'transparent'
-                                    }}
-                                >
-                                    <ListItemText>Final Effects</ListItemText>
-                                    <Typography variant="body2" sx={{ ml: 3 }}>▶</Typography>
-                                </MenuItem>
-                            </>
-                        )}
-                    </Menu>
-
-                    {/* Primary Effects Submenu */}
-                    <Menu
-                        anchorEl={primaryEffectsAnchor}
-                        open={Boolean(primaryEffectsAnchor)}
-                        onClose={(event, reason) => {
-                            if (reason !== 'backdropClick') {
-                                setPrimaryEffectsAnchor(null);
-                            }
-                        }}
-                        anchorOrigin={{
-                            vertical: 'top',
-                            horizontal: 'right',
-                        }}
-                        transformOrigin={{
-                            vertical: 'top',
-                            horizontal: 'left',
-                        }}
-                        MenuListProps={{
-                            onMouseEnter: () => {
-                                // Keep submenu open when mouse enters
-                            },
-                            onMouseLeave: () => {
-                                // Close submenu when mouse leaves
-                                setTimeout(() => {
-                                    setPrimaryEffectsAnchor(null);
-                                }, 300);
-                            }
-                        }}
-                        slotProps={{
-                            paper: {
-                                sx: {
-                                    backgroundColor: 'background.paper',
-                                    border: '1px solid',
-                                    borderColor: 'divider',
-                                    minWidth: '240px',
-                                    maxHeight: '80vh',
-                                    ml: 0.5,
-                                    overflowY: 'auto',
-                                    '&::-webkit-scrollbar': {
-                                        width: '8px',
-                                    },
-                                    '&::-webkit-scrollbar-thumb': {
-                                        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                                        borderRadius: '4px',
-                                    },
-                                    '&::-webkit-scrollbar-track': {
-                                        backgroundColor: 'transparent',
-                                    }
-                                }
-                            }
-                        }}
-                    >
-                        {availableEffects.primary.map((effect) => (
-                            <MenuItem
-                                key={effect.name}
-                                onClick={() => {
-                                    handleAddEffectDirect(effect.name, 'primary');
-                                    setPrimaryEffectsAnchor(null);
-                                    setAddEffectMenuAnchor(null);
-                                }}
-                                title={effect.description}
-                                sx={{
-                                    fontSize: '0.875rem',
-                                    py: 0.75,
-                                    '&:hover': {
-                                        backgroundColor: 'action.hover',
-                                    }
+                        <DropdownMenu.Trigger asChild>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={<Add />}
+                                endIcon={<KeyboardArrowDown />}
+                                sx={{ minWidth: '120px' }}
+                                title="Add effect options"
+                            >
+                                Add Effect
+                            </Button>
+                        </DropdownMenu.Trigger>
+                        <DropdownMenu.Portal>
+                            <DropdownMenu.Content
+                                side="bottom"
+                                align="start"
+                                sideOffset={5}
+                                style={{
+                                    backgroundColor: currentTheme.palette.mode === 'dark' ? '#323232' : currentTheme.palette.background.paper,
+                                    border: `1px solid ${currentTheme.palette.divider}`,
+                                    borderRadius: '6px',
+                                    boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.2)',
+                                    padding: '4px',
+                                    minWidth: '200px',
+                                    zIndex: 9999,
                                 }}
                             >
-                                <ListItemText primary={effect.displayName} />
-                            </MenuItem>
-                        ))}
-                    </Menu>
+                                {console.log('🔍 Dropdown rendering - effectsLoaded:', effectsLoaded, 'availableEffects:', availableEffects)}
+                                {!effectsLoaded ? (
+                                    <DropdownMenu.Item
+                                        disabled
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            padding: '8px 12px',
+                                            fontSize: '14px',
+                                            color: currentTheme.palette.text.disabled,
+                                            cursor: 'default',
+                                            borderRadius: '4px',
+                                            outline: 'none',
+                                            gap: '8px',
+                                            fontStyle: 'italic'
+                                        }}
+                                    >
+                                        Loading effects...
+                                    </DropdownMenu.Item>
+                                ) : (
+                                    <>
+                                        {console.log('🔍 Available effects for rendering:', availableEffects)}
+                                        {/* Primary Effects Submenu */}
+                                        <DropdownMenu.Sub>
+                                            <DropdownMenu.SubTrigger
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    padding: '8px 12px',
+                                                    fontSize: '14px',
+                                                    color: currentTheme.palette.text.primary,
+                                                    cursor: 'pointer',
+                                                    borderRadius: '4px',
+                                                    outline: 'none',
+                                                    gap: '8px',
+                                                }}
+                                                onMouseEnter={() => {
+                                                    console.log('🔥 Hovering over Primary Effects submenu trigger');
+                                                }}
+                                            >
+                                                <span>Primary Effects ({availableEffects.primary.length})</span>
+                                                <KeyboardArrowRight sx={{ fontSize: 16 }} />
+                                            </DropdownMenu.SubTrigger>
+                                            <DropdownMenu.Portal>
+                                                <DropdownMenu.SubContent
+                                                    style={{
+                                                        backgroundColor: currentTheme.palette.mode === 'dark' ? '#323232' : currentTheme.palette.background.paper,
+                                                        border: `1px solid ${currentTheme.palette.divider}`,
+                                                        borderRadius: '6px',
+                                                        boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.2)',
+                                                        padding: '4px',
+                                                        minWidth: '220px',
+                                                        maxHeight: '300px',
+                                                        overflowY: 'auto',
+                                                        zIndex: 10000,
+                                                    }}
+                                                >
+                                                    {availableEffects.primary.map((effect, index) => {
+                                                        console.log('🔍 Rendering primary effect:', effect.name, effect);
+                                                        return (
+                                                            <DropdownMenu.Item
+                                                                key={effect.name}
+                                                                style={{
+                                                                    padding: 0,
+                                                                    borderRadius: '4px',
+                                                                    outline: 'none',
+                                                                }}
+                                                                onSelect={async (event) => {
+                                                                    console.log('🔥 Selected primary effect (onSelect):', effect.name);
+                                                                    event.preventDefault();
+                                                                    try {
+                                                                        await handleAddEffectDirect(effect.name, 'primary');
+                                                                        setAddEffectMenuOpen(false);
+                                                                    } catch (error) {
+                                                                        console.error('❌ Error adding effect:', error);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <div
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        padding: '6px 12px',
+                                                                        fontSize: '13px',
+                                                                        color: currentTheme.palette.text.primary,
+                                                                        cursor: 'pointer',
+                                                                        borderRadius: '4px',
+                                                                        width: '100%',
+                                                                    }}
+                                                                    onMouseEnter={() => {
+                                                                        console.log('🔥 Hovering over primary effect:', effect.name);
+                                                                    }}
+                                                                    onMouseDown={async (event) => {
+                                                                        console.log('🔥 Mouse down on primary effect:', effect.name);
+                                                                        event.preventDefault();
+                                                                        event.stopPropagation();
+                                                                        try {
+                                                                            await handleAddEffectDirect(effect.name, 'primary');
+                                                                            setAddEffectMenuOpen(false);
+                                                                        } catch (error) {
+                                                                            console.error('❌ Error adding effect:', error);
+                                                                        }
+                                                                    }}
+                                                                    onPointerDown={async (event) => {
+                                                                        console.log('🔥 Pointer down on primary effect:', effect.name);
+                                                                        event.preventDefault();
+                                                                        event.stopPropagation();
+                                                                        try {
+                                                                            await handleAddEffectDirect(effect.name, 'primary');
+                                                                            setAddEffectMenuOpen(false);
+                                                                        } catch (error) {
+                                                                            console.error('❌ Error adding effect:', error);
+                                                                        }
+                                                                    }}
+                                                                    onClick={async (event) => {
+                                                                        console.log('🔥 Clicked primary effect (onClick):', effect.name);
+                                                                        event.preventDefault();
+                                                                        event.stopPropagation();
+                                                                        try {
+                                                                            await handleAddEffectDirect(effect.name, 'primary');
+                                                                            setAddEffectMenuOpen(false);
+                                                                        } catch (error) {
+                                                                            console.error('❌ Error adding effect:', error);
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    {effect.displayName || effect.name}
+                                                                </div>
+                                                            </DropdownMenu.Item>
+                                                        );
+                                                    })}
+                                                </DropdownMenu.SubContent>
+                                            </DropdownMenu.Portal>
+                                        </DropdownMenu.Sub>
 
-                    {/* Final Effects Submenu */}
-                    <Menu
-                        anchorEl={finalImageEffectsAnchor}
-                        open={Boolean(finalImageEffectsAnchor)}
-                        onClose={(event, reason) => {
-                            if (reason !== 'backdropClick') {
-                                setFinalImageEffectsAnchor(null);
-                            }
-                        }}
-                        anchorOrigin={{
-                            vertical: 'top',
-                            horizontal: 'right',
-                        }}
-                        transformOrigin={{
-                            vertical: 'top',
-                            horizontal: 'left',
-                        }}
-                        MenuListProps={{
-                            onMouseEnter: () => {
-                                // Keep submenu open when mouse enters
-                            },
-                            onMouseLeave: () => {
-                                // Close submenu when mouse leaves
-                                setTimeout(() => {
-                                    setFinalImageEffectsAnchor(null);
-                                }, 300);
-                            }
-                        }}
-                        slotProps={{
-                            paper: {
-                                sx: {
-                                    backgroundColor: 'background.paper',
-                                    border: '1px solid',
-                                    borderColor: 'divider',
-                                    minWidth: '240px',
-                                    maxHeight: '80vh',
-                                    ml: 0.5,
-                                    overflowY: 'auto',
-                                    '&::-webkit-scrollbar': {
-                                        width: '8px',
-                                    },
-                                    '&::-webkit-scrollbar-thumb': {
-                                        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                                        borderRadius: '4px',
-                                    },
-                                    '&::-webkit-scrollbar-track': {
-                                        backgroundColor: 'transparent',
-                                    }
-                                }
-                            }
-                        }}
-                    >
-                        {availableEffects.finalImage.map((effect) => (
-                            <MenuItem
-                                key={effect.name}
-                                onClick={() => {
-                                    handleAddEffectDirect(effect.name, 'finalImage');
-                                    setFinalImageEffectsAnchor(null);
-                                    setAddEffectMenuAnchor(null);
-                                }}
-                                title={effect.description}
-                                sx={{
-                                    fontSize: '0.875rem',
-                                    py: 0.75,
-                                    '&:hover': {
-                                        backgroundColor: 'action.hover',
-                                    }
-                                }}
-                            >
-                                <ListItemText primary={effect.displayName} />
-                            </MenuItem>
-                        ))}
-                    </Menu>
+
+                                        {/* Final Effects Submenu */}
+                                        <DropdownMenu.Sub>
+                                            <DropdownMenu.SubTrigger
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    padding: '8px 12px',
+                                                    fontSize: '14px',
+                                                    color: currentTheme.palette.text.primary,
+                                                    cursor: 'pointer',
+                                                    borderRadius: '4px',
+                                                    outline: 'none',
+                                                    gap: '8px',
+                                                }}
+                                            >
+                                                <span>Final Effects ({availableEffects.finalImage.length})</span>
+                                                <KeyboardArrowRight sx={{ fontSize: 16 }} />
+                                            </DropdownMenu.SubTrigger>
+                                            <DropdownMenu.Portal>
+                                                <DropdownMenu.SubContent
+                                                    style={{
+                                                        backgroundColor: currentTheme.palette.mode === 'dark' ? '#323232' : currentTheme.palette.background.paper,
+                                                        border: `1px solid ${currentTheme.palette.divider}`,
+                                                        borderRadius: '6px',
+                                                        boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.2)',
+                                                        padding: '4px',
+                                                        minWidth: '220px',
+                                                        maxHeight: '300px',
+                                                        overflowY: 'auto',
+                                                        zIndex: 10000,
+                                                    }}
+                                                >
+                                                    {availableEffects.finalImage.map((effect, index) => (
+                                                        <DropdownMenu.Item
+                                                            key={effect.name}
+                                                            style={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                padding: '6px 12px',
+                                                                fontSize: '13px',
+                                                                color: currentTheme.palette.text.primary,
+                                                                cursor: 'pointer',
+                                                                borderRadius: '4px',
+                                                                outline: 'none',
+                                                            }}
+                                                            onSelect={async (event) => {
+                                                                console.log('🔥 Selected final effect:', effect.name);
+                                                                event.preventDefault();
+                                                                await handleAddEffectDirect(effect.name, 'finalImage');
+                                                                setAddEffectMenuOpen(false);
+                                                            }}
+                                                        >
+                                                            {effect.displayName || effect.name}
+                                                        </DropdownMenu.Item>
+                                                    ))}
+                                                </DropdownMenu.SubContent>
+                                            </DropdownMenu.Portal>
+                                        </DropdownMenu.Sub>
+
+                                        {/* Keyframe Effects Submenu */}
+                                        {availableEffects.keyFrame?.length > 0 && (
+                                            <DropdownMenu.Sub>
+                                                <DropdownMenu.SubTrigger
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'space-between',
+                                                        padding: '8px 12px',
+                                                        fontSize: '14px',
+                                                        color: currentTheme.palette.text.primary,
+                                                        cursor: 'pointer',
+                                                        borderRadius: '4px',
+                                                        outline: 'none',
+                                                        gap: '8px',
+                                                    }}
+                                                >
+                                                    <span>Keyframe Effects ({availableEffects.keyFrame.length})</span>
+                                                    <KeyboardArrowRight sx={{ fontSize: 16 }} />
+                                                </DropdownMenu.SubTrigger>
+                                                <DropdownMenu.Portal>
+                                                    <DropdownMenu.SubContent
+                                                        style={{
+                                                            backgroundColor: currentTheme.palette.mode === 'dark' ? '#323232' : currentTheme.palette.background.paper,
+                                                            border: `1px solid ${currentTheme.palette.divider}`,
+                                                            borderRadius: '6px',
+                                                            boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.2)',
+                                                            padding: '4px',
+                                                            minWidth: '220px',
+                                                            maxHeight: '300px',
+                                                            overflowY: 'auto',
+                                                            zIndex: 10000,
+                                                        }}
+                                                    >
+                                                        {availableEffects.keyFrame.map((effect, index) => (
+                                                            <DropdownMenu.Item
+                                                                key={effect.name}
+                                                                style={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    padding: '6px 12px',
+                                                                    fontSize: '13px',
+                                                                    color: currentTheme.palette.text.primary,
+                                                                    cursor: 'pointer',
+                                                                    borderRadius: '4px',
+                                                                    outline: 'none',
+                                                                }}
+                                                                onSelect={async (event) => {
+                                                                    console.log('🔥 Selected keyframe effect:', effect.name);
+                                                                    event.preventDefault();
+                                                                    await handleAddEffectDirect(effect.name, 'keyFrame');
+                                                                    setAddEffectMenuOpen(false);
+                                                                }}
+                                                            >
+                                                                {effect.displayName || effect.name}
+                                                            </DropdownMenu.Item>
+                                                        ))}
+                                                    </DropdownMenu.SubContent>
+                                                </DropdownMenu.Portal>
+                                            </DropdownMenu.Sub>
+                                        )}
+                                    </>
+                                )}
+                            </DropdownMenu.Content>
+                        </DropdownMenu.Portal>
+                    </DropdownMenu.Root>
                 </Box>
 
                 <Divider orientation="vertical" flexItem sx={{ mx: 2, backgroundColor: 'divider' }} />
@@ -1404,6 +1506,9 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                     onEffectReorder={handleEffectReorder}
                     onEffectRightClick={handleEffectRightClick}
                     onEffectToggleVisibility={handleEffectToggleVisibility}
+                    onEffectEdit={handleEditEffect}
+                    onEffectAddSecondary={handleAddSecondaryEffect}
+                    onEffectAddKeyframe={handleAddKeyframeEffect}
                 />
             </div>
 
@@ -1416,7 +1521,7 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
             )}
 
             <Dialog
-                open={editingEffect !== null && !!config.effects[editingEffect]}
+                open={editingEffect !== null && getEditingEffectData() !== null}
                 onClose={() => setEditingEffect(null)}
                 maxWidth="xl"
                 fullWidth
@@ -1440,9 +1545,10 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                     }}
                 >
                     <Typography variant="h6" component="div">
-                        Configure {editingEffect !== null && config.effects[editingEffect]
-                            ? config.effects[editingEffect].className
-                            : ''}
+                        Configure {(() => {
+                            const effectData = getEditingEffectData();
+                            return effectData ? effectData.className : '';
+                        })()}
                     </Typography>
                     <IconButton
                         onClick={() => setEditingEffect(null)}
@@ -1469,29 +1575,26 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                     }}
                 >
                     <Box sx={{ width: '100%', height: '100%' }}>
-                        {editingEffect !== null && config.effects[editingEffect] && (
-                            <EffectConfigurer
-                                selectedEffect={{
-                                    name: config.effects[editingEffect].name,
-                                    className: config.effects[editingEffect].className
-                                }}
-                                initialConfig={config.effects[editingEffect].config || {}}
-                                projectData={{
-                                    resolution: 'hd',
-                                    isHoz: config.isHorizontal,
-                                    colorScheme: config.colorScheme
-                                }}
-                                onConfigChange={(newConfig) => {
-                                    const updatedEffect = {
-                                        ...config.effects[editingEffect],
-                                        config: newConfig
-                                    };
-                                    handleEffectUpdate(editingEffect, updatedEffect);
-                                }}
-                                readOnly={false}
-                                useWideLayout={true}
-                            />
-                        )}
+                        {(() => {
+                            const effectData = getEditingEffectData();
+                            return effectData && (
+                                <EffectConfigurer
+                                    selectedEffect={{
+                                        name: effectData.name || effectData.className,
+                                        className: effectData.className
+                                    }}
+                                    initialConfig={effectData.config || {}}
+                                    projectData={{
+                                        resolution: 'hd',
+                                        isHoz: config.isHorizontal,
+                                        colorScheme: config.colorScheme
+                                    }}
+                                    onConfigChange={handleSubEffectUpdate}
+                                    readOnly={false}
+                                    useWideLayout={true}
+                                />
+                            );
+                        })()}
                     </Box>
                 </DialogContent>
                 <DialogActions
@@ -1512,15 +1615,6 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                 </DialogActions>
             </Dialog>
 
-            {contextMenuEffect && (
-                <EffectContextMenu
-                    position={contextMenuPos}
-                    onAddSecondary={handleAddSecondaryEffect}
-                    onAddKeyframe={handleAddKeyframeEffect}
-                    onEdit={handleEditEffect}
-                    onClose={() => setContextMenuEffect(null)}
-                />
-            )}
         </div>
         </ThemeProvider>
     );

@@ -1,22 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import {
-    Paper,
-    MenuList,
-    MenuItem,
-    Divider,
-    Typography,
-    useTheme,
-    ClickAwayListener,
-    Popper,
-    Grow,
-    ListItemIcon,
-    ListItemText
-} from '@mui/material';
+import * as ContextMenu from '@radix-ui/react-context-menu';
+import { useTheme } from '@mui/material';
 import {
     Edit,
     Add,
     ArrowRight,
-    Schedule
+    Schedule,
+    ChevronRight
 } from '@mui/icons-material';
 
 export default function EffectContextMenu({
@@ -29,8 +19,7 @@ export default function EffectContextMenu({
     const theme = useTheme();
     const [secondaryEffects, setSecondaryEffects] = useState([]);
     const [keyframeEffects, setKeyframeEffects] = useState([]);
-    const [secondaryAnchor, setSecondaryAnchor] = useState(null);
-    const [keyframeAnchor, setKeyframeAnchor] = useState(null);
+    const [isOpen, setIsOpen] = useState(true);
 
     useEffect(() => {
         loadEffects();
@@ -48,231 +37,160 @@ export default function EffectContextMenu({
         }
     };
 
-    const handleSecondaryHover = (event) => {
-        setSecondaryAnchor(event.currentTarget);
+    const handleClose = () => {
+        setIsOpen(false);
+        onClose();
     };
 
-    const handleKeyframeHover = (event) => {
-        setKeyframeAnchor(event.currentTarget);
+    const virtualTrigger = React.useRef(null);
+
+    useEffect(() => {
+        // Create a virtual trigger element at the specified position
+        if (virtualTrigger.current) {
+            virtualTrigger.current.style.position = 'fixed';
+            virtualTrigger.current.style.left = `${position.x}px`;
+            virtualTrigger.current.style.top = `${position.y}px`;
+            virtualTrigger.current.style.width = '1px';
+            virtualTrigger.current.style.height = '1px';
+            virtualTrigger.current.style.pointerEvents = 'none';
+        }
+    }, [position]);
+
+    const menuStyles = {
+        backgroundColor: theme.palette.mode === 'dark' ? '#323232' : theme.palette.background.paper,
+        border: `1px solid ${theme.palette.divider}`,
+        borderRadius: '6px',
+        boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.2)',
+        padding: '4px',
+        minWidth: '200px',
+        zIndex: 1300,
     };
 
-    const handleSubmenuClose = () => {
-        setSecondaryAnchor(null);
-        setKeyframeAnchor(null);
+    const itemStyles = {
+        display: 'flex',
+        alignItems: 'center',
+        padding: '8px 12px',
+        fontSize: '14px',
+        color: theme.palette.text.primary,
+        cursor: 'pointer',
+        borderRadius: '4px',
+        outline: 'none',
+        gap: '8px',
+        '&:hover': {
+            backgroundColor: theme.palette.action.hover,
+        },
+        '&:focus': {
+            backgroundColor: theme.palette.action.hover,
+        },
     };
 
-    const virtualElement = {
-        getBoundingClientRect: () => ({
-            x: position.x,
-            y: position.y,
-            top: position.y,
-            left: position.x,
-            right: position.x,
-            bottom: position.y,
-            width: 0,
-            height: 0,
-        }),
+    const separatorStyles = {
+        height: '1px',
+        backgroundColor: theme.palette.divider,
+        margin: '4px 0',
     };
 
     return (
         <>
-            <ClickAwayListener onClickAway={onClose}>
-                <Popper
-                    open={true}
-                    anchorEl={virtualElement}
-                    placement="bottom-start"
-                    sx={{ zIndex: 1300 }}
-                >
-                    <Grow in={true}>
-                        <Paper
-                            elevation={8}
-                            sx={{
-                                bgcolor: theme.palette.mode === 'dark' ? '#323232' : theme.palette.background.paper,
-                                border: `1px solid ${theme.palette.divider}`,
-                                borderRadius: 1,
-                                minWidth: 200,
-                                overflow: 'hidden'
-                            }}
-                        >
-                            <MenuList dense>
-                                <MenuItem onClick={onEdit}>
-                                    <ListItemIcon>
-                                        <Edit fontSize="small" />
-                                    </ListItemIcon>
-                                    <ListItemText
-                                        primary="Edit Effect"
-                                        primaryTypographyProps={{ fontSize: '0.875rem' }}
-                                    />
-                                </MenuItem>
+            <div ref={virtualTrigger} />
+            <ContextMenu.Root open={isOpen} onOpenChange={setIsOpen}>
+                <ContextMenu.Trigger asChild>
+                    <div ref={virtualTrigger} />
+                </ContextMenu.Trigger>
 
-                                <Divider />
+                <ContextMenu.Portal>
+                    <ContextMenu.Content style={menuStyles} onEscapeKeyDown={handleClose}>
+                        <ContextMenu.Item style={itemStyles} onSelect={onEdit}>
+                            <Edit fontSize="small" />
+                            Edit Effect
+                        </ContextMenu.Item>
 
-                                <MenuItem
-                                    onMouseEnter={handleSecondaryHover}
-                                    onMouseLeave={() => setTimeout(() => setSecondaryAnchor(null), 100)}
-                                    sx={{
-                                        position: 'relative',
-                                        '&:hover': {
-                                            backgroundColor: theme.palette.action.hover,
-                                        }
-                                    }}
-                                >
-                                    <ListItemIcon>
-                                        <Add fontSize="small" />
-                                    </ListItemIcon>
-                                    <ListItemText
-                                        primary="Add Secondary Effect"
-                                        primaryTypographyProps={{ fontSize: '0.875rem' }}
-                                    />
-                                    <ArrowRight fontSize="small" sx={{ ml: 'auto' }} />
-                                </MenuItem>
+                        <ContextMenu.Separator style={separatorStyles} />
 
-                                <Divider />
+                        <ContextMenu.Sub>
+                            <ContextMenu.SubTrigger style={{...itemStyles, justifyContent: 'space-between'}}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Add fontSize="small" />
+                                    Add Secondary Effect
+                                </div>
+                                <ChevronRight fontSize="small" />
+                            </ContextMenu.SubTrigger>
+                            <ContextMenu.Portal>
+                                <ContextMenu.SubContent style={{...menuStyles, minWidth: '180px'}}>
+                                    {secondaryEffects.length === 0 ? (
+                                        <ContextMenu.Item
+                                            disabled
+                                            style={{
+                                                ...itemStyles,
+                                                fontStyle: 'italic',
+                                                color: theme.palette.text.disabled,
+                                                cursor: 'default'
+                                            }}
+                                        >
+                                            No secondary effects available
+                                        </ContextMenu.Item>
+                                    ) : (
+                                        secondaryEffects.map((effect, index) => (
+                                            <ContextMenu.Item
+                                                key={index}
+                                                style={itemStyles}
+                                                onSelect={() => {
+                                                    onAddSecondary(effect);
+                                                    handleClose();
+                                                }}
+                                            >
+                                                {effect.displayName || effect.name}
+                                            </ContextMenu.Item>
+                                        ))
+                                    )}
+                                </ContextMenu.SubContent>
+                            </ContextMenu.Portal>
+                        </ContextMenu.Sub>
 
-                                <MenuItem
-                                    onMouseEnter={handleKeyframeHover}
-                                    onMouseLeave={() => setTimeout(() => setKeyframeAnchor(null), 100)}
-                                    sx={{
-                                        position: 'relative',
-                                        '&:hover': {
-                                            backgroundColor: theme.palette.action.hover,
-                                        }
-                                    }}
-                                >
-                                    <ListItemIcon>
-                                        <Schedule fontSize="small" />
-                                    </ListItemIcon>
-                                    <ListItemText
-                                        primary="Add Keyframe Effect"
-                                        primaryTypographyProps={{ fontSize: '0.875rem' }}
-                                    />
-                                    <ArrowRight fontSize="small" sx={{ ml: 'auto' }} />
-                                </MenuItem>
-                            </MenuList>
-                        </Paper>
-                    </Grow>
-                </Popper>
-            </ClickAwayListener>
+                        <ContextMenu.Separator style={separatorStyles} />
 
-            {/* Secondary Effects Submenu */}
-            <Popper
-                open={Boolean(secondaryAnchor)}
-                anchorEl={secondaryAnchor}
-                placement="right-start"
-                sx={{ zIndex: 1301 }}
-                onMouseEnter={() => setSecondaryAnchor(secondaryAnchor)}
-                onMouseLeave={handleSubmenuClose}
-            >
-                <Grow in={Boolean(secondaryAnchor)}>
-                    <Paper
-                        elevation={8}
-                        sx={{
-                            bgcolor: theme.palette.mode === 'dark' ? '#323232' : theme.palette.background.paper,
-                            border: `1px solid ${theme.palette.divider}`,
-                            borderRadius: 1,
-                            minWidth: 180,
-                            maxHeight: 300,
-                            overflow: 'auto'
-                        }}
-                    >
-                        <MenuList dense>
-                            {secondaryEffects.length === 0 ? (
-                                <MenuItem disabled>
-                                    <ListItemText
-                                        primary="No secondary effects available"
-                                        primaryTypographyProps={{
-                                            fontSize: '0.8125rem',
-                                            fontStyle: 'italic',
-                                            color: theme.palette.text.disabled
-                                        }}
-                                    />
-                                </MenuItem>
-                            ) : (
-                                secondaryEffects.map((effect, index) => (
-                                    <MenuItem
-                                        key={index}
-                                        onClick={() => {
-                                            onAddSecondary(effect);
-                                            onClose();
-                                        }}
-                                        sx={{
-                                            '&:hover': {
-                                                backgroundColor: theme.palette.primary.main,
-                                                color: theme.palette.primary.contrastText,
-                                            }
-                                        }}
-                                    >
-                                        <ListItemText
-                                            primary={effect.displayName || effect.name}
-                                            primaryTypographyProps={{ fontSize: '0.8125rem' }}
-                                        />
-                                    </MenuItem>
-                                ))
-                            )}
-                        </MenuList>
-                    </Paper>
-                </Grow>
-            </Popper>
-
-            {/* Keyframe Effects Submenu */}
-            <Popper
-                open={Boolean(keyframeAnchor)}
-                anchorEl={keyframeAnchor}
-                placement="right-start"
-                sx={{ zIndex: 1301 }}
-                onMouseEnter={() => setKeyframeAnchor(keyframeAnchor)}
-                onMouseLeave={handleSubmenuClose}
-            >
-                <Grow in={Boolean(keyframeAnchor)}>
-                    <Paper
-                        elevation={8}
-                        sx={{
-                            bgcolor: theme.palette.mode === 'dark' ? '#323232' : theme.palette.background.paper,
-                            border: `1px solid ${theme.palette.divider}`,
-                            borderRadius: 1,
-                            minWidth: 180,
-                            maxHeight: 300,
-                            overflow: 'auto'
-                        }}
-                    >
-                        <MenuList dense>
-                            {keyframeEffects.length === 0 ? (
-                                <MenuItem disabled>
-                                    <ListItemText
-                                        primary="No keyframe effects available"
-                                        primaryTypographyProps={{
-                                            fontSize: '0.8125rem',
-                                            fontStyle: 'italic',
-                                            color: theme.palette.text.disabled
-                                        }}
-                                    />
-                                </MenuItem>
-                            ) : (
-                                keyframeEffects.map((effect, index) => (
-                                    <MenuItem
-                                        key={index}
-                                        onClick={() => {
-                                            onAddKeyframe(effect);
-                                            onClose();
-                                        }}
-                                        sx={{
-                                            '&:hover': {
-                                                backgroundColor: theme.palette.primary.main,
-                                                color: theme.palette.primary.contrastText,
-                                            }
-                                        }}
-                                    >
-                                        <ListItemText
-                                            primary={`${effect.displayName || effect.name} at frame`}
-                                            primaryTypographyProps={{ fontSize: '0.8125rem' }}
-                                        />
-                                    </MenuItem>
-                                ))
-                            )}
-                        </MenuList>
-                    </Paper>
-                </Grow>
-            </Popper>
+                        <ContextMenu.Sub>
+                            <ContextMenu.SubTrigger style={{...itemStyles, justifyContent: 'space-between'}}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Schedule fontSize="small" />
+                                    Add Keyframe Effect
+                                </div>
+                                <ChevronRight fontSize="small" />
+                            </ContextMenu.SubTrigger>
+                            <ContextMenu.Portal>
+                                <ContextMenu.SubContent style={{...menuStyles, minWidth: '180px'}}>
+                                    {keyframeEffects.length === 0 ? (
+                                        <ContextMenu.Item
+                                            disabled
+                                            style={{
+                                                ...itemStyles,
+                                                fontStyle: 'italic',
+                                                color: theme.palette.text.disabled,
+                                                cursor: 'default'
+                                            }}
+                                        >
+                                            No keyframe effects available
+                                        </ContextMenu.Item>
+                                    ) : (
+                                        keyframeEffects.map((effect, index) => (
+                                            <ContextMenu.Item
+                                                key={index}
+                                                style={itemStyles}
+                                                onSelect={() => {
+                                                    onAddKeyframe(effect);
+                                                    handleClose();
+                                                }}
+                                            >
+                                                {effect.displayName || effect.name} at frame
+                                            </ContextMenu.Item>
+                                        ))
+                                    )}
+                                </ContextMenu.SubContent>
+                            </ContextMenu.Portal>
+                        </ContextMenu.Sub>
+                    </ContextMenu.Content>
+                </ContextMenu.Portal>
+            </ContextMenu.Root>
         </>
     );
 }

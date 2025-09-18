@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import * as ContextMenu from '@radix-ui/react-context-menu';
 import {
     Box,
     Typography,
@@ -22,7 +23,11 @@ import {
     Delete,
     DragIndicator,
     SubdirectoryArrowRight,
-    ArrowForward
+    ArrowForward,
+    Edit,
+    Add,
+    Schedule,
+    ChevronRight
 } from '@mui/icons-material';
 
 export default function EffectsPanel({
@@ -30,11 +35,32 @@ export default function EffectsPanel({
     onEffectDelete,
     onEffectReorder,
     onEffectRightClick,
-    onEffectToggleVisibility
+    onEffectToggleVisibility,
+    onEffectEdit,
+    onEffectAddSecondary,
+    onEffectAddKeyframe
 }) {
     const theme = useTheme();
     const [draggedIndex, setDraggedIndex] = useState(null);
     const [expandedEffects, setExpandedEffects] = useState(new Set());
+    const [secondaryEffects, setSecondaryEffects] = useState([]);
+    const [keyframeEffects, setKeyframeEffects] = useState([]);
+
+    useEffect(() => {
+        loadEffects();
+    }, []);
+
+    const loadEffects = async () => {
+        try {
+            const response = await window.api.discoverEffects();
+            if (response.success && response.effects) {
+                setSecondaryEffects(response.effects.secondary || []);
+                setKeyframeEffects(response.effects.keyFrame || []);
+            }
+        } catch (error) {
+            console.error('Failed to load effects:', error);
+        }
+    };
 
     const handleDragStart = (e, index) => {
         setDraggedIndex(index);
@@ -77,39 +103,54 @@ export default function EffectsPanel({
         return (
             <Box sx={{ ml: 2, mt: 0.5 }}>
                 {effect.secondaryEffects.map((secondary, idx) => (
-                    <Paper
-                        key={idx}
-                        elevation={0}
-                        sx={{
-                            backgroundColor: theme.palette.mode === 'dark' ? '#2a2a2a' : '#f8f8f8',
-                            border: `1px solid ${theme.palette.divider}`,
-                            borderRadius: 1,
-                            p: 1,
-                            mb: 0.25,
-                            display: 'flex',
-                            alignItems: 'center',
-                            '&:hover': {
-                                backgroundColor: theme.palette.action.hover,
-                            }
-                        }}
-                    >
-                        <SubdirectoryArrowRight
-                            sx={{
-                                fontSize: 14,
-                                color: theme.palette.text.secondary,
-                                mr: 1
-                            }}
-                        />
-                        <Typography
-                            variant="body2"
-                            sx={{
-                                color: theme.palette.text.primary,
-                                fontSize: '13px'
-                            }}
-                        >
-                            {formatEffectName(secondary.className)}
-                        </Typography>
-                    </Paper>
+                    <ContextMenu.Root key={idx}>
+                        <ContextMenu.Trigger asChild>
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    backgroundColor: theme.palette.mode === 'dark' ? '#2a2a2a' : '#f8f8f8',
+                                    border: `1px solid ${theme.palette.divider}`,
+                                    borderRadius: 1,
+                                    p: 1,
+                                    mb: 0.25,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    cursor: 'pointer',
+                                    '&:hover': {
+                                        backgroundColor: theme.palette.action.hover,
+                                    }
+                                }}
+                            >
+                                <SubdirectoryArrowRight
+                                    sx={{
+                                        fontSize: 14,
+                                        color: theme.palette.text.secondary,
+                                        mr: 1
+                                    }}
+                                />
+                                <Typography
+                                    variant="body2"
+                                    sx={{
+                                        color: theme.palette.text.primary,
+                                        fontSize: '13px'
+                                    }}
+                                >
+                                    {formatEffectName(secondary.className)}
+                                </Typography>
+                            </Paper>
+                        </ContextMenu.Trigger>
+                        <ContextMenu.Portal>
+                            <ContextMenu.Content style={menuStyles}>
+                                <ContextMenu.Item
+                                    style={itemStyles}
+                                    onSelect={() => onEffectEdit && onEffectEdit(parentOriginalIndex, 'secondary', idx)}
+                                >
+                                    <Edit fontSize="small" />
+                                    Edit Secondary Effect
+                                </ContextMenu.Item>
+                            </ContextMenu.Content>
+                        </ContextMenu.Portal>
+                    </ContextMenu.Root>
                 ))}
             </Box>
         );
@@ -121,39 +162,54 @@ export default function EffectsPanel({
         return (
             <Box sx={{ ml: 2, mt: 0.5 }}>
                 {effect.keyframeEffects.map((keyframe, idx) => (
-                    <Paper
-                        key={idx}
-                        elevation={0}
-                        sx={{
-                            backgroundColor: theme.palette.mode === 'dark' ? '#2a2a2a' : '#f8f8f8',
-                            border: `1px solid ${theme.palette.divider}`,
-                            borderRadius: 1,
-                            p: 1,
-                            mb: 0.25,
-                            display: 'flex',
-                            alignItems: 'center',
-                            '&:hover': {
-                                backgroundColor: theme.palette.action.hover,
-                            }
-                        }}
-                    >
-                        <ArrowForward
-                            sx={{
-                                fontSize: 14,
-                                color: theme.palette.text.secondary,
-                                mr: 1
-                            }}
-                        />
-                        <Typography
-                            variant="body2"
-                            sx={{
-                                color: theme.palette.text.primary,
-                                fontSize: '13px'
-                            }}
-                        >
-                            Frame {keyframe.frame}: {formatEffectName(keyframe.className)}
-                        </Typography>
-                    </Paper>
+                    <ContextMenu.Root key={idx}>
+                        <ContextMenu.Trigger asChild>
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    backgroundColor: theme.palette.mode === 'dark' ? '#2a2a2a' : '#f8f8f8',
+                                    border: `1px solid ${theme.palette.divider}`,
+                                    borderRadius: 1,
+                                    p: 1,
+                                    mb: 0.25,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    cursor: 'pointer',
+                                    '&:hover': {
+                                        backgroundColor: theme.palette.action.hover,
+                                    }
+                                }}
+                            >
+                                <ArrowForward
+                                    sx={{
+                                        fontSize: 14,
+                                        color: theme.palette.text.secondary,
+                                        mr: 1
+                                    }}
+                                />
+                                <Typography
+                                    variant="body2"
+                                    sx={{
+                                        color: theme.palette.text.primary,
+                                        fontSize: '13px'
+                                    }}
+                                >
+                                    Frame {keyframe.frame}: {formatEffectName(keyframe.className)}
+                                </Typography>
+                            </Paper>
+                        </ContextMenu.Trigger>
+                        <ContextMenu.Portal>
+                            <ContextMenu.Content style={menuStyles}>
+                                <ContextMenu.Item
+                                    style={itemStyles}
+                                    onSelect={() => onEffectEdit && onEffectEdit(parentOriginalIndex, 'keyframe', idx)}
+                                >
+                                    <Edit fontSize="small" />
+                                    Edit Keyframe Effect
+                                </ContextMenu.Item>
+                            </ContextMenu.Content>
+                        </ContextMenu.Portal>
+                    </ContextMenu.Root>
                 ))}
             </Box>
         );
@@ -162,6 +218,133 @@ export default function EffectsPanel({
     const isFinalEffect = (className) => {
         return className && className.toLowerCase().includes('final');
     };
+
+    // Context menu styles
+    const menuStyles = {
+        backgroundColor: theme.palette.mode === 'dark' ? '#323232' : theme.palette.background.paper,
+        border: `1px solid ${theme.palette.divider}`,
+        borderRadius: '6px',
+        boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.2)',
+        padding: '4px',
+        minWidth: '200px',
+        zIndex: 1300,
+    };
+
+    const itemStyles = {
+        display: 'flex',
+        alignItems: 'center',
+        padding: '8px 12px',
+        fontSize: '14px',
+        color: theme.palette.text.primary,
+        cursor: 'pointer',
+        borderRadius: '4px',
+        outline: 'none',
+        gap: '8px',
+        '&:hover': {
+            backgroundColor: theme.palette.action.hover,
+        },
+        '&:focus': {
+            backgroundColor: theme.palette.action.hover,
+        },
+    };
+
+    const separatorStyles = {
+        height: '1px',
+        backgroundColor: theme.palette.divider,
+        margin: '4px 0',
+    };
+
+    const renderContextMenu = (effect, originalIndex) => (
+        <ContextMenu.Portal>
+            <ContextMenu.Content style={menuStyles}>
+                <ContextMenu.Item
+                    style={itemStyles}
+                    onSelect={() => onEffectEdit && onEffectEdit(originalIndex)}
+                >
+                    <Edit fontSize="small" />
+                    Edit Effect
+                </ContextMenu.Item>
+
+                <ContextMenu.Separator style={separatorStyles} />
+
+                <ContextMenu.Sub>
+                    <ContextMenu.SubTrigger style={{...itemStyles, justifyContent: 'space-between'}}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Add fontSize="small" />
+                            Add Secondary Effect
+                        </div>
+                        <ChevronRight fontSize="small" />
+                    </ContextMenu.SubTrigger>
+                    <ContextMenu.Portal>
+                        <ContextMenu.SubContent style={{...menuStyles, minWidth: '180px'}}>
+                            {secondaryEffects.length === 0 ? (
+                                <ContextMenu.Item
+                                    disabled
+                                    style={{
+                                        ...itemStyles,
+                                        fontStyle: 'italic',
+                                        color: theme.palette.text.disabled,
+                                        cursor: 'default'
+                                    }}
+                                >
+                                    No secondary effects available
+                                </ContextMenu.Item>
+                            ) : (
+                                secondaryEffects.map((secondaryEffect, index) => (
+                                    <ContextMenu.Item
+                                        key={index}
+                                        style={itemStyles}
+                                        onSelect={() => onEffectAddSecondary && onEffectAddSecondary(effect, originalIndex, secondaryEffect)}
+                                    >
+                                        {secondaryEffect.displayName || secondaryEffect.name}
+                                    </ContextMenu.Item>
+                                ))
+                            )}
+                        </ContextMenu.SubContent>
+                    </ContextMenu.Portal>
+                </ContextMenu.Sub>
+
+                <ContextMenu.Separator style={separatorStyles} />
+
+                <ContextMenu.Sub>
+                    <ContextMenu.SubTrigger style={{...itemStyles, justifyContent: 'space-between'}}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Schedule fontSize="small" />
+                            Add Keyframe Effect
+                        </div>
+                        <ChevronRight fontSize="small" />
+                    </ContextMenu.SubTrigger>
+                    <ContextMenu.Portal>
+                        <ContextMenu.SubContent style={{...menuStyles, minWidth: '180px'}}>
+                            {keyframeEffects.length === 0 ? (
+                                <ContextMenu.Item
+                                    disabled
+                                    style={{
+                                        ...itemStyles,
+                                        fontStyle: 'italic',
+                                        color: theme.palette.text.disabled,
+                                        cursor: 'default'
+                                    }}
+                                >
+                                    No keyframe effects available
+                                </ContextMenu.Item>
+                            ) : (
+                                keyframeEffects.map((keyframeEffect, index) => (
+                                    <ContextMenu.Item
+                                        key={index}
+                                        style={itemStyles}
+                                        onSelect={() => onEffectAddKeyframe && onEffectAddKeyframe(effect, originalIndex, keyframeEffect)}
+                                    >
+                                        {keyframeEffect.displayName || keyframeEffect.name} at frame
+                                    </ContextMenu.Item>
+                                ))
+                            )}
+                        </ContextMenu.SubContent>
+                    </ContextMenu.Portal>
+                </ContextMenu.Sub>
+            </ContextMenu.Content>
+        </ContextMenu.Portal>
+    );
 
     const sortedEffectsWithIndices = effects
         .map((effect, originalIndex) => ({ effect, originalIndex }))
@@ -231,15 +414,15 @@ export default function EffectsPanel({
                             (effect.keyframeEffects?.length > 0);
 
                         return (
-                            <Box
-                                key={originalIndex}
-                                sx={{ mb: 0.25 }}
-                                draggable={!isFinalEffect(effect.className)}
-                                onDragStart={(e) => handleDragStart(e, originalIndex)}
-                                onDragOver={handleDragOver}
-                                onDrop={(e) => handleDrop(e, originalIndex)}
-                                onContextMenu={(e) => onEffectRightClick(effect, originalIndex, e)}
-                            >
+                            <ContextMenu.Root key={originalIndex}>
+                                <ContextMenu.Trigger asChild>
+                                    <Box
+                                        sx={{ mb: 0.25 }}
+                                        draggable={!isFinalEffect(effect.className)}
+                                        onDragStart={(e) => handleDragStart(e, originalIndex)}
+                                        onDragOver={handleDragOver}
+                                        onDrop={(e) => handleDrop(e, originalIndex)}
+                                    >
                                 <Paper
                                     elevation={0}
                                     sx={{
@@ -348,7 +531,10 @@ export default function EffectsPanel({
                                         {renderKeyframeEffects(effect, originalIndex)}
                                     </>
                                 )}
-                            </Box>
+                                    </Box>
+                                </ContextMenu.Trigger>
+                                {renderContextMenu(effect, originalIndex)}
+                            </ContextMenu.Root>
                         );
                     })
                 )}
