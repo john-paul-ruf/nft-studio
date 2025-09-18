@@ -8,7 +8,106 @@ import ColorSchemeService from '../services/ColorSchemeService';
 import PreferencesService from '../services/PreferencesService';
 import ResolutionMapper from '../utils/ResolutionMapper';
 import { useInitialResolution } from '../hooks/useInitialResolution';
+
+// Material-UI imports
+import {
+    ThemeProvider,
+    createTheme,
+    CssBaseline,
+    Button,
+    ButtonGroup,
+    Select,
+    MenuItem,
+    FormControl,
+    InputLabel,
+    Menu,
+    ListItemIcon,
+    ListItemText,
+    Divider,
+    Chip,
+    Box,
+    Typography,
+    Slider,
+    IconButton,
+    Tooltip,
+    Toolbar,
+    AppBar,
+    TextField,
+    ToggleButton,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Paper,
+    Grid
+} from '@mui/material';
+import {
+    PlayArrow,
+    ZoomIn,
+    ZoomOut,
+    Add,
+    Palette,
+    Settings,
+    Visibility,
+    VisibilityOff,
+    Delete,
+    Edit,
+    LightMode,
+    DarkMode,
+    Brightness4,
+    KeyboardArrowDown,
+    SwapHoriz,
+    SwapVert,
+    Search,
+    Close
+} from '@mui/icons-material';
 import './Canvas.css';
+
+// Create theme factory function
+const createAppTheme = (mode) => createTheme({
+    palette: {
+        mode,
+        primary: {
+            main: '#4a90e2',
+        },
+        secondary: {
+            main: '#ff8c00',
+        },
+        background: {
+            default: mode === 'dark' ? '#1e1e1e' : '#f5f5f5',
+            paper: mode === 'dark' ? '#323232' : '#ffffff',
+        },
+        text: {
+            primary: mode === 'dark' ? '#fff' : '#333',
+            secondary: mode === 'dark' ? '#888' : '#666',
+        },
+    },
+    components: {
+        MuiButton: {
+            styleOverrides: {
+                root: {
+                    textTransform: 'none',
+                    borderRadius: 4,
+                },
+            },
+        },
+        MuiSelect: {
+            styleOverrides: {
+                root: {
+                    fontSize: '13px',
+                },
+            },
+        },
+        MuiToolbar: {
+            styleOverrides: {
+                root: {
+                    backgroundColor: mode === 'dark' ? '#323232' : '#ffffff',
+                    borderBottom: `1px solid ${mode === 'dark' ? '#444' : '#e0e0e0'}`,
+                },
+            },
+        },
+    },
+});
 
 export default function Canvas({ projectConfig, onUpdateConfig }) {
     console.log('🔍 Canvas received projectConfig:', projectConfig);
@@ -52,16 +151,28 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
     const [showRenderMenu, setShowRenderMenu] = useState(false);
     const [showZoomMenu, setShowZoomMenu] = useState(false);
     const [showAddEffectMenu, setShowAddEffectMenu] = useState(false);
-    const [showColorSchemeMenu, setShowColorSchemeMenu] = useState(false);
 
     // Effects state
     const [availableEffects, setAvailableEffects] = useState({
         primary: [],
-        secondary: []
+        secondary: [],
+        finalImage: []
     });
     const [effectsLoaded, setEffectsLoaded] = useState(false);
-    const [showSubmenu, setShowSubmenu] = useState(null); // 'primary' or 'secondary'
+    const [showSubmenu, setShowSubmenu] = useState(null); // 'primary' or 'finalImage'
     const [submenuTimeout, setSubmenuTimeout] = useState(null);
+
+    // MUI Menu anchor elements
+    const [renderMenuAnchor, setRenderMenuAnchor] = useState(null);
+    const [zoomMenuAnchor, setZoomMenuAnchor] = useState(null);
+    const [addEffectMenuAnchor, setAddEffectMenuAnchor] = useState(null);
+    const [primaryEffectsAnchor, setPrimaryEffectsAnchor] = useState(null);
+    const [finalImageEffectsAnchor, setFinalImageEffectsAnchor] = useState(null);
+    const [colorSchemeMenuAnchor, setColorSchemeMenuAnchor] = useState(null);
+
+    // Theme state
+    const [themeMode, setThemeMode] = useState('dark');
+    const currentTheme = createAppTheme(themeMode);
 
     // Update config when initial resolution loads (for non-projectConfig cases)
     useEffect(() => {
@@ -331,8 +442,13 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
         setShowRenderMenu(false);
         setShowZoomMenu(false);
         setShowAddEffectMenu(false);
-        setShowColorSchemeMenu(false);
         setShowSubmenu(null);
+        setColorSchemeMenuAnchor(null);
+        setRenderMenuAnchor(null);
+        setZoomMenuAnchor(null);
+        setAddEffectMenuAnchor(null);
+        setPrimaryEffectsAnchor(null);
+        setFinalImageEffectsAnchor(null);
         if (submenuTimeout) {
             clearTimeout(submenuTimeout);
             setSubmenuTimeout(null);
@@ -384,10 +500,18 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
     const loadAvailableEffects = async () => {
         try {
             const result = await window.api.getAvailableEffects();
+            console.log('🎭 Available effects result:', result);
             if (result.success) {
+                console.log('🎭 Effects breakdown:', {
+                    primary: result.effects.primary?.length || 0,
+                    secondary: result.effects.secondary?.length || 0,
+                    finalImage: result.effects.finalImage?.length || 0,
+                    allKeys: Object.keys(result.effects || {})
+                });
                 setAvailableEffects({
                     primary: result.effects.primary || [],
-                    secondary: result.effects.secondary || []
+                    secondary: result.effects.secondary || [],
+                    finalImage: result.effects.finalImage || []
                 });
                 setEffectsLoaded(true);
             }
@@ -513,6 +637,7 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
 
             const renderConfig = {
                 ...config,
+                isHorizontal: !config.isHorizontal,  // Invert for backend which interprets it opposite
                 effects: visibleEffects,
                 width: dimensions.w,
                 height: dimensions.h,
@@ -712,161 +837,235 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
     };
 
     return (
-        <div className="canvas-container">
-            <div className="toolbar">
-                <div className="toolbar-group dropdown-container">
-                    <button
-                        className="toolbar-button"
-                        onClick={() => {
+        <ThemeProvider theme={currentTheme}>
+            <CssBaseline />
+            <div className="canvas-container">
+            <AppBar position="static" elevation={0}>
+                <Toolbar
+                    sx={{
+                        backgroundColor: 'background.paper',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                        color: 'text.primary',
+                        gap: 2,
+                        minHeight: '60px !important'
+                    }}
+                >
+                <Box className="toolbar-group">
+                    <Button
+                        variant="contained"
+                        startIcon={<PlayArrow />}
+                        onClick={(event) => {
                             closeAllDropdowns();
-                            setShowRenderMenu(!showRenderMenu);
+                            setRenderMenuAnchor(event.currentTarget);
                         }}
                         disabled={isRendering}
-                        title="Render options"
+                        size="small"
+                        sx={{
+                            minWidth: '120px',
+                            backgroundColor: 'primary.main',
+                            '&:hover': {
+                                backgroundColor: 'primary.dark',
+                            }
+                        }}
                     >
-                        {isRendering ? 'Rendering...' : 'Render'} ▼
-                    </button>
-                    {showRenderMenu && (
-                        <div className="dropdown-menu">
-                            <button
-                                className="dropdown-item"
-                                onClick={() => {
-                                    handleRender();
-                                    setShowRenderMenu(false);
-                                }}
-                            >
-                                🎬 Render Frame
-                            </button>
-                            <button
-                                className="dropdown-item"
-                                onClick={() => {
-                                    handleRenderLoop();
-                                    setShowRenderMenu(false);
-                                }}
-                            >
-                                🔄 Render Loop
-                            </button>
-                        </div>
-                    )}
-                </div>
-
-                <div className="toolbar-group">
-                    <label className="toolbar-label"></label>
-                    <select
-                        className="toolbar-select"
-                        value={config.targetResolution}
-                        onChange={handleResolutionChange}
+                        {isRendering ? 'Rendering...' : 'Render'}
+                    </Button>
+                    <Menu
+                        anchorEl={renderMenuAnchor}
+                        open={Boolean(renderMenuAnchor)}
+                        onClose={() => setRenderMenuAnchor(null)}
+                        PaperProps={{
+                            sx: {
+                                backgroundColor: 'background.paper',
+                                border: '1px solid #444',
+                            }
+                        }}
                     >
-                        {Object.entries(ResolutionMapper.getAllResolutions()).map(([width, resolution]) => (
-                            <option key={width} value={width}>
-                                {ResolutionMapper.getDisplayName(parseInt(width))}
-                            </option>
-                        ))}
-                    </select>
-                </div>
+                        <MenuItem
+                            onClick={() => {
+                                handleRender();
+                                setRenderMenuAnchor(null);
+                            }}
+                        >
+                            <ListItemIcon>
+                                <PlayArrow fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText>Render Frame</ListItemText>
+                        </MenuItem>
+                        <MenuItem
+                            onClick={() => {
+                                handleRenderLoop();
+                                setRenderMenuAnchor(null);
+                            }}
+                        >
+                            <ListItemIcon>
+                                <PlayArrow fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText>Render Loop</ListItemText>
+                        </MenuItem>
+                    </Menu>
+                </Box>
 
-                <div className="toolbar-group">
-                    <button
-                        className={`toolbar-toggle ${config.isHorizontal ? 'active' : ''}`}
-                        onClick={handleOrientationToggle}
-                        title={config.isHorizontal ? 'Horizontal' : 'Vertical'}
-                    >
-                        {config.isHorizontal ? '↔' : '↕'}
-                    </button>
-                </div>
+                <Divider orientation="vertical" flexItem sx={{ mx: 2, backgroundColor: 'divider' }} />
 
-                <div className="toolbar-group">
-                    <label className="toolbar-label">Frames</label>
-                    <input
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FormControl size="small" sx={{ minWidth: 140 }}>
+                        <Select
+                            value={config.targetResolution}
+                            onChange={handleResolutionChange}
+                            displayEmpty
+                            variant="outlined"
+                            sx={{ fontSize: '13px' }}
+                        >
+                            {Object.entries(ResolutionMapper.getAllResolutions()).map(([width, resolution]) => (
+                                <MenuItem key={width} value={width}>
+                                    {ResolutionMapper.getDisplayName(parseInt(width))}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </Box>
+
+                <ToggleButton
+                    value="orientation"
+                    selected={!config.isHorizontal}
+                    onChange={handleOrientationToggle}
+                    size="small"
+                    sx={{
+                        borderRadius: 1,
+                        minWidth: '40px',
+                        height: '32px'
+                    }}
+                    title={!config.isHorizontal ? 'Switch to Vertical' : 'Switch to Horizontal'}
+                >
+                    {!config.isHorizontal ? <SwapHoriz /> : <SwapVert />}
+                </ToggleButton>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', minWidth: '50px' }}>
+                        Frames
+                    </Typography>
+                    <TextField
                         type="number"
-                        className="toolbar-input"
+                        size="small"
                         value={config.numFrames}
                         onChange={handleFramesChange}
-                        min="1"
-                        max="10000"
+                        inputProps={{ min: 1, max: 10000 }}
+                        sx={{ width: '80px' }}
+                        variant="outlined"
                     />
-                </div>
+                </Box>
 
-                <div className="toolbar-group">
-                    <label className="toolbar-label">Frame</label>
-                    <input
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', minWidth: '40px' }}>
+                        Frame
+                    </Typography>
+                    <TextField
                         type="number"
-                        className="toolbar-input"
+                        size="small"
                         value={selectedFrame}
                         onChange={(e) => setSelectedFrame(parseInt(e.target.value))}
-                        min="0"
-                        max={config.numFrames - 1}
+                        inputProps={{ min: 0, max: config.numFrames - 1 }}
+                        sx={{ width: '80px' }}
+                        variant="outlined"
                     />
-                </div>
+                </Box>
 
-                <div className="toolbar-group dropdown-container">
-                    <button
-                        className="toolbar-button"
-                        onClick={() => {
+                <Divider orientation="vertical" flexItem sx={{ mx: 2, backgroundColor: 'divider' }} />
+
+                <Box sx={{ position: 'relative' }}>
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<Search />}
+                        onClick={(event) => {
                             closeAllDropdowns();
-                            setShowZoomMenu(!showZoomMenu);
+                            setZoomMenuAnchor(event.currentTarget);
                         }}
+                        endIcon={<KeyboardArrowDown />}
+                        sx={{ minWidth: '110px' }}
                         title="Zoom actions"
                     >
-                        {Math.round(zoom * 100)}% ▼
-                    </button>
-                    {showZoomMenu && (
-                        <div className="dropdown-menu">
-                            <button
-                                className="dropdown-item"
-                                onClick={() => {
-                                    handleZoomIn();
-                                    setShowZoomMenu(false);
-                                }}
-                            >
-                                🔍+ Zoom In
-                            </button>
-                            <button
-                                className="dropdown-item"
-                                onClick={() => {
-                                    handleZoomOut();
-                                    setShowZoomMenu(false);
-                                }}
-                            >
-                                🔍− Zoom Out
-                            </button>
-                            <button
-                                className="dropdown-item"
-                                onClick={() => {
-                                    handleZoomReset();
-                                    setShowZoomMenu(false);
-                                }}
-                            >
-                                ⌂ Reset
-                            </button>
-                        </div>
-                    )}
-                </div>
-
-                <div className="toolbar-group dropdown-container">
-                    <button
-                        className="toolbar-button"
-                        onClick={() => {
-                            closeAllDropdowns();
-                            setShowColorSchemeMenu(!showColorSchemeMenu);
+                        {Math.round(zoom * 100)}%
+                    </Button>
+                    <Menu
+                        anchorEl={zoomMenuAnchor}
+                        open={Boolean(zoomMenuAnchor)}
+                        onClose={() => setZoomMenuAnchor(null)}
+                        PaperProps={{
+                            sx: {
+                                backgroundColor: 'background.paper',
+                                border: '1px solid #444',
+                            }
                         }}
+                    >
+                        <MenuItem onClick={() => { handleZoomIn(); setZoomMenuAnchor(null); }}>
+                            <ListItemIcon>
+                                <ZoomIn fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText>Zoom In</ListItemText>
+                        </MenuItem>
+                        <MenuItem onClick={() => { handleZoomOut(); setZoomMenuAnchor(null); }}>
+                            <ListItemIcon>
+                                <ZoomOut fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText>Zoom Out</ListItemText>
+                        </MenuItem>
+                        <MenuItem onClick={() => { handleZoomReset(); setZoomMenuAnchor(null); }}>
+                            <ListItemIcon>
+                                <Settings fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText>Reset</ListItemText>
+                        </MenuItem>
+                    </Menu>
+                </Box>
+
+                <Divider orientation="vertical" flexItem sx={{ mx: 2, backgroundColor: 'divider' }} />
+
+                <Box sx={{ position: 'relative' }}>
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<Palette />}
+                        onClick={(event) => {
+                            closeAllDropdowns();
+                            setColorSchemeMenuAnchor(event.currentTarget);
+                        }}
+                        endIcon={<KeyboardArrowDown />}
+                        sx={{ minWidth: '140px' }}
                         title="Select color scheme"
                     >
-                        Color Scheme ▼
-                    </button>
-                    {showColorSchemeMenu && (
-                        <div className="dropdown-menu" style={{
-                            minWidth: '600px',
-                            maxWidth: '700px',
-                            maxHeight: '400px',
-                            overflow: 'auto',
-                            left: '-200px' // Offset to center it better
-                        }}>
+                        Color Scheme
+                    </Button>
+                    <Menu
+                        anchorEl={colorSchemeMenuAnchor}
+                        open={Boolean(colorSchemeMenuAnchor)}
+                        onClose={() => setColorSchemeMenuAnchor(null)}
+                        anchorOrigin={{
+                            vertical: 'bottom',
+                            horizontal: 'left',
+                        }}
+                        transformOrigin={{
+                            vertical: 'top',
+                            horizontal: 'left',
+                        }}
+                        sx={{
+                            '& .MuiPaper-root': {
+                                minWidth: '600px',
+                                maxWidth: '700px',
+                                maxHeight: '400px',
+                                overflow: 'auto',
+                                mt: 1
+                            }
+                        }}
+                    >
+                        <Box sx={{ p: 0 }}>
                             <ColorSchemeDropdown
                                 value={config.colorScheme || 'neon-cyberpunk'}
                                 onChange={(schemeId) => {
                                     handleColorSchemeChange(schemeId);
-                                    setShowColorSchemeMenu(false);
+                                    setColorSchemeMenuAnchor(null);
                                 }}
                                 projectData={{
                                     resolution: 'hd',
@@ -875,95 +1074,296 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                                 showPreview={true}
                                 isInDropdown={true}
                             />
-                        </div>
-                    )}
-                </div>
+                        </Box>
+                    </Menu>
+                </Box>
 
-                <div className="toolbar-group dropdown-container">
-                    <button
-                        className="toolbar-button"
-                        onClick={() => {
+                <Divider orientation="vertical" flexItem sx={{ mx: 2, backgroundColor: 'divider' }} />
+
+                <Box sx={{ position: 'relative' }}>
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<Add />}
+                        onClick={(event) => {
                             closeAllDropdowns();
-                            setShowAddEffectMenu(!showAddEffectMenu);
+                            setAddEffectMenuAnchor(event.currentTarget);
                         }}
+                        endIcon={<KeyboardArrowDown />}
+                        sx={{ minWidth: '120px' }}
                         title="Add effect options"
                     >
-                        Add Effect ▼
-                    </button>
-                    {showAddEffectMenu && (
-                        <div className="dropdown-menu" style={{ minWidth: '150px' }}>
-                            {!effectsLoaded ? (
-                                <div className="dropdown-item" style={{ color: '#888', fontStyle: 'italic' }}>
-                                    Loading effects...
-                                </div>
-                            ) : (
-                                <>
-                                    <div
-                                        className="dropdown-item dropdown-submenu-trigger"
-                                        onMouseEnter={() => handleSubmenuEnter('primary')}
-                                        onMouseLeave={handleSubmenuLeave}
-                                    >
-                                        Primary ▶
-                                        {showSubmenu === 'primary' && (
-                                            <div
-                                                className="dropdown-submenu"
-                                                onMouseEnter={handleSubmenuAreaEnter}
-                                                onMouseLeave={handleSubmenuLeave}
-                                            >
-                                                {availableEffects.primary.map((effect) => (
-                                                    <div
-                                                        key={effect.name}
-                                                        className="dropdown-item submenu-item"
-                                                        onClick={() => handleAddEffectDirect(effect.name, 'primary')}
-                                                        title={effect.description}
-                                                    >
-                                                        {effect.displayName}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
+                        Add Effect
+                    </Button>
+                    <Menu
+                        anchorEl={addEffectMenuAnchor}
+                        open={Boolean(addEffectMenuAnchor)}
+                        onClose={() => {
+                            setAddEffectMenuAnchor(null);
+                            setPrimaryEffectsAnchor(null);
+                            setFinalImageEffectsAnchor(null);
+                        }}
+                        MenuListProps={{
+                            onMouseLeave: () => {
+                                // Only close submenus if we're leaving the entire menu area
+                                setTimeout(() => {
+                                    if (!primaryEffectsAnchor && !finalImageEffectsAnchor) {
+                                        setPrimaryEffectsAnchor(null);
+                                        setFinalImageEffectsAnchor(null);
+                                    }
+                                }, 100);
+                            }
+                        }}
+                        PaperProps={{
+                            sx: {
+                                backgroundColor: 'background.paper',
+                                border: '1px solid #444',
+                                minWidth: '200px'
+                            }
+                        }}
+                    >
+                        {!effectsLoaded ? (
+                            <MenuItem disabled>
+                                <ListItemText>Loading effects...</ListItemText>
+                            </MenuItem>
+                        ) : (
+                            <>
+                                <MenuItem
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        if (primaryEffectsAnchor) {
+                                            setPrimaryEffectsAnchor(null);
+                                        } else {
+                                            setPrimaryEffectsAnchor(event.currentTarget);
+                                            setFinalImageEffectsAnchor(null);
+                                        }
+                                    }}
+                                    onMouseEnter={(event) => {
+                                        setPrimaryEffectsAnchor(event.currentTarget);
+                                        setFinalImageEffectsAnchor(null);
+                                    }}
+                                    sx={{
+                                        justifyContent: 'space-between',
+                                        pr: 1,
+                                        backgroundColor: primaryEffectsAnchor ? 'action.selected' : 'transparent'
+                                    }}
+                                >
+                                    <ListItemText>Primary Effects</ListItemText>
+                                    <Typography variant="body2" sx={{ ml: 3 }}>▶</Typography>
+                                </MenuItem>
+                                <MenuItem
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        if (finalImageEffectsAnchor) {
+                                            setFinalImageEffectsAnchor(null);
+                                        } else {
+                                            setFinalImageEffectsAnchor(event.currentTarget);
+                                            setPrimaryEffectsAnchor(null);
+                                        }
+                                    }}
+                                    onMouseEnter={(event) => {
+                                        setFinalImageEffectsAnchor(event.currentTarget);
+                                        setPrimaryEffectsAnchor(null);
+                                    }}
+                                    sx={{
+                                        justifyContent: 'space-between',
+                                        pr: 1,
+                                        backgroundColor: finalImageEffectsAnchor ? 'action.selected' : 'transparent'
+                                    }}
+                                >
+                                    <ListItemText>Final Effects</ListItemText>
+                                    <Typography variant="body2" sx={{ ml: 3 }}>▶</Typography>
+                                </MenuItem>
+                            </>
+                        )}
+                    </Menu>
 
-                                    <div
-                                        className="dropdown-item dropdown-submenu-trigger"
-                                        onMouseEnter={() => handleSubmenuEnter('secondary')}
-                                        onMouseLeave={handleSubmenuLeave}
-                                    >
-                                        Secondary ▶
-                                        {showSubmenu === 'secondary' && (
-                                            <div
-                                                className="dropdown-submenu"
-                                                onMouseEnter={handleSubmenuAreaEnter}
-                                                onMouseLeave={handleSubmenuLeave}
-                                            >
-                                                {availableEffects.secondary.map((effect) => (
-                                                    <div
-                                                        key={effect.name}
-                                                        className="dropdown-item submenu-item"
-                                                        onClick={() => handleAddEffectDirect(effect.name, 'secondary')}
-                                                        title={effect.description}
-                                                    >
-                                                        {effect.displayName}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
+                    {/* Primary Effects Submenu */}
+                    <Menu
+                        anchorEl={primaryEffectsAnchor}
+                        open={Boolean(primaryEffectsAnchor)}
+                        onClose={(event, reason) => {
+                            if (reason !== 'backdropClick') {
+                                setPrimaryEffectsAnchor(null);
+                            }
+                        }}
+                        anchorOrigin={{
+                            vertical: 'top',
+                            horizontal: 'right',
+                        }}
+                        transformOrigin={{
+                            vertical: 'top',
+                            horizontal: 'left',
+                        }}
+                        MenuListProps={{
+                            onMouseEnter: () => {
+                                // Keep submenu open when mouse enters
+                            },
+                            onMouseLeave: () => {
+                                // Close submenu when mouse leaves
+                                setTimeout(() => {
+                                    setPrimaryEffectsAnchor(null);
+                                }, 300);
+                            }
+                        }}
+                        slotProps={{
+                            paper: {
+                                sx: {
+                                    backgroundColor: 'background.paper',
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    minWidth: '240px',
+                                    maxHeight: '80vh',
+                                    ml: 0.5,
+                                    overflowY: 'auto',
+                                    '&::-webkit-scrollbar': {
+                                        width: '8px',
+                                    },
+                                    '&::-webkit-scrollbar-thumb': {
+                                        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                        borderRadius: '4px',
+                                    },
+                                    '&::-webkit-scrollbar-track': {
+                                        backgroundColor: 'transparent',
+                                    }
+                                }
+                            }
+                        }}
+                    >
+                        {availableEffects.primary.map((effect) => (
+                            <MenuItem
+                                key={effect.name}
+                                onClick={() => {
+                                    handleAddEffectDirect(effect.name, 'primary');
+                                    setPrimaryEffectsAnchor(null);
+                                    setAddEffectMenuAnchor(null);
+                                }}
+                                title={effect.description}
+                                sx={{
+                                    fontSize: '0.875rem',
+                                    py: 0.75,
+                                    '&:hover': {
+                                        backgroundColor: 'action.hover',
+                                    }
+                                }}
+                            >
+                                <ListItemText primary={effect.displayName} />
+                            </MenuItem>
+                        ))}
+                    </Menu>
 
-                                    <div className="dropdown-divider"></div>
-                                </>
-                            )}
-                        </div>
-                    )}
-                </div>
+                    {/* Final Effects Submenu */}
+                    <Menu
+                        anchorEl={finalImageEffectsAnchor}
+                        open={Boolean(finalImageEffectsAnchor)}
+                        onClose={(event, reason) => {
+                            if (reason !== 'backdropClick') {
+                                setFinalImageEffectsAnchor(null);
+                            }
+                        }}
+                        anchorOrigin={{
+                            vertical: 'top',
+                            horizontal: 'right',
+                        }}
+                        transformOrigin={{
+                            vertical: 'top',
+                            horizontal: 'left',
+                        }}
+                        MenuListProps={{
+                            onMouseEnter: () => {
+                                // Keep submenu open when mouse enters
+                            },
+                            onMouseLeave: () => {
+                                // Close submenu when mouse leaves
+                                setTimeout(() => {
+                                    setFinalImageEffectsAnchor(null);
+                                }, 300);
+                            }
+                        }}
+                        slotProps={{
+                            paper: {
+                                sx: {
+                                    backgroundColor: 'background.paper',
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    minWidth: '240px',
+                                    maxHeight: '80vh',
+                                    ml: 0.5,
+                                    overflowY: 'auto',
+                                    '&::-webkit-scrollbar': {
+                                        width: '8px',
+                                    },
+                                    '&::-webkit-scrollbar-thumb': {
+                                        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                        borderRadius: '4px',
+                                    },
+                                    '&::-webkit-scrollbar-track': {
+                                        backgroundColor: 'transparent',
+                                    }
+                                }
+                            }
+                        }}
+                    >
+                        {availableEffects.finalImage.map((effect) => (
+                            <MenuItem
+                                key={effect.name}
+                                onClick={() => {
+                                    handleAddEffectDirect(effect.name, 'finalImage');
+                                    setFinalImageEffectsAnchor(null);
+                                    setAddEffectMenuAnchor(null);
+                                }}
+                                title={effect.description}
+                                sx={{
+                                    fontSize: '0.875rem',
+                                    py: 0.75,
+                                    '&:hover': {
+                                        backgroundColor: 'action.hover',
+                                    }
+                                }}
+                            >
+                                <ListItemText primary={effect.displayName} />
+                            </MenuItem>
+                        ))}
+                    </Menu>
+                </Box>
 
-                <div className="toolbar-spacer"></div>
+                <Divider orientation="vertical" flexItem sx={{ mx: 2, backgroundColor: 'divider' }} />
 
+                <Box sx={{ flexGrow: 1 }} />
 
-            </div>
+                {/* Theme Toggle */}
+                <Box className="toolbar-group">
+                    <Tooltip title={`Switch to ${themeMode === 'dark' ? 'light' : 'dark'} theme`}>
+                        <IconButton
+                            onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
+                            color="inherit"
+                            size="small"
+                            sx={{
+                                borderRadius: 1,
+                                padding: '8px',
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                    backgroundColor: 'primary.main',
+                                    color: 'white',
+                                }
+                            }}
+                        >
+                            {themeMode === 'dark' ? <LightMode /> : <DarkMode />}
+                        </IconButton>
+                    </Tooltip>
+                </Box>
+
+                </Toolbar>
+            </AppBar>
 
             <div className="canvas-main">
-                <div className="canvas-area">
+                <div
+                    className="canvas-area"
+                    style={{
+                        backgroundColor: currentTheme.palette.background.default,
+                        color: currentTheme.palette.text.primary,
+                    }}
+                >
                     <div
                         ref={frameHolderRef}
                         className="frame-holder"
@@ -1015,14 +1415,61 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                 />
             )}
 
-            {editingEffect !== null && config.effects[editingEffect] && (
-                <div className="modal-overlay" onClick={() => setEditingEffect(null)}>
-                    <div className="modal-content effect-config-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h3>Configure {config.effects[editingEffect].className}</h3>
-                            <button className="close-button" onClick={() => setEditingEffect(null)}>×</button>
-                        </div>
-                        <div className="modal-body">
+            <Dialog
+                open={editingEffect !== null && !!config.effects[editingEffect]}
+                onClose={() => setEditingEffect(null)}
+                maxWidth="xl"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        width: '90vw',
+                        maxWidth: '1400px',
+                        height: '80vh',
+                        backgroundColor: 'background.paper',
+                    }
+                }}
+            >
+                <DialogTitle
+                    sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        backgroundColor: 'background.paper',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                    }}
+                >
+                    <Typography variant="h6" component="div">
+                        Configure {editingEffect !== null && config.effects[editingEffect]
+                            ? config.effects[editingEffect].className
+                            : ''}
+                    </Typography>
+                    <IconButton
+                        onClick={() => setEditingEffect(null)}
+                        size="small"
+                        sx={{ color: 'text.secondary' }}
+                    >
+                        <Close />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent
+                    sx={{
+                        padding: 3,
+                        backgroundColor: 'background.default',
+                        '&::-webkit-scrollbar': {
+                            width: '8px',
+                        },
+                        '&::-webkit-scrollbar-track': {
+                            backgroundColor: 'rgba(0,0,0,0.1)',
+                        },
+                        '&::-webkit-scrollbar-thumb': {
+                            backgroundColor: 'rgba(0,0,0,0.3)',
+                            borderRadius: '4px',
+                        },
+                    }}
+                >
+                    <Box sx={{ width: '100%', height: '100%' }}>
+                        {editingEffect !== null && config.effects[editingEffect] && (
                             <EffectConfigurer
                                 selectedEffect={{
                                     name: config.effects[editingEffect].name,
@@ -1042,16 +1489,28 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                                     handleEffectUpdate(editingEffect, updatedEffect);
                                 }}
                                 readOnly={false}
+                                useWideLayout={true}
                             />
-                        </div>
-                        <div className="modal-footer">
-                            <button className="btn-secondary" onClick={() => setEditingEffect(null)}>
-                                Done
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+                        )}
+                    </Box>
+                </DialogContent>
+                <DialogActions
+                    sx={{
+                        padding: 2,
+                        backgroundColor: 'background.paper',
+                        borderTop: '1px solid',
+                        borderColor: 'divider',
+                    }}
+                >
+                    <Button
+                        onClick={() => setEditingEffect(null)}
+                        variant="contained"
+                        color="primary"
+                    >
+                        Done
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             {contextMenuEffect && (
                 <EffectContextMenu
@@ -1063,5 +1522,6 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                 />
             )}
         </div>
+        </ThemeProvider>
     );
 }

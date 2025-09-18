@@ -111,9 +111,12 @@ class ResolutionMapper {
         const resolution = this.getByWidth(width);
         if (!resolution) {
             // Fallback to Full HD if resolution not found
+            // When horizontal: landscape (1920x1080), when vertical: portrait (1080x1920)
             return isHorizontal ? { w: 1920, h: 1080 } : { w: 1080, h: 1920 };
         }
 
+        // When horizontal: use normal dimensions (landscape)
+        // When vertical: swap dimensions for portrait orientation
         return isHorizontal
             ? { w: resolution.w, h: resolution.h }
             : { w: resolution.h, h: resolution.w };

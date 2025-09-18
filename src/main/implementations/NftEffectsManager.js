@@ -32,7 +32,7 @@ class NftEffectsManager {
         try {
             const effects = await this.effectRegistryService.getAllEffectsWithConfigs();
 
-            // Return primary and secondary effects for the dropdown
+            // Return primary, secondary, and finalImage effects for the dropdown
             return {
                 primary: effects.primary.map(plugin => ({
                     name: plugin.name,
@@ -42,6 +42,13 @@ class NftEffectsManager {
                     configClassName: plugin.configClass ? plugin.configClass.name : (this.deriveClassName(plugin.name) + 'Config')
                 })),
                 secondary: effects.secondary.map(plugin => ({
+                    name: plugin.name,
+                    displayName: plugin.metadata?.displayName || plugin.name,
+                    description: plugin.metadata?.description || '',
+                    className: this.deriveClassName(plugin.name),
+                    configClassName: plugin.configClass ? plugin.configClass.name : (this.deriveClassName(plugin.name) + 'Config')
+                })),
+                finalImage: effects.finalImage.map(plugin => ({
                     name: plugin.name,
                     displayName: plugin.metadata?.displayName || plugin.name,
                     description: plugin.metadata?.description || '',
@@ -305,7 +312,7 @@ class NftEffectsManager {
                     ...allEffects.primary.map(e => e.name),
                     ...allEffects.secondary.map(e => e.name),
                     ...allEffects.keyFrame.map(e => e.name),
-                    ...allEffects.final.map(e => e.name)
+                    ...allEffects.finalImage.map(e => e.name)
                 ];
                 console.log(`🔍 Available effect names:`, allNames);
                 throw new Error(`Effect not found: ${effectName}. Available effects: ${allNames.join(', ')}`);

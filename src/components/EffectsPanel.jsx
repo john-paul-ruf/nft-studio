@@ -1,5 +1,29 @@
 import React, { useState } from 'react';
-import './EffectsPanel.css';
+import {
+    Box,
+    Typography,
+    IconButton,
+    Paper,
+    Collapse,
+    Divider,
+    Chip,
+    useTheme,
+    List,
+    ListItem,
+    ListItemText,
+    ListItemIcon,
+    ListItemSecondaryAction
+} from '@mui/material';
+import {
+    ExpandMore,
+    ExpandLess,
+    Visibility,
+    VisibilityOff,
+    Delete,
+    DragIndicator,
+    SubdirectoryArrowRight,
+    ArrowForward
+} from '@mui/icons-material';
 
 export default function EffectsPanel({
     effects,
@@ -8,6 +32,7 @@ export default function EffectsPanel({
     onEffectRightClick,
     onEffectToggleVisibility
 }) {
+    const theme = useTheme();
     const [draggedIndex, setDraggedIndex] = useState(null);
     const [expandedEffects, setExpandedEffects] = useState(new Set());
 
@@ -50,19 +75,43 @@ export default function EffectsPanel({
         if (!effect.secondaryEffects || effect.secondaryEffects.length === 0) return null;
 
         return (
-            <div className="secondary-effects">
+            <Box sx={{ ml: 2, mt: 0.5 }}>
                 {effect.secondaryEffects.map((secondary, idx) => (
-                    <div
+                    <Paper
                         key={idx}
-                        className="effect-item secondary"
+                        elevation={0}
+                        sx={{
+                            backgroundColor: theme.palette.mode === 'dark' ? '#2a2a2a' : '#f8f8f8',
+                            border: `1px solid ${theme.palette.divider}`,
+                            borderRadius: 1,
+                            p: 1,
+                            mb: 0.25,
+                            display: 'flex',
+                            alignItems: 'center',
+                            '&:hover': {
+                                backgroundColor: theme.palette.action.hover,
+                            }
+                        }}
                     >
-                        <span className="effect-indent">↳</span>
-                        <span className="effect-name">
+                        <SubdirectoryArrowRight
+                            sx={{
+                                fontSize: 14,
+                                color: theme.palette.text.secondary,
+                                mr: 1
+                            }}
+                        />
+                        <Typography
+                            variant="body2"
+                            sx={{
+                                color: theme.palette.text.primary,
+                                fontSize: '13px'
+                            }}
+                        >
                             {formatEffectName(secondary.className)}
-                        </span>
-                    </div>
+                        </Typography>
+                    </Paper>
                 ))}
-            </div>
+            </Box>
         );
     };
 
@@ -70,19 +119,43 @@ export default function EffectsPanel({
         if (!effect.keyframeEffects || effect.keyframeEffects.length === 0) return null;
 
         return (
-            <div className="keyframe-effects">
+            <Box sx={{ ml: 2, mt: 0.5 }}>
                 {effect.keyframeEffects.map((keyframe, idx) => (
-                    <div
+                    <Paper
                         key={idx}
-                        className="effect-item keyframe"
+                        elevation={0}
+                        sx={{
+                            backgroundColor: theme.palette.mode === 'dark' ? '#2a2a2a' : '#f8f8f8',
+                            border: `1px solid ${theme.palette.divider}`,
+                            borderRadius: 1,
+                            p: 1,
+                            mb: 0.25,
+                            display: 'flex',
+                            alignItems: 'center',
+                            '&:hover': {
+                                backgroundColor: theme.palette.action.hover,
+                            }
+                        }}
                     >
-                        <span className="effect-indent">⟶</span>
-                        <span className="effect-name">
+                        <ArrowForward
+                            sx={{
+                                fontSize: 14,
+                                color: theme.palette.text.secondary,
+                                mr: 1
+                            }}
+                        />
+                        <Typography
+                            variant="body2"
+                            sx={{
+                                color: theme.palette.text.primary,
+                                fontSize: '13px'
+                            }}
+                        >
                             Frame {keyframe.frame}: {formatEffectName(keyframe.className)}
-                        </span>
-                    </div>
+                        </Typography>
+                    </Paper>
                 ))}
-            </div>
+            </Box>
         );
     };
 
@@ -101,15 +174,55 @@ export default function EffectsPanel({
         });
 
     return (
-        <div className="effects-panel">
-            <div className="effects-panel-header">
-                <h3>Layers</h3>
-            </div>
-            <div className="effects-list">
+        <Paper
+            elevation={0}
+            sx={{
+                width: 300,
+                backgroundColor: theme.palette.background.paper,
+                borderLeft: `1px solid ${theme.palette.divider}`,
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%'
+            }}
+        >
+            <Box
+                sx={{
+                    backgroundColor: theme.palette.background.default,
+                    p: 2,
+                    borderBottom: `1px solid ${theme.palette.divider}`
+                }}
+            >
+                <Typography
+                    variant="subtitle2"
+                    sx={{
+                        color: theme.palette.text.primary,
+                        fontWeight: 400,
+                        textTransform: 'uppercase',
+                        letterSpacing: 1
+                    }}
+                >
+                    Layers
+                </Typography>
+            </Box>
+            <Box
+                sx={{
+                    flex: 1,
+                    overflowY: 'auto',
+                    p: 1
+                }}
+            >
                 {sortedEffectsWithIndices.length === 0 ? (
-                    <div className="no-effects">
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            color: theme.palette.text.secondary,
+                            textAlign: 'center',
+                            p: 5,
+                            fontSize: '13px'
+                        }}
+                    >
                         No effects added yet
-                    </div>
+                    </Typography>
                 ) : (
                     sortedEffectsWithIndices.map(({ effect, originalIndex }, sortedIndex) => {
                         const isExpanded = expandedEffects.has(sortedIndex);
@@ -118,62 +231,128 @@ export default function EffectsPanel({
                             (effect.keyframeEffects?.length > 0);
 
                         return (
-                            <div
+                            <Box
                                 key={originalIndex}
-                                className="effect-container"
+                                sx={{ mb: 0.25 }}
                                 draggable={!isFinalEffect(effect.className)}
                                 onDragStart={(e) => handleDragStart(e, originalIndex)}
                                 onDragOver={handleDragOver}
                                 onDrop={(e) => handleDrop(e, originalIndex)}
                                 onContextMenu={(e) => onEffectRightClick(effect, originalIndex, e)}
                             >
-                                <div className="effect-item primary">
+                                <Paper
+                                    elevation={0}
+                                    sx={{
+                                        backgroundColor: theme.palette.background.default,
+                                        border: `1px solid ${theme.palette.divider}`,
+                                        borderRadius: 1,
+                                        p: 1,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        userSelect: 'none',
+                                        '&:hover': {
+                                            backgroundColor: theme.palette.action.hover,
+                                            borderColor: theme.palette.primary.main,
+                                        }
+                                    }}
+                                >
                                     {hasChildren && (
-                                        <button
-                                            className={`expand-button ${isExpanded ? 'expanded' : ''}`}
+                                        <IconButton
+                                            size="small"
                                             onClick={() => toggleExpanded(sortedIndex)}
+                                            sx={{
+                                                p: 0,
+                                                mr: 1,
+                                                color: theme.palette.text.secondary,
+                                                transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                                                transition: 'transform 0.2s'
+                                            }}
                                         >
-                                            ▶
-                                        </button>
+                                            <ExpandMore sx={{ fontSize: 16 }} />
+                                        </IconButton>
                                     )}
-                                    <button
-                                        className={`visibility-button ${effect.visible !== false ? 'visible' : 'hidden'}`}
+                                    <IconButton
+                                        size="small"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             onEffectToggleVisibility && onEffectToggleVisibility(originalIndex);
                                         }}
                                         title={effect.visible !== false ? 'Hide layer' : 'Show layer'}
+                                        sx={{
+                                            p: 0,
+                                            mr: 1,
+                                            color: effect.visible !== false
+                                                ? theme.palette.primary.main
+                                                : theme.palette.text.disabled,
+                                            opacity: effect.visible !== false ? 1 : 0.5,
+                                            '&:hover': {
+                                                color: theme.palette.primary.main,
+                                                opacity: 1
+                                            }
+                                        }}
                                     >
-                                        {effect.visible !== false ? '👁️' : '🚫'}
-                                    </button>
-                                    <span className="effect-name">
-                                        {formatEffectName(effect.className)}
+                                        {effect.visible !== false ? <Visibility sx={{ fontSize: 16 }} /> : <VisibilityOff sx={{ fontSize: 16 }} />}
+                                    </IconButton>
+                                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Typography
+                                            variant="body2"
+                                            sx={{
+                                                color: theme.palette.text.primary,
+                                                fontSize: '13px'
+                                            }}
+                                        >
+                                            {formatEffectName(effect.className)}
+                                        </Typography>
                                         {isFinalEffect(effect.className) && (
-                                            <span className="effect-badge">Final</span>
+                                            <Chip
+                                                label="Final"
+                                                size="small"
+                                                sx={{
+                                                    height: 18,
+                                                    fontSize: '10px',
+                                                    backgroundColor: '#5cb85c',
+                                                    color: '#fff',
+                                                    '& .MuiChip-label': {
+                                                        px: 0.5
+                                                    }
+                                                }}
+                                            />
                                         )}
-                                    </span>
-                                    <button
-                                        className="delete-button"
+                                    </Box>
+                                    <IconButton
+                                        size="small"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             onEffectDelete(originalIndex);
                                         }}
                                         title="Delete layer"
+                                        sx={{
+                                            p: 0,
+                                            color: theme.palette.text.secondary,
+                                            opacity: 0.7,
+                                            '&:hover': {
+                                                opacity: 1,
+                                                transform: 'scale(1.1)',
+                                                color: theme.palette.error.main
+                                            }
+                                        }}
                                     >
-                                        🗑️
-                                    </button>
-                                </div>
+                                        <Delete sx={{ fontSize: 16 }} />
+                                    </IconButton>
+                                </Paper>
                                 {isExpanded && (
                                     <>
                                         {renderSecondaryEffects(effect, originalIndex)}
                                         {renderKeyframeEffects(effect, originalIndex)}
                                     </>
                                 )}
-                            </div>
+                            </Box>
                         );
                     })
                 )}
-            </div>
-        </div>
+            </Box>
+        </Paper>
     );
 }

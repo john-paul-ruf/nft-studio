@@ -115,6 +115,14 @@
     flex: 1;
 }
 
+.toolbar-separator {
+    width: 1px;
+    height: 30px;
+    background: #444;
+    margin: 0 15px;
+    flex-shrink: 0;
+}
+
 .canvas-main {
     flex: 1;
     display: flex;

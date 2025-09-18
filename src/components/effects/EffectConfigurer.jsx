@@ -2,6 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import ConfigInputFactory from './inputs/ConfigInputFactory';
 import { ConfigIntrospector } from '../../utils/configIntrospector';
 import EffectAttachmentModal from './EffectAttachmentModal';
+import {
+    Box,
+    Typography,
+    Grid,
+    Paper,
+    useTheme
+} from '@mui/material';
 
 /**
  * Override Point2D center properties to use the current project resolution center
@@ -96,8 +103,10 @@ function EffectConfigurer({
     onAttachEffect = null,
     onRemoveAttachedEffect = null,
     initialConfig = null,
-    initialPercentChance = null
+    initialPercentChance = null,
+    useWideLayout = false
 }) {
+    const theme = useTheme();
     const [configSchema, setConfigSchema] = useState(null);
     const [effectConfig, setEffectConfig] = useState({});
     const [percentChance, setPercentChance] = useState(100);

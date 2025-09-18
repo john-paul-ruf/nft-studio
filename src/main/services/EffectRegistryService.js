@@ -104,7 +104,7 @@ class EffectRegistryService {
             primary: PluginRegistry.getByCategory(EffectCategories.PRIMARY),
             secondary: PluginRegistry.getByCategory(EffectCategories.SECONDARY),
             keyFrame: PluginRegistry.getByCategory(EffectCategories.KEY_FRAME),
-            final: PluginRegistry.getByCategory(EffectCategories.FINAL_IMAGE)
+            finalImage: PluginRegistry.getByCategory(EffectCategories.FINAL_IMAGE)
         };
     }
 
