@@ -528,28 +528,6 @@ function EffectConfigurer({
                 </div>
             </div>
 
-            {/* Configuration Preview */}
-            <div style={{
-                marginTop: '1.5rem',
-                padding: '1rem',
-                background: 'rgba(255,255,255,0.05)',
-                borderRadius: '8px',
-                border: '1px solid rgba(255,255,255,0.1)'
-            }}>
-                <h4 style={{ color: '#ffffff', marginBottom: '0.5rem' }}>Configuration Preview:</h4>
-                <pre style={{
-                    fontSize: '0.8rem',
-                    overflow: 'auto',
-                    maxHeight: '200px',
-                    margin: 0,
-                    color: '#cccccc',
-                    background: 'rgba(0,0,0,0.3)',
-                    padding: '0.5rem',
-                    borderRadius: '4px'
-                }}>
-                    {JSON.stringify(effectConfig, null, 2)}
-                </pre>
-            </div>
 
             {/* Attachment Modal */}
             <EffectAttachmentModal
