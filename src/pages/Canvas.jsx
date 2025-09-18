@@ -6,16 +6,29 @@ import EffectContextMenu from '../components/EffectContextMenu';
 import ColorSchemeDropdown from '../components/ColorSchemeDropdown';
 import ColorSchemeService from '../services/ColorSchemeService';
 import PreferencesService from '../services/PreferencesService';
+import ResolutionMapper from '../utils/ResolutionMapper';
+import { useInitialResolution } from '../hooks/useInitialResolution';
 import './Canvas.css';
 
 export default function Canvas({ projectConfig, onUpdateConfig }) {
-    const [config, setConfig] = useState(projectConfig || {
-        targetResolution: 512,
-        isHorizontal: false,
-        numFrames: 100,
-        effects: [],
-        colorScheme: null // Will be set by useEffect
+    console.log('🔍 Canvas received projectConfig:', projectConfig);
+    const { initialResolution, isLoaded } = useInitialResolution(projectConfig);
+
+    const [config, setConfig] = useState(() => {
+        if (projectConfig) {
+            return projectConfig;
+        }
+        // Initialize with default, will be updated when preferences load
+        return {
+            targetResolution: ResolutionMapper.getDefaultResolution(),
+            isHorizontal: false,
+            numFrames: 100,
+            effects: [],
+            colorScheme: null
+        };
     });
+
+    // All useState hooks must be called before any early returns
     const [showColorScheme, setShowColorScheme] = useState(false);
     const [showEffectPicker, setShowEffectPicker] = useState(false);
     const [editingEffect, setEditingEffect] = useState(null);
@@ -27,6 +40,29 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
     const renderTimerRef = useRef(null);
     const [contextMenuEffect, setContextMenuEffect] = useState(null);
     const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+
+    // Update config when initial resolution loads (for non-projectConfig cases)
+    useEffect(() => {
+        console.log('🔍 Resolution update effect:', {
+            isLoaded,
+            projectConfig: !!projectConfig,
+            initialResolution,
+            currentResolution: config.targetResolution,
+            shouldUpdate: isLoaded && !projectConfig && initialResolution !== config.targetResolution
+        });
+
+        if (isLoaded && !projectConfig && initialResolution !== config.targetResolution) {
+            console.log('🚀 Updating Canvas with user resolution:', initialResolution);
+            setConfig(prev => ({ ...prev, targetResolution: initialResolution }));
+        }
+    }, [isLoaded, initialResolution, projectConfig, config.targetResolution]);
+
+    // Show loading until resolution is loaded (only for non-projectConfig cases)
+    if (!isLoaded && !projectConfig) {
+        return <div className="canvas-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+            <div>Loading...</div>
+        </div>;
+    }
 
     useEffect(() => {
         if (renderResult && canvasRef.current) {
@@ -174,25 +210,24 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
         loadDefaultColorScheme();
     }, []); // Run only on mount
 
-    const handleResolutionChange = (e) => {
+    // Resolution loading is now handled by useInitialResolution hook
+
+    const handleResolutionChange = async (e) => {
         const baseResolution = parseInt(e.target.value);
         updateConfig({ targetResolution: baseResolution });
+
+        // Save resolution preference
+        try {
+            // Save the actual pixel value as the preference
+            await PreferencesService.saveLastProjectInfo(null, null, baseResolution.toString(), null);
+            console.log('💾 Saved resolution preference:', baseResolution);
+        } catch (error) {
+            console.error('❌ Failed to save resolution preference:', error);
+        }
     };
 
     const getResolutionDimensions = () => {
-        const base = config.targetResolution;
-        const resolutionMap = {
-            640: { w: 640, h: 480 },
-            854: { w: 854, h: 480 },
-            1280: { w: 1280, h: 720 },
-            1920: { w: 1920, h: 1080 },
-            2560: { w: 2560, h: 1440 },
-            3840: { w: 3840, h: 2160 },
-            7680: { w: 7680, h: 4320 }
-        };
-
-        const dims = resolutionMap[base] || { w: 1920, h: 1080 };
-        return config.isHorizontal ? dims : { w: dims.h, h: dims.w };
+        return ResolutionMapper.getDimensions(config.targetResolution, config.isHorizontal);
     };
 
     const handleOrientationToggle = () => {
@@ -284,6 +319,23 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                 renderJumpFrames: config.numFrames + 1,
                 colorSchemeData: colorSchemeData
             };
+
+            console.log('📋 Frame values check:', {
+                toolbarSelectedFrame: selectedFrame,
+                toolbarTotalFrames: config.numFrames,
+                renderConfigStartFrame: renderConfig.renderStartFrame,
+                renderConfigJumpFrames: renderConfig.renderJumpFrames,
+                renderConfigNumFrames: renderConfig.numFrames,
+                framePassedToAPI: selectedFrame
+            });
+
+            console.log('📋 Resolution consistency check:', {
+                pickerResolution: config.targetResolution,
+                dimensionsFromPicker: dimensions,
+                renderConfigWidth: renderConfig.width,
+                renderConfigHeight: renderConfig.height,
+                renderConfigTargetResolution: renderConfig.targetResolution
+            });
 
             console.log('📋 Render config:', {
                 width: dimensions.w,
@@ -454,13 +506,11 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                         value={config.targetResolution}
                         onChange={handleResolutionChange}
                     >
-                        <option value="640">640x480 (VGA)</option>
-                        <option value="854">854x480 (FWVGA)</option>
-                        <option value="1280">1280x720 (HD)</option>
-                        <option value="1920">1920x1080 (Full HD)</option>
-                        <option value="2560">2560x1440 (QHD)</option>
-                        <option value="3840">3840x2160 (4K UHD)</option>
-                        <option value="7680">7680x4320 (8K UHD)</option>
+                        {Object.entries(ResolutionMapper.getAllResolutions()).map(([width, resolution]) => (
+                            <option key={width} value={width}>
+                                {ResolutionMapper.getDisplayName(parseInt(width))}
+                            </option>
+                        ))}
                     </select>
                 </div>
 
@@ -534,23 +584,31 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
 
             <div className="canvas-main">
                 <div className="canvas-area">
-                    <canvas
-                        ref={canvasRef}
-                        width={config.targetResolution}
-                        height={config.targetResolution}
-                        className="render-canvas"
-                    />
-                    {isRendering && (
-                        <div className="canvas-overlay">
-                            <div className="render-spinner-container">
-                                <div className="render-spinner">
-                                    <div className="spinner-circle"></div>
-                                    <div className="spinner-timer">{renderTimer}s</div>
+                    <div
+                        className="frame-holder"
+                        style={{
+                            width: `${getResolutionDimensions().w}px`,
+                            height: `${getResolutionDimensions().h}px`
+                        }}
+                    >
+                        <canvas
+                            ref={canvasRef}
+                            width={getResolutionDimensions().w}
+                            height={getResolutionDimensions().h}
+                            className="render-canvas"
+                        />
+                        {isRendering && (
+                            <div className="canvas-overlay">
+                                <div className="render-spinner-container">
+                                    <div className="render-spinner">
+                                        <div className="spinner-circle"></div>
+                                        <div className="spinner-timer">{renderTimer}s</div>
+                                    </div>
+                                    <div className="render-message">Generating frame...</div>
                                 </div>
-                                <div className="render-message">Generating frame...</div>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
 
                 <EffectsPanel

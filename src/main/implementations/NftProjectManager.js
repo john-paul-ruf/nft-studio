@@ -123,8 +123,18 @@ class NftProjectManager {
             // Configure the project based on UI parameters
             await this.configureProjectFromUI(project, config);
 
+            console.log('🎬 Backend frame generation:', {
+                frameNumber: frameNumber,
+                configNumFrames: config.numFrames,
+                configRenderStartFrame: config.renderStartFrame,
+                configRenderJumpFrames: config.renderJumpFrames,
+                usingFrameNumber: frameNumber,
+                usingTotalFrames: config.numFrames || 100
+            });
+
             // Generate single frame and return buffer
-            const buffer = await project.generateSingleFrame(frameNumber, config.numberOfFrames, true);
+            const totalFrames = config.numFrames || 100;
+            const buffer = await project.generateSingleFrame(frameNumber, totalFrames, true);
 
             this.logger.success(`Frame ${frameNumber} rendered successfully`);
 
@@ -242,8 +252,19 @@ class NftProjectManager {
         const {Project} = await import('my-nft-gen/src/app/Project.js');
         const {ColorScheme} = await import('my-nft-gen/src/core/color/ColorScheme.js');
 
-        const resolution = this.getResolutionFromConfig(projectConfig.resolution);
+        console.log('🔍 Backend resolution debug:', {
+            'projectConfig.resolution': projectConfig.resolution,
+            'projectConfig.targetResolution': projectConfig.targetResolution,
+            'projectConfig.width': projectConfig.width,
+            'projectConfig.height': projectConfig.height
+        });
+
+        // Use targetResolution if resolution is not provided (for Canvas renders)
+        const resolutionKey = projectConfig.resolution || projectConfig.targetResolution;
+        const resolution = this.getResolutionFromConfig(resolutionKey);
         const isHorizontal = projectConfig.isHorizontal;
+
+        console.log('🎯 Backend using resolution:', { resolutionKey, resolution, isHorizontal });
 
         // Build colorSchemeInfo from projectConfig.colorScheme
         const colorSchemeInfo = await this.buildColorSchemeInfo(projectConfig);
@@ -380,12 +401,55 @@ class NftProjectManager {
     }
 
     /**
-     * Get resolution configuration from string
-     * @param {string} resolutionKey - Resolution key
-     * @returns {Object} Resolution object
+     * Get resolution configuration from resolution key or pixel width
+     * @param {string|number} resolutionKey - Resolution key (legacy) or pixel width (new)
+     * @returns {Object} Resolution object with width and height
      */
     getResolutionFromConfig(resolutionKey) {
-        const resolutionMap = {
+        // If it's a number, treat it as pixel width (new format)
+        if (typeof resolutionKey === 'number' || !isNaN(parseInt(resolutionKey))) {
+            const width = parseInt(resolutionKey);
+
+            // Complete resolution mapping to match ResolutionMapper
+            const allResolutions = {
+                160: {width: 160, height: 120},
+                240: {width: 240, height: 180},
+                320: {width: 320, height: 240},
+                360: {width: 360, height: 640},
+                375: {width: 375, height: 667},
+                414: {width: 414, height: 736},
+                480: {width: 480, height: 360},
+                640: {width: 640, height: 480},
+                800: {width: 800, height: 600},
+                854: {width: 854, height: 480},
+                960: {width: 960, height: 540},
+                1024: {width: 1024, height: 768},
+                1080: {width: 1080, height: 1080},
+                1152: {width: 1152, height: 864},
+                1280: {width: 1280, height: 720},
+                1366: {width: 1366, height: 768},
+                1440: {width: 1440, height: 900},
+                1600: {width: 1600, height: 900},
+                1680: {width: 1680, height: 1050},
+                1920: {width: 1920, height: 1080},
+                2048: {width: 2048, height: 1080},
+                2560: {width: 2560, height: 1440},
+                2880: {width: 2880, height: 1620},
+                3200: {width: 3200, height: 1800},
+                3440: {width: 3440, height: 1440},
+                3840: {width: 3840, height: 2160},
+                4096: {width: 4096, height: 2160},
+                5120: {width: 5120, height: 2880},
+                6144: {width: 6144, height: 3456},
+                7680: {width: 7680, height: 4320},
+                8192: {width: 8192, height: 4320}
+            };
+
+            return allResolutions[width] || {width: 1920, height: 1080};
+        }
+
+        // Legacy string-based resolution mapping for backward compatibility
+        const legacyResolutionMap = {
             'hd': {width: 1920, height: 1080},
             'fhd': {width: 1920, height: 1080},
             '4k': {width: 3840, height: 2160},
@@ -394,7 +458,7 @@ class NftProjectManager {
             'square_4k': {width: 2160, height: 2160}
         };
 
-        return resolutionMap[resolutionKey] || resolutionMap['hd'];
+        return legacyResolutionMap[resolutionKey] || {width: 1920, height: 1080};
     }
 
     /**

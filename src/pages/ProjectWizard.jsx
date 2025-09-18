@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PreferencesService from '../services/PreferencesService';
+import ResolutionMapper from '../utils/ResolutionMapper';
 import './ProjectWizard.css';
 
 export default function ProjectWizard({ onComplete, onCancel }) {
@@ -20,9 +21,12 @@ export default function ProjectWizard({ onComplete, onCancel }) {
                 const lastProjectName = await PreferencesService.getLastProjectName();
                 const lastDirectory = await PreferencesService.getLastProjectDirectory();
 
-                if (lastArtist) setArtistName(lastArtist);
-                if (lastProjectName) setProjectName(lastProjectName);
-                if (lastDirectory) setProjectDirectory(lastDirectory);
+                console.log('🔍 Loading preferences:', { lastArtist, lastProjectName, lastDirectory });
+
+                // Set values even if they're empty strings (user might have cleared them intentionally)
+                setArtistName(lastArtist || '');
+                setProjectName(lastProjectName || '');
+                setProjectDirectory(lastDirectory || '');
             } catch (error) {
                 console.error('Error loading defaults:', error);
             }
@@ -49,16 +53,26 @@ export default function ProjectWizard({ onComplete, onCancel }) {
         if (artistName && projectName && projectDirectory) {
             setIsCompleting(true);
             try {
+                // Get user's preferred resolution
+                const lastProjectInfo = await PreferencesService.getLastProjectInfo();
+                const preferredResolution = lastProjectInfo.lastResolution
+                    ? parseInt(lastProjectInfo.lastResolution)
+                    : ResolutionMapper.getDefaultResolution();
+
                 const config = {
                     artistName,
                     projectName,
                     outputDirectory: projectDirectory,
-                    targetResolution: 512,
+                    targetResolution: ResolutionMapper.isValidResolution(preferredResolution)
+                        ? preferredResolution
+                        : ResolutionMapper.getDefaultResolution(),
                     isHorizontal: false,
                     numFrames: 100,
                     effects: [],
                     colorScheme: null
                 };
+
+                console.log('🚀 ProjectWizard creating config with resolution:', config.targetResolution);
 
                 // Save these values as preferences for next time
                 await PreferencesService.saveLastProjectInfo(

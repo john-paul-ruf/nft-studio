@@ -1,4 +1,5 @@
 // Use the exposed API from preload script instead of direct electron access
+import ResolutionMapper from '../utils/ResolutionMapper.js';
 
 /**
  * Service for managing user preferences that persist between runs
@@ -40,9 +41,9 @@ class PreferencesService {
                 defaultScheme: 'neon-cyberpunk' // Default color scheme ID
             },
             project: {
-                lastProjectName: '', // Last used project name
-                lastArtist: '', // Last used artist name
-                lastResolution: 'hd', // Last used resolution
+                lastProjectName: 'My NFT Project', // Last used project name
+                lastArtist: 'Artist', // Last used artist name
+                lastResolution: ResolutionMapper.getDefaultResolution().toString(), // Last used resolution as string
                 lastProjectDirectory: '' // Last used project directory
             },
             lastModified: new Date().toISOString()
@@ -199,10 +200,13 @@ class PreferencesService {
 
         // Handle nested structure (legacy issue)
         if (preferences.project?.lastProjectName && typeof preferences.project.lastProjectName === 'object') {
-            return preferences.project.lastProjectName.projectName || '';
+            return preferences.project.lastProjectName.projectName || this.getDefaultPreferences().project.lastProjectName;
         }
 
-        return preferences.project?.lastProjectName || '';
+        const saved = preferences.project?.lastProjectName;
+        const result = (saved && saved.trim()) ? saved : this.getDefaultPreferences().project.lastProjectName;
+        console.log('🔍 getLastProjectName result:', result);
+        return result;
     }
 
     /**
@@ -214,10 +218,13 @@ class PreferencesService {
 
         // Handle nested structure (legacy issue)
         if (preferences.project?.lastProjectName && typeof preferences.project.lastProjectName === 'object') {
-            return preferences.project.lastProjectName.artistName || '';
+            return preferences.project.lastProjectName.artistName || this.getDefaultPreferences().project.lastArtist;
         }
 
-        return preferences.project?.lastArtist || '';
+        const saved = preferences.project?.lastArtist;
+        const result = (saved && saved.trim()) ? saved : this.getDefaultPreferences().project.lastArtist;
+        console.log('🔍 getLastArtist result:', result);
+        return result;
     }
 
     /**
@@ -272,9 +279,15 @@ class PreferencesService {
                 preferences.project = this.getDefaultPreferences().project;
             }
 
-            preferences.project.lastProjectName = projectName || '';
-            preferences.project.lastArtist = artist || '';
+            console.log('💾 Saving project info:', { projectName, artist, resolution, projectDirectory });
 
+            // Only update fields that are explicitly provided (not null)
+            if (projectName !== null) {
+                preferences.project.lastProjectName = projectName || '';
+            }
+            if (artist !== null) {
+                preferences.project.lastArtist = artist || '';
+            }
             if (resolution !== null) {
                 preferences.project.lastResolution = resolution;
             }
@@ -298,7 +311,7 @@ class PreferencesService {
         return {
             lastProjectName: preferences.project?.lastProjectName || '',
             lastArtist: preferences.project?.lastArtist || '',
-            lastResolution: preferences.project?.lastResolution || 'hd',
+            lastResolution: preferences.project?.lastResolution || ResolutionMapper.getDefaultResolution().toString(),
             lastProjectDirectory: preferences.project?.lastProjectDirectory || ''
         };
     }
