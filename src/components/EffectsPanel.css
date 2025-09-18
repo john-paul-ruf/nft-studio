@@ -136,6 +136,36 @@
     color: #ff4444;
 }
 
+.visibility-button {
+    background: transparent;
+    border: none;
+    color: #666;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s, opacity 0.2s;
+    margin-right: 8px;
+}
+
+.visibility-button.visible {
+    color: #4a90e2;
+}
+
+.visibility-button.hidden {
+    color: #666;
+    opacity: 0.5;
+}
+
+.visibility-button:hover {
+    color: #4a90e2;
+    opacity: 1;
+}
+
 .secondary-effects,
 .keyframe-effects {
     margin-top: 2px;

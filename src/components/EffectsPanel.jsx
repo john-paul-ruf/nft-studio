@@ -5,7 +5,8 @@ export default function EffectsPanel({
     effects,
     onEffectDelete,
     onEffectReorder,
-    onEffectRightClick
+    onEffectRightClick,
+    onEffectToggleVisibility
 }) {
     const [draggedIndex, setDraggedIndex] = useState(null);
     const [expandedEffects, setExpandedEffects] = useState(new Set());
@@ -132,6 +133,16 @@ export default function EffectsPanel({
                                             ▶
                                         </button>
                                     )}
+                                    <button
+                                        className={`visibility-button ${effect.visible !== false ? 'visible' : 'hidden'}`}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onEffectToggleVisibility && onEffectToggleVisibility(originalIndex);
+                                        }}
+                                        title={effect.visible !== false ? 'Hide layer' : 'Show layer'}
+                                    >
+                                        {effect.visible !== false ? '👁️' : '🚫'}
+                                    </button>
                                     <span className="effect-name">
                                         {formatEffectName(effect.className)}
                                         {isFinalEffect(effect.className) && (

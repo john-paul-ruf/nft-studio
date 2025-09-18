@@ -237,6 +237,15 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
         updateConfig({ effects: newEffects });
     };
 
+    const handleEffectToggleVisibility = (index) => {
+        const newEffects = [...config.effects];
+        newEffects[index] = {
+            ...newEffects[index],
+            visible: newEffects[index].visible === false ? true : false
+        };
+        updateConfig({ effects: newEffects });
+    };
+
     const handleRender = async () => {
         setIsRendering(true);
 
@@ -263,8 +272,12 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                 }
             }
 
+            // Filter out hidden effects for rendering
+            const visibleEffects = (config.effects || []).filter(effect => effect.visible !== false);
+
             const renderConfig = {
                 ...config,
+                effects: visibleEffects,
                 width: dimensions.w,
                 height: dimensions.h,
                 renderStartFrame: selectedFrame,
@@ -276,7 +289,8 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                 width: dimensions.w,
                 height: dimensions.h,
                 frame: selectedFrame,
-                effects: config.effects?.length || 0,
+                totalEffects: config.effects?.length || 0,
+                visibleEffects: visibleEffects.length,
                 colorScheme: config.colorScheme,
                 hasColorSchemeData: !!colorSchemeData
             });
@@ -544,6 +558,7 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                     onEffectDelete={handleEffectDelete}
                     onEffectReorder={handleEffectReorder}
                     onEffectRightClick={handleEffectRightClick}
+                    onEffectToggleVisibility={handleEffectToggleVisibility}
                 />
             </div>
 
