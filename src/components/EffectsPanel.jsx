@@ -155,8 +155,9 @@ export default function EffectsPanel({
                                             e.stopPropagation();
                                             onEffectDelete(originalIndex);
                                         }}
+                                        title="Delete layer"
                                     >
-                                        ×
+                                        🗑️
                                     </button>
                                 </div>
                                 {isExpanded && (

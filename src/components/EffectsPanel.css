@@ -115,8 +115,7 @@
 .delete-button {
     background: transparent;
     border: none;
-    color: #666;
-    font-size: 18px;
+    font-size: 14px;
     cursor: pointer;
     padding: 0;
     width: 20px;
@@ -124,8 +123,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: color 0.2s;
-    opacity: 0;
+    transition: transform 0.2s, filter 0.2s;
+    opacity: 0.7;
 }
 
 .effect-item:hover .delete-button {
@@ -133,7 +132,8 @@
 }
 
 .delete-button:hover {
-    color: #ff4444;
+    transform: scale(1.1);
+    filter: brightness(1.2);
 }
 
 .visibility-button {
