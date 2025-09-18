@@ -41,6 +41,13 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
     const [contextMenuEffect, setContextMenuEffect] = useState(null);
     const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
 
+    // Zoom and pan state
+    const [zoom, setZoom] = useState(1);
+    const [pan, setPan] = useState({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+    const frameHolderRef = useRef(null);
+
     // Update config when initial resolution loads (for non-projectConfig cases)
     useEffect(() => {
         console.log('🔍 Resolution update effect:', {
@@ -233,6 +240,68 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
     const handleOrientationToggle = () => {
         updateConfig({ isHorizontal: !config.isHorizontal });
     };
+
+    // Zoom and pan functions
+    const handleZoomIn = () => {
+        setZoom(prev => Math.min(prev * 1.2, 10)); // Max zoom 10x
+    };
+
+    const handleZoomOut = () => {
+        setZoom(prev => Math.max(prev / 1.2, 0.1)); // Min zoom 0.1x
+    };
+
+    const handleZoomReset = () => {
+        setZoom(1);
+        setPan({ x: 0, y: 0 });
+    };
+
+    const handleMouseDown = (e) => {
+        if (e.target === canvasRef.current || e.target === frameHolderRef.current) {
+            setIsDragging(true);
+            setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+            e.preventDefault();
+        }
+    };
+
+    const handleMouseMove = (e) => {
+        if (isDragging) {
+            setPan({
+                x: e.clientX - dragStart.x,
+                y: e.clientY - dragStart.y
+            });
+        }
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+    };
+
+    const handleWheel = (e) => {
+        if (e.target === canvasRef.current || e.target.closest('.frame-holder')) {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            setZoom(prev => Math.max(0.1, Math.min(prev * delta, 10)));
+        }
+    };
+
+    // Add global mouse event listeners for dragging
+    useEffect(() => {
+        if (isDragging) {
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = 'grabbing';
+        } else {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = '';
+        }
+
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = '';
+        };
+    }, [isDragging, dragStart]);
 
     const handleFramesChange = (e) => {
         const frames = parseInt(e.target.value);
@@ -525,6 +594,32 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                 </div>
 
                 <div className="toolbar-group">
+                    <label className="toolbar-label">Zoom</label>
+                    <button
+                        className="toolbar-button zoom-button"
+                        onClick={handleZoomOut}
+                        title="Zoom out"
+                    >
+                        −
+                    </button>
+                    <span className="zoom-level">{Math.round(zoom * 100)}%</span>
+                    <button
+                        className="toolbar-button zoom-button"
+                        onClick={handleZoomIn}
+                        title="Zoom in"
+                    >
+                        +
+                    </button>
+                    <button
+                        className="toolbar-button zoom-button"
+                        onClick={handleZoomReset}
+                        title="Reset zoom and pan"
+                    >
+                        ⌂
+                    </button>
+                </div>
+
+                <div className="toolbar-group">
                     <label className="toolbar-label">Frames</label>
                     <input
                         type="number"
@@ -585,11 +680,18 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
             <div className="canvas-main">
                 <div className="canvas-area">
                     <div
+                        ref={frameHolderRef}
                         className="frame-holder"
                         style={{
                             width: `${getResolutionDimensions().w}px`,
-                            height: `${getResolutionDimensions().h}px`
+                            height: `${getResolutionDimensions().h}px`,
+                            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                            transformOrigin: 'center',
+                            cursor: isDragging ? 'grabbing' : 'grab',
+                            transition: isDragging ? 'none' : 'transform 0.1s ease'
                         }}
+                        onMouseDown={handleMouseDown}
+                        onWheel={handleWheel}
                     >
                         <canvas
                             ref={canvasRef}
