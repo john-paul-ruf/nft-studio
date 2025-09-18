@@ -45,32 +45,23 @@ class EffectDefaultsTests {
                 await this.effectsManager.getEffectDefaults('non-existent-effect');
                 throw new Error('getEffectDefaults should throw for non-existent effect');
             } catch (error) {
-                if (!error.message.includes('No config found')) {
+                if (!error.message.includes('Effect not found')) {
                     throw new Error('getEffectDefaults should throw specific error for non-existent effect');
                 }
             }
 
-            // Test 2: Known effect without config should throw error
-            try {
-                await this.effectsManager.getEffectDefaults('fuzz-flare');
-                throw new Error('getEffectDefaults should throw for fuzz-flare (effect without config)');
-            } catch (error) {
-                if (!error.message.includes('No config found')) {
-                    throw new Error('getEffectDefaults should throw specific error for fuzz-flare');
-                }
+            // Test 2: Known effect WITH config should return defaults
+            const fuzzFlareDefaults = await this.effectsManager.getEffectDefaults('fuzz-flare');
+            if (!fuzzFlareDefaults || typeof fuzzFlareDefaults !== 'object') {
+                throw new Error('getEffectDefaults should return object for fuzz-flare (effect with config)');
             }
 
-            // Test 3: Effects without configs should consistently throw errors
-            const effectsWithoutConfigs = ['hex', 'amp', 'blink-on-blink-on-blink-redux', 'curved-red-eye'];
-            for (const effectName of effectsWithoutConfigs) {
-                try {
-                    await this.effectsManager.getEffectDefaults(effectName);
-                    throw new Error(`${effectName} should throw error if it has no config`);
-                } catch (error) {
-                    if (!error.message.includes('No config found')) {
-                        throw new Error(`${effectName} should throw specific config error: ${error.message}`);
-                    }
-                    // This is expected - effect should fail if no config
+            // Test 3: Effects with configs should return default objects
+            const effectsWithConfigs = ['hex', 'amp', 'blink-on-blink-on-blink-redux', 'curved-red-eye'];
+            for (const effectName of effectsWithConfigs) {
+                const defaults = await this.effectsManager.getEffectDefaults(effectName);
+                if (!defaults || typeof defaults !== 'object') {
+                    throw new Error(`${effectName} should return defaults object since it has config`);
                 }
             }
 
@@ -109,7 +100,7 @@ class EffectDefaultsTests {
                 }
             };
 
-            // Test 1: Effect without config should return success=false (fail fast)
+            // Test 1: Effect WITH config should return success=true
             const result1 = await mockIpcHandler('fuzz-flare');
             if (!result1.hasOwnProperty('success')) {
                 throw new Error('IPC response should have success property');
@@ -119,12 +110,12 @@ class EffectDefaultsTests {
                 throw new Error('IPC response should have defaults property');
             }
 
-            if (result1.success) {
-                throw new Error('IPC response should have success=false for effects without config');
+            if (!result1.success) {
+                throw new Error('IPC response should have success=true for effects with config');
             }
 
-            if (!result1.error || !result1.error.includes('No config found')) {
-                throw new Error('IPC response should include specific error message');
+            if (!result1.defaults || typeof result1.defaults !== 'object') {
+                throw new Error('IPC response should include defaults object');
             }
 
             // Test 2: Non-existent effect should also return success=false (fail fast)
@@ -133,7 +124,7 @@ class EffectDefaultsTests {
                 throw new Error('IPC response should fail for non-existent effects');
             }
 
-            if (!result2.error || !result2.error.includes('No config found')) {
+            if (!result2.error || !result2.error.includes('Effect not found')) {
                 throw new Error('IPC response should include error for non-existent effects');
             }
 
@@ -190,19 +181,19 @@ class EffectDefaultsTests {
                 }
             };
 
-            // Test 1: Effect without config should work in EffectPicker
+            // Test 1: Effect WITH config should work in EffectPicker
             const effect1 = { name: 'fuzz-flare', category: 'primary' };
             const result1 = await mockEffectPickerBehavior(effect1);
 
             if (!result1.success) {
-                throw new Error('EffectPicker should handle effects without config: ' + result1.error);
+                throw new Error('EffectPicker should handle effects with config: ' + result1.error);
             }
 
             if (!result1.effect || typeof result1.effect.config !== 'object') {
                 throw new Error('EffectPicker should create valid effect object');
             }
 
-            // Test 2: Multiple effects without configs should all work
+            // Test 2: Multiple effects with configs should all work
             const testEffects = [
                 { name: 'hex', category: 'primary' },
                 { name: 'amp', category: 'primary' },
@@ -234,41 +225,43 @@ class EffectDefaultsTests {
         try {
             console.log('Testing error handling improvements...');
 
-            // Test 1: No errors should be thrown for effects without configs
-            const effectsWithoutConfigs = ['hex', 'fuzz-flare', 'amp', 'blink-on-blink-on-blink-redux'];
+            // Test 1: No errors should be thrown for effects with configs
+            const effectsWithConfigs = ['hex', 'fuzz-flare', 'amp', 'blink-on-blink-on-blink-redux'];
 
-            for (const effectName of effectsWithoutConfigs) {
-                try {
-                    const result = await this.effectsManager.getEffectDefaults(effectName);
-                    // Should return empty object, not throw
-                    if (typeof result !== 'object') {
-                        throw new Error(`Should return object for ${effectName}`);
-                    }
-                } catch (error) {
-                    throw new Error(`Should not throw for ${effectName}: ${error.message}`);
+            for (const effectName of effectsWithConfigs) {
+                const result = await this.effectsManager.getEffectDefaults(effectName);
+                // Should return populated object
+                if (typeof result !== 'object' || result === null) {
+                    throw new Error(`Should return object for ${effectName}`);
+                }
+                if (Object.keys(result).length === 0) {
+                    throw new Error(`Should return non-empty defaults for ${effectName}`);
                 }
             }
 
-            // Test 2: Invalid inputs should be handled gracefully
+            // Test 2: Invalid inputs should throw appropriate errors
             const invalidInputs = [null, undefined, '', 123, {}];
 
             for (const input of invalidInputs) {
                 try {
-                    const result = await this.effectsManager.getEffectDefaults(input);
-                    // Should return empty object or handle gracefully
-                    if (typeof result !== 'object') {
-                        console.log(`Warning: Invalid input ${input} returned non-object`);
-                    }
+                    await this.effectsManager.getEffectDefaults(input);
+                    throw new Error(`Should throw error for invalid input: ${input}`);
                 } catch (error) {
-                    // This is acceptable - invalid inputs may throw
-                    console.log(`Note: Invalid input ${input} threw: ${error.message}`);
+                    // This is expected - invalid inputs should throw
+                    if (!error.message.includes('Invalid effectName')) {
+                        throw new Error(`Should throw specific validation error for ${input}`);
+                    }
                 }
             }
 
-            // Test 3: Response format should always be consistent
-            const result = await this.effectsManager.getEffectDefaults('any-effect-name');
-            if (typeof result !== 'object' || result === null) {
-                throw new Error('getEffectDefaults should always return object');
+            // Test 3: Non-existent effects should throw appropriate errors
+            try {
+                await this.effectsManager.getEffectDefaults('non-existent-effect-xyz');
+                throw new Error('Should throw error for non-existent effect');
+            } catch (error) {
+                if (!error.message.includes('Effect not found')) {
+                    throw new Error('Should throw "Effect not found" error');
+                }
             }
 
             console.log('  ✅ Error handling works correctly');

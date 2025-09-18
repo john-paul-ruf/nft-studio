@@ -133,6 +133,11 @@ class NftEffectsManager {
      */
     async getEffectDefaults(effectName) {
         try {
+            // Input validation
+            if (!effectName || typeof effectName !== 'string') {
+                throw new Error(`Invalid effectName: ${effectName}. Must be a non-empty string.`);
+            }
+
             await this.effectRegistryService.ensureCoreEffectsRegistered();
 
             // Use modern plugin registry with linked config classes

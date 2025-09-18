@@ -292,7 +292,7 @@ class FrontendBackendContractTests {
                 },
                 createProject: (config) => {
                     const colorBucket = config.selectedColorScheme
-                        ? this.createColorBucket(config.selectedColorScheme)
+                        ? mockBackend.createColorBucket(config.selectedColorScheme)
                         : ['#default'];
 
                     return {

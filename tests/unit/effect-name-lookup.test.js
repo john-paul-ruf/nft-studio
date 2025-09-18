@@ -110,9 +110,9 @@ class EffectNameLookupTests {
                 throw new Error('getEffectDefaults method should accept effectName parameter');
             }
 
-            // Check that it uses ConfigRegistry.getGlobal with the effect name
-            if (!methodString.includes('ConfigRegistry.getGlobal(effectName)')) {
-                throw new Error('getEffectDefaults should call ConfigRegistry.getGlobal(effectName)');
+            // Check that it uses the effectName parameter for lookups
+            if (!methodString.includes('getEffectWithConfig(effectName)')) {
+                throw new Error('getEffectDefaults should call getEffectWithConfig(effectName)');
             }
 
             console.log('  ✅ getEffectDefaults correctly uses effect name for config lookup');
@@ -167,9 +167,9 @@ class EffectNameLookupTests {
             // Test that introspectConfig method uses effectName for config lookup
             const methodString = this.effectsManager.introspectConfig.toString();
 
-            // Check that it uses ConfigRegistry.getGlobal with the effect name
-            if (!methodString.includes('ConfigRegistry.getGlobal(effectName)')) {
-                throw new Error('introspectConfig should call ConfigRegistry.getGlobal(effectName)');
+            // Check that it uses the effectName parameter for lookups
+            if (!methodString.includes('getEffectWithConfig(effectName)')) {
+                throw new Error('introspectConfig should call getEffectWithConfig(effectName)');
             }
 
             console.log('  ✅ introspectConfig correctly uses effect name for config lookup');
