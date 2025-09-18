@@ -337,7 +337,7 @@ if (require.main === module) {
     tests.runAllTests().then(results => {
         if (results.failed === 0) {
             console.log('\n✅ Render pipeline is working correctly!');
-            console.log('If you\'re still seeing spinner issues in the UI, the problem might be:');
+            console.log('If you\'re still seeing rendering issues in the UI, the problem might be:');
             console.log('  - Frontend state management');
             console.log('  - IPC communication timing');
             console.log('  - Image display in Canvas component');

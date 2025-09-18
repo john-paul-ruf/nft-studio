@@ -59,14 +59,6 @@ describe('Canvas Component', () => {
             };
         });
 
-        jest.doMock('../../src/components/Spinner', () => {
-            return function MockSpinner({ size, color, message }) {
-                return {
-                    type: 'MockSpinner',
-                    props: { size, color, message }
-                };
-            };
-        });
 
         mockProps = {
             projectConfig: createMockProjectConfig(),

@@ -260,7 +260,7 @@
     background: #444;
 }
 
-/* Spinner-related styles */
+/* Loading overlay styles */
 .canvas-overlay {
     position: absolute;
     top: 0;
@@ -274,11 +274,53 @@
     z-index: 100;
 }
 
-.render-button-content {
+/* Render spinner with timer */
+.render-spinner-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.render-spinner {
+    position: relative;
+    width: 120px;
+    height: 120px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
 }
+
+.spinner-circle {
+    width: 120px;
+    height: 120px;
+    border: 8px solid rgba(40, 167, 69, 0.3);
+    border-top: 8px solid #28a745;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.spinner-timer {
+    position: absolute;
+    color: #28a745;
+    font-size: 24px;
+    font-weight: bold;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+}
+
+.render-message {
+    color: white;
+    font-size: 18px;
+    font-weight: 500;
+    text-align: center;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 
 .canvas-area {
     position: relative;

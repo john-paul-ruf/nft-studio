@@ -4,7 +4,6 @@ import './EffectEditor.css';
 export default function EffectEditor({ effect, onUpdate, onClose }) {
     const [config, setConfig] = useState(effect.config || {});
     const [schema, setSchema] = useState(null);
-    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         loadSchema();
@@ -16,8 +15,6 @@ export default function EffectEditor({ effect, onUpdate, onClose }) {
             setSchema(effectSchema);
         } catch (error) {
             console.error('Failed to load effect schema:', error);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -164,9 +161,7 @@ export default function EffectEditor({ effect, onUpdate, onClose }) {
                 </div>
 
                 <div className="effect-editor-body">
-                    {loading ? (
-                        <div className="loading">Loading configuration...</div>
-                    ) : schema && schema.fields ? (
+                    {schema && schema.fields ? (
                         <div className="effect-fields">
                             {schema.fields.map((field, index) => (
                                 <div key={index} className="field-container">

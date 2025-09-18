@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import Spinner from './Spinner';
 import './EffectPicker.css';
 
 export default function EffectPicker({ onSelect, onClose }) {
     const [effects, setEffects] = useState([]);
-    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         loadEffects();
@@ -28,8 +26,6 @@ export default function EffectPicker({ onSelect, onClose }) {
         } catch (error) {
             console.error('Failed to load effects:', error);
             setEffects([]);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -43,15 +39,7 @@ export default function EffectPicker({ onSelect, onClose }) {
                 </div>
 
                 <div className="effect-list">
-                    {loading ? (
-                        <div className="loading">
-                            <Spinner
-                                size="medium"
-                                color="white"
-                                message="Loading effects..."
-                            />
-                        </div>
-                    ) : effects.length === 0 ? (
+                    {effects.length === 0 ? (
                         <div className="loading">No effects available</div>
                     ) : (
                         <div className="effect-grid">

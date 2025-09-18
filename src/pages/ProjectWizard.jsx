@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Spinner from '../components/Spinner';
 import PreferencesService from '../services/PreferencesService';
 import './ProjectWizard.css';
 
@@ -180,12 +179,7 @@ export default function ProjectWizard({ onComplete, onCancel }) {
                             onClick={handleNext}
                             disabled={!canProceed() || isCompleting}
                         >
-                            {isCompleting ? (
-                                <div className="button-spinner-content">
-                                    <Spinner size="small" color="white" />
-                                    <span>Creating...</span>
-                                </div>
-                            ) : (step === 3 ? 'Create' : 'Next')}
+                            {isCompleting ? 'Creating...' : (step === 3 ? 'Create' : 'Next')}
                         </button>
                     </div>
                 </div>

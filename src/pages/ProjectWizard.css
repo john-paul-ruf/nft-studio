@@ -180,9 +180,3 @@
     cursor: not-allowed;
 }
 
-/* Spinner button content */
-.button-spinner-content {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}

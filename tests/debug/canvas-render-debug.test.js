@@ -148,12 +148,12 @@ class CanvasRenderDebugTest {
             const hasAwaitRenderFrame = content.includes('await window.api.renderFrame');
             console.log(`   📊 Uses await for renderFrame: ${hasAwaitRenderFrame}`);
 
-            // Check for finally block to reset spinner
+            // Check for finally block to reset rendering state
             const hasFinallyBlock = content.includes('finally') && content.includes('setIsRendering(false)');
-            console.log(`   📊 Has finally block to reset spinner: ${hasFinallyBlock}`);
+            console.log(`   📊 Has finally block to reset rendering state: ${hasFinallyBlock}`);
 
             if (!hasFinallyBlock) {
-                console.log(`   ⚠️  POTENTIAL ISSUE: No finally block - spinner might stick if error occurs`);
+                console.log(`   ⚠️  POTENTIAL ISSUE: No finally block - rendering state might stick if error occurs`);
             }
 
             this.assertTrue(true, 'Async patterns analyzed');
@@ -176,7 +176,7 @@ class CanvasRenderDebugTest {
             console.log(`   📊 Sets render result: ${setsRenderResult}`);
 
             if (!setsRenderingTrue || !setsRenderingFalse) {
-                console.log(`   ⚠️  POTENTIAL ISSUE: Incomplete spinner state management`);
+                console.log(`   ⚠️  POTENTIAL ISSUE: Incomplete rendering state management`);
             }
 
             this.assertTrue(true, 'State update patterns analyzed');
@@ -241,7 +241,7 @@ class CanvasRenderDebugTest {
 
     async runAllTests() {
         console.log('🚀 Running Canvas Render Debug Tests...\n');
-        console.log('This will analyze the frontend Canvas component to identify why rendering shows spinner.');
+        console.log('This will analyze the frontend Canvas component to identify rendering state issues.');
 
         try {
             await this.analyzeCanvasComponent();

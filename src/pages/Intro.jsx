@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import PreferencesService from '../services/PreferencesService';
-import Spinner from '../components/Spinner';
 import './Intro.css';
 
 export default function Intro({ onNewProject, onEditProject }) {
@@ -27,15 +26,6 @@ export default function Intro({ onNewProject, onEditProject }) {
         <div className="intro-screen">
             <div className="intro-content">
                 <h1 className="intro-title">NFT Studio</h1>
-                {!preferencesInitialized && (
-                    <div className="preferences-loading">
-                        <Spinner
-                            size="medium"
-                            color="white"
-                            message="Loading preferences..."
-                        />
-                    </div>
-                )}
                 <div className="intro-buttons">
                     <button
                         className="intro-button new-project"

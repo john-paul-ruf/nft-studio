@@ -6,7 +6,6 @@ import EffectContextMenu from '../components/EffectContextMenu';
 import ColorSchemeDropdown from '../components/ColorSchemeDropdown';
 import ColorSchemeService from '../services/ColorSchemeService';
 import PreferencesService from '../services/PreferencesService';
-import Spinner from '../components/Spinner';
 import './Canvas.css';
 
 export default function Canvas({ projectConfig, onUpdateConfig }) {
@@ -23,7 +22,9 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
     const [selectedFrame, setSelectedFrame] = useState(0);
     const [renderResult, setRenderResult] = useState(null);
     const [isRendering, setIsRendering] = useState(false);
+    const [renderTimer, setRenderTimer] = useState(0);
     const canvasRef = useRef(null);
+    const renderTimerRef = useRef(null);
     const [contextMenuEffect, setContextMenuEffect] = useState(null);
     const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
 
@@ -107,6 +108,28 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
             }
         };
     }, [renderResult]);
+
+    // Timer effect for rendering
+    useEffect(() => {
+        if (isRendering) {
+            setRenderTimer(0);
+            renderTimerRef.current = setInterval(() => {
+                setRenderTimer(prev => prev + 1);
+            }, 1000);
+        } else {
+            if (renderTimerRef.current) {
+                clearInterval(renderTimerRef.current);
+                renderTimerRef.current = null;
+            }
+        }
+
+        return () => {
+            if (renderTimerRef.current) {
+                clearInterval(renderTimerRef.current);
+                renderTimerRef.current = null;
+            }
+        };
+    }, [isRendering]);
 
     const updateConfig = (updates) => {
         const newConfig = { ...config, ...updates };
@@ -490,12 +513,7 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                         onClick={handleRender}
                         disabled={isRendering}
                     >
-                        {isRendering ? (
-                            <div className="render-button-content">
-                                <Spinner size="small" color="white" />
-                                <span>Rendering...</span>
-                            </div>
-                        ) : 'Render'}
+                        {isRendering ? 'Rendering...' : 'Render'}
                     </button>
                 </div>
             </div>
@@ -510,11 +528,13 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                     />
                     {isRendering && (
                         <div className="canvas-overlay">
-                            <Spinner
-                                size="large"
-                                color="white"
-                                message="Generating frame..."
-                            />
+                            <div className="render-spinner-container">
+                                <div className="render-spinner">
+                                    <div className="spinner-circle"></div>
+                                    <div className="spinner-timer">{renderTimer}s</div>
+                                </div>
+                                <div className="render-message">Generating frame...</div>
+                            </div>
                         </div>
                     )}
                 </div>

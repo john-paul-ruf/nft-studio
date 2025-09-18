@@ -10,7 +10,6 @@ export default function EffectContextMenu({
 }) {
     const [secondaryEffects, setSecondaryEffects] = useState([]);
     const [keyframeEffects, setKeyframeEffects] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [showSecondarySubmenu, setShowSecondarySubmenu] = useState(false);
     const [showKeyframeSubmenu, setShowKeyframeSubmenu] = useState(false);
 
@@ -27,8 +26,6 @@ export default function EffectContextMenu({
             }
         } catch (error) {
             console.error('Failed to load effects:', error);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -55,9 +52,7 @@ export default function EffectContextMenu({
                     Add Secondary Effect →
                     {showSecondarySubmenu && (
                         <div className="context-submenu">
-                            {loading ? (
-                                <div className="context-menu-item disabled">Loading...</div>
-                            ) : secondaryEffects.length === 0 ? (
+                            {secondaryEffects.length === 0 ? (
                                 <div className="context-menu-item disabled">No secondary effects available</div>
                             ) : (
                                 secondaryEffects.map((effect, index) => (
@@ -86,9 +81,7 @@ export default function EffectContextMenu({
                     Add Keyframe Effect →
                     {showKeyframeSubmenu && (
                         <div className="context-submenu">
-                            {loading ? (
-                                <div className="context-menu-item disabled">Loading...</div>
-                            ) : keyframeEffects.length === 0 ? (
+                            {keyframeEffects.length === 0 ? (
                                 <div className="context-menu-item disabled">No keyframe effects available</div>
                             ) : (
                                 keyframeEffects.map((effect, index) => (

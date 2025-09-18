@@ -10,7 +10,6 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true 
     const [showCreator, setShowCreator] = useState(false);
     const [editingScheme, setEditingScheme] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [loading, setLoading] = useState(true);
     const [favorites, setFavorites] = useState([]);
     const [defaultScheme, setDefaultScheme] = useState(null);
 
@@ -20,7 +19,6 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true 
 
     const loadColorSchemes = async () => {
         try {
-            setLoading(true);
             const [schemes, categorized, favs, defaultSch] = await Promise.all([
                 ColorSchemeService.getAllColorSchemes(),
                 ColorSchemeService.getColorSchemesByCategory(),
@@ -34,8 +32,6 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true 
             setDefaultScheme(defaultSch);
         } catch (error) {
             console.error('Error loading color schemes:', error);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -325,29 +321,6 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true 
         Object.assign(filteredSchemes, categorizedSchemes);
     }
 
-    if (loading) {
-        return (
-            <div style={{
-                background: 'rgba(255,255,255,0.1)',
-                border: '1px solid #333',
-                borderRadius: '6px',
-                padding: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-            }}>
-                <div style={{
-                    width: '16px',
-                    height: '16px',
-                    border: '2px solid #333',
-                    borderTop: '2px solid #667eea',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite'
-                }} />
-                <span>Loading color schemes...</span>
-            </div>
-        );
-    }
 
     return (
         <div style={{ position: 'relative' }}>

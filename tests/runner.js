@@ -228,7 +228,6 @@ class AppVerificationTests {
             './src/pages/Intro.jsx',
             './src/pages/ProjectWizard.jsx',
             './src/pages/Canvas.jsx',
-            './src/components/Spinner.jsx',
             './src/components/EffectPicker.jsx',
             './src/components/EffectsPanel.jsx'
         ];
