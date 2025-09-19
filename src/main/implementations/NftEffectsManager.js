@@ -36,6 +36,7 @@ class NftEffectsManager {
             return {
                 primary: effects.primary.map(plugin => ({
                     name: plugin.name,
+                    registryKey: plugin.name, // Preserve the original registry key
                     displayName: plugin.metadata?.displayName || plugin.name,
                     description: plugin.metadata?.description || '',
                     className: this.deriveClassName(plugin.name),
@@ -43,6 +44,7 @@ class NftEffectsManager {
                 })),
                 secondary: effects.secondary.map(plugin => ({
                     name: plugin.name,
+                    registryKey: plugin.name, // Preserve the original registry key
                     displayName: plugin.metadata?.displayName || plugin.name,
                     description: plugin.metadata?.description || '',
                     className: this.deriveClassName(plugin.name),
@@ -50,6 +52,7 @@ class NftEffectsManager {
                 })),
                 finalImage: effects.finalImage.map(plugin => ({
                     name: plugin.name,
+                    registryKey: plugin.name, // Preserve the original registry key
                     displayName: plugin.metadata?.displayName || plugin.name,
                     description: plugin.metadata?.description || '',
                     className: this.deriveClassName(plugin.name),

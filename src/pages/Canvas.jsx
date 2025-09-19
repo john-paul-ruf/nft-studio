@@ -548,6 +548,7 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
 
                 const effect = {
                     name: effectName, // Keep original name from registry
+                    registryKey: effectData?.registryKey || effectName, // Use original registry key
                     className: effectData?.className || effectName, // Use className from effect data or fallback to name
                     type: effectType,
                     config: result.defaults,
@@ -845,7 +846,8 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
         try {
             const defaults = await window.api.getEffectDefaults(newSecondaryEffect.name);
             const secondaryEffectToAdd = {
-                className: newSecondaryEffect.name,
+                registryKey: newSecondaryEffect.registryKey || newSecondaryEffect.name,
+                className: newSecondaryEffect.className || newSecondaryEffect.name,
                 config: defaults || {}
             };
 
@@ -868,7 +870,8 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
             const frameNumber = selectedFrame; // Use current frame
             const keyframeEffectToAdd = {
                 frame: frameNumber,
-                className: newKeyframeEffect.name,
+                registryKey: newKeyframeEffect.registryKey || newKeyframeEffect.name,
+                className: newKeyframeEffect.className || newKeyframeEffect.name,
                 config: defaults || {}
             };
 

@@ -33,8 +33,8 @@ class EffectProcessingService {
 
         for (const effect of effects) {
             try {
-                // Use registry to get effect class - handle both className and effectClass.name formats
-                const effectName = effect.className || effect.effectClass?.name;
+                // Use registryKey only - no fallbacks to force proper key passing
+                const effectName = effect.registryKey;
 
                 // Get the actual Effect class from registry
                 let registryData = EffectRegistry.getGlobal(effectName);
@@ -78,7 +78,7 @@ class EffectProcessingService {
                 const secondaryEffects = effect.secondaryEffects || effect.attachedEffects?.secondary || [];
 
                 for (const secondaryEffect of secondaryEffects) {
-                    const secondaryEffectName = secondaryEffect.className || secondaryEffect.effectClass?.name;
+                    const secondaryEffectName = secondaryEffect.registryKey;
                     const SecondaryEffectClass = EffectRegistry.getGlobal(secondaryEffectName);
                     if (SecondaryEffectClass) {
                         const secondaryConfigInstance = await this.createConfigInstance(secondaryEffect, myNftGenPath);
@@ -144,8 +144,8 @@ class EffectProcessingService {
             // Ensure effects are registered with configs linked
             await registryService.ensureCoreEffectsRegistered();
 
-            // Get effect name from either format
-            const effectName = effect.className || effect.effectClass?.name;
+            // Get effect name from registryKey first, then fallback to other formats
+            const effectName = effect.registryKey || effect.className || effect.effectClass?.name;
 
             if (!effectName) {
                 console.warn('No effect name found, using user config');
