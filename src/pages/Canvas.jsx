@@ -5,7 +5,8 @@ import EffectConfigurer from '../components/effects/EffectConfigurer.jsx';
 import EventBusMonitor from '../components/EventBusMonitor.jsx';
 import ColorSchemeService from '../services/ColorSchemeService.js';
 import PreferencesService from '../services/PreferencesService.js';
-import ResolutionMapper from '../utils/ResolutionMapper.js';
+import ProjectState from '../models/ProjectState.js';
+import ProjectPersistenceService from '../services/ProjectPersistenceService.js';
 import { useInitialResolution } from '../hooks/useInitialResolution.js';
 
 // Canvas components and hooks
@@ -32,23 +33,96 @@ import {
 import { Close } from '@mui/icons-material';
 import './Canvas.css';
 
-export default function Canvas({ projectConfig, onUpdateConfig }) {
-    console.log('🔍 Canvas received projectConfig:', projectConfig);
-    const { initialResolution, isLoaded } = useInitialResolution(projectConfig);
+export default function Canvas({ projectData, onUpdateConfig }) {
+    console.log('🔍 Canvas received projectData:', projectData);
 
-    const [config, setConfig] = useState(() => {
-        if (projectConfig) {
-            return projectConfig;
+    // Initialize ProjectState instance with re-render trigger
+    const [projectState] = useState(() => {
+        if (projectData?.projectConfig) {
+            // Legacy support: load from old projectConfig
+            return ProjectState.fromLegacyConfig(projectData.projectConfig, onUpdateConfig);
+        } else if (projectData?.projectState) {
+            // New: load from serialized ProjectState
+            return ProjectState.fromObject(projectData.projectState, onUpdateConfig);
+        } else if (projectData?.filePath) {
+            // Will be loaded async below
+            return new ProjectState(null, onUpdateConfig);
+        } else {
+            // Default empty project
+            return new ProjectState(null, onUpdateConfig);
         }
-        // Initialize with default, will be updated when preferences load
-        return {
-            targetResolution: ResolutionMapper.getDefaultResolution(),
-            isHorizontal: false,
-            numFrames: 100,
-            effects: [],
-            colorScheme: null
-        };
     });
+
+    // Initialize persistence service
+    const [persistenceService] = useState(() => {
+        if (projectData?.persistenceService) {
+            // Use existing persistence service from wizard
+            return projectData.persistenceService;
+        } else {
+            // Create new persistence service
+            const service = new ProjectPersistenceService();
+
+            // Set up auto-saving if we have project directory
+            const outputDirectory = projectState.getOutputDirectory();
+            if (outputDirectory) {
+                service.setCurrentProject(projectState, outputDirectory);
+            }
+
+            return service;
+        }
+    });
+
+    // State for triggering re-renders when ProjectState updates
+    const [configVersion, setConfigVersion] = useState(0);
+    const [isLoading, setIsLoading] = useState(false);
+    const [lastSaveStatus, setLastSaveStatus] = useState(null);
+
+    // Update ProjectState's onUpdate callback to trigger re-renders and auto-save
+    useEffect(() => {
+        const originalOnUpdate = projectState.onUpdate;
+
+        projectState.onUpdate = (newState) => {
+            // Call original callback first
+            if (originalOnUpdate) {
+                originalOnUpdate(newState);
+            }
+
+            if (onUpdateConfig) {
+                onUpdateConfig(newState);
+            }
+
+            // Trigger re-render
+            setConfigVersion(prev => prev + 1);
+
+            // Show save status briefly
+            setLastSaveStatus('saving');
+            setTimeout(() => setLastSaveStatus('saved'), 1000);
+            setTimeout(() => setLastSaveStatus(null), 3000);
+        };
+    }, [projectState, onUpdateConfig]);
+
+    // Load project from file if filePath is provided
+    useEffect(() => {
+        if (projectData?.filePath && projectData?.loadedFromFile) {
+            setIsLoading(true);
+            ProjectState.loadFromFile(projectData.filePath, onUpdateConfig)
+                .then(loadedProjectState => {
+                    // Replace the current projectState with loaded one
+                    Object.assign(projectState, loadedProjectState);
+                    setConfigVersion(prev => prev + 1);
+                    setIsLoading(false);
+                })
+                .catch(error => {
+                    console.error('Failed to load project from file:', error);
+                    setIsLoading(false);
+                });
+        }
+    }, [projectData?.filePath, projectData?.loadedFromFile, projectState, onUpdateConfig]);
+
+    const { initialResolution, isLoaded } = useInitialResolution(null); // No longer depend on projectConfig
+
+    // Get current config from projectState
+    const config = projectState.getState();
 
     // State hooks
     const [showEffectPicker, setShowEffectPicker] = useState(false);
@@ -65,10 +139,9 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
     const [themeMode, setThemeMode] = useState('dark');
     const currentTheme = createAppTheme(themeMode);
 
+    // Update config through ProjectState
     const updateConfig = (updates) => {
-        const newConfig = { ...config, ...updates };
-        setConfig(newConfig);
-        onUpdateConfig(newConfig);
+        projectState.update(updates);
     };
 
     // Custom hooks
@@ -103,7 +176,7 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
     } = useEffectManagement(config, updateConfig);
 
     const getResolutionDimensions = () => {
-        return ResolutionMapper.getDimensions(config.targetResolution, config.isHorizontal);
+        return projectState.getResolutionDimensions();
     };
 
     const {
@@ -117,24 +190,24 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
         setShowEventMonitor
     } = useRenderManagement(config, getResolutionDimensions);
 
-    // Update config when initial resolution loads (for non-projectConfig cases)
+    // Update config when initial resolution loads (for empty projects)
     useEffect(() => {
         console.log('🔍 Resolution update effect:', {
             isLoaded,
-            projectConfig: !!projectConfig,
+            hasProjectData: !!projectData,
             initialResolution,
             currentResolution: config.targetResolution,
-            shouldUpdate: isLoaded && !projectConfig && initialResolution !== config.targetResolution
+            shouldUpdate: isLoaded && !projectData && initialResolution !== config.targetResolution
         });
 
-        if (isLoaded && !projectConfig && initialResolution !== config.targetResolution) {
+        if (isLoaded && !projectData && initialResolution !== config.targetResolution) {
             console.log('🚀 Updating Canvas with user resolution:', initialResolution);
-            setConfig(prev => ({ ...prev, targetResolution: initialResolution }));
+            projectState.setTargetResolution(initialResolution);
         }
-    }, [isLoaded, initialResolution, projectConfig, config.targetResolution]);
+    }, [isLoaded, initialResolution, projectData, config.targetResolution, projectState]);
 
-    // Show loading until resolution is loaded (only for non-projectConfig cases)
-    if (!isLoaded && !projectConfig) {
+    // Show loading while project is being loaded or resolution is being determined
+    if (isLoading || (!isLoaded && !projectData)) {
         return <div className="canvas-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
             <div>Loading...</div>
         </div>;
@@ -332,6 +405,9 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                     onColorSchemeChange={handleColorSchemeChange}
                     onAddEffectDirect={handleAddEffectDirect}
                     onThemeToggle={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
+                    lastSaveStatus={lastSaveStatus}
+                    currentProjectPath={persistenceService?.getCurrentProjectPath()}
+                    onForceSave={() => persistenceService?.forceSave()}
                     closeAllDropdowns={closeAllDropdowns}
                     zoomMenuAnchor={zoomMenuAnchor}
                     setZoomMenuAnchor={setZoomMenuAnchor}

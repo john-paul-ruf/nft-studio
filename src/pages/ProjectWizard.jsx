@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import PreferencesService from '../services/PreferencesService.js';
 import ResolutionMapper from '../utils/ResolutionMapper.js';
+import ProjectState from '../models/ProjectState.js';
+import ProjectPersistenceService from '../services/ProjectPersistenceService.js';
 import './ProjectWizard.css';
 
 export default function ProjectWizard({ onComplete, onCancel }) {
@@ -59,20 +61,22 @@ export default function ProjectWizard({ onComplete, onCancel }) {
                     ? parseInt(lastProjectInfo.lastResolution)
                     : ResolutionMapper.getDefaultResolution();
 
-                const config = {
-                    artistName,
-                    projectName,
-                    outputDirectory: projectDirectory,
-                    targetResolution: ResolutionMapper.isValidResolution(preferredResolution)
-                        ? preferredResolution
-                        : ResolutionMapper.getDefaultResolution(),
-                    isHorizontal: false,
-                    numFrames: 100,
-                    effects: [],
-                    colorScheme: null
-                };
+                // Create ProjectState instead of plain config
+                const projectState = new ProjectState();
+                projectState.setArtist(artistName);
+                projectState.setProjectName(projectName);
+                projectState.setOutputDirectory(projectDirectory);
+                projectState.setTargetResolution(ResolutionMapper.isValidResolution(preferredResolution)
+                    ? preferredResolution
+                    : ResolutionMapper.getDefaultResolution());
+                projectState.setIsHorizontal(false);
+                projectState.setNumFrames(100);
 
-                console.log('🚀 ProjectWizard creating config with resolution:', config.targetResolution);
+                console.log('🚀 ProjectWizard created ProjectState with resolution:', projectState.getTargetResolution());
+
+                // Create persistence service and save project
+                const persistenceService = new ProjectPersistenceService();
+                persistenceService.setCurrentProject(projectState, projectDirectory);
 
                 // Save these values as preferences for next time
                 await PreferencesService.saveLastProjectInfo(
@@ -82,7 +86,12 @@ export default function ProjectWizard({ onComplete, onCancel }) {
                     projectDirectory
                 );
 
-                onComplete(config);
+                // Pass the ProjectState to the completion handler
+                onComplete({
+                    projectState: projectState.toJSON(),
+                    projectConfig: projectState.exportForBackend(), // Legacy compatibility
+                    persistenceService: persistenceService
+                });
             } finally {
                 setIsCompleting(false);
             }

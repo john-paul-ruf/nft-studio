@@ -47,6 +47,7 @@ global.window.api = {
 
     // Effect operations
     discoverEffects: createMockFunction(),
+    getAvailableEffects: createMockFunction(),
     getEffectDefaults: createMockFunction(),
     getEffectSchema: createMockFunction(),
     validateEffect: createMockFunction(),
@@ -56,6 +57,8 @@ global.window.api = {
 
     // Rendering operations
     renderFrame: createMockFunction(),
+    startRenderLoop: createMockFunction(),
+    stopRenderLoop: createMockFunction(),
 
     // Project operations
     startNewProject: createMockFunction(),

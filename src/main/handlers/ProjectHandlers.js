@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron';
+import ProjectState from '../../models/ProjectState.js';
 
 /**
  * Project-specific IPC handlers
@@ -13,25 +14,50 @@ class ProjectHandlers {
      * Register all project-related IPC handlers
      */
     register() {
-        ipcMain.handle('start-new-project', async (event, projectConfig) => {
-            return await this.projectManager.startNewProject(projectConfig);
+        ipcMain.handle('start-new-project', async (event, projectInput) => {
+            // Convert to ProjectState if needed
+            const projectState = this.ensureProjectState(projectInput);
+            return await this.projectManager.startNewProject(projectState);
         });
 
         ipcMain.handle('resume-project', async (event, settingsPath) => {
             return await this.projectManager.resumeProject(settingsPath);
         });
 
-        ipcMain.handle('render-frame', async (event, config, frameNumber) => {
-            return await this.projectManager.renderFrame(config, frameNumber);
+        ipcMain.handle('render-frame', async (event, configInput, frameNumber) => {
+            // Convert to ProjectState if needed
+            const projectState = this.ensureProjectState(configInput);
+            return await this.projectManager.renderFrame(projectState, frameNumber);
         });
 
-        ipcMain.handle('start-render-loop', async (event, config) => {
-            return await this.projectManager.startRenderLoop(config);
+        ipcMain.handle('start-render-loop', async (event, configInput) => {
+            // Convert to ProjectState if needed
+            const projectState = this.ensureProjectState(configInput);
+            return await this.projectManager.startRenderLoop(projectState);
         });
 
         ipcMain.handle('stop-render-loop', async () => {
             return await this.projectManager.stopRenderLoop();
         });
+    }
+
+    /**
+     * Ensure input is a ProjectState instance
+     * @param {Object|ProjectState} input - Input to convert
+     * @returns {ProjectState} ProjectState instance
+     */
+    ensureProjectState(input) {
+        if (input instanceof ProjectState) {
+            return input;
+        }
+
+        // Handle serialized ProjectState
+        if (input && input.state && input.version) {
+            return ProjectState.fromObject(input);
+        }
+
+        // Handle legacy config objects
+        return ProjectState.fromLegacyConfig(input);
     }
 
     /**

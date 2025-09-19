@@ -4,6 +4,8 @@ import { useNavigation } from './hooks/useNavigation.js';
 import Intro from './pages/Intro.jsx';
 import ProjectWizard from './pages/ProjectWizard.jsx';
 import Canvas from './pages/Canvas.jsx';
+import ProjectState from './models/ProjectState.js';
+import ProjectPersistenceService from './services/ProjectPersistenceService.js';
 import ApplicationFactory from './ApplicationFactory.js';
 
 /**
@@ -21,8 +23,11 @@ function AppRouter() {
                         onNewProject={navigateToWizard}
                         onEditProject={async () => {
                             try {
+                                console.log('🔍 Opening file dialog for project selection...');
+
                                 const result = await window.api.selectFile({
                                     filters: [
+                                        { name: 'NFT Project Files', extensions: ['nftproject'] },
                                         { name: 'JSON Files', extensions: ['json'] },
                                         { name: 'All Files', extensions: ['*'] }
                                     ]
@@ -30,18 +35,57 @@ function AppRouter() {
 
                                 if (!result.canceled && result.filePaths?.[0]) {
                                     const filePath = result.filePaths[0];
-                                    const projectResult = await window.api.loadProject(filePath);
+                                    console.log('📁 Selected project file:', filePath);
 
-                                    if (projectResult.success) {
-                                        navigateToCanvas({
-                                            projectConfig: projectResult.config,
-                                            loadedFromFile: true,
-                                            filePath
-                                        });
+                                    try {
+                                        // Use ProjectPersistenceService to load the project
+                                        const persistenceService = new ProjectPersistenceService();
+                                        const projectState = await persistenceService.loadProject(filePath);
+
+                                        if (projectState) {
+                                            console.log('✅ Project loaded successfully:', projectState.getProjectName());
+
+                                            // Navigate to Canvas with loaded ProjectState
+                                            navigateToCanvas({
+                                                projectState: projectState.toJSON(),
+                                                projectConfig: projectState.exportForBackend(), // Legacy compatibility
+                                                persistenceService: persistenceService,
+                                                loadedFromFile: true,
+                                                filePath
+                                            });
+                                        } else {
+                                            // Fallback: try legacy loading for old JSON files
+                                            console.log('🔄 Attempting legacy project loading...');
+                                            const projectResult = await window.api.loadProject(filePath);
+
+                                            if (projectResult.success) {
+                                                const projectState = ProjectState.fromLegacyConfig(projectResult.config);
+                                                const persistenceService = new ProjectPersistenceService();
+
+                                                // Set up persistence for the loaded project
+                                                const projectDirectory = filePath.substring(0, filePath.lastIndexOf('/'));
+                                                persistenceService.setCurrentProject(projectState, projectDirectory);
+
+                                                navigateToCanvas({
+                                                    projectState: projectState.toJSON(),
+                                                    projectConfig: projectResult.config,
+                                                    persistenceService: persistenceService,
+                                                    loadedFromFile: true,
+                                                    filePath
+                                                });
+                                            } else {
+                                                console.error('❌ Failed to load project:', projectResult.error);
+                                                alert('Failed to load project: ' + projectResult.error);
+                                            }
+                                        }
+                                    } catch (loadError) {
+                                        console.error('❌ Error loading project file:', loadError);
+                                        alert('Error loading project: ' + loadError.message);
                                     }
                                 }
                             } catch (error) {
-                                console.error('Error loading project:', error);
+                                console.error('❌ Error opening file dialog:', error);
+                                alert('Error opening file dialog: ' + error.message);
                             }
                         }}
                     />
@@ -57,7 +101,7 @@ function AppRouter() {
                 );
             case 'canvas':
                 return <Canvas
-                    projectConfig={currentParams.projectConfig}
+                    projectData={currentParams}
                     onUpdateConfig={(updatedConfig) => {
                         // Update the current params with the new config
                         // This ensures the config changes are maintained during the session

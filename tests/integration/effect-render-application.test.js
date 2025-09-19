@@ -8,6 +8,7 @@
 import '../setup.js';
 
 import NftProjectManager from '../../src/main/implementations/NftProjectManager.js';
+import ProjectState from '../../src/models/ProjectState.js';
 
 class EffectRenderApplicationTest {
     constructor() {
@@ -80,7 +81,8 @@ class EffectRenderApplicationTest {
 
         try {
             // This should call addPrimaryEffect and addFinalEffect with proper parameters
-            await manager.configureProjectFromUI(mockProject, config);
+            const projectState = ProjectState.fromLegacyConfig(config);
+            await manager.configureProjectFromProjectState(mockProject, projectState);
 
             // Verify effects were added to project
             this.testResults.push({
@@ -137,7 +139,8 @@ class EffectRenderApplicationTest {
             });
 
             // Test configuring project from UI
-            await manager.configureProjectFromUI(project, projectConfig);
+            const projectState = ProjectState.fromLegacyConfig(projectConfig);
+            await manager.configureProjectFromProjectState(project, projectState);
 
             // Verify the project has effects
             const hasEffects = project.selectedPrimaryEffectConfigs && project.selectedPrimaryEffectConfigs.length > 0;
@@ -217,7 +220,8 @@ class EffectRenderApplicationTest {
         };
 
         try {
-            await manager.configureProjectFromUI(mockProject, config);
+            const projectState = ProjectState.fromLegacyConfig(config);
+            await manager.configureProjectFromProjectState(mockProject, projectState);
 
             this.testResults.push({
                 test: 'Parameter format correct for addPrimaryEffect',

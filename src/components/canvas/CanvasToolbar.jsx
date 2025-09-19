@@ -46,6 +46,8 @@ export default function CanvasToolbar({
     availableEffects,
     effectsLoaded,
     isRenderLoopActive,
+    lastSaveStatus,
+    currentProjectPath,
     onRender,
     onRenderLoop,
     onResolutionChange,
@@ -58,6 +60,7 @@ export default function CanvasToolbar({
     onColorSchemeChange,
     onAddEffectDirect,
     onThemeToggle,
+    onForceSave,
     closeAllDropdowns,
     zoomMenuAnchor,
     setZoomMenuAnchor,
@@ -337,6 +340,36 @@ export default function CanvasToolbar({
                 <Divider orientation="vertical" flexItem sx={{ mx: 2, backgroundColor: 'divider' }} />
 
                 <Box sx={{ flexGrow: 1 }} />
+
+                {/* Auto-save status indicator */}
+                {(lastSaveStatus || currentProjectPath) && (
+                    <Box className="toolbar-group" sx={{ ml: 'auto', mr: 1 }}>
+                        <Tooltip title={currentProjectPath ? `Auto-saving to: ${currentProjectPath}` : 'Project auto-save'}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {lastSaveStatus === 'saving' && (
+                                    <Typography variant="caption" sx={{ color: 'warning.main' }}>
+                                        💾 Saving...
+                                    </Typography>
+                                )}
+                                {lastSaveStatus === 'saved' && (
+                                    <Typography variant="caption" sx={{ color: 'success.main' }}>
+                                        ✅ Saved
+                                    </Typography>
+                                )}
+                                {onForceSave && (
+                                    <Button
+                                        size="small"
+                                        variant="text"
+                                        onClick={onForceSave}
+                                        sx={{ minWidth: 'auto', p: 0.5 }}
+                                    >
+                                        💾
+                                    </Button>
+                                )}
+                            </Box>
+                        </Tooltip>
+                    </Box>
+                )}
 
                 <Box className="toolbar-group">
                     <Tooltip title={`Switch to ${themeMode === 'dark' ? 'light' : 'dark'} theme`}>

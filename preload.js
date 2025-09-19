@@ -21,6 +21,14 @@ contextBridge.exposeInMainWorld('api', {
     saveProject: (filePath, config) => ipcRenderer.invoke('save-project', filePath, config),
     renderFrame: (config, frameNumber) => ipcRenderer.invoke('render-frame', config, frameNumber),
 
+    // Project persistence
+    saveProjectFile: (filePath, projectData) => ipcRenderer.invoke('save-project-file', filePath, projectData),
+    loadProjectFile: (filePath) => ipcRenderer.invoke('load-project-file', filePath),
+    projectFileExists: (filePath) => ipcRenderer.invoke('project-file-exists', filePath),
+    generateProjectPath: (projectDirectory, projectName) => ipcRenderer.invoke('generate-project-path', projectDirectory, projectName),
+    getDirname: (filePath) => ipcRenderer.invoke('get-dirname', filePath),
+    joinPaths: (...pathSegments) => ipcRenderer.invoke('join-paths', ...pathSegments),
+
     // Effect management
     discoverEffects: () => ipcRenderer.invoke('discover-effects'),
     getAvailableEffects: () => ipcRenderer.invoke('get-available-effects'),

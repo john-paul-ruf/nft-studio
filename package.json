@@ -35,7 +35,8 @@
     "copy:html": "cp dist/index.html dist/index.html 2>/dev/null || cp index.template.html dist/index.html",
     "electron": "electron .",
     "rebuild": "electron-rebuild -f -w canvas && electron-rebuild -f -w sharp",
-    "clean:start": "rm -rf dist/ && webpack && npm run copy:html && electron ."
+    "clean:start": "rm -rf dist/ && webpack && npm run copy:html && electron .",
+    "clean:preferences": "rm -f \"$HOME/Library/Application Support/nft-studio/user-preferences.json\""
   },
   "author": "john.paul.ruf",
   "license": "MIT",

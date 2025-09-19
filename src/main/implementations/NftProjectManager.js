@@ -3,6 +3,7 @@ const { BrowserWindow } = electron;
 import path from 'path';
 import FileSystemRenderer from './FileSystemRenderer.js';
 import defaultLogger from '../utils/logger.js';
+import ProjectState from '../../models/ProjectState.js';
 
 /**
  * NFT-specific implementation of project management
@@ -19,34 +20,37 @@ class NftProjectManager {
 
     /**
      * Start a new NFT project
-     * @param {Object} projectConfig - Project configuration
+     * @param {Object|ProjectState} projectInput - Project configuration or ProjectState instance
      * @returns {Promise<Object>} Project creation result
      */
-    async startNewProject(projectConfig) {
+    async startNewProject(projectInput) {
         this.logger.header('Starting New NFT Project');
+
+        // Convert input to ProjectState if needed
+        const projectState = this.ensureProjectState(projectInput);
+        const config = projectState.getState();
+
         this.logger.info('Project Configuration Received', {
-            projectName: projectConfig.projectName,
-            resolution: projectConfig.resolution,
-            numberOfFrames: projectConfig.numberOfFrames,
-            colorScheme: projectConfig.colorScheme,
-            effectsCount: {
-                primary: projectConfig.effects?.primary?.length || 0,
-                final: projectConfig.effects?.final?.length || 0
-            }
+            projectName: config.projectName,
+            resolution: config.targetResolution,
+            numberOfFrames: config.numFrames,
+            colorScheme: config.colorScheme,
+            effectsCount: config.effects?.length || 0
         });
 
         try {
-            const project = await this.createProject(projectConfig);
-            const settings = await this.createProjectSettings(project, projectConfig);
+            const project = await this.createProject(projectState);
+            const settings = await this.createProjectSettings(project, projectState);
 
             // Store the project for potential reuse
-            this.activeProjects.set(projectConfig.projectName, {
+            this.activeProjects.set(config.projectName, {
                 project,
                 settings,
-                config: projectConfig
+                projectState,
+                config
             });
 
-            this.logger.success(`Project "${projectConfig.projectName}" initialized successfully`);
+            this.logger.success(`Project "${config.projectName}" initialized successfully`);
 
             return {
                 success: true,
@@ -100,11 +104,15 @@ class NftProjectManager {
 
     /**
      * Render a single frame
-     * @param {Object} config - Project configuration containing effect classes and config instances
+     * @param {Object|ProjectState} configInput - Project configuration or ProjectState instance
      * @param {number} frameNumber - Frame to render
      * @returns {Promise<Object>} Render result with buffer
      */
-    async renderFrame(config, frameNumber) {
+    async renderFrame(configInput, frameNumber) {
+        // Convert input to ProjectState if needed
+        const projectState = this.ensureProjectState(configInput);
+        const config = projectState.getState();
+
         this.logger.info('Starting frame render', { frameNumber, config: config.projectName });
 
         // Debug the actual config received from UI
@@ -136,10 +144,10 @@ class NftProjectManager {
 
         try {
             // Create a new NFT gen project every time
-            const project = await this.createProject(config);
+            const project = await this.createProject(projectState);
 
             // Configure the project based on UI parameters
-            await this.configureProjectFromUI(project, config);
+            await this.configureProjectFromProjectState(project, projectState);
 
             console.log('🎬 Backend frame generation:', {
                 frameNumber: frameNumber,
@@ -173,13 +181,146 @@ class NftProjectManager {
     }
 
     /**
-     * Configure project from UI parameters including effect classes and config instances
+     * Ensure input is a ProjectState instance
+     * @param {Object|ProjectState} input - Input to convert
+     * @returns {ProjectState} ProjectState instance
+     */
+    ensureProjectState(input) {
+        if (input instanceof ProjectState) {
+            return input;
+        }
+
+        // Handle serialized ProjectState
+        if (input && input.state && input.version) {
+            return ProjectState.fromObject(input);
+        }
+
+        // Handle legacy config objects
+        return ProjectState.fromLegacyConfig(input);
+    }
+
+    /**
+     * Configure project from ProjectState
+     * @param {Object} project - Project instance to configure
+     * @param {ProjectState} projectState - ProjectState instance
+     * @returns {Promise<void>}
+     */
+    async configureProjectFromProjectState(project, projectState) {
+        const config = projectState.getState();
+        console.log('🔍 DEBUG: configureProjectFromProjectState called with effects:', {
+            hasEffects: !!config.effects,
+            isArray: Array.isArray(config.effects),
+            length: config.effects?.length || 0
+        });
+
+        if (!config.effects || !Array.isArray(config.effects) || config.effects.length === 0) {
+            console.log('🔍 DEBUG: No effects to configure, returning early');
+            return;
+        }
+
+        const myNftGenPath = path.resolve(process.cwd(), '../my-nft-gen');
+        const { default: effectProcessor } = await import('../services/EffectProcessingService.js');
+
+        // Group effects by type while maintaining order
+        const primaryEffects = [];
+        const secondaryEffects = [];
+        const keyframeEffects = [];
+        const finalEffects = [];
+
+        // Categorize effects while preserving their order
+        for (const effect of config.effects) {
+            const effectType = effect.type || 'primary';
+            switch (effectType) {
+                case 'secondary':
+                    secondaryEffects.push(effect);
+                    break;
+                case 'keyframe':
+                    keyframeEffects.push(effect);
+                    break;
+                case 'final':
+                case 'finalImage':  // Support both naming conventions
+                    finalEffects.push(effect);
+                    break;
+                case 'primary':
+                default:
+                    primaryEffects.push(effect);
+                    break;
+            }
+        }
+
+        // Process and add primary effects in order
+        if (primaryEffects.length > 0) {
+            console.log('🔍 DEBUG: Processing primary effects:', primaryEffects.length);
+            const processedEffects = await effectProcessor.processEffects(
+                primaryEffects,
+                myNftGenPath
+            );
+
+            console.log('🔍 DEBUG: Processed effects count:', processedEffects.length);
+            for (const layerConfig of processedEffects) {
+                console.log('🔍 DEBUG: Adding primary effect to project:', {
+                    layerConfigName: layerConfig.name,
+                    layerConfigType: layerConfig.constructor.name,
+                    hasEffect: !!layerConfig.effect,
+                    effectName: layerConfig.effect?.name || layerConfig.effect?.constructor?.name
+                });
+                project.addPrimaryEffect({layerConfig});
+            }
+        }
+
+        // Process and add secondary effects if the project supports them
+        if (secondaryEffects.length > 0 && project.addSecondaryEffect) {
+            const processedEffects = await effectProcessor.processEffects(
+                secondaryEffects,
+                myNftGenPath
+            );
+
+            for (const layerConfig of processedEffects) {
+                project.addSecondaryEffect({layerConfig});
+            }
+        }
+
+        // Process and add keyframe effects if the project supports them
+        if (keyframeEffects.length > 0 && project.addKeyframeEffect) {
+            const processedEffects = await effectProcessor.processEffects(
+                keyframeEffects,
+                myNftGenPath
+            );
+
+            for (const layerConfig of processedEffects) {
+                project.addKeyframeEffect({layerConfig});
+            }
+        }
+
+        // Process and add final effects in order
+        if (finalEffects.length > 0) {
+            console.log('🔍 DEBUG: Processing final effects:', finalEffects.length);
+            const processedEffects = await effectProcessor.processEffects(
+                finalEffects,
+                myNftGenPath
+            );
+
+            console.log('🔍 DEBUG: Processed final effects count:', processedEffects.length);
+            for (const layerConfig of processedEffects) {
+                console.log('🔍 DEBUG: Adding final effect to project:', {
+                    layerConfigName: layerConfig.name,
+                    layerConfigType: layerConfig.constructor.name,
+                    hasEffect: !!layerConfig.effect,
+                    effectName: layerConfig.effect?.name || layerConfig.effect?.constructor?.name
+                });
+                project.addFinalEffect({layerConfig});
+            }
+        }
+    }
+
+    /**
+     * Configure project from UI parameters including effect classes and config instances (Legacy implementation)
      * @param {Object} project - Project instance to configure
      * @param {Object} config - UI configuration containing effects
      * @returns {Promise<void>}
      */
     async configureProjectFromUI(project, config) {
-        console.log('🔍 DEBUG: configureProjectFromUI called with effects:', {
+        console.log('🔍 DEBUG: configureProjectFromUILegacy called with effects:', {
             hasEffects: !!config.effects,
             isArray: Array.isArray(config.effects),
             length: config.effects?.length || 0
@@ -287,10 +428,11 @@ class NftProjectManager {
 
     /**
      * Create a new Project instance
-     * @param {Object} projectConfig - Project configuration
+     * @param {ProjectState} projectState - ProjectState instance
      * @returns {Promise<Object>} Project instance
      */
-    async createProject(projectConfig) {
+    async createProject(projectState) {
+        const projectConfig = projectState.getState();
         const {Project} = await import('my-nft-gen/src/app/Project.js');
         const {ColorScheme} = await import('my-nft-gen/src/core/color/ColorScheme.js');
 
@@ -410,10 +552,11 @@ class NftProjectManager {
     /**
      * Create project settings
      * @param {Object} project - Project instance
-     * @param {Object} projectConfig - Project configuration
+     * @param {ProjectState} projectState - ProjectState instance
      * @returns {Promise<Object>} Settings instance
      */
-    async createProjectSettings(project, projectConfig) {
+    async createProjectSettings(project, projectState) {
+        const projectConfig = projectState.getState();
         const myNftGenPath = path.resolve(process.cwd(), '../my-nft-gen');
         const {Settings} = await import('my-nft-gen/src/app/Settings.js');
 
@@ -541,10 +684,14 @@ class NftProjectManager {
 
     /**
      * Start render loop - continuously generates random loops until stopped
-     * @param {Object} config - Project configuration containing effects and settings
+     * @param {Object|ProjectState} configInput - Project configuration or ProjectState instance
      * @returns {Promise<Object>} Render loop result
      */
-    async startRenderLoop(config) {
+    async startRenderLoop(configInput) {
+        // Convert input to ProjectState if needed
+        const projectState = this.ensureProjectState(configInput);
+        const config = projectState.getState();
+
         console.log('🔥 NftProjectManager.startRenderLoop() called with config:', config);
         this.logger.header('Starting Render Loop');
 
@@ -554,10 +701,10 @@ class NftProjectManager {
 
             // Create a new NFT gen project (same as renderFrame)
             console.log('🎯 Creating project with projectDirectory:', config.projectDirectory);
-            const project = await this.createProject(config);
+            const project = await this.createProject(projectState);
 
             // Configure the project based on UI parameters (including effects!)
-            await this.configureProjectFromUI(project, config);
+            await this.configureProjectFromProjectState(project, projectState);
 
             // Create and configure event bus for render loop
             const eventBus = new UnifiedEventBus({
