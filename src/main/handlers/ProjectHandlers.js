@@ -24,6 +24,14 @@ class ProjectHandlers {
         ipcMain.handle('render-frame', async (event, config, frameNumber) => {
             return await this.projectManager.renderFrame(config, frameNumber);
         });
+
+        ipcMain.handle('start-render-loop', async (event, config) => {
+            return await this.projectManager.startRenderLoop(config);
+        });
+
+        ipcMain.handle('stop-render-loop', async () => {
+            return await this.projectManager.stopRenderLoop();
+        });
     }
 
     /**
@@ -33,7 +41,9 @@ class ProjectHandlers {
         const handlers = [
             'start-new-project',
             'resume-project',
-            'render-frame'
+            'render-frame',
+            'start-render-loop',
+            'stop-render-loop'
         ];
 
         handlers.forEach(handler => {

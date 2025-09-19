@@ -4,6 +4,7 @@ import EffectsPanel from '../components/EffectsPanel.jsx';
 import EffectConfigurer from '../components/effects/EffectConfigurer.jsx';
 import EffectContextMenu from '../components/EffectContextMenu.jsx';
 import ColorSchemeDropdown from '../components/ColorSchemeDropdown.jsx';
+import EventBusMonitor from '../components/EventBusMonitor.jsx';
 import ColorSchemeService from '../services/ColorSchemeService.js';
 import PreferencesService from '../services/PreferencesService.js';
 import ResolutionMapper from '../utils/ResolutionMapper.js';
@@ -165,7 +166,6 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
     const [submenuTimeout, setSubmenuTimeout] = useState(null);
 
     // MUI Menu anchor elements
-    const [renderMenuAnchor, setRenderMenuAnchor] = useState(null);
     const [zoomMenuAnchor, setZoomMenuAnchor] = useState(null);
     const [addEffectMenuOpen, setAddEffectMenuOpen] = useState(false);
     const [colorSchemeMenuAnchor, setColorSchemeMenuAnchor] = useState(null);
@@ -173,6 +173,10 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
     // Theme state
     const [themeMode, setThemeMode] = useState('dark');
     const currentTheme = createAppTheme(themeMode);
+
+    // Event monitor and render loop state
+    const [showEventMonitor, setShowEventMonitor] = useState(false);
+    const [isRenderLoopActive, setIsRenderLoopActive] = useState(false);
 
     // Update config when initial resolution loads (for non-projectConfig cases)
     useEffect(() => {
@@ -600,9 +604,75 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
     };
 
     const handleRenderLoop = async () => {
-        // TODO: Implement loop rendering functionality
-        console.log('🔄 Render Loop functionality not yet implemented');
-        alert('Render Loop functionality coming soon!');
+        console.log('🔄 Render loop button clicked, isRenderLoopActive:', isRenderLoopActive);
+
+        if (isRenderLoopActive) {
+            // Stop render loop
+            try {
+                await window.api.stopRenderLoop();
+                setIsRenderLoopActive(false);
+                console.log('🛑 Render loop stopped');
+            } catch (error) {
+                console.error('Failed to stop render loop:', error);
+            }
+        } else {
+            // Get preferences for output directory
+            const preferences = await PreferencesService.getPreferences();
+            const outputDirectory = preferences.outputDirectory || '/tmp/render-loop';
+            console.log('📁 Render loop output directory:', outputDirectory);
+
+            // Fetch full color scheme data for backend (same as renderFrame!)
+            let colorSchemeData = null;
+            if (config.colorScheme) {
+                const fullScheme = await ColorSchemeService.getColorScheme(config.colorScheme);
+                if (fullScheme) {
+                    colorSchemeData = {
+                        name: fullScheme.name,
+                        colors: fullScheme.lights || [], // Use lights as colors for colorBucket
+                        lights: fullScheme.lights || [],
+                        neutrals: fullScheme.neutrals || [],
+                        backgrounds: fullScheme.backgrounds || []
+                    };
+                }
+            }
+
+            // Filter out hidden effects for rendering (same as renderFrame!)
+            const visibleEffects = (config.effects || []).filter(effect => effect.visible !== false);
+
+            // Prepare config for render loop (same format as renderFrame!)
+            const projectName = `render-loop-${Date.now()}`;
+            const renderLoopConfig = {
+                ...config,
+                projectName: projectName,
+                projectDirectory: outputDirectory,
+                isHorizontal: config.isHorizontal,
+                effects: visibleEffects,
+                width: getResolutionDimensions().w,
+                height: getResolutionDimensions().h,
+                numberOfFrames: config.numFrames,
+                startFrame: selectedFrame,
+                jumpFrames: 1,
+                colorSchemeData: colorSchemeData  // THIS is what was missing!
+            };
+
+            console.log('🚀 Starting render loop with config:', renderLoopConfig);
+            console.log('📂 Files should appear in:', `${outputDirectory}/${projectName}`);
+
+            try {
+                const result = await window.api.startRenderLoop(renderLoopConfig);
+                if (result.success) {
+                    setIsRenderLoopActive(true);
+                    setShowEventMonitor(true); // Auto-open event monitor to watch events!
+                    console.log('✅ Render loop started successfully');
+                } else {
+                    console.error('Failed to start render loop:', result.error);
+                    alert(`Failed to start render loop: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Failed to start render loop:', error);
+                alert(`Failed to start render loop: ${error.message}`);
+            }
+        }
     };
 
     const handleRender = async () => {
@@ -645,56 +715,7 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                 colorSchemeData: colorSchemeData
             };
 
-            console.log('📋 Frame values check:', {
-                toolbarSelectedFrame: selectedFrame,
-                toolbarTotalFrames: config.numFrames,
-                renderConfigStartFrame: renderConfig.renderStartFrame,
-                renderConfigJumpFrames: renderConfig.renderJumpFrames,
-                renderConfigNumFrames: renderConfig.numFrames,
-                framePassedToAPI: selectedFrame
-            });
-
-            console.log('📋 Resolution consistency check:', {
-                pickerResolution: config.targetResolution,
-                dimensionsFromPicker: dimensions,
-                renderConfigWidth: renderConfig.width,
-                renderConfigHeight: renderConfig.height,
-                renderConfigTargetResolution: renderConfig.targetResolution
-            });
-
-            console.log('📋 Render config:', {
-                width: dimensions.w,
-                height: dimensions.h,
-                frame: selectedFrame,
-                totalEffects: config.effects?.length || 0,
-                visibleEffects: visibleEffects.length,
-                colorScheme: config.colorScheme,
-                hasColorSchemeData: !!colorSchemeData
-            });
-
-            // Debug the actual effects being passed
-            console.log('🔍 Effects debug:', {
-                allEffects: config.effects,
-                visibleEffects: visibleEffects,
-                effectDetails: visibleEffects.map(effect => ({
-                    name: effect.name,
-                    className: effect.className,
-                    type: effect.type,
-                    visible: effect.visible,
-                    hasConfig: !!effect.config,
-                    configKeys: effect.config ? Object.keys(effect.config) : null
-                }))
-            });
-
             const result = await window.api.renderFrame(renderConfig, selectedFrame);
-
-            console.log('🎯 Render result:', {
-                success: result.success,
-                hasFrameBuffer: !!result.frameBuffer,
-                frameBufferType: typeof result.frameBuffer,
-                frameBufferSize: result.frameBuffer?.length || 'unknown',
-                bufferType: result.bufferType
-            });
 
             if (result.success && (result.frameBuffer || result.fileUrl)) {
                 // Handle file system method
@@ -904,59 +925,80 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                     }}
                 >
                 <Box className="toolbar-group">
-                    <Button
-                        variant="contained"
-                        startIcon={<PlayArrow />}
-                        onClick={(event) => {
-                            closeAllDropdowns();
-                            setRenderMenuAnchor(event.currentTarget);
-                        }}
-                        disabled={isRendering}
-                        size="small"
-                        sx={{
-                            minWidth: '120px',
-                            backgroundColor: 'primary.main',
-                            '&:hover': {
-                                backgroundColor: 'primary.dark',
-                            }
-                        }}
-                    >
-                        {isRendering ? 'Rendering...' : 'Render'}
-                    </Button>
-                    <Menu
-                        anchorEl={renderMenuAnchor}
-                        open={Boolean(renderMenuAnchor)}
-                        onClose={() => setRenderMenuAnchor(null)}
-                        PaperProps={{
-                            sx: {
-                                backgroundColor: 'background.paper',
-                                border: '1px solid #444',
-                            }
-                        }}
-                    >
-                        <MenuItem
-                            onClick={() => {
-                                handleRender();
-                                setRenderMenuAnchor(null);
-                            }}
-                        >
-                            <ListItemIcon>
-                                <PlayArrow fontSize="small" />
-                            </ListItemIcon>
-                            <ListItemText>Render Frame</ListItemText>
-                        </MenuItem>
-                        <MenuItem
-                            onClick={() => {
-                                handleRenderLoop();
-                                setRenderMenuAnchor(null);
-                            }}
-                        >
-                            <ListItemIcon>
-                                <PlayArrow fontSize="small" />
-                            </ListItemIcon>
-                            <ListItemText>Render Loop</ListItemText>
-                        </MenuItem>
-                    </Menu>
+                    <DropdownMenu.Root>
+                        <DropdownMenu.Trigger asChild>
+                            <Button
+                                variant="contained"
+                                startIcon={<PlayArrow />}
+                                disabled={isRendering}
+                                size="small"
+                                sx={{
+                                    minWidth: '120px',
+                                    backgroundColor: 'primary.main',
+                                    '&:hover': {
+                                        backgroundColor: 'primary.dark',
+                                    }
+                                }}
+                            >
+                                {isRendering ? 'Rendering...' : 'Render'}
+                            </Button>
+                        </DropdownMenu.Trigger>
+                        <DropdownMenu.Portal>
+                            <DropdownMenu.Content
+                                className="radix-dropdown-content"
+                                sideOffset={5}
+                                style={{
+                                    backgroundColor: currentTheme.palette.background.paper,
+                                    border: '1px solid #444',
+                                    borderRadius: '4px',
+                                    padding: '5px',
+                                    minWidth: '160px',
+                                    boxShadow: '0px 10px 38px -10px rgba(22, 23, 24, 0.35), 0px 10px 20px -15px rgba(22, 23, 24, 0.2)',
+                                    zIndex: 9999
+                                }}
+                            >
+                                <DropdownMenu.Item
+                                    className="radix-dropdown-item"
+                                    onClick={handleRender}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        padding: '8px 12px',
+                                        cursor: 'pointer',
+                                        outline: 'none',
+                                        borderRadius: '2px',
+                                        color: currentTheme.palette.text.primary
+                                    }}
+                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = currentTheme.palette.action.hover}
+                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                >
+                                    <PlayArrow fontSize="small" style={{ marginRight: '8px' }} />
+                                    <span>Render Frame</span>
+                                </DropdownMenu.Item>
+                                <DropdownMenu.Item
+                                    className="radix-dropdown-item"
+                                    onClick={() => {
+                                        console.log('📍 RENDER LOOP MENU ITEM CLICKED');
+                                        handleRenderLoop();
+                                    }}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        padding: '8px 12px',
+                                        cursor: 'pointer',
+                                        outline: 'none',
+                                        borderRadius: '2px',
+                                        color: currentTheme.palette.text.primary
+                                    }}
+                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = currentTheme.palette.action.hover}
+                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                >
+                                    <PlayArrow fontSize="small" style={{ marginRight: '8px' }} />
+                                    <span>Render Loop</span>
+                                </DropdownMenu.Item>
+                            </DropdownMenu.Content>
+                        </DropdownMenu.Portal>
+                    </DropdownMenu.Root>
                 </Box>
 
                 <Divider orientation="vertical" flexItem sx={{ mx: 2, backgroundColor: 'divider' }} />
@@ -1619,6 +1661,13 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
             </Dialog>
 
         </div>
+
+        {/* Event Bus Monitor Modal */}
+        <EventBusMonitor
+            open={showEventMonitor}
+            onClose={() => setShowEventMonitor(false)}
+        />
+
         </ThemeProvider>
     );
 }

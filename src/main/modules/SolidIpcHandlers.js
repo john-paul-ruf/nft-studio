@@ -3,6 +3,7 @@ import FileHandlers from '../handlers/FileHandlers.js';
 import ProjectHandlers from '../handlers/ProjectHandlers.js';
 import EffectsHandlers from '../handlers/EffectsHandlers.js';
 import PreviewHandlers from '../handlers/PreviewHandlers.js';
+import EventBusHandlers from '../handlers/EventBusHandlers.js';
 
 /**
  * SOLID-compliant IPC handlers manager
@@ -34,7 +35,8 @@ class SolidIpcHandlers {
             new FileHandlers(fileOperations),
             new ProjectHandlers(projectManager),
             new EffectsHandlers(effectsManager),
-            new PreviewHandlers(effectsManager)
+            new PreviewHandlers(effectsManager),
+            new EventBusHandlers()
         ];
 
         // Register all handlers

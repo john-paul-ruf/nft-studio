@@ -305,7 +305,7 @@ class NftProjectManager {
         const project = new Project({
             artist: projectConfig.artist || 'NFT Studio User',
             projectName: projectConfig.projectName,
-            projectDirectory: projectConfig.projectDirectory || 'src/scratch',
+            projectDirectory: projectConfig.outputDirectory || 'src/scratch',
             colorScheme: colorSchemeInfo.colorScheme, //my nft gen colorscheme
             neutrals: colorSchemeInfo.neutrals, //array of hex
             backgrounds: colorSchemeInfo.backgrounds, //array of hex
@@ -528,6 +528,150 @@ class NftProjectManager {
      */
     clearActiveProjects() {
         this.activeProjects.clear();
+    }
+
+    /**
+     * Start render loop - continuously generates random loops until stopped
+     * @param {Object} config - Project configuration containing effects and settings
+     * @returns {Promise<Object>} Render loop result
+     */
+    async startRenderLoop(config) {
+        console.log('🔥 NftProjectManager.startRenderLoop() called with config:', config);
+        this.logger.header('Starting Render Loop');
+
+        try {
+            // Import event bus for render loop monitoring
+            const {UnifiedEventBus} = await import('my-nft-gen/src/core/events/UnifiedEventBus.js');
+
+            // Create a new NFT gen project (same as renderFrame)
+            console.log('🎯 Creating project with projectDirectory:', config.projectDirectory);
+            const project = await this.createProject(config);
+
+            // Configure the project based on UI parameters (including effects!)
+            await this.configureProjectFromUI(project, config);
+
+            // Create and configure event bus for render loop
+            const eventBus = new UnifiedEventBus({
+                enableDebug: true,
+                enableMetrics: true,
+                enableEventHistory: true,
+                maxHistorySize: 1000
+            });
+
+            // Set up event forwarding to renderer (so EventBusMonitor can receive events)
+            this.setupEventForwarding(eventBus);
+
+            // Attach event bus to the project for monitoring
+            if (project) {
+                project.eventBus = eventBus;
+                console.log('✅ Event bus attached to render loop project');
+            }
+
+            // Set up loop control
+            this.renderLoopActive = true;
+            this.activeRenderLoop = project;
+            this.activeRenderLoopEventBus = eventBus;
+            this.activeWorkerProcess = null;
+
+            // Start the continuous loop in background
+            this.runRenderLoop(project, eventBus);
+
+            this.logger.success('Render loop started with event monitoring');
+            return { success: true, message: 'Render loop started' };
+
+        } catch (error) {
+            this.logger.error('Render loop failed', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Internal method to run the actual render loop
+     * @param {Object} project - Configured project instance
+     * @param {Object} eventBus - Event bus for monitoring
+     */
+    async runRenderLoop(project, eventBus) {
+        try {
+            this.logger.info('Starting generateRandomLoop');
+
+            // Emit render loop start event
+            if (eventBus) {
+                eventBus.emit('render.loop.start', {
+                    timestamp: Date.now(),
+                    projectName: project.projectName
+                });
+            }
+
+            // Generate a single random loop
+            await project.generateRandomLoop();
+
+            this.logger.info('generateRandomLoop completed');
+
+            // Emit render loop complete event
+            if (eventBus) {
+                eventBus.emit('render.loop.complete', {
+                    timestamp: Date.now(),
+                    projectName: project.projectName
+                });
+            }
+
+            // Mark render loop as inactive after completion
+            this.renderLoopActive = false;
+
+        } catch (error) {
+            this.logger.error('Render loop failed', error);
+
+            // Emit error event
+            if (eventBus) {
+                eventBus.emit('render.loop.error', {
+                    timestamp: Date.now(),
+                    error: error.message,
+                    projectName: project.projectName
+                });
+            }
+
+            // Mark render loop as inactive after error
+            this.renderLoopActive = false;
+        }
+
+        this.logger.success('Render loop finished');
+    }
+
+    /**
+     * Stop render loop - actually kills the worker process if running
+     * @returns {Promise<Object>} Stop result
+     */
+    async stopRenderLoop() {
+        this.logger.info('Stopping render loop');
+
+        if (!this.renderLoopActive) {
+            this.logger.info('No render loop active');
+            return { success: true, message: 'No render loop was active' };
+        }
+
+        // Signal the loop to stop
+        this.renderLoopActive = false;
+
+        // If there's an active worker process, kill it
+        if (this.activeWorkerProcess) {
+            this.logger.info('Killing active worker process');
+            this.activeWorkerProcess.kill('SIGTERM');
+            this.activeWorkerProcess = null;
+        }
+
+        // Clean up event bus if present
+        if (this.activeRenderLoopEventBus) {
+            this.logger.info('Cleaning up render loop event bus');
+            this.activeRenderLoopEventBus.removeAllListeners();
+            this.activeRenderLoopEventBus.clear();
+            this.activeRenderLoopEventBus = null;
+        }
+
+        // Clean up project reference
+        this.activeRenderLoop = null;
+
+        this.logger.success('Render loop stopped');
+        return { success: true, message: 'Render loop stopped' };
     }
 }
 

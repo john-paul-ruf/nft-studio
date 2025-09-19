@@ -44,5 +44,21 @@ contextBridge.exposeInMainWorld('api', {
     },
     removeWorkerEventListener: () => {
         ipcRenderer.removeAllListeners('worker-event');
-    }
+    },
+
+    // EventBus monitoring
+    startEventMonitoring: (config) => ipcRenderer.invoke('start-event-monitoring', config),
+    stopEventMonitoring: () => ipcRenderer.invoke('stop-event-monitoring'),
+    getEventBuffer: () => ipcRenderer.invoke('get-event-buffer'),
+    clearEventBuffer: () => ipcRenderer.invoke('clear-event-buffer'),
+    onEventBusMessage: (callback) => {
+        ipcRenderer.on('eventbus-message', (event, data) => callback(event, data));
+    },
+    offEventBusMessage: (callback) => {
+        ipcRenderer.removeListener('eventbus-message', callback);
+    },
+
+    // Render loop
+    startRenderLoop: (config) => ipcRenderer.invoke('start-render-loop', config),
+    stopRenderLoop: () => ipcRenderer.invoke('stop-render-loop')
 });

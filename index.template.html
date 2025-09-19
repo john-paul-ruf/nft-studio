@@ -60,6 +60,16 @@
         <!-- React app will mount here -->
     </div>
 
+    <!-- Global polyfill for Node.js compatibility -->
+    <script>
+        if (typeof global === 'undefined') {
+            window.global = window.globalThis || window;
+        }
+        if (typeof process === 'undefined') {
+            window.process = { env: { NODE_ENV: 'development' } };
+        }
+    </script>
+
     <!-- Include the bundled script -->
     <script src="bundle.js"></script>
 </body>

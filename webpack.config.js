@@ -1,5 +1,6 @@
 import path from 'path';
 import {fileURLToPath} from "node:url";
+import webpack from 'webpack';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,7 +39,18 @@ export default {
         },
         // Try this instead of fullySpecified
         symlinks: false,
+        fallback: {
+            "global": false,
+            "process": false,
+            "Buffer": false
+        }
     },
+    plugins: [
+        new webpack.DefinePlugin({
+            'global': 'globalThis',
+            'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development')
+        })
+    ],
     target: 'electron-renderer',
     devtool: 'source-map',
     // Add this to handle ES modules better
