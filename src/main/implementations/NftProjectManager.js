@@ -210,6 +210,7 @@ class NftProjectManager {
                     keyframeEffects.push(effect);
                     break;
                 case 'final':
+                case 'finalImage':  // Support both naming conventions
                     finalEffects.push(effect);
                     break;
                 case 'primary':
@@ -265,12 +266,20 @@ class NftProjectManager {
 
         // Process and add final effects in order
         if (finalEffects.length > 0) {
+            console.log('🔍 DEBUG: Processing final effects:', finalEffects.length);
             const processedEffects = await effectProcessor.processEffects(
                 finalEffects,
                 myNftGenPath
             );
 
+            console.log('🔍 DEBUG: Processed final effects count:', processedEffects.length);
             for (const layerConfig of processedEffects) {
+                console.log('🔍 DEBUG: Adding final effect to project:', {
+                    layerConfigName: layerConfig.name,
+                    layerConfigType: layerConfig.constructor.name,
+                    hasEffect: !!layerConfig.effect,
+                    effectName: layerConfig.effect?.name || layerConfig.effect?.constructor?.name
+                });
                 project.addFinalEffect({layerConfig});
             }
         }
