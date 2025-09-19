@@ -636,7 +636,7 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
 
             const renderConfig = {
                 ...config,
-                isHorizontal: !config.isHorizontal,  // Invert for backend which interprets it opposite
+                isHorizontal: config.isHorizontal,  // Pass directly - backend uses it as-is
                 effects: visibleEffects,
                 width: dimensions.w,
                 height: dimensions.h,
@@ -981,7 +981,7 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
 
                 <ToggleButton
                     value="orientation"
-                    selected={!config.isHorizontal}
+                    selected={config.isHorizontal}
                     onChange={handleOrientationToggle}
                     size="small"
                     sx={{
@@ -989,9 +989,9 @@ export default function Canvas({ projectConfig, onUpdateConfig }) {
                         minWidth: '40px',
                         height: '32px'
                     }}
-                    title={!config.isHorizontal ? 'Switch to Vertical' : 'Switch to Horizontal'}
+                    title={config.isHorizontal ? 'Switch to Vertical' : 'Switch to Horizontal'}
                 >
-                    {!config.isHorizontal ? <SwapHoriz /> : <SwapVert />}
+                    {config.isHorizontal ? <SwapHoriz /> : <SwapVert />}
                 </ToggleButton>
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
