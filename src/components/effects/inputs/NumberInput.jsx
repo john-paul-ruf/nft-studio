@@ -4,17 +4,64 @@ function NumberInput({ field, value, onChange }) {
     const currentValue = value !== undefined ? value : field.default || 0;
     const step = field.step || 1;
     const isDecimal = step < 1;
+    const maxValue = field.max || 100;
 
-    const handleSliderChange = (e) => {
-        const val = isDecimal ? parseFloat(e.target.value) : parseInt(e.target.value);
-        onChange(field.name, val);
-    };
+    // Use direct input for small ranges (single digit inputs)
+    const useDirectInput = maxValue <= 10;
 
     const handleNumberChange = (e) => {
         const val = isDecimal ? parseFloat(e.target.value) || 0 : parseInt(e.target.value) || 0;
         onChange(field.name, val);
     };
 
+    const handleSliderChange = (e) => {
+        const val = isDecimal ? parseFloat(e.target.value) : parseInt(e.target.value);
+        onChange(field.name, val);
+    };
+
+    if (useDirectInput) {
+        // Direct keyboard input for small ranges
+        return (
+            <div className="number-input" style={{ marginBottom: '1rem' }}>
+                <label style={{
+                    color: '#ffffff',
+                    marginBottom: '0.5rem',
+                    display: 'block',
+                    fontWeight: '500'
+                }}>
+                    {field.label}
+                </label>
+                <input
+                    type="number"
+                    min={field.min || 0}
+                    max={maxValue}
+                    step={step}
+                    value={currentValue}
+                    onChange={handleNumberChange}
+                    style={{
+                        width: '120px',
+                        textAlign: 'center',
+                        background: 'rgba(255,255,255,0.1)',
+                        border: '2px solid rgba(255,255,255,0.3)',
+                        borderRadius: '6px',
+                        padding: '0.75rem',
+                        color: '#ffffff',
+                        fontSize: '1rem',
+                        fontWeight: '500'
+                    }}
+                />
+                <div style={{
+                    fontSize: '0.7rem',
+                    color: '#888',
+                    marginTop: '0.25rem'
+                }}>
+                    Range: {field.min || 0} - {maxValue}
+                </div>
+            </div>
+        );
+    }
+
+    // Slider + number input for larger ranges
     return (
         <div className="number-input" style={{ marginBottom: '1rem' }}>
             <label style={{
@@ -37,7 +84,7 @@ function NumberInput({ field, value, onChange }) {
                 <input
                     type="range"
                     min={field.min || 0}
-                    max={field.max || 100}
+                    max={maxValue}
                     step={step}
                     value={currentValue}
                     onChange={handleSliderChange}
@@ -53,7 +100,7 @@ function NumberInput({ field, value, onChange }) {
                 <input
                     type="number"
                     min={field.min}
-                    max={field.max}
+                    max={maxValue}
                     step={step}
                     value={currentValue}
                     onChange={handleNumberChange}
@@ -77,7 +124,7 @@ function NumberInput({ field, value, onChange }) {
                 justifyContent: 'space-between'
             }}>
                 <span>Min: {field.min || 0}</span>
-                <span>Max: {field.max || 100}</span>
+                <span>Max: {maxValue}</span>
             </div>
         </div>
     );

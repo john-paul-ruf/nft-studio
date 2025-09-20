@@ -216,9 +216,15 @@ export class SchemaGenerator {
     static guessMaxValue(propertyName, currentValue) {
         const name = propertyName.toLowerCase();
 
+        // Single-digit inputs that should use direct keyboard input (max <= 10)
         if (name.includes('stroke') || name.includes('thickness')) {
-            return Math.max(20, currentValue * 3);
+            return Math.min(10, Math.max(5, currentValue * 2));
         }
+        if (name.includes('speed') && currentValue <= 5) {
+            return Math.min(10, Math.max(5, currentValue * 2));
+        }
+
+        // Larger ranges that should keep sliders
         if (name.includes('number') || name.includes('count')) {
             return Math.max(100, currentValue * 4);
         }
