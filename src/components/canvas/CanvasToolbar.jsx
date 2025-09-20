@@ -178,7 +178,7 @@ export default function CanvasToolbar({
                 <ToggleButton
                     value="orientation"
                     selected={config.isHorizontal}
-                    onChange={onOrientationToggle}
+                    onClick={onOrientationToggle}
                     size="small"
                     sx={{
                         borderRadius: 1,

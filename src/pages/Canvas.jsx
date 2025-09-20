@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, flushSync } from 'react';
 import EffectPicker from '../components/EffectPicker.jsx';
 import EffectsPanel from '../components/EffectsPanel.jsx';
 import EffectConfigurer from '../components/effects/EffectConfigurer.jsx';
@@ -38,10 +38,20 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
     // Get the ProjectState from the shared ProjectStateManager
     const [projectState, setProjectState] = useState(() => projectStateManager.getProjectState());
 
+    // Reactive config state
+    const [config, setConfig] = useState(() => {
+        const state = projectStateManager.getProjectState();
+        return state ? state.getState() : {};
+    });
+
     // Update local state when projectStateManager changes
     useEffect(() => {
-        const unsubscribe = projectStateManager.onUpdate(() => {
-            setProjectState(projectStateManager.getProjectState());
+        const unsubscribe = projectStateManager.onUpdate((updatedState) => {
+            console.log('ProjectState updated:', updatedState);
+            const newProjectState = projectStateManager.getProjectState();
+            setProjectState(newProjectState);
+            // Force a new object reference to ensure React sees the change
+            setConfig(updatedState ? { ...updatedState } : {});
         });
         return unsubscribe;
     }, [projectStateManager]);
@@ -76,8 +86,14 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
             setIsLoading(true);
             ProjectState.loadFromFile(projectData.filePath, onUpdateConfig)
                 .then(loadedProjectState => {
+                    // Preserve the existing onUpdate callback before replacing
+                    const existingOnUpdate = projectState.onUpdate;
                     // Replace the current projectState with loaded one
                     Object.assign(projectState, loadedProjectState);
+                    // Restore the onUpdate callback that includes our UI updates
+                    projectState.onUpdate = existingOnUpdate;
+                    // Update the reactive config state with the loaded data
+                    setConfig(loadedProjectState.getState());
                     setConfigVersion(prev => prev + 1);
                     setIsLoading(false);
                 })
@@ -86,12 +102,11 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                     setIsLoading(false);
                 });
         }
-    }, [projectData?.filePath, projectData?.loadedFromFile, projectState, onUpdateConfig]);
+    }, [projectData?.filePath, projectData?.loadedFromFile, onUpdateConfig]);
 
     const { initialResolution, isLoaded } = useInitialResolution(null); // No longer depend on projectConfig
 
-    // Get current config from projectState
-    const config = projectState ? projectState.getState() : {};
+    // Config is now managed by reactive state above
 
     // State hooks
     const [showEffectPicker, setShowEffectPicker] = useState(false);
