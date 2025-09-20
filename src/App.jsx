@@ -1,5 +1,5 @@
 import React from 'react';
-import { ServiceProvider } from './contexts/ServiceContext.js';
+import { ServiceProvider, useServices } from './contexts/ServiceContext.js';
 import { useNavigation } from './hooks/useNavigation.js';
 import Intro from './pages/Intro.jsx';
 import ProjectWizard from './pages/ProjectWizard.jsx';
@@ -14,6 +14,7 @@ import ApplicationFactory from './ApplicationFactory.js';
  */
 function AppRouter() {
     const { currentView, currentParams, navigateToWizard, navigateToCanvas, navigateToIntro } = useNavigation();
+    const { projectStateManager } = useServices();
 
     const renderCurrentView = () => {
         switch (currentView) {
@@ -38,18 +39,21 @@ function AppRouter() {
                                     console.log('📁 Selected project file:', filePath);
 
                                     try {
-                                        // Use ProjectPersistenceService to load the project
-                                        const persistenceService = new ProjectPersistenceService();
-                                        const projectState = await persistenceService.loadProject(filePath);
+                                        // Load the project into the shared ProjectStateManager
+                                        const projectState = await ProjectState.loadFromFile(filePath);
 
                                         if (projectState) {
                                             console.log('✅ Project loaded successfully:', projectState.getProjectName());
 
-                                            // Navigate to Canvas with loaded ProjectState
+                                            // Get the directory from the file path
+                                            const projectDirectory = filePath.substring(0, filePath.lastIndexOf('/'));
+
+                                            // Initialize the shared ProjectStateManager with the loaded project
+                                            await projectStateManager.initialize(projectState, projectDirectory);
+
+                                            // Navigate to Canvas (manager is already initialized)
                                             navigateToCanvas({
-                                                projectState: projectState.toJSON(),
-                                                projectConfig: projectState.exportForBackend(), // Legacy compatibility
-                                                persistenceService: persistenceService,
+                                                projectInitialized: true,
                                                 loadedFromFile: true,
                                                 filePath
                                             });
@@ -60,16 +64,15 @@ function AppRouter() {
 
                                             if (projectResult.success) {
                                                 const projectState = ProjectState.fromLegacyConfig(projectResult.config);
-                                                const persistenceService = new ProjectPersistenceService();
 
-                                                // Set up persistence for the loaded project
+                                                // Get the directory from the file path
                                                 const projectDirectory = filePath.substring(0, filePath.lastIndexOf('/'));
-                                                persistenceService.setCurrentProject(projectState, projectDirectory);
+
+                                                // Initialize the shared ProjectStateManager with the loaded project
+                                                await projectStateManager.initialize(projectState, projectDirectory);
 
                                                 navigateToCanvas({
-                                                    projectState: projectState.toJSON(),
-                                                    projectConfig: projectResult.config,
-                                                    persistenceService: persistenceService,
+                                                    projectInitialized: true,
                                                     loadedFromFile: true,
                                                     filePath
                                                 });
@@ -93,6 +96,7 @@ function AppRouter() {
             case 'wizard':
                 return (
                     <ProjectWizard
+                        projectStateManager={projectStateManager}
                         onComplete={(config) => {
                             navigateToCanvas({ projectConfig: config });
                         }}
@@ -101,6 +105,7 @@ function AppRouter() {
                 );
             case 'canvas':
                 return <Canvas
+                    projectStateManager={projectStateManager}
                     projectData={currentParams}
                     onUpdateConfig={(updatedConfig) => {
                         // Update the current params with the new config

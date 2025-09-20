@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useMemo } from 'react';
-import FrontendServiceFactory from '../container/FrontendServiceFactory.js';
 
 /**
  * Service Context for dependency injection in React components
@@ -18,7 +17,7 @@ export function ServiceProvider({ children, value = null, serviceFactory = null 
             return value;
         }
 
-        const factory = serviceFactory || FrontendServiceFactory;
+        const factory = serviceFactory;
         return factory.createContextValue();
     }, [value, serviceFactory]);
 

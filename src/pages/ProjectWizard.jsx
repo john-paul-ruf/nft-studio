@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import PreferencesService from '../services/PreferencesService.js';
 import ResolutionMapper from '../utils/ResolutionMapper.js';
 import ProjectState from '../models/ProjectState.js';
-import ProjectPersistenceService from '../services/ProjectPersistenceService.js';
 import './ProjectWizard.css';
 
-export default function ProjectWizard({ onComplete, onCancel }) {
+export default function ProjectWizard({ projectStateManager, onComplete, onCancel }) {
     const [step, setStep] = useState(1);
     const [artistName, setArtistName] = useState('');
     const [projectName, setProjectName] = useState('');
@@ -61,7 +60,7 @@ export default function ProjectWizard({ onComplete, onCancel }) {
                     ? parseInt(lastProjectInfo.lastResolution)
                     : ResolutionMapper.getDefaultResolution();
 
-                // Create ProjectState instead of plain config
+                // Create ProjectState and initialize it in the ProjectStateManager
                 const projectState = new ProjectState();
                 projectState.setArtist(artistName);
                 projectState.setProjectName(projectName);
@@ -74,9 +73,8 @@ export default function ProjectWizard({ onComplete, onCancel }) {
 
                 console.log('🚀 ProjectWizard created ProjectState with resolution:', projectState.getTargetResolution());
 
-                // Create persistence service and save project
-                const persistenceService = new ProjectPersistenceService();
-                persistenceService.setCurrentProject(projectState, projectDirectory);
+                // Initialize the shared ProjectStateManager with this project
+                await projectStateManager.initialize(projectState, projectDirectory);
 
                 // Save these values as preferences for next time
                 await PreferencesService.saveLastProjectInfo(
@@ -86,11 +84,10 @@ export default function ProjectWizard({ onComplete, onCancel }) {
                     projectDirectory
                 );
 
-                // Pass the ProjectState to the completion handler
+                // Pass a flag indicating the projectStateManager has been initialized
                 onComplete({
-                    projectState: projectState.toJSON(),
-                    projectConfig: projectState.exportForBackend(), // Legacy compatibility
-                    persistenceService: persistenceService
+                    projectInitialized: true,
+                    projectConfig: projectState.exportForBackend() // Legacy compatibility if needed
                 });
             } finally {
                 setIsCompleting(false);

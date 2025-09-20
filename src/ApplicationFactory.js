@@ -1,5 +1,6 @@
 // Frontend services
 import FrontendServiceFactory from './container/FrontendServiceFactory.js';
+import ProjectStateManager from './services/ProjectStateManager.js';
 
 // Utils
 import { utilsFactory } from './utils/UtilsFactory.js';
@@ -17,6 +18,7 @@ class ApplicationFactory {
         this.frontendServiceFactory = FrontendServiceFactory;
         this.utilsFactory = utilsFactory;
         this.repositories = new Map();
+        this.projectStateManager = null;
         this.initialized = false;
     }
 
@@ -33,6 +35,10 @@ class ApplicationFactory {
 
         // Initialize repositories
         this.initializeRepositories();
+
+        // Initialize ProjectStateManager singleton
+        this.projectStateManager = new ProjectStateManager();
+        console.log('✅ ProjectStateManager initialized');
 
         this.initialized = true;
         console.log('✅ Application factory initialized');
@@ -163,6 +169,15 @@ class ApplicationFactory {
     }
 
     /**
+     * Get ProjectStateManager singleton
+     * @returns {ProjectStateManager} Project state manager
+     */
+    getProjectStateManager() {
+        this.ensureInitialized();
+        return this.projectStateManager;
+    }
+
+    /**
      * Register custom repository
      * @param {string} name - Repository name
      * @param {*} repository - Repository instance
@@ -186,6 +201,9 @@ class ApplicationFactory {
             navigationService: this.getNavigationService(),
             colorSchemeService: this.getColorSchemeService(),
             preferencesService: this.getPreferencesService(),
+
+            // State Management
+            projectStateManager: this.getProjectStateManager(),
 
             // Utils
             schemaGenerator: this.getSchemaGenerator(),
