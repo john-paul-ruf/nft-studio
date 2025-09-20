@@ -102,6 +102,15 @@ class ResolutionMapper {
     }
 
     /**
+     * Check if a resolution is naturally portrait-oriented (mobile)
+     * @param {Object} resolution - Resolution object
+     * @returns {boolean} True if naturally portrait
+     */
+    static isNaturallyPortrait(resolution) {
+        return resolution && resolution.h > resolution.w;
+    }
+
+    /**
      * Get dimensions for a given width, handling orientation
      * @param {number} width - The width to look up
      * @param {boolean} isHorizontal - Whether orientation is horizontal
@@ -115,11 +124,21 @@ class ResolutionMapper {
             return isHorizontal ? { w: 1920, h: 1080 } : { w: 1080, h: 1920 };
         }
 
-        // When horizontal: use normal dimensions (landscape)
-        // When vertical: swap dimensions for portrait orientation
-        return isHorizontal
-            ? { w: resolution.w, h: resolution.h }
-            : { w: resolution.h, h: resolution.w };
+        const isNaturallyPortrait = this.isNaturallyPortrait(resolution);
+
+        if (isNaturallyPortrait) {
+            // For naturally portrait resolutions (like mobile),
+            // horizontal means landscape (swap to wide), vertical means keep portrait
+            return isHorizontal
+                ? { w: resolution.h, h: resolution.w }  // Swap to make landscape
+                : { w: resolution.w, h: resolution.h }; // Keep original portrait
+        } else {
+            // For naturally landscape resolutions (like desktop),
+            // horizontal means keep landscape, vertical means swap to portrait
+            return isHorizontal
+                ? { w: resolution.w, h: resolution.h }  // Keep original landscape
+                : { w: resolution.h, h: resolution.w }; // Swap to make portrait
+        }
     }
 
     /**
