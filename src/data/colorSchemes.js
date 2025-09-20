@@ -181,6 +181,48 @@ export const predefinedColorSchemes = {
         neutrals: ['#FDF5E6', '#F5DEB3', '#DEB887', '#D2B48C'],
         backgrounds: ['#8B4513', '#A0522D', '#CD853F', '#D2691E'],
         lights: ['#F4A460', '#DAA520', '#B8860B', '#CD853F', '#D2B48C', '#DEB887']
+    },
+
+    // New Cool Themes
+    'neon-underground': {
+        id: 'neon-underground',
+        name: 'Neon Underground',
+        description: 'Hacker den vibes with matrix green and electric accents',
+        neutrals: ['#E0FFE0', '#C0FFC0', '#A0FFA0', '#808080'],
+        backgrounds: ['#000000', '#001100', '#002200', '#0A1A0A'],
+        lights: ['#00FF00', '#33FF33', '#66FF66', '#99FF99', '#CCFF00', '#FFFF00']
+    },
+    'mystic-ritual': {
+        id: 'mystic-ritual',
+        name: 'Mystic Ritual',
+        description: 'Ancient mysticism with cosmic purples and ethereal light',
+        neutrals: ['#F8F8FF', '#E6E6FA', '#D8BFD8', '#C0C0C0'],
+        backgrounds: ['#1a0033', '#2d1b69', '#301934', '#4B0082'],
+        lights: ['#9370DB', '#8A2BE2', '#9932CC', '#BA55D3', '#DA70D6', '#E6E6FA']
+    },
+    'street-canvas': {
+        id: 'street-canvas',
+        name: 'Street Canvas',
+        description: 'Urban graffiti energy with bold street art colors',
+        neutrals: ['#FFFFFF', '#F5F5F5', '#E0E0E0', '#C0C0C0'],
+        backgrounds: ['#2C1810', '#3D2817', '#654321', '#8B4513'],
+        lights: ['#FF1493', '#FF4500', '#FF6347', '#FFA500', '#32CD32', '#1E90FF']
+    },
+    'bass-drop': {
+        id: 'bass-drop',
+        name: 'Bass Drop',
+        description: 'Electronic music vibes with club and laser colors',
+        neutrals: ['#F0F8FF', '#E0E6FF', '#D0D4FF', '#A0A4A8'],
+        backgrounds: ['#000000', '#1a1a2e', '#16213e', '#0f3460'],
+        lights: ['#0080FF', '#FF0080', '#80FF00', '#FF8000', '#8000FF', '#00FF80']
+    },
+    'vapor-dreams': {
+        id: 'vapor-dreams',
+        name: 'Vapor Dreams',
+        description: '80s Miami synthwave with vaporwave aesthetics',
+        neutrals: ['#FFF0F5', '#FFE4E1', '#FFEFD5', '#E6E6FA'],
+        backgrounds: ['#2D1B69', '#4B0082', '#483D8B', '#191970'],
+        lights: ['#FF1493', '#00FFFF', '#FF69B4', '#7FFF00', '#FFD700', '#FF6347']
     }
 };
 

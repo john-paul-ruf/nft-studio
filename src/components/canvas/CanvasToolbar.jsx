@@ -60,6 +60,8 @@ export default function CanvasToolbar({
     onColorSchemeChange,
     onAddEffectDirect,
     onThemeToggle,
+    currentThemeKey,
+    availableThemes,
     onForceSave,
     closeAllDropdowns,
     zoomMenuAnchor,
@@ -372,7 +374,7 @@ export default function CanvasToolbar({
                 )}
 
                 <Box className="toolbar-group">
-                    <Tooltip title={`Switch to ${themeMode === 'dark' ? 'light' : 'dark'} theme`}>
+                    <Tooltip title={`Current theme: ${availableThemes[currentThemeKey]?.name || currentThemeKey} (click to cycle)`}>
                         <IconButton
                             onClick={onThemeToggle}
                             color="inherit"
@@ -387,7 +389,14 @@ export default function CanvasToolbar({
                                 }
                             }}
                         >
-                            {themeMode === 'dark' ? <LightMode /> : <DarkMode />}
+                            {/* Icon changes based on theme */}
+                            {currentThemeKey === 'light' && <LightMode />}
+                            {currentThemeKey === 'dark' && <DarkMode />}
+                            {currentThemeKey === 'neon-underground' && <span style={{fontSize: '16px'}}>🔋</span>}
+                            {currentThemeKey === 'mystic-ritual' && <span style={{fontSize: '16px'}}>🔮</span>}
+                            {currentThemeKey === 'street-canvas' && <span style={{fontSize: '16px'}}>🎨</span>}
+                            {currentThemeKey === 'bass-drop' && <span style={{fontSize: '16px'}}>🎧</span>}
+                            {currentThemeKey === 'vapor-dreams' && <span style={{fontSize: '16px'}}>🌈</span>}
                         </IconButton>
                     </Tooltip>
                 </Box>

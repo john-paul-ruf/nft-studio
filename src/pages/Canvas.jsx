@@ -9,7 +9,7 @@ import ProjectState from '../models/ProjectState.js';
 import { useInitialResolution } from '../hooks/useInitialResolution.js';
 
 // Canvas components and hooks
-import { createAppTheme } from '../components/canvas/theme.js';
+import { createAppTheme, appThemes } from '../components/canvas/theme.js';
 import CanvasToolbar from '../components/canvas/CanvasToolbar.jsx';
 import CanvasViewport from '../components/canvas/CanvasViewport.jsx';
 import useZoomPan from '../components/canvas/useZoomPan.js';
@@ -120,8 +120,11 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
     const [colorSchemeMenuAnchor, setColorSchemeMenuAnchor] = useState(null);
 
     // Theme state
-    const [themeMode, setThemeMode] = useState('dark');
-    const currentTheme = createAppTheme(themeMode);
+    const [currentThemeKey, setCurrentThemeKey] = useState('dark');
+    const currentTheme = createAppTheme(currentThemeKey);
+
+    // For backward compatibility, keep themeMode for existing components
+    const themeMode = appThemes[currentThemeKey]?.palette.mode || 'dark';
 
     // Update config through the shared ProjectStateManager
     const updateConfig = (updates) => {
@@ -388,7 +391,14 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                     onZoomReset={handleZoomReset}
                     onColorSchemeChange={handleColorSchemeChange}
                     onAddEffectDirect={handleAddEffectDirect}
-                    onThemeToggle={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
+                    onThemeToggle={() => {
+                        const themeKeys = Object.keys(appThemes);
+                        const currentIndex = themeKeys.indexOf(currentThemeKey);
+                        const nextIndex = (currentIndex + 1) % themeKeys.length;
+                        setCurrentThemeKey(themeKeys[nextIndex]);
+                    }}
+                    currentThemeKey={currentThemeKey}
+                    availableThemes={appThemes}
                     lastSaveStatus={lastSaveStatus}
                     currentProjectPath={projectStateManager.getPersistenceService()?.getCurrentProjectPath()}
                     onForceSave={() => projectStateManager.forceSave()}
