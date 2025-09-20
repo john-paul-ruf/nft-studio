@@ -62,8 +62,8 @@ export default function EffectsPanel({
         }
     };
 
-    const handleDragStart = (e, index) => {
-        setDraggedIndex(index);
+    const handleDragStart = (e, index, section) => {
+        setDraggedIndex({ index, section });
         e.dataTransfer.effectAllowed = 'move';
     };
 
@@ -72,10 +72,12 @@ export default function EffectsPanel({
         e.dataTransfer.dropEffect = 'move';
     };
 
-    const handleDrop = (e, dropIndex) => {
+    const handleDrop = (e, dropIndex, section) => {
         e.preventDefault();
-        if (draggedIndex !== null && draggedIndex !== dropIndex) {
-            onEffectReorder(draggedIndex, dropIndex);
+        if (draggedIndex !== null &&
+            draggedIndex.index !== dropIndex &&
+            draggedIndex.section === section) {
+            onEffectReorder(draggedIndex.index, dropIndex);
         }
         setDraggedIndex(null);
     };
@@ -215,8 +217,8 @@ export default function EffectsPanel({
         );
     };
 
-    const isFinalEffect = (className) => {
-        return className && className.toLowerCase().includes('final');
+    const isFinalEffect = (effect) => {
+        return effect && effect.type === 'finalImage';
     };
 
     // Context menu styles
@@ -346,15 +348,142 @@ export default function EffectsPanel({
         </ContextMenu.Portal>
     );
 
-    const sortedEffectsWithIndices = effects
-        .map((effect, originalIndex) => ({ effect, originalIndex }))
-        .sort((a, b) => {
-            const aIsFinal = isFinalEffect(a.effect.className);
-            const bIsFinal = isFinalEffect(b.effect.className);
-            if (aIsFinal && !bIsFinal) return 1;
-            if (!aIsFinal && bIsFinal) return -1;
-            return 0;
-        });
+    // Split effects into Primary and Final sections
+    const effectsWithIndices = effects.map((effect, originalIndex) => ({ effect, originalIndex }));
+    const primaryEffects = effectsWithIndices.filter(({ effect }) => !isFinalEffect(effect));
+    const finalEffects = effectsWithIndices.filter(({ effect }) => isFinalEffect(effect));
+
+    // Reusable effect rendering function
+    const renderEffect = ({ effect, originalIndex }, sortedIndex, section) => {
+        const isExpanded = expandedEffects.has(`${section}-${sortedIndex}`);
+        const hasChildren =
+            (effect.secondaryEffects?.length > 0) ||
+            (effect.keyframeEffects?.length > 0);
+
+        return (
+            <ContextMenu.Root key={`${section}-${originalIndex}`}>
+                <ContextMenu.Trigger asChild>
+                    <Box
+                        sx={{ mb: 0.25 }}
+                        draggable={section === 'primary'}
+                        onDragStart={(e) => handleDragStart(e, originalIndex, section)}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, originalIndex, section)}
+                    >
+                        <Paper
+                            elevation={0}
+                            sx={{
+                                backgroundColor: theme.palette.background.default,
+                                border: `1px solid ${theme.palette.divider}`,
+                                borderRadius: 1,
+                                p: 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                userSelect: 'none',
+                                '&:hover': {
+                                    backgroundColor: theme.palette.action.hover,
+                                    borderColor: theme.palette.primary.main,
+                                }
+                            }}
+                        >
+                            {hasChildren && (
+                                <IconButton
+                                    size="small"
+                                    onClick={() => toggleExpanded(`${section}-${sortedIndex}`)}
+                                    sx={{
+                                        p: 0,
+                                        mr: 1,
+                                        color: theme.palette.text.secondary,
+                                        transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                                        transition: 'transform 0.2s'
+                                    }}
+                                >
+                                    <ExpandMore sx={{ fontSize: 16 }} />
+                                </IconButton>
+                            )}
+                            <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onEffectToggleVisibility && onEffectToggleVisibility(originalIndex);
+                                }}
+                                title={effect.visible !== false ? 'Hide layer' : 'Show layer'}
+                                sx={{
+                                    p: 0,
+                                    mr: 1,
+                                    color: effect.visible !== false
+                                        ? theme.palette.primary.main
+                                        : theme.palette.text.disabled,
+                                    opacity: effect.visible !== false ? 1 : 0.5,
+                                    '&:hover': {
+                                        color: theme.palette.primary.main,
+                                        opacity: 1
+                                    }
+                                }}
+                            >
+                                {effect.visible !== false ? <Visibility sx={{ fontSize: 16 }} /> : <VisibilityOff sx={{ fontSize: 16 }} />}
+                            </IconButton>
+                            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Typography
+                                    variant="body2"
+                                    sx={{
+                                        color: theme.palette.text.primary,
+                                        fontSize: '13px'
+                                    }}
+                                >
+                                    {formatEffectName(effect.className)}
+                                </Typography>
+                                {isFinalEffect(effect) && (
+                                    <Chip
+                                        label="Final"
+                                        size="small"
+                                        sx={{
+                                            height: 18,
+                                            fontSize: '10px',
+                                            backgroundColor: '#5cb85c',
+                                            color: '#fff',
+                                            '& .MuiChip-label': {
+                                                px: 0.5
+                                            }
+                                        }}
+                                    />
+                                )}
+                            </Box>
+                            <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onEffectDelete(originalIndex);
+                                }}
+                                title="Delete layer"
+                                sx={{
+                                    p: 0,
+                                    color: theme.palette.text.secondary,
+                                    opacity: 0.7,
+                                    '&:hover': {
+                                        opacity: 1,
+                                        transform: 'scale(1.1)',
+                                        color: theme.palette.error.main
+                                    }
+                                }}
+                            >
+                                <Delete sx={{ fontSize: 16 }} />
+                            </IconButton>
+                        </Paper>
+                        {isExpanded && (
+                            <>
+                                {renderSecondaryEffects(effect, originalIndex)}
+                                {renderKeyframeEffects(effect, originalIndex)}
+                            </>
+                        )}
+                    </Box>
+                </ContextMenu.Trigger>
+                {renderContextMenu(effect, originalIndex)}
+            </ContextMenu.Root>
+        );
+    };
 
     return (
         <Paper
@@ -394,7 +523,7 @@ export default function EffectsPanel({
                     p: 1
                 }}
             >
-                {sortedEffectsWithIndices.length === 0 ? (
+                {effects.length === 0 ? (
                     <Typography
                         variant="body2"
                         sx={{
@@ -407,136 +536,58 @@ export default function EffectsPanel({
                         No effects added yet
                     </Typography>
                 ) : (
-                    sortedEffectsWithIndices.map(({ effect, originalIndex }, sortedIndex) => {
-                        const isExpanded = expandedEffects.has(sortedIndex);
-                        const hasChildren =
-                            (effect.secondaryEffects?.length > 0) ||
-                            (effect.keyframeEffects?.length > 0);
-
-                        return (
-                            <ContextMenu.Root key={originalIndex}>
-                                <ContextMenu.Trigger asChild>
-                                    <Box
-                                        sx={{ mb: 0.25 }}
-                                        draggable={!isFinalEffect(effect.className)}
-                                        onDragStart={(e) => handleDragStart(e, originalIndex)}
-                                        onDragOver={handleDragOver}
-                                        onDrop={(e) => handleDrop(e, originalIndex)}
-                                    >
-                                <Paper
-                                    elevation={0}
+                    <>
+                        {/* Primary Effects Section */}
+                        {primaryEffects.length > 0 && (
+                            <Box sx={{ mb: 2 }}>
+                                <Typography
+                                    variant="caption"
                                     sx={{
-                                        backgroundColor: theme.palette.background.default,
-                                        border: `1px solid ${theme.palette.divider}`,
-                                        borderRadius: 1,
-                                        p: 1,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s',
-                                        userSelect: 'none',
-                                        '&:hover': {
-                                            backgroundColor: theme.palette.action.hover,
-                                            borderColor: theme.palette.primary.main,
-                                        }
+                                        color: theme.palette.text.secondary,
+                                        fontWeight: 600,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: 1,
+                                        fontSize: '10px',
+                                        mb: 1,
+                                        display: 'block',
+                                        px: 1
                                     }}
                                 >
-                                    {hasChildren && (
-                                        <IconButton
-                                            size="small"
-                                            onClick={() => toggleExpanded(sortedIndex)}
-                                            sx={{
-                                                p: 0,
-                                                mr: 1,
-                                                color: theme.palette.text.secondary,
-                                                transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                                                transition: 'transform 0.2s'
-                                            }}
-                                        >
-                                            <ExpandMore sx={{ fontSize: 16 }} />
-                                        </IconButton>
-                                    )}
-                                    <IconButton
-                                        size="small"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onEffectToggleVisibility && onEffectToggleVisibility(originalIndex);
-                                        }}
-                                        title={effect.visible !== false ? 'Hide layer' : 'Show layer'}
-                                        sx={{
-                                            p: 0,
-                                            mr: 1,
-                                            color: effect.visible !== false
-                                                ? theme.palette.primary.main
-                                                : theme.palette.text.disabled,
-                                            opacity: effect.visible !== false ? 1 : 0.5,
-                                            '&:hover': {
-                                                color: theme.palette.primary.main,
-                                                opacity: 1
-                                            }
-                                        }}
-                                    >
-                                        {effect.visible !== false ? <Visibility sx={{ fontSize: 16 }} /> : <VisibilityOff sx={{ fontSize: 16 }} />}
-                                    </IconButton>
-                                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <Typography
-                                            variant="body2"
-                                            sx={{
-                                                color: theme.palette.text.primary,
-                                                fontSize: '13px'
-                                            }}
-                                        >
-                                            {formatEffectName(effect.className)}
-                                        </Typography>
-                                        {isFinalEffect(effect.className) && (
-                                            <Chip
-                                                label="Final"
-                                                size="small"
-                                                sx={{
-                                                    height: 18,
-                                                    fontSize: '10px',
-                                                    backgroundColor: '#5cb85c',
-                                                    color: '#fff',
-                                                    '& .MuiChip-label': {
-                                                        px: 0.5
-                                                    }
-                                                }}
-                                            />
-                                        )}
-                                    </Box>
-                                    <IconButton
-                                        size="small"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onEffectDelete(originalIndex);
-                                        }}
-                                        title="Delete layer"
-                                        sx={{
-                                            p: 0,
-                                            color: theme.palette.text.secondary,
-                                            opacity: 0.7,
-                                            '&:hover': {
-                                                opacity: 1,
-                                                transform: 'scale(1.1)',
-                                                color: theme.palette.error.main
-                                            }
-                                        }}
-                                    >
-                                        <Delete sx={{ fontSize: 16 }} />
-                                    </IconButton>
-                                </Paper>
-                                {isExpanded && (
-                                    <>
-                                        {renderSecondaryEffects(effect, originalIndex)}
-                                        {renderKeyframeEffects(effect, originalIndex)}
-                                    </>
+                                    Primary Effects
+                                </Typography>
+                                {primaryEffects.map((effectData, index) =>
+                                    renderEffect(effectData, index, 'primary')
                                 )}
-                                    </Box>
-                                </ContextMenu.Trigger>
-                                {renderContextMenu(effect, originalIndex)}
-                            </ContextMenu.Root>
-                        );
-                    })
+                            </Box>
+                        )}
+
+                        {/* Final Effects Section */}
+                        {finalEffects.length > 0 && (
+                            <Box>
+                                {primaryEffects.length > 0 && (
+                                    <Divider sx={{ mb: 2, borderColor: theme.palette.divider }} />
+                                )}
+                                <Typography
+                                    variant="caption"
+                                    sx={{
+                                        color: theme.palette.text.secondary,
+                                        fontWeight: 600,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: 1,
+                                        fontSize: '10px',
+                                        mb: 1,
+                                        display: 'block',
+                                        px: 1
+                                    }}
+                                >
+                                    Final Effects
+                                </Typography>
+                                {finalEffects.map((effectData, index) =>
+                                    renderEffect(effectData, index, 'final')
+                                )}
+                            </Box>
+                        )}
+                    </>
                 )}
             </Box>
         </Paper>
