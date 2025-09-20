@@ -461,7 +461,7 @@ class NftProjectManager {
             neutrals: colorSchemeInfo.neutrals, //array of hex
             backgrounds: colorSchemeInfo.backgrounds, //array of hex
             lights: colorSchemeInfo.lights, //array of hex
-            numberOfFrame: projectConfig.numberOfFrames,
+            numberOfFrame: projectConfig.numFrames,
             longestSideInPixels: Math.max(resolution.width, resolution.height),
             shortestSideInPixels: Math.min(resolution.width, resolution.height),
             isHorizontal: isHorizontal,
