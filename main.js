@@ -6,13 +6,28 @@ import SolidIpcHandlers from './src/main/modules/SolidIpcHandlers.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+// Set the app name
+app.name = 'NFT Studio'
+
 /**
  * Create the main application window
  */
 function createWindow () {
+  // Platform-specific icon
+  let iconPath
+  if (process.platform === 'darwin') {
+    iconPath = path.join(__dirname, 'icons', 'icon.icns')
+  } else if (process.platform === 'win32') {
+    iconPath = path.join(__dirname, 'icons', 'icon.ico')
+  } else {
+    iconPath = path.join(__dirname, 'icons', 'icon.png')
+  }
+
   const mainWindow = new BrowserWindow({
     width: 1600,
     height: 1000,
+    title: 'NFT Studio',
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,

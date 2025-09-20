@@ -1,0 +1,20 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Clean and Package macOS" type="js.build_tools.npm" activateToolWindowBeforeRun="false">
+    <package-json value="$PROJECT_DIR$/package.json" />
+    <command value="run" />
+    <scripts>
+      <script value="package:mac" />
+    </scripts>
+    <node-interpreter value="project" />
+    <envs />
+    <before-run-tasks>
+      <option name="run" />
+      <task name="npm">
+        <option name="arguments" value="run clean:start" />
+        <option name="command" value="run" />
+        <option name="packageJsonPath" value="$PROJECT_DIR$/package.json" />
+      </task>
+    </before-run-tasks>
+    <method v="2" />
+  </configuration>
+</component>
