@@ -3,7 +3,6 @@ import {
     AppBar,
     Toolbar,
     Box,
-    Button,
     FormControl,
     Select,
     MenuItem,
@@ -26,11 +25,11 @@ import {
     Settings,
     LightMode,
     DarkMode,
-    KeyboardArrowDown,
     KeyboardArrowRight,
     SwapHoriz,
     SwapVert,
-    Search
+    Search,
+    Save
 } from '@mui/icons-material';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import ResolutionMapper from '../../utils/ResolutionMapper.js';
@@ -86,21 +85,21 @@ export default function CanvasToolbar({
                 <Box className="toolbar-group">
                     <DropdownMenu.Root>
                         <DropdownMenu.Trigger asChild>
-                            <Button
-                                variant="contained"
-                                startIcon={<PlayArrow />}
+                            <IconButton
                                 disabled={isRendering}
                                 size="small"
                                 sx={{
-                                    minWidth: '120px',
-                                    backgroundColor: 'primary.main',
+                                    color: 'primary.main',
+                                    backgroundColor: isRendering ? 'action.disabled' : 'transparent',
                                     '&:hover': {
-                                        backgroundColor: 'primary.dark',
+                                        backgroundColor: 'primary.main',
+                                        color: 'white',
                                     }
                                 }}
+                                title={isRendering ? 'Rendering...' : 'Render'}
                             >
-                                {isRendering ? 'Rendering...' : 'Render'}
-                            </Button>
+                                <PlayArrow />
+                            </IconButton>
                         </DropdownMenu.Trigger>
                         <DropdownMenu.Portal>
                             <DropdownMenu.Content
@@ -156,8 +155,6 @@ export default function CanvasToolbar({
                         </DropdownMenu.Portal>
                     </DropdownMenu.Root>
                 </Box>
-
-                <Divider orientation="vertical" flexItem sx={{ mx: 2, backgroundColor: 'divider' }} />
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <FormControl size="small" sx={{ minWidth: 140 }}>
@@ -222,23 +219,24 @@ export default function CanvasToolbar({
                     />
                 </Box>
 
-                <Divider orientation="vertical" flexItem sx={{ mx: 2, backgroundColor: 'divider' }} />
-
                 <Box sx={{ position: 'relative' }}>
-                    <Button
-                        variant="outlined"
+                    <IconButton
                         size="small"
-                        startIcon={<Search />}
                         onClick={(event) => {
                             closeAllDropdowns();
                             setZoomMenuAnchor(event.currentTarget);
                         }}
-                        endIcon={<KeyboardArrowDown />}
-                        sx={{ minWidth: '110px' }}
-                        title="Zoom actions"
+                        sx={{
+                            color: 'text.primary',
+                            '&:hover': {
+                                backgroundColor: 'primary.main',
+                                color: 'white',
+                            }
+                        }}
+                        title={`Zoom: ${Math.round(zoom * 100)}%`}
                     >
-                        {Math.round(zoom * 100)}%
-                    </Button>
+                        <Search />
+                    </IconButton>
                     <Menu
                         anchorEl={zoomMenuAnchor}
                         open={Boolean(zoomMenuAnchor)}
@@ -271,23 +269,24 @@ export default function CanvasToolbar({
                     </Menu>
                 </Box>
 
-                <Divider orientation="vertical" flexItem sx={{ mx: 2, backgroundColor: 'divider' }} />
-
                 <Box sx={{ position: 'relative' }}>
-                    <Button
-                        variant="outlined"
+                    <IconButton
                         size="small"
-                        startIcon={<Palette />}
                         onClick={(event) => {
                             closeAllDropdowns();
                             setColorSchemeMenuAnchor(event.currentTarget);
                         }}
-                        endIcon={<KeyboardArrowDown />}
-                        sx={{ minWidth: '140px' }}
-                        title="Select color scheme"
+                        sx={{
+                            color: 'text.primary',
+                            '&:hover': {
+                                backgroundColor: 'primary.main',
+                                color: 'white',
+                            }
+                        }}
+                        title="Color Scheme"
                     >
-                        Color Scheme
-                    </Button>
+                        <Palette />
+                    </IconButton>
                     <Menu
                         anchorEl={colorSchemeMenuAnchor}
                         open={Boolean(colorSchemeMenuAnchor)}
@@ -328,8 +327,6 @@ export default function CanvasToolbar({
                     </Menu>
                 </Box>
 
-                <Divider orientation="vertical" flexItem sx={{ mx: 2, backgroundColor: 'divider' }} />
-
                 <AddEffectDropdown
                     addEffectMenuOpen={addEffectMenuOpen}
                     setAddEffectMenuOpen={setAddEffectMenuOpen}
@@ -338,8 +335,6 @@ export default function CanvasToolbar({
                     currentTheme={currentTheme}
                     onAddEffectDirect={onAddEffectDirect}
                 />
-
-                <Divider orientation="vertical" flexItem sx={{ mx: 2, backgroundColor: 'divider' }} />
 
                 <Box sx={{ flexGrow: 1 }} />
 
@@ -359,14 +354,20 @@ export default function CanvasToolbar({
                                     </Typography>
                                 )}
                                 {onForceSave && (
-                                    <Button
+                                    <IconButton
                                         size="small"
-                                        variant="text"
                                         onClick={onForceSave}
-                                        sx={{ minWidth: 'auto', p: 0.5 }}
+                                        sx={{
+                                            color: 'text.primary',
+                                            '&:hover': {
+                                                backgroundColor: 'primary.main',
+                                                color: 'white',
+                                            }
+                                        }}
+                                        title="Force Save"
                                     >
-                                        💾
-                                    </Button>
+                                        <Save />
+                                    </IconButton>
                                 )}
                             </Box>
                         </Tooltip>
@@ -420,16 +421,19 @@ function AddEffectDropdown({
                 onOpenChange={setAddEffectMenuOpen}
             >
                 <DropdownMenu.Trigger asChild>
-                    <Button
-                        variant="outlined"
+                    <IconButton
                         size="small"
-                        startIcon={<Add />}
-                        endIcon={<KeyboardArrowDown />}
-                        sx={{ minWidth: '120px' }}
-                        title="Add effect options"
+                        sx={{
+                            color: 'text.primary',
+                            '&:hover': {
+                                backgroundColor: 'primary.main',
+                                color: 'white',
+                            }
+                        }}
+                        title="Add Effect"
                     >
-                        Add Effect
-                    </Button>
+                        <Add />
+                    </IconButton>
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Portal>
                     <DropdownMenu.Content
