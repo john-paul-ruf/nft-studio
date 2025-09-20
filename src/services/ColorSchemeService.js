@@ -35,6 +35,9 @@ class ColorSchemeService {
         const favorites = await PreferencesService.getFavoriteColorSchemes();
 
         const categories = {
+            '🔥 Cool Themes': [
+                'neon-underground', 'mystic-ritual', 'street-canvas', 'bass-drop', 'vapor-dreams'
+            ],
             'Cyberpunk & Neon': [
                 'neon-cyberpunk', 'synthwave', 'electric-blue'
             ],
