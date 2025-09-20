@@ -33,7 +33,7 @@
     "start:dev": "webpack --mode=development && npm run copy:html && electron .",
     "dev": "webpack --watch",
     "build": "webpack --mode=production && npm run copy:html",
-    "copy:html": "cp dist/index.html dist/index.html 2>/dev/null || cp index.template.html dist/index.html",
+    "copy:html": "cp dist/index.html dist/index.html 2>/dev/null || cp index.template.html dist/index.html && cp -r icons dist/ 2>/dev/null || true",
     "electron": "electron .",
     "rebuild": "electron-rebuild -f -w canvas && electron-rebuild -f -w sharp",
     "clean:start": "rm -rf dist/ && webpack && npm run copy:html && electron .",
