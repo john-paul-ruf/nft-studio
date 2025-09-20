@@ -9,7 +9,7 @@ function MultiSelectInput({ field, value, onChange }) {
         const newValues = currentValues.includes(option)
             ? currentValues.filter(v => v !== option)
             : [...currentValues, option];
-        onChange(newValues);
+        onChange(field.name, newValues);
     };
 
     return (

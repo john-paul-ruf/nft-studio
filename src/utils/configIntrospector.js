@@ -190,9 +190,8 @@ class ConfigIntrospector {
             if (nameLower.includes('sparsity') || nameLower.includes('factor')) {
                 return {
                     ...field,
-                    type: 'multiselect',
-                    options: value,
-                    label: field.label + ' Values'
+                    type: 'sparsityfactor',
+                    label: field.label + ' (Divisors of 360)'
                 };
             }
 
