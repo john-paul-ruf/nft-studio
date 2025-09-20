@@ -319,6 +319,24 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
         loadDefaultColorScheme();
     }, []); // Run only on mount
 
+    // Load saved theme on component mount
+    useEffect(() => {
+        const loadSavedTheme = async () => {
+            try {
+                const savedTheme = await PreferencesService.getSelectedTheme();
+                if (savedTheme) {
+                    console.log('🎨 Loading saved theme:', savedTheme);
+                    setCurrentThemeKey(savedTheme);
+                }
+            } catch (error) {
+                console.error('❌ Failed to load saved theme:', error);
+                // Keep default theme on error
+            }
+        };
+
+        loadSavedTheme();
+    }, []); // Run only on mount
+
     const handleResolutionChange = async (e) => {
         const baseResolution = parseInt(e.target.value);
         updateConfig({ targetResolution: baseResolution });
@@ -330,6 +348,23 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
             console.log('💾 Saved resolution preference:', baseResolution);
         } catch (error) {
             console.error('❌ Failed to save resolution preference:', error);
+        }
+    };
+
+    const handleThemeToggle = async () => {
+        const themeKeys = Object.keys(appThemes);
+        const currentIndex = themeKeys.indexOf(currentThemeKey);
+        const nextIndex = (currentIndex + 1) % themeKeys.length;
+        const newThemeKey = themeKeys[nextIndex];
+
+        setCurrentThemeKey(newThemeKey);
+
+        // Save theme preference
+        try {
+            await PreferencesService.setSelectedTheme(newThemeKey);
+            console.log('💾 Saved theme preference:', newThemeKey);
+        } catch (error) {
+            console.error('❌ Failed to save theme preference:', error);
         }
     };
 
@@ -391,12 +426,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                     onZoomReset={handleZoomReset}
                     onColorSchemeChange={handleColorSchemeChange}
                     onAddEffectDirect={handleAddEffectDirect}
-                    onThemeToggle={() => {
-                        const themeKeys = Object.keys(appThemes);
-                        const currentIndex = themeKeys.indexOf(currentThemeKey);
-                        const nextIndex = (currentIndex + 1) % themeKeys.length;
-                        setCurrentThemeKey(themeKeys[nextIndex]);
-                    }}
+                    onThemeToggle={handleThemeToggle}
                     currentThemeKey={currentThemeKey}
                     availableThemes={appThemes}
                     lastSaveStatus={lastSaveStatus}

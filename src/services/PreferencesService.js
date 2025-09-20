@@ -46,6 +46,9 @@ class PreferencesService {
                 lastResolution: ResolutionMapper.getDefaultResolution().toString(), // Last used resolution as string
                 lastProjectDirectory: '' // Last used project directory
             },
+            theme: {
+                selectedTheme: 'dark' // User's preferred theme (dark, light, cyberpunk)
+            },
             lastModified: new Date().toISOString()
         };
     }
@@ -314,6 +317,36 @@ class PreferencesService {
             lastResolution: preferences.project?.lastResolution || ResolutionMapper.getDefaultResolution().toString(),
             lastProjectDirectory: preferences.project?.lastProjectDirectory || ''
         };
+    }
+
+    /**
+     * Get the user's selected theme
+     * @returns {Promise<string>} Selected theme key (dark, light, cyberpunk)
+     */
+    static async getSelectedTheme() {
+        const preferences = await this.getPreferences();
+        return preferences.theme?.selectedTheme || 'dark';
+    }
+
+    /**
+     * Set the user's selected theme
+     * @param {string} themeKey - Theme key to save (dark, light, cyberpunk)
+     * @returns {Promise<boolean>} Success status
+     */
+    static async setSelectedTheme(themeKey) {
+        try {
+            const preferences = await this.getPreferences();
+
+            if (!preferences.theme) {
+                preferences.theme = this.getDefaultPreferences().theme;
+            }
+
+            preferences.theme.selectedTheme = themeKey;
+            return await this.savePreferences(preferences);
+        } catch (error) {
+            console.error('Error saving selected theme:', error);
+            return false;
+        }
     }
 }
 

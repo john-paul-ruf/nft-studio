@@ -1,110 +1,126 @@
 import { createTheme } from '@mui/material';
 
-// App theme definitions with same inspirations as color schemes
+// App theme definitions - Professional & Reduced Contrast
 export const appThemes = {
-    // Original themes
     dark: {
         name: 'Dark',
         palette: {
             mode: 'dark',
-            primary: { main: '#4a90e2' },
-            secondary: { main: '#ff8c00' },
-            background: { default: '#1e1e1e', paper: '#323232' },
-            text: { primary: '#fff', secondary: '#888' },
+            primary: { main: '#5a8bb5', contrastText: '#ffffff' },
+            secondary: { main: '#d4977b', contrastText: '#ffffff' },
+            background: { default: '#1a1a1a', paper: '#2a2a2a' },
+            text: { primary: '#e0e0e0', secondary: '#a0a0a0' },
+            divider: '#404040',
+            action: { hover: '#353535' },
+            success: { main: '#5d9c5d', contrastText: '#ffffff' },
+            warning: { main: '#d49c3d', contrastText: '#ffffff' },
+            error: { main: '#c76161', contrastText: '#ffffff' },
+            info: { main: '#5a8bb5', contrastText: '#ffffff' },
         }
     },
     light: {
         name: 'Light',
         palette: {
             mode: 'light',
-            primary: { main: '#4a90e2' },
-            secondary: { main: '#ff8c00' },
-            background: { default: '#f5f5f5', paper: '#ffffff' },
-            text: { primary: '#333', secondary: '#666' },
+            primary: { main: '#4a7ba7', contrastText: '#ffffff' },
+            secondary: { main: '#a67c52', contrastText: '#ffffff' },
+            background: { default: '#fafafa', paper: '#f5f5f5' },
+            text: { primary: '#2a2a2a', secondary: '#606060' },
+            divider: '#d0d0d0',
+            action: { hover: '#eeeeee' },
+            success: { main: '#5a9e5a', contrastText: '#ffffff' },
+            warning: { main: '#cc9543', contrastText: '#ffffff' },
+            error: { main: '#b85555', contrastText: '#ffffff' },
+            info: { main: '#4a7ba7', contrastText: '#ffffff' },
         }
     },
-
-    // New Cool App Themes
-    'neon-underground': {
-        name: 'Neon Underground',
+    cyberpunk: {
+        name: 'Cyberpunk',
         palette: {
             mode: 'dark',
-            primary: { main: '#00FF00' },
-            secondary: { main: '#33FF33' },
-            background: { default: '#000000', paper: '#001100' },
-            text: { primary: '#00FF00', secondary: '#66FF66' },
-            divider: '#002200',
-            action: { hover: '#002200' },
-        }
-    },
-    'mystic-ritual': {
-        name: 'Mystic Ritual',
-        palette: {
-            mode: 'dark',
-            primary: { main: '#9370DB' },
-            secondary: { main: '#BA55D3' },
-            background: { default: '#1a0033', paper: '#2d1b69' },
-            text: { primary: '#E6E6FA', secondary: '#D8BFD8' },
-            divider: '#301934',
-            action: { hover: '#4B0082' },
-        }
-    },
-    'street-canvas': {
-        name: 'Street Canvas',
-        palette: {
-            mode: 'light',
-            primary: { main: '#FF1493' },
-            secondary: { main: '#FF4500' },
-            background: { default: '#F5F5F5', paper: '#FFFFFF' },
-            text: { primary: '#2C1810', secondary: '#654321' },
-            divider: '#E0E0E0',
-            action: { hover: '#FFE4E1' },
-        }
-    },
-    'bass-drop': {
-        name: 'Bass Drop',
-        palette: {
-            mode: 'dark',
-            primary: { main: '#0080FF' },
-            secondary: { main: '#FF0080' },
-            background: { default: '#000000', paper: '#1a1a2e' },
-            text: { primary: '#F0F8FF', secondary: '#A0A4A8' },
-            divider: '#16213e',
-            action: { hover: '#0f3460' },
-        }
-    },
-    'vapor-dreams': {
-        name: 'Vapor Dreams',
-        palette: {
-            mode: 'dark',
-            primary: { main: '#FF1493' },
-            secondary: { main: '#00FFFF' },
-            background: { default: '#2D1B69', paper: '#4B0082' },
-            text: { primary: '#FFF0F5', secondary: '#FFE4E1' },
-            divider: '#483D8B',
-            action: { hover: '#191970' },
+            primary: { main: '#6a7fdb', contrastText: '#ffffff' },
+            secondary: { main: '#8b7cf6', contrastText: '#ffffff' },
+            background: { default: '#151520', paper: '#1f1f2e' },
+            text: { primary: '#e8f0ff', secondary: '#b8c5d6' },
+            divider: '#2a2a40',
+            action: { hover: '#252538' },
+            success: { main: '#5dd45d', contrastText: '#000000' },
+            warning: { main: '#ffa726', contrastText: '#000000' },
+            error: { main: '#f06292', contrastText: '#ffffff' },
+            info: { main: '#42a5f5', contrastText: '#ffffff' },
         }
     }
 };
 
 export const createAppTheme = (themeKey = 'dark') => {
-    const themeConfig = appThemes[themeKey] || appThemes.dark;
+    const themeConfig = appThemes[themeKey] || appThemes['dark'];
 
-    return createTheme({
+    const theme = createTheme({
         palette: themeConfig.palette,
+        typography: {
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
+            h1: { fontWeight: 600 },
+            h2: { fontWeight: 600 },
+            h3: { fontWeight: 600 },
+            h4: { fontWeight: 600 },
+            h5: { fontWeight: 600 },
+            h6: { fontWeight: 600 },
+            button: { fontWeight: 500 },
+        },
+        shape: {
+            borderRadius: 6,
+        },
         components: {
+            MuiCssBaseline: {
+                styleOverrides: {
+                    body: {
+                        // CSS custom properties for dynamic theming
+                        '--primary-main': themeConfig.palette.primary.main,
+                        '--secondary-main': themeConfig.palette.secondary.main,
+                        '--background-default': themeConfig.palette.background.default,
+                        '--background-paper': themeConfig.palette.background.paper,
+                        '--text-primary': themeConfig.palette.text.primary,
+                        '--text-secondary': themeConfig.palette.text.secondary,
+                        '--divider': themeConfig.palette.divider || (themeConfig.palette.mode === 'dark' ? '#424242' : '#e0e0e0'),
+                        '--success-main': themeConfig.palette.success?.main || '#28A745',
+                        '--warning-main': themeConfig.palette.warning?.main || '#FFC107',
+                        '--error-main': themeConfig.palette.error?.main || '#DC3545',
+                        '--info-main': themeConfig.palette.info?.main || '#17A2B8',
+                        '--action-hover': themeConfig.palette.action?.hover || (themeConfig.palette.mode === 'dark' ? '#2C2C2C' : '#F5F5F5'),
+                    },
+                },
+            },
             MuiButton: {
                 styleOverrides: {
                     root: {
                         textTransform: 'none',
-                        borderRadius: 4,
+                        borderRadius: 6,
+                        fontWeight: 500,
+                        boxShadow: 'none',
+                        '&:hover': {
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                        },
+                    },
+                    contained: {
+                        '&:hover': {
+                            boxShadow: '0 4px 8px rgba(0,0,0,0.15)',
+                        },
                     },
                 },
             },
             MuiSelect: {
                 styleOverrides: {
                     root: {
-                        fontSize: '13px',
+                        fontSize: '14px',
+                    },
+                },
+            },
+            MuiTextField: {
+                styleOverrides: {
+                    root: {
+                        '& .MuiOutlinedInput-root': {
+                            borderRadius: 6,
+                        },
                     },
                 },
             },
@@ -112,7 +128,8 @@ export const createAppTheme = (themeKey = 'dark') => {
                 styleOverrides: {
                     root: {
                         backgroundColor: themeConfig.palette.background.paper,
-                        borderBottom: `1px solid ${themeConfig.palette.divider || (themeConfig.palette.mode === 'dark' ? '#444' : '#e0e0e0')}`,
+                        borderBottom: `1px solid ${themeConfig.palette.divider || (themeConfig.palette.mode === 'dark' ? '#424242' : '#e0e0e0')}`,
+                        minHeight: '48px !important',
                     },
                 },
             },
@@ -120,6 +137,13 @@ export const createAppTheme = (themeKey = 'dark') => {
                 styleOverrides: {
                     root: {
                         backgroundColor: themeConfig.palette.background.paper,
+                        backgroundImage: 'none',
+                    },
+                    elevation1: {
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
+                    },
+                    elevation2: {
+                        boxShadow: '0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23)',
                     },
                 },
             },
@@ -127,9 +151,48 @@ export const createAppTheme = (themeKey = 'dark') => {
                 styleOverrides: {
                     root: {
                         backgroundColor: themeConfig.palette.background.paper,
+                        color: themeConfig.palette.text.primary,
+                        boxShadow: `0 1px 0 ${themeConfig.palette.divider || (themeConfig.palette.mode === 'dark' ? '#424242' : '#e0e0e0')}`,
+                    },
+                },
+            },
+            MuiChip: {
+                styleOverrides: {
+                    root: {
+                        borderRadius: 4,
+                        fontWeight: 500,
+                    },
+                },
+            },
+            MuiIconButton: {
+                styleOverrides: {
+                    root: {
+                        borderRadius: 6,
+                        '&:hover': {
+                            backgroundColor: themeConfig.palette.action?.hover || (themeConfig.palette.mode === 'dark' ? '#2C2C2C' : '#F5F5F5'),
+                        },
+                    },
+                },
+            },
+            MuiListItemButton: {
+                styleOverrides: {
+                    root: {
+                        borderRadius: 6,
+                        margin: '2px 4px',
+                        '&:hover': {
+                            backgroundColor: themeConfig.palette.action?.hover || (themeConfig.palette.mode === 'dark' ? '#2C2C2C' : '#F5F5F5'),
+                        },
+                        '&.Mui-selected': {
+                            backgroundColor: `${themeConfig.palette.primary.main}20`,
+                            '&:hover': {
+                                backgroundColor: `${themeConfig.palette.primary.main}30`,
+                            },
+                        },
                     },
                 },
             },
         },
     });
+
+    return theme;
 };
