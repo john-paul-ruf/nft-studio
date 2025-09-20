@@ -365,7 +365,7 @@ export default function EffectsPanel({
                 <ContextMenu.Trigger asChild>
                     <Box
                         sx={{ mb: 0.25 }}
-                        draggable={section === 'primary'}
+                        draggable={true}
                         onDragStart={(e) => handleDragStart(e, originalIndex, section)}
                         onDragOver={handleDragOver}
                         onDrop={(e) => handleDrop(e, originalIndex, section)}
