@@ -1,11 +1,31 @@
 import React, { useState } from 'react';
 
 function Point2DInput({ field, value, onChange, projectData }) {
-    const currentValue = value || field.default || { x: 0, y: 0 };
     const [showPresets, setShowPresets] = useState(false);
 
     // Get resolution from project data or use defaults - complete resolution mapping
-    const resolution = projectData?.resolution || 'hd';
+    // Handle both field names for backward compatibility (targetResolution is the correct one from ProjectState)
+    let resolution = projectData?.targetResolution || projectData?.resolution || 'hd';
+
+    // Convert numeric resolution values to proper string keys
+    const resolutionMap = {
+        '320': 'qvga',
+        '640': 'vga',
+        '800': 'svga',
+        '1024': 'xga',
+        '1280': 'hd720',
+        '1920': 'hd',
+        '720': 'square_small',
+        '1080': 'square',
+        '2560': 'wqhd',
+        '3840': '4k',
+        '5120': '5k',
+        '7680': '8k'
+    };
+
+    if (resolutionMap[resolution]) {
+        resolution = resolutionMap[resolution];
+    }
     const resolutions = {
         'qvga': { width: 320, height: 240 },
         'vga': { width: 640, height: 480 },
@@ -27,9 +47,12 @@ function Point2DInput({ field, value, onChange, projectData }) {
     };
     const baseResolution = resolutions[resolution] || resolutions.hd;
 
-    // Apply isHoz setting - same logic as EffectPreview
+    // Apply isHoz setting - handle both field names for backward compatibility
     const autoIsHoz = baseResolution.width > baseResolution.height;
-    const isHoz = projectData?.isHoz !== null ? projectData.isHoz : autoIsHoz;
+    // Check for both isHorizontal (correct from ProjectState) and isHoz (legacy)
+    const isHoz = typeof projectData?.isHorizontal === 'boolean' ? projectData.isHorizontal :
+                  typeof projectData?.isHoz === 'boolean' ? projectData.isHoz :
+                  autoIsHoz;
 
     // Determine actual dimensions based on orientation setting
     let width, height;
@@ -42,6 +65,41 @@ function Point2DInput({ field, value, onChange, projectData }) {
         width = baseResolution.height;
         height = baseResolution.width;
     }
+
+    // Generate smart defaults based on current dimensions
+    const generateSmartDefault = (field, width, height) => {
+        // If field has no default, use origin
+        if (!field.default) {
+            return { x: 0, y: 0 };
+        }
+
+        const fieldName = field.name?.toLowerCase() || '';
+
+        // Detect if this is a center field
+        if (fieldName.includes('center') || fieldName === 'center' ||
+            (field.default.x === 540 && field.default.y === 960) || // Common hardcoded center
+            (field.default.x === 960 && field.default.y === 540)) {  // Swapped dimensions center
+            return { x: Math.round(width / 2), y: Math.round(height / 2) };
+        }
+
+        // For non-center fields, scale proportionally from assumed base dimensions
+        // Most hardcoded defaults seem to assume 1080x1920 (portrait HD)
+        const baseWidth = 1080;
+        const baseHeight = 1920;
+
+        // Scale the default position proportionally
+        const scaledX = Math.round((field.default.x / baseWidth) * width);
+        const scaledY = Math.round((field.default.y / baseHeight) * height);
+
+        // Ensure scaled position is within bounds
+        return {
+            x: Math.min(Math.max(scaledX, 0), width),
+            y: Math.min(Math.max(scaledY, 0), height)
+        };
+    };
+
+    // Calculate current value with smart defaults
+    const currentValue = value || generateSmartDefault(field, width, height);
 
     const positionPresets = [
         { name: 'Center', x: width / 2, y: height / 2, icon: '⊙' },
@@ -126,7 +184,8 @@ function Point2DInput({ field, value, onChange, projectData }) {
                             color: '#888',
                             textAlign: 'center'
                         }}>
-                            Canvas: {width} × {height} {projectData?.isHoz !== null && (projectData.isHoz ? '(Forced Horizontal)' : '(Forced Vertical)')}
+                            Canvas: {width} × {height} {(typeof projectData?.isHorizontal === 'boolean' || typeof projectData?.isHoz === 'boolean') &&
+                                ((projectData?.isHorizontal ?? projectData?.isHoz) ? '(Forced Horizontal)' : '(Forced Vertical)')}
                         </div>
                     </div>
                 )}

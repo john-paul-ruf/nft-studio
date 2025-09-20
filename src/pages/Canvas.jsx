@@ -509,7 +509,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                                         }}
                                         initialConfig={effectData.config || {}}
                                         projectData={{
-                                            resolution: 'hd',
+                                            resolution: config.targetResolution,
                                             isHoz: config.isHorizontal,
                                             colorScheme: config.colorScheme
                                         }}
