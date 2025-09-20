@@ -43,6 +43,9 @@ contextBridge.exposeInMainWorld('api', {
     // Config introspection
     introspectConfig: (params) => ipcRenderer.invoke('introspect-config', params),
 
+    // Algorithm management
+    getFindValueAlgorithms: () => ipcRenderer.invoke('get-findvalue-algorithms'),
+
     // Frame viewing
     viewFrames: (projectPath) => ipcRenderer.invoke('view-frames', projectPath),
 

@@ -47,6 +47,25 @@ class EffectsHandlers {
             return await this.effectsManager.getEffectSchema(effectName);
         });
 
+        ipcMain.handle('get-findvalue-algorithms', async (event) => {
+            try {
+                // Import the getAllFindValueAlgorithms function
+                const { getAllFindValueAlgorithms } = await import('my-nft-gen/src/core/math/findValue.js');
+                const algorithms = getAllFindValueAlgorithms();
+                return {
+                    success: true,
+                    algorithms: algorithms
+                };
+            } catch (error) {
+                console.error('Error getting FindValue algorithms via IPC:', error);
+                return {
+                    success: false,
+                    error: error.message,
+                    algorithms: []
+                };
+            }
+        });
+
         ipcMain.handle('validate-effect', async (event, effectMetadata) => {
             return await this.effectsManager.validateEffect(effectMetadata);
         });
