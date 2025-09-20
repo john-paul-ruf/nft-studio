@@ -137,6 +137,18 @@ class EffectProcessingService {
         // Always preserve user config as fallback
         const userConfig = effect.config || {};
 
+        // Use ConfigReconstructor for proper config reconstruction from my-nft-gen
+        let deserializedConfig;
+        try {
+            const { ConfigReconstructor } = await import('my-nft-gen/src/core/ConfigReconstructor.js');
+            const effectName = effect.registryKey || effect.className || effect.effectClass?.name;
+            deserializedConfig = await ConfigReconstructor.reconstruct(effectName, userConfig);
+            console.log(`🔄 Config reconstructed for ${effectName} using ConfigReconstructor`);
+        } catch (reconstructionError) {
+            console.warn(`Failed to reconstruct config for ${effect.registryKey || effect.name}:`, reconstructionError.message);
+            deserializedConfig = userConfig; // Fallback to original config
+        }
+
         try {
             const { default: EffectRegistryService } = await import('./EffectRegistryService.js');
             const registryService = new EffectRegistryService();
@@ -148,13 +160,13 @@ class EffectProcessingService {
             const effectName = effect.registryKey || effect.className || effect.effectClass?.name;
 
             if (!effectName) {
-                console.warn('No effect name found, using user config');
-                return userConfig;
+                console.warn('No effect name found, using deserialized config');
+                return deserializedConfig;
             }
 
             // Debug FuzzFlareEffect config
             if (effectName === 'FuzzFlareEffect' || effectName === 'fuzz-flare') {
-                console.log('🔍 FuzzFlareEffect user config received:', JSON.stringify(userConfig, null, 2));
+                console.log('🔍 FuzzFlareEffect deserialized config received:', JSON.stringify(deserializedConfig, null, 2));
             }
 
             // Use the new plugin registry with linked config classes
@@ -169,31 +181,28 @@ class EffectProcessingService {
                     if (pluginByName && pluginByName.configClass) {
                         console.log(`✅ Found config class for ${effectName} via _name_: ${pluginByName.configClass.name}`);
                         // Create proper config instance using the linked config class
-                        return new pluginByName.configClass(userConfig);
+                        return new pluginByName.configClass(deserializedConfig);
                     }
                 }
-                console.warn(`Effect ${effectName} not found in plugin registry, using user config`);
-                return userConfig;
+                console.warn(`Effect ${effectName} not found in plugin registry, using deserialized config`);
+                return deserializedConfig;
             }
 
             if (!plugin.configClass) {
-                console.warn(`No config class linked for effect ${effectName}, using user config`);
-                return userConfig;
+                console.warn(`No config class linked for effect ${effectName}, using deserialized config`);
+                return deserializedConfig;
             }
 
-            console.log(`✅ Creating config instance for ${effectName} using ${plugin.configClass.name}`);
+            console.log(`✅ Using reconstructed config for ${effectName} from ConfigReconstructor`);
 
-            // Don't reconstruct here - let my-nft-gen handle reconstruction after IPC
-            // This avoids serialization issues where methods get converted to strings
-            const configInstance = userConfig;
-
-            return configInstance;
+            // ConfigReconstructor already returns a properly reconstructed instance
+            return deserializedConfig;
 
         } catch (error) {
             console.error('Error creating config instance:', error);
             console.error('Stack:', error.stack);
-            // Return user config as fallback to prevent crashes
-            return userConfig;
+            // Return deserialized config as fallback to prevent crashes
+            return deserializedConfig;
         }
     }
 }
