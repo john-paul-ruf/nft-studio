@@ -52,7 +52,15 @@ class PropertyTypeAnalyzer extends IPropertyAnalyzer {
             return constructorName.toLowerCase();
         }
 
-        // Check for Point2D-like objects
+        // Check for Position objects (new format)
+        if (value.name === 'position') {
+            return 'position';
+        }
+        if (value.name === 'arc-path') {
+            return 'arc-path';
+        }
+
+        // Check for Point2D-like objects (legacy format)
         if (value.x !== undefined && value.y !== undefined) {
             return 'point2d';
         }

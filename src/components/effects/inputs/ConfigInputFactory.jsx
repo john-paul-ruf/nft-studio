@@ -1,6 +1,7 @@
 import React from 'react';
 import RangeInput from './RangeInput.jsx';
 import Point2DInput from './Point2DInput.jsx';
+import PositionInput from './PositionInput.jsx';
 import ColorPickerInput from './ColorPickerInput.jsx';
 import PercentageInput from './PercentageInput.jsx';
 import PercentageRangeInput from './PercentageRangeInput.jsx';
@@ -20,6 +21,9 @@ function ConfigInputFactory({ field, value, onChange, projectData }) {
             return <RangeInput {...commonProps} />;
         case 'point2d':
             return <Point2DInput {...commonProps} />;
+        case 'position':
+        case 'arc-path':
+            return <PositionInput {...commonProps} />;
         case 'colorpicker':
             return <ColorPickerInput {...commonProps} />;
         case 'percentage':

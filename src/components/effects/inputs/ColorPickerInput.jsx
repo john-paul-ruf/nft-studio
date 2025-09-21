@@ -2,13 +2,13 @@ import React from 'react';
 
 function ColorPickerInput({ field, value, onChange }) {
     const currentValue = value || {
-        selectionType: field.bucketType || 'colorBucket',
+        selectionType: field.bucketType || 'color-bucket',
         colorValue: '#ff0000'
     };
 
     const colorSelectionTypes = [
-        { value: 'colorBucket', label: '🎨 Color Bucket (Random from theme colors)' },
-        { value: 'neutralBucket', label: '⚪ Neutral Bucket (Whites, grays, blacks)' },
+        { value: 'color-bucket', label: '🎨 Color Bucket (Random from theme colors)' },
+        { value: 'neutral-bucket', label: '⚪ Neutral Bucket (Whites, grays, blacks)' },
         { value: 'color', label: '🎯 Specific Color' }
     ];
 
@@ -17,7 +17,7 @@ function ColorPickerInput({ field, value, onChange }) {
             <label>{field.label}</label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <select
-                    value={currentValue.selectionType || 'colorBucket'}
+                    value={currentValue.selectionType || 'color-bucket'}
                     onChange={(e) => onChange(field.name, {
                         ...currentValue,
                         selectionType: e.target.value

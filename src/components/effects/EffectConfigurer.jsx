@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import ConfigInputFactory from './inputs/ConfigInputFactory.jsx';
 import { ConfigIntrospector } from '../../utils/configIntrospector.js';
 import EffectAttachmentModal from './EffectAttachmentModal.jsx';
+import PositionSerializer from '../../utils/PositionSerializer.js';
 import {
     Box,
     Typography,
@@ -10,85 +11,6 @@ import {
     useTheme
 } from '@mui/material';
 
-/**
- * Override Point2D center properties to use the current project resolution center
- * @param {Object} config - The effect config object
- * @param {Object} projectData - Project data containing resolution information
- * @returns {Object} Updated config with project-based center defaults
- */
-function overridePoint2DCenterDefaults(config, projectData) {
-    if (!config || !projectData?.resolution) {
-        return config || {};
-    }
-
-    // Resolution mapping - same as used in Point2DInput and EffectPreview
-    const resolutions = {
-        'qvga': { width: 320, height: 240 },
-        'vga': { width: 640, height: 480 },
-        'svga': { width: 800, height: 600 },
-        'xga': { width: 1024, height: 768 },
-        'hd720': { width: 1280, height: 720 },
-        'hd': { width: 1920, height: 1080 },
-        'square_small': { width: 720, height: 720 },
-        'square': { width: 1080, height: 1080 },
-        'wqhd': { width: 2560, height: 1440 },
-        '4k': { width: 3840, height: 2160 },
-        '5k': { width: 5120, height: 2880 },
-        '8k': { width: 7680, height: 4320 },
-        'portrait_hd': { width: 1080, height: 1920 },
-        'portrait_4k': { width: 2160, height: 3840 },
-        'ultrawide': { width: 3440, height: 1440 },
-        'cinema_2k': { width: 2048, height: 1080 },
-        'cinema_4k': { width: 4096, height: 2160 }
-    };
-
-    const baseResolution = resolutions[projectData.resolution] || resolutions.hd;
-
-    // Apply isHoz setting - same logic as EffectPreview and Point2DInput
-    const autoIsHoz = baseResolution.width > baseResolution.height;
-    const isHoz = projectData?.isHoz !== null ? projectData.isHoz : autoIsHoz;
-
-    // Determine actual dimensions based on orientation setting
-    let width, height;
-    if (isHoz) {
-        width = baseResolution.width;
-        height = baseResolution.height;
-    } else {
-        width = baseResolution.height;
-        height = baseResolution.width;
-    }
-
-    const projectCenter = {
-        x: width / 2,
-        y: height / 2
-    };
-
-    // Deep clone the config to avoid mutations
-    // If config is still null/undefined after the check above, return empty object
-    if (!config) {
-        return {};
-    }
-    const updatedConfig = JSON.parse(JSON.stringify(config));
-
-    // Find and override Point2D properties that look like center points
-    // Common naming patterns: center, centerPoint, position, etc.
-    for (const [key, value] of Object.entries(updatedConfig)) {
-        if (value && typeof value === 'object' &&
-            typeof value.x === 'number' && typeof value.y === 'number') {
-
-            // Check if this looks like a center property
-            const isCenter = key.toLowerCase().includes('center') ||
-                           key.toLowerCase().includes('position') ||
-                           key.toLowerCase().includes('point');
-
-            if (isCenter) {
-                updatedConfig[key] = projectCenter;
-            }
-        }
-    }
-
-    return updatedConfig;
-}
 
 function EffectConfigurer({
     selectedEffect,
@@ -155,16 +77,10 @@ function EffectConfigurer({
             if (initialConfig && Object.keys(initialConfig).length > 0) {
                 setEffectConfig(initialConfig);
                 onConfigChange(initialConfig);
-            } else if (initialConfig && Object.keys(initialConfig).length === 0) {
-                const updatedConfig = overridePoint2DCenterDefaults(currentSchema.defaultInstance, projectData);
-                setEffectConfig(updatedConfig);
-                onConfigChange(updatedConfig);
             } else if (currentSchema?.defaultInstance) {
-                // Override Point2D center properties with current project resolution center
-                const updatedConfig = overridePoint2DCenterDefaults(currentSchema.defaultInstance, projectData);
-
-                setEffectConfig(updatedConfig);
-                onConfigChange(updatedConfig);
+                // Use the default instance directly - PositionInput will handle project-aware defaults
+                setEffectConfig(currentSchema.defaultInstance);
+                onConfigChange(currentSchema.defaultInstance);
             } else {
                 console.warn('No default instance available, using empty config');
                 setEffectConfig({});
@@ -178,7 +94,14 @@ function EffectConfigurer({
 
 
     const handleConfigChange = (fieldName, value) => {
-        const newConfig = { ...effectConfig, [fieldName]: value };
+        // Serialize position objects before storing
+        let serializedValue = value;
+        if (value && typeof value === 'object' && value.name &&
+            (value.name === 'position' || value.name === 'arc-path')) {
+            serializedValue = PositionSerializer.serialize(value);
+        }
+
+        const newConfig = { ...effectConfig, [fieldName]: serializedValue };
         setEffectConfig(newConfig);
         onConfigChange(newConfig);
     };

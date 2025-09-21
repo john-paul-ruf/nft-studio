@@ -819,7 +819,7 @@ class NftEffectsManager {
                 case 'ColorPicker':
                     // Reconstruct ColorPicker with preserved properties
                     const colorPicker = new ColorPicker();
-                    colorPicker.selectionType = props.selectionType || 'colorBucket';
+                    colorPicker.selectionType = props.selectionType || 'color-bucket';
                     colorPicker.colorValue = props.colorValue || null;
                     return colorPicker;
 

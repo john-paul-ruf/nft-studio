@@ -119,7 +119,7 @@ class ConfigIntrospector {
             return {
                 ...field,
                 type: 'colorpicker',
-                bucketType: 'colorBucket',
+                bucketType: 'color-bucket',
                 label: field.label
             };
         }
@@ -258,7 +258,7 @@ class ConfigIntrospector {
                             return {
                                 ...field,
                                 type: 'colorpicker',
-                                bucketType: 'colorBucket'
+                                bucketType: 'color-bucket'
                             };
 
                         case 'Range':
@@ -307,6 +307,20 @@ class ConfigIntrospector {
                                 label: field.label + ' Position'
                             };
 
+                        case 'Position':
+                            return {
+                                ...field,
+                                type: 'position',
+                                label: field.label + ' Position'
+                            };
+
+                        case 'ArcPath':
+                            return {
+                                ...field,
+                                type: 'arc-path',
+                                label: field.label + ' Arc Path'
+                            };
+
                         case 'DynamicRange':
                             return {
                                 ...field,
@@ -331,11 +345,25 @@ class ConfigIntrospector {
                             if (value.hasOwnProperty('x') && value.hasOwnProperty('y') &&
                                 typeof value.x === 'number' && typeof value.y === 'number') {
                                 console.log(`Detected Point2D structure for field: ${name}`, value);
-                                return {
-                                    ...field,
-                                    type: 'point2d',
-                                    label: field.label + ' Position'
-                                };
+
+                                // For center-like properties, default to position type
+                                const isCenter = name.toLowerCase().includes('center') ||
+                                               name.toLowerCase().includes('position') ||
+                                               name.toLowerCase().includes('point');
+
+                                if (isCenter) {
+                                    return {
+                                        ...field,
+                                        type: 'position',
+                                        label: field.label + ' Position'
+                                    };
+                                } else {
+                                    return {
+                                        ...field,
+                                        type: 'point2d',
+                                        label: field.label + ' Position'
+                                    };
+                                }
                             }
 
                             if (value.hasOwnProperty('lower') && value.hasOwnProperty('upper')) {
@@ -371,11 +399,25 @@ class ConfigIntrospector {
                 if (value.hasOwnProperty('x') && value.hasOwnProperty('y') &&
                     typeof value.x === 'number' && typeof value.y === 'number') {
                     console.log(`Fallback detected Point2D structure for field: ${name}`, value);
-                    return {
-                        ...field,
-                        type: 'point2d',
-                        label: field.label + ' Position'
-                    };
+
+                    // For center-like properties, default to position type
+                    const isCenter = name.toLowerCase().includes('center') ||
+                                   name.toLowerCase().includes('position') ||
+                                   name.toLowerCase().includes('point');
+
+                    if (isCenter) {
+                        return {
+                            ...field,
+                            type: 'position',
+                            label: field.label + ' Position'
+                        };
+                    } else {
+                        return {
+                            ...field,
+                            type: 'point2d',
+                            label: field.label + ' Position'
+                        };
+                    }
                 }
 
                 // Default to JSON for unknown objects
@@ -415,7 +457,7 @@ class ConfigIntrospector {
             return {
                 ...field,
                 type: 'colorpicker',
-                bucketType: 'colorBucket',
+                bucketType: 'color-bucket',
                 default: value,
                 label: field.label
             };
@@ -561,7 +603,7 @@ class ConfigIntrospector {
                     return {
                         ...field,
                         type: 'colorpicker',
-                        bucketType: 'colorBucket',
+                        bucketType: 'color-bucket',
                         default: value
                     };
 
@@ -669,7 +711,7 @@ class ConfigIntrospector {
             },
             {
                 name: 'center',
-                type: 'point2d',
+                type: 'position',
                 default: { x: 540, y: 960 },
                 label: 'Center Point'
             }
@@ -681,13 +723,13 @@ class ConfigIntrospector {
                 {
                     name: 'innerColor',
                     type: 'colorpicker',
-                    bucketType: 'colorBucket',
+                    bucketType: 'color-bucket',
                     label: 'Inner Color'
                 },
                 {
                     name: 'outerColor',
                     type: 'colorpicker',
-                    bucketType: 'colorBucket',
+                    bucketType: 'color-bucket',
                     label: 'Outer Color'
                 }
             );

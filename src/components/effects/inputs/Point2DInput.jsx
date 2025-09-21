@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PositionSerializer from '../../../utils/PositionSerializer.js';
 
 function Point2DInput({ field, value, onChange, projectData }) {
     const [showPresets, setShowPresets] = useState(false);
@@ -98,8 +99,21 @@ function Point2DInput({ field, value, onChange, projectData }) {
         };
     };
 
+    // Handle Position objects by converting to point2d format
+    const normalizedValue = (() => {
+        if (!value) return null;
+
+        // If it's a Position object, convert to point2d format
+        if (value.name === 'position' || value.name === 'arc-path') {
+            return PositionSerializer.toPoint2D(value);
+        }
+
+        // Already in point2d format
+        return value;
+    })();
+
     // Calculate current value with smart defaults
-    const currentValue = value || generateSmartDefault(field, width, height);
+    const currentValue = normalizedValue || generateSmartDefault(field, width, height);
 
     const positionPresets = [
         { name: 'Center', x: width / 2, y: height / 2, icon: '⊙' },
