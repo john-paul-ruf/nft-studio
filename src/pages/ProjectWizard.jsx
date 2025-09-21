@@ -6,27 +6,23 @@ import './ProjectWizard.css';
 
 export default function ProjectWizard({ projectStateManager, onComplete, onCancel }) {
     const [step, setStep] = useState(1);
-    const [artistName, setArtistName] = useState('');
-    const [projectName, setProjectName] = useState('');
+    const [artistName, setArtistName] = useState('artist');
+    const [projectName, setProjectName] = useState('nft-studio-project');
     const [projectDirectory, setProjectDirectory] = useState('');
     const [isCompleting, setIsCompleting] = useState(false);
 
-    // Load default values from preferences
+    // Load directory from preferences (artist and project use hardcoded defaults)
     useEffect(() => {
         const loadDefaults = async () => {
             try {
                 // Clean up any corrupted preferences structure first
                 await PreferencesService.cleanupPreferences();
 
-                const lastArtist = await PreferencesService.getLastArtist();
-                const lastProjectName = await PreferencesService.getLastProjectName();
                 const lastDirectory = await PreferencesService.getLastProjectDirectory();
 
-                console.log('🔍 Loading preferences:', { lastArtist, lastProjectName, lastDirectory });
+                console.log('🔍 Loading directory preference:', { lastDirectory });
 
-                // Set values even if they're empty strings (user might have cleared them intentionally)
-                setArtistName(lastArtist || '');
-                setProjectName(lastProjectName || '');
+                // Only load directory from preferences, artist and project use hardcoded defaults
                 setProjectDirectory(lastDirectory || '');
             } catch (error) {
                 console.error('Error loading defaults:', error);
