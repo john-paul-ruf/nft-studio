@@ -31,10 +31,15 @@ class ConsoleLogger {
      * @param {Object} data - Optional data
      */
     info(message, data = null) {
-        const timestamp = new Date().toLocaleTimeString();
+        const timestamp = new Date().toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
         console.log(`ℹ️  [${timestamp}] ${message}`);
         if (data && typeof data === 'object') {
-            console.log('   📊 Data:', JSON.stringify(data, null, 2));
+            console.log('   📊 Data:', this.formatData(data));
         }
     }
 
@@ -43,7 +48,12 @@ class ConsoleLogger {
      * @param {string} message - Success message
      */
     success(message) {
-        const timestamp = new Date().toLocaleTimeString();
+        const timestamp = new Date().toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
         console.log(`✅ [${timestamp}] ${message}`);
     }
 
@@ -53,7 +63,12 @@ class ConsoleLogger {
      * @param {Object} details - Optional details
      */
     warn(message, details = null) {
-        const timestamp = new Date().toLocaleTimeString();
+        const timestamp = new Date().toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
         console.log(`⚠️  [${timestamp}] ${message}`);
         if (details) console.log('   🔍 Details:', details);
     }
@@ -64,7 +79,12 @@ class ConsoleLogger {
      * @param {Object} error - Optional error object
      */
     error(message, error = null) {
-        const timestamp = new Date().toLocaleTimeString();
+        const timestamp = new Date().toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
         console.log(`❌ [${timestamp}] ${message}`);
         if (error) console.log('   💥 Error:', error);
     }
@@ -75,7 +95,12 @@ class ConsoleLogger {
      * @param {Object} data - Optional event data
      */
     event(eventName, data = null) {
-        const timestamp = new Date().toLocaleTimeString();
+        const timestamp = new Date().toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
         const formatter = this.getEventFormatter(eventName);
         formatter(timestamp, data);
     }
@@ -105,7 +130,7 @@ class ConsoleLogger {
      */
     formatFrameCompletedEvent(timestamp, data) {
         if (data) {
-            const progress = Math.round((data.progress || 0) * 100);
+            const progress = Math.round(data.progress || 0); // progress is already a percentage (1-100)
             const timeStr = data.durationMs ? `${data.durationMs}ms` : 'N/A';
             console.log(`🖼️  [${timestamp}] Frame ${data.frameNumber}/${data.totalFrames} completed (${progress}%) - ${timeStr}`);
             if (data.outputPath) {
@@ -145,7 +170,7 @@ class ConsoleLogger {
      */
     formatProjectProgressEvent(timestamp, data) {
         if (data) {
-            const progress = Math.round((data.completedFrames / data.totalFrames) * 100);
+            const progress = Math.round(data.progress || ((data.completedFrames / data.totalFrames) * 100));
             console.log(`📊 [${timestamp}] Project Progress: ${data.completedFrames}/${data.totalFrames} frames (${progress}%)`);
             if (data.estimatedTimeRemaining) {
                 console.log(`   ⏱️  ETA: ${data.estimatedTimeRemaining}`);
@@ -189,8 +214,69 @@ class ConsoleLogger {
     formatGenericEvent(eventName, timestamp, data) {
         console.log(`📡 [${timestamp}] ${eventName}`);
         if (data && typeof data === 'object') {
-            console.log('   📊 Data:', JSON.stringify(data, null, 2));
+            console.log('   📊 Data:', this.formatData(data));
         }
+    }
+
+    /**
+     * Format data intelligently based on content
+     * @param {*} data - Data to format
+     * @returns {string} Formatted data string
+     */
+    formatData(data) {
+        if (data === null || data === undefined) return 'null';
+        if (typeof data === 'string') return `"${data}"`;
+        if (typeof data === 'number' || typeof data === 'boolean') return String(data);
+
+        // Format arrays concisely
+        if (Array.isArray(data)) {
+            if (data.length === 0) return '[]';
+            if (data.length <= 3) {
+                return `[${data.map(item => this.formatDataSummary(item)).join(', ')}]`;
+            }
+            return `[${data.length} items: ${data.slice(0, 2).map(item => this.formatDataSummary(item)).join(', ')}, ...]`;
+        }
+
+        // Format objects based on their content
+        if (typeof data === 'object') {
+            // Specific formatting for known data types
+            if (data.frameNumber !== undefined) {
+                return `Frame ${data.frameNumber}${data.totalFrames ? `/${data.totalFrames}` : ''}${data.renderTime ? ` (${data.renderTime}ms)` : ''}`;
+            }
+            if (data.progress !== undefined) {
+                return `Progress: ${data.progress}%${data.frameNumber ? ` (frame ${data.frameNumber})` : ''}`;
+            }
+            if (data.projectName && data.effectsCount !== undefined) {
+                return `Project: ${data.projectName} (${data.effectsCount} effects)`;
+            }
+            if (data.error || data.message) {
+                return data.error || data.message;
+            }
+
+            // Generic object formatting - show key summary
+            const keys = Object.keys(data);
+            if (keys.length === 0) return '{}';
+            if (keys.length <= 3) {
+                return `{${keys.map(key => `${key}: ${this.formatDataSummary(data[key])}`).join(', ')}}`;
+            }
+            return `{${keys.length} keys: ${keys.slice(0, 2).join(', ')}, ...}`;
+        }
+
+        return String(data);
+    }
+
+    /**
+     * Format data summary for nested objects (shorter format)
+     * @param {*} value - Value to summarize
+     * @returns {string} Summary string
+     */
+    formatDataSummary(value) {
+        if (value === null || value === undefined) return 'null';
+        if (typeof value === 'string') return `"${value.length > 20 ? value.substring(0, 20) + '...' : value}"`;
+        if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+        if (Array.isArray(value)) return `[${value.length}]`;
+        if (typeof value === 'object') return `{${Object.keys(value).length}}`;
+        return String(value);
     }
 }
 

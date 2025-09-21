@@ -115,32 +115,12 @@ class NftProjectManager {
 
         this.logger.info('Starting frame render', { frameNumber, config: config.projectName });
 
-        // Debug the actual config received from UI
-        console.log('🔍 DEBUG: Full config received from UI:', {
-            configType: typeof config,
-            configKeys: config ? Object.keys(config) : 'null config',
-            effectsType: typeof config?.effects,
-            effectsIsArray: Array.isArray(config?.effects),
-            effectsLength: config?.effects?.length,
-            firstEffectType: typeof config?.effects?.[0],
-            firstEffectKeys: config?.effects?.[0] ? Object.keys(config.effects[0]) : 'no first effect'
-        });
+        // Log project configuration summary
+        const effectsSummary = config?.effects?.map(e =>
+            `${e.name}(${e.type}${e.visible ? '' : ',hidden'})`
+        ).join(', ') || 'none';
 
-        // Debug each effect in detail
-        if (config?.effects?.length > 0) {
-            console.log('🔍 DEBUG: Effects breakdown:');
-            config.effects.forEach((effect, index) => {
-                console.log(`  Effect ${index}:`, {
-                    name: effect.name,
-                    className: effect.className,
-                    type: effect.type,
-                    visible: effect.visible,
-                    hasConfig: !!effect.config,
-                    configKeys: effect.config ? Object.keys(effect.config) : null,
-                    fullEffect: effect
-                });
-            });
-        }
+        console.log(`🎬 Render setup: ${config?.projectName || 'Unnamed'} - ${effectsSummary}`);
 
         try {
             // Create a new NFT gen project every time
@@ -149,20 +129,35 @@ class NftProjectManager {
             // Configure the project based on UI parameters
             await this.configureProjectFromProjectState(project, projectState);
 
-            console.log('🎬 Backend frame generation:', {
-                frameNumber: frameNumber,
-                configNumFrames: config.numFrames,
-                configRenderStartFrame: config.renderStartFrame,
-                configRenderJumpFrames: config.renderJumpFrames,
-                usingFrameNumber: frameNumber,
-                usingTotalFrames: config.numFrames || 100
-            });
-
             // Generate single frame and return buffer
             const totalFrames = config.numFrames || 100;
+            const startTime = Date.now();
+
+            // Emit progress event
+            this.emitProgressEvent('frameStarted', {
+                frameNumber,
+                totalFrames,
+                projectName: config.projectName
+            });
+
             const buffer = await project.generateSingleFrame(frameNumber, totalFrames, true);
 
-            this.logger.success(`Frame ${frameNumber} rendered successfully`);
+            const renderTime = Date.now() - startTime;
+            // Calculate progress - handle 0-indexed frames (0-99 for 100 frames)
+            // Frame 0 = 1%, Frame 99 = 100%
+            const framesCompleted = frameNumber + 1; // Convert to 1-indexed for progress
+            const progress = Math.min(100, Math.max(1, Math.round((framesCompleted / totalFrames) * 100)));
+
+            // Emit completion event
+            this.emitProgressEvent('frameCompleted', {
+                frameNumber,
+                totalFrames,
+                renderTime,
+                progress,
+                projectName: config.projectName
+            });
+
+            console.log(`✅ Frame ${frameNumber}/${totalFrames} (${renderTime}ms)`);
 
             return {
                 success: true,
@@ -207,16 +202,12 @@ class NftProjectManager {
      */
     async configureProjectFromProjectState(project, projectState) {
         const config = projectState.getState();
-        console.log('🔍 DEBUG: configureProjectFromProjectState called with effects:', {
-            hasEffects: !!config.effects,
-            isArray: Array.isArray(config.effects),
-            length: config.effects?.length || 0
-        });
-
         if (!config.effects || !Array.isArray(config.effects) || config.effects.length === 0) {
-            console.log('🔍 DEBUG: No effects to configure, returning early');
+            console.log('⚠️  No effects configured for project');
             return;
         }
+
+        console.log(`⚙️  Configuring ${config.effects.length} effects for project`);
 
         const myNftGenPath = path.resolve(process.cwd(), '../my-nft-gen');
         const { default: effectProcessor } = await import('../services/EffectProcessingService.js');
@@ -320,16 +311,12 @@ class NftProjectManager {
      * @returns {Promise<void>}
      */
     async configureProjectFromUI(project, config) {
-        console.log('🔍 DEBUG: configureProjectFromUILegacy called with effects:', {
-            hasEffects: !!config.effects,
-            isArray: Array.isArray(config.effects),
-            length: config.effects?.length || 0
-        });
-
         if (!config.effects || !Array.isArray(config.effects) || config.effects.length === 0) {
-            console.log('🔍 DEBUG: No effects to configure, returning early');
+            console.log('⚠️  No effects configured for legacy project');
             return;
         }
+
+        console.log(`⚙️  Configuring ${config.effects.length} effects for legacy project`);
 
         const myNftGenPath = path.resolve(process.cwd(), '../my-nft-gen');
         const { default: effectProcessor } = await import('../services/EffectProcessingService.js');
@@ -828,6 +815,62 @@ class NftProjectManager {
 
         this.logger.success('Render loop stopped');
         return { success: true, message: 'Render loop stopped' };
+    }
+
+    /**
+     * Emit progress events to the renderer process
+     * @param {string} eventName - Name of the progress event
+     * @param {Object} data - Event data
+     */
+    emitProgressEvent(eventName, data) {
+        const event = {
+            eventName,
+            data,
+            timestamp: Date.now(),
+            category: 'PROGRESS',
+            source: 'render-progress'
+        };
+
+        // Send to all browser windows
+        const windows = BrowserWindow.getAllWindows();
+        windows.forEach(window => {
+            window.webContents.send('eventbus-message', event);
+        });
+
+        // Also log to console for immediate feedback with ETA
+        if (eventName === 'frameCompleted') {
+            const { frameNumber, totalFrames, renderTime, progress } = data;
+
+            // Calculate ETA
+            if (!this.renderStartTime) {
+                this.renderStartTime = Date.now() - renderTime;
+            }
+
+            const elapsedTime = Date.now() - this.renderStartTime;
+            const framesCompleted = frameNumber + 1;
+            const avgTimePerFrame = elapsedTime / framesCompleted;
+            const remainingFrames = totalFrames - framesCompleted;
+            const estimatedTimeRemaining = Math.round((remainingFrames * avgTimePerFrame) / 1000);
+
+            // Format ETA
+            let etaStr = '';
+            if (estimatedTimeRemaining > 0) {
+                if (estimatedTimeRemaining >= 60) {
+                    const minutes = Math.floor(estimatedTimeRemaining / 60);
+                    const seconds = estimatedTimeRemaining % 60;
+                    etaStr = ` - ETA: ${minutes}m ${seconds}s`;
+                } else {
+                    etaStr = ` - ETA: ${estimatedTimeRemaining}s`;
+                }
+            }
+
+            console.log(`📊 Progress: ${frameNumber}/${totalFrames} (${progress}%) - ${renderTime}ms${etaStr}`);
+
+            // Reset on completion
+            if (progress >= 100) {
+                this.renderStartTime = null;
+            }
+        }
     }
 }
 

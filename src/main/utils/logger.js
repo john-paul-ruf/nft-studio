@@ -15,38 +15,63 @@ const logger = {
     },
 
     info: (message, data = null) => {
-        const timestamp = new Date().toLocaleTimeString();
+        const timestamp = new Date().toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
         console.log(`ℹ️  [${timestamp}] ${message}`);
         if (data && typeof data === 'object') {
-            console.log('   📊 Data:', JSON.stringify(data, null, 2));
+            console.log('   📊 Data:', logger.formatData(data));
         }
     },
 
     success: (message) => {
-        const timestamp = new Date().toLocaleTimeString();
+        const timestamp = new Date().toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
         console.log(`✅ [${timestamp}] ${message}`);
     },
 
     warn: (message, details = null) => {
-        const timestamp = new Date().toLocaleTimeString();
+        const timestamp = new Date().toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
         console.log(`⚠️  [${timestamp}] ${message}`);
         if (details) console.log('   🔍 Details:', details);
     },
 
     error: (message, error = null) => {
-        const timestamp = new Date().toLocaleTimeString();
+        const timestamp = new Date().toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
         console.log(`❌ [${timestamp}] ${message}`);
         if (error) console.log('   💥 Error:', error);
     },
 
     event: (eventName, data = null) => {
-        const timestamp = new Date().toLocaleTimeString();
+        const timestamp = new Date().toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
 
         // Format events based on their type for better readability
         switch (eventName) {
             case 'frameCompleted':
                 if (data) {
-                    const progress = Math.round((data.progress || 0) * 100);
+                    const progress = Math.round(data.progress || 0); // progress is already a percentage (1-100)
                     const timeStr = data.durationMs ? `${data.durationMs}ms` : 'N/A';
                     console.log(`🖼️  [${timestamp}] Frame ${data.frameNumber}/${data.totalFrames} completed (${progress}%) - ${timeStr}`);
                     if (data.outputPath) {
@@ -71,10 +96,33 @@ const logger = {
 
             case 'projectProgress':
                 if (data) {
-                    const progress = Math.round((data.completedFrames / data.totalFrames) * 100);
+                    const progress = Math.round(data.progress || ((data.completedFrames / data.totalFrames) * 100));
                     console.log(`📊 [${timestamp}] Project Progress: ${data.completedFrames}/${data.totalFrames} frames (${progress}%)`);
                     if (data.estimatedTimeRemaining) {
-                        console.log(`   ⏱️  ETA: ${data.estimatedTimeRemaining}`);
+                        // Parse ETA time string and format appropriately
+                        const etaStr = data.estimatedTimeRemaining;
+
+                        // Check if ETA contains more than 24 hours
+                        if (etaStr.includes('h') && parseInt(etaStr) >= 24) {
+                            // Calculate completion time
+                            const now = new Date();
+                            const etaMs = logger.parseETAToMs(etaStr);
+                            const completionTime = new Date(now.getTime() + etaMs);
+
+                            const completionTimeStr = completionTime.toLocaleString('en-US', {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true,
+                                timeZoneName: 'short'
+                            });
+
+                            console.log(`   ⏱️  ETA: ${etaStr} (${completionTimeStr})`);
+                        } else {
+                            console.log(`   ⏱️  ETA: ${etaStr}`);
+                        }
                     }
                 }
                 break;
@@ -99,10 +147,100 @@ const logger = {
             default:
                 console.log(`📡 [${timestamp}] ${eventName}`);
                 if (data && typeof data === 'object') {
-                    console.log('   📊 Data:', JSON.stringify(data, null, 2));
+                    console.log('   📊 Data:', logger.formatData(data));
                 }
                 break;
         }
+    },
+
+    /**
+     * Format data intelligently based on content
+     * @param {*} data - Data to format
+     * @returns {string} Formatted data string
+     */
+    formatData: (data) => {
+        if (data === null || data === undefined) return 'null';
+        if (typeof data === 'string') return `"${data}"`;
+        if (typeof data === 'number' || typeof data === 'boolean') return String(data);
+
+        // Format arrays concisely
+        if (Array.isArray(data)) {
+            if (data.length === 0) return '[]';
+            if (data.length <= 3) {
+                return `[${data.map(item => logger.formatDataSummary(item)).join(', ')}]`;
+            }
+            return `[${data.length} items: ${data.slice(0, 2).map(item => logger.formatDataSummary(item)).join(', ')}, ...]`;
+        }
+
+        // Format objects based on their content
+        if (typeof data === 'object') {
+            // Specific formatting for known data types
+            if (data.frameNumber !== undefined) {
+                return `Frame ${data.frameNumber}${data.totalFrames ? `/${data.totalFrames}` : ''}${data.renderTime ? ` (${data.renderTime}ms)` : ''}`;
+            }
+            if (data.progress !== undefined) {
+                return `Progress: ${data.progress}%${data.frameNumber ? ` (frame ${data.frameNumber})` : ''}`;
+            }
+            if (data.projectName && data.effectsCount !== undefined) {
+                return `Project: ${data.projectName} (${data.effectsCount} effects)`;
+            }
+            if (data.error || data.message) {
+                return data.error || data.message;
+            }
+
+            // Generic object formatting - show key summary
+            const keys = Object.keys(data);
+            if (keys.length === 0) return '{}';
+            if (keys.length <= 3) {
+                return `{${keys.map(key => `${key}: ${logger.formatDataSummary(data[key])}`).join(', ')}}`;
+            }
+            return `{${keys.length} keys: ${keys.slice(0, 2).join(', ')}, ...}`;
+        }
+
+        return String(data);
+    },
+
+    /**
+     * Format data summary for nested objects (shorter format)
+     * @param {*} value - Value to summarize
+     * @returns {string} Summary string
+     */
+    formatDataSummary: (value) => {
+        if (value === null || value === undefined) return 'null';
+        if (typeof value === 'string') return `"${value.length > 20 ? value.substring(0, 20) + '...' : value}"`;
+        if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+        if (Array.isArray(value)) return `[${value.length}]`;
+        if (typeof value === 'object') return `{${Object.keys(value).length}}`;
+        return String(value);
+    },
+
+    /**
+     * Parse ETA string to milliseconds
+     * @param {string} etaStr - ETA string like "2h 30m 15s" or "45m 30s"
+     * @returns {number} Milliseconds
+     */
+    parseETAToMs: (etaStr) => {
+        let totalMs = 0;
+
+        // Extract hours
+        const hourMatch = etaStr.match(/(\d+)h/);
+        if (hourMatch) {
+            totalMs += parseInt(hourMatch[1]) * 60 * 60 * 1000;
+        }
+
+        // Extract minutes
+        const minuteMatch = etaStr.match(/(\d+)m/);
+        if (minuteMatch) {
+            totalMs += parseInt(minuteMatch[1]) * 60 * 1000;
+        }
+
+        // Extract seconds
+        const secondMatch = etaStr.match(/(\d+)s/);
+        if (secondMatch) {
+            totalMs += parseInt(secondMatch[1]) * 1000;
+        }
+
+        return totalMs;
     }
 };
 

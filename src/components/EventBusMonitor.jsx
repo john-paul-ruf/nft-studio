@@ -26,7 +26,8 @@ import {
     Badge,
     Tooltip,
     ToggleButton,
-    ToggleButtonGroup
+    ToggleButtonGroup,
+    LinearProgress
 } from '@mui/material';
 import {
     Clear,
@@ -73,11 +74,24 @@ export default function EventBusMonitor({ open, onClose }) {
     const [isPaused, setIsPaused] = useState(false);
     const [selectedTab, setSelectedTab] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCategories, setSelectedCategories] = useState(Object.keys(EVENT_CATEGORIES));
+    const [selectedCategories, setSelectedCategories] = useState(['FRAME', 'VIDEO', 'ERROR']);
     const [expandedEvents, setExpandedEvents] = useState(new Set());
     const [autoScroll, setAutoScroll] = useState(true);
     const [showTimestamps, setShowTimestamps] = useState(true);
     const [eventStats, setEventStats] = useState({});
+    // Progress tracking state
+    const [renderProgress, setRenderProgress] = useState({
+        isRendering: false,
+        currentFrame: 0,
+        totalFrames: 100,
+        progress: 0,
+        projectName: '',
+        fps: 0,
+        eta: '',
+        startTime: null,
+        avgRenderTime: 0,
+        lastFrameTime: 0
+    });
     const eventListRef = useRef(null);
     const maxEvents = 1000;
 
@@ -86,6 +100,73 @@ export default function EventBusMonitor({ open, onClose }) {
             // Subscribe to all events via IPC
             const handleEvent = (eventData) => {
                 console.log('📨 EventBusMonitor received IPC event:', eventData);
+
+                // Track progress events - calculate progress directly from frame events
+                if (eventData.eventName === 'frameCompleted') {
+                    const { frameNumber, totalFrames, renderTime, projectName } = eventData.data || {};
+                    const now = Date.now();
+
+                    setRenderProgress(prev => {
+                        // Calculate progress from frame completion
+                        const currentFrameNumber = frameNumber !== undefined ? frameNumber : prev.currentFrame;
+                        const currentTotalFrames = totalFrames || prev.totalFrames || 100;
+
+                        // Convert 0-indexed frameNumber to completed frames count
+                        const framesCompleted = currentFrameNumber + 1;
+
+                        // Calculate progress percentage (1-100)
+                        const calculatedProgress = Math.min(100, Math.max(1, Math.round((framesCompleted / currentTotalFrames) * 100)));
+
+                        // Initialize start time on first frame
+                        const startTime = prev.startTime || (framesCompleted === 1 ? now : now);
+                        const elapsedTime = (now - startTime) / 1000;
+
+                        // Calculate FPS and ETA
+                        const fps = framesCompleted > 0 ? framesCompleted / elapsedTime : 0;
+                        const remainingFrames = currentTotalFrames - framesCompleted;
+                        const etaSeconds = fps > 0 ? remainingFrames / fps : 0;
+
+                        // Format ETA
+                        let etaFormatted = '';
+                        if (etaSeconds > 0) {
+                            const hours = Math.floor(etaSeconds / 3600);
+                            const minutes = Math.floor((etaSeconds % 3600) / 60);
+                            const seconds = Math.floor(etaSeconds % 60);
+
+                            if (hours > 0) {
+                                etaFormatted = `${hours}h ${minutes}m ${seconds}s`;
+                            } else if (minutes > 0) {
+                                etaFormatted = `${minutes}m ${seconds}s`;
+                            } else {
+                                etaFormatted = `${seconds}s`;
+                            }
+                        }
+
+                        console.log(`🎯 Progress calculated: Frame ${framesCompleted}/${currentTotalFrames} = ${calculatedProgress}%`);
+
+                        return {
+                            ...prev,
+                            isRendering: calculatedProgress < 100,
+                            currentFrame: currentFrameNumber,
+                            totalFrames: currentTotalFrames,
+                            progress: calculatedProgress,
+                            projectName: projectName || prev.projectName,
+                            fps: Math.round(fps * 10) / 10,
+                            eta: etaFormatted,
+                            lastFrameTime: renderTime || 0,
+                            avgRenderTime: framesCompleted > 0 ? Math.round(elapsedTime * 1000 / framesCompleted) : 0,
+                            startTime: startTime
+                        };
+                    });
+                } else if (eventData.eventName === 'frameStarted') {
+                    // Handle frame start events for project initialization
+                    setRenderProgress(prev => ({
+                        ...prev,
+                        isRendering: true,
+                        totalFrames: eventData.data?.totalFrames || prev.totalFrames,
+                        projectName: eventData.data?.projectName || prev.projectName
+                    }));
+                }
 
                 const newEvent = {
                     id: Date.now() + Math.random(),
@@ -350,7 +431,7 @@ export default function EventBusMonitor({ open, onClose }) {
                             {showTimestamps && (
                                 <Typography variant="caption" sx={{ minWidth: 150, color: 'text.secondary' }}>
                                     {new Date(event.timestamp).toLocaleTimeString('en-US', {
-                                        hour12: false,
+                                        hour12: true,
                                         hour: '2-digit',
                                         minute: '2-digit',
                                         second: '2-digit',
@@ -522,6 +603,58 @@ export default function EventBusMonitor({ open, onClose }) {
                                 label="Timestamps"
                             />
                         </Box>
+
+                        {/* Progress Bar */}
+                        {renderProgress.isRendering && (
+                            <Paper sx={{ p: 2, mb: 2, bgcolor: 'primary.dark', color: 'primary.contrastText' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                                        🎬 Rendering: {renderProgress.projectName}
+                                    </Typography>
+                                    <Typography variant="caption">
+                                        {renderProgress.currentFrame}/{renderProgress.totalFrames} frames
+                                    </Typography>
+                                </Box>
+
+                                <LinearProgress
+                                    variant="determinate"
+                                    value={renderProgress.progress}
+                                    sx={{
+                                        height: 8,
+                                        borderRadius: 1,
+                                        mb: 1,
+                                        bgcolor: 'rgba(255,255,255,0.2)',
+                                        '& .MuiLinearProgress-bar': {
+                                            borderRadius: 1,
+                                            bgcolor: '#00ff88'
+                                        }
+                                    }}
+                                />
+
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                                        {renderProgress.progress}% complete
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', gap: 2 }}>
+                                        {renderProgress.fps > 0 && (
+                                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                                                {renderProgress.fps} fps
+                                            </Typography>
+                                        )}
+                                        {renderProgress.lastFrameTime > 0 && (
+                                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                                                {renderProgress.lastFrameTime}ms/frame
+                                            </Typography>
+                                        )}
+                                        {renderProgress.eta && (
+                                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                                                ETA: {renderProgress.eta}
+                                            </Typography>
+                                        )}
+                                    </Box>
+                                </Box>
+                            </Paper>
+                        )}
 
                         {renderEventList()}
                     </>
