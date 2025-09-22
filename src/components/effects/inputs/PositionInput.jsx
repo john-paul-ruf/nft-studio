@@ -1,43 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useGlobalResolutionTracking } from '../../../hooks/useGlobalResolutionTracking.js';
+import CenterUtils from '../../../utils/CenterUtils.js';
+import ResolutionKeyUtils from '../../../utils/ResolutionKeyUtils.js';
 
-function PositionInput({ field, value, onChange, projectData }) {
+function PositionInput({ field, value, onChange, projectState }) {
     const [showPresets, setShowPresets] = useState(false);
     const [positionType, setPositionType] = useState('position');
+    const [selectedCategory, setSelectedCategory] = useState('basic');
+    const [debounceTimer, setDebounceTimer] = useState(null);
 
-    // Get resolution and dimensions (same logic as Point2DInput)
-    let resolution = projectData?.targetResolution || projectData?.resolution || 'hd';
-    const resolutionMap = {
-        '320': 'qvga', '640': 'vga', '800': 'svga', '1024': 'xga',
-        '1280': 'hd720', '1920': 'hd', '720': 'square_small', '1080': 'square',
-        '2560': 'wqhd', '3840': '4k', '5120': '5k', '7680': '8k'
-    };
-    if (resolutionMap[resolution]) resolution = resolutionMap[resolution];
+    // Use global resolution tracking instead of component-level state
+    const { lastResolutionKey, hasResolutionChanged, updateResolution, initializeResolution } = useGlobalResolutionTracking();
 
-    const resolutions = {
-        'qvga': { width: 320, height: 240 }, 'vga': { width: 640, height: 480 },
-        'svga': { width: 800, height: 600 }, 'xga': { width: 1024, height: 768 },
-        'hd720': { width: 1280, height: 720 }, 'hd': { width: 1920, height: 1080 },
-        'square_small': { width: 720, height: 720 }, 'square': { width: 1080, height: 1080 },
-        'wqhd': { width: 2560, height: 1440 }, '4k': { width: 3840, height: 2160 },
-        '5k': { width: 5120, height: 2880 }, '8k': { width: 7680, height: 4320 },
-        'portrait_hd': { width: 1080, height: 1920 }, 'portrait_4k': { width: 2160, height: 3840 },
-        'ultrawide': { width: 3440, height: 1440 }, 'cinema_2k': { width: 2048, height: 1080 },
-        'cinema_4k': { width: 4096, height: 2160 }
-    };
-    const baseResolution = resolutions[resolution] || resolutions.hd;
+    // SINGLE SOURCE: Get resolution data ONLY from ProjectState
+    const { safeWidth, safeHeight, currentResolutionKey } = useMemo(() => {
+        if (!projectState) {
+            console.error('PositionInput: No ProjectState available - component cannot function');
+            return { safeWidth: 0, safeHeight: 0, currentResolutionKey: 'error' }; // Fail fast - no fallbacks
+        }
 
-    const autoIsHoz = baseResolution.width > baseResolution.height;
-    const isHoz = typeof projectData?.isHorizontal === 'boolean' ? projectData.isHorizontal :
-                  typeof projectData?.isHoz === 'boolean' ? projectData.isHoz : autoIsHoz;
+        const dimensions = projectState.getResolutionDimensions();
+        const resolution = projectState.getTargetResolution();
+        const isHorizontal = projectState.getIsHorizontal();
+        const key = `${resolution}-${dimensions.w}x${dimensions.h}-${isHorizontal ? 'h' : 'v'}`;
 
-    let width, height;
-    if (isHoz) {
-        width = baseResolution.width;
-        height = baseResolution.height;
-    } else {
-        width = baseResolution.height;
-        height = baseResolution.width;
-    }
+        return {
+            safeWidth: dimensions.w,
+            safeHeight: dimensions.h,
+            currentResolutionKey: key
+        };
+    }, [projectState]);
 
     // Initialize position type based on current value
     useEffect(() => {
@@ -49,35 +41,92 @@ function PositionInput({ field, value, onChange, projectData }) {
         }
     }, [value]);
 
-    // Generate default values based on position type
+    // Initialize resolution tracking only (SCALING DISABLED - Canvas handles all scaling)
+    useEffect(() => {
+        console.log('🔍 PositionInput useEffect triggered (SCALING DISABLED):', {
+            currentResolutionKey,
+            lastResolutionKey,
+            hasValue: !!value,
+            valueType: value?.name,
+            safeWidth,
+            safeHeight
+        });
+
+        // Initialize resolution if this is the first time
+        if (!lastResolutionKey) {
+            console.log('🔧 Initializing global resolution key:', currentResolutionKey);
+            initializeResolution(currentResolutionKey);
+            return;
+        }
+
+        // Only update resolution tracking - NO SCALING (Canvas handles scaling globally)
+        const resolutionChanged = hasResolutionChanged(currentResolutionKey);
+        if (resolutionChanged) {
+            console.log('🎯 PositionInput: Resolution changed, updating tracking only (Canvas will handle scaling)');
+            updateResolution(currentResolutionKey);
+        }
+    }, [currentResolutionKey]);
+
+    // DEAD CODE ELIMINATED - Scaling handled by Canvas component only
+
+
+    // Generate default values using ProjectState dimensions ONLY
     const generateDefaultValue = (type) => {
-        const centerX = Math.round(width / 2);
-        const centerY = Math.round(height / 2);
+        if (!projectState) {
+            console.warn('⚠️ PositionInput: Attempted to generate default without ProjectState');
+            return { x: 0, y: 0, __error: true };
+        }
+
+        const dimensions = projectState.getResolutionDimensions();
+        const center = CenterUtils.getCenterPosition(dimensions.w, dimensions.h);
+
+        // Add resolution metadata to all generated positions
+        const resolution = projectState.getTargetResolution();
+        const isHorizontal = projectState.getIsHorizontal();
+        const resolutionKey = `${resolution}-${dimensions.w}x${dimensions.h}-${isHorizontal ? 'h' : 'v'}`;
+
+        const metadata = {
+            __generatedWithCorrectDimensions: true,
+            __generatedAt: resolutionKey,
+            __generatedTimestamp: Date.now()
+        };
 
         switch (type) {
             case 'position':
                 return {
                     name: 'position',
-                    x: centerX,
-                    y: centerY
+                    x: center.x,
+                    y: center.y,
+                    ...metadata
                 };
             case 'arc-path':
                 return {
                     name: 'arc-path',
-                    center: { x: centerX, y: centerY },
-                    radius: Math.min(width, height) * 0.2,
+                    center: { x: center.x, y: center.y },
+                    radius: Math.min(dimensions.w, dimensions.h) * 0.2,
                     startAngle: 0,
                     endAngle: 360,
-                    direction: 1
+                    direction: 1,
+                    ...metadata
                 };
             default:
-                return { x: centerX, y: centerY };
+                return {
+                    x: center.x,
+                    y: center.y,
+                    ...metadata
+                };
         }
     };
 
-    // Get current value with smart defaults
+    // Get current value with smart defaults - WAIT for ProjectState to be ready
     const getCurrentValue = () => {
-        if (!value) return generateDefaultValue(positionType);
+        if (!value) {
+            if (!projectState) {
+                // Return placeholder until ProjectState is ready
+                return { x: 0, y: 0, __placeholder: true };
+            }
+            return generateDefaultValue(positionType);
+        }
 
         // Handle legacy point2d format
         if (value.x !== undefined && value.y !== undefined && !value.name) {
@@ -93,18 +142,77 @@ function PositionInput({ field, value, onChange, projectData }) {
 
     const currentValue = getCurrentValue();
 
-    // Position presets for Position type
-    const positionPresets = [
-        { name: 'Center', x: width / 2, y: height / 2, icon: '⊙' },
-        { name: 'Top Left', x: width * 0.25, y: height * 0.25, icon: '⌜' },
-        { name: 'Top Right', x: width * 0.75, y: height * 0.25, icon: '⌝' },
-        { name: 'Bottom Left', x: width * 0.25, y: height * 0.75, icon: '⌞' },
-        { name: 'Bottom Right', x: width * 0.75, y: height * 0.75, icon: '⌟' },
-        { name: 'Top Center', x: width / 2, y: height * 0.25, icon: '⌐' },
-        { name: 'Bottom Center', x: width / 2, y: height * 0.75, icon: '⌙' },
-        { name: 'Left Center', x: width * 0.25, y: height / 2, icon: '⊢' },
-        { name: 'Right Center', x: width * 0.75, y: height / 2, icon: '⊣' }
-    ];
+    // Position presets - SPATIALLY ORGANIZED for visual grid layout
+    const basicPresets = useMemo(() => [
+        // Row 1: Top
+        { name: 'Top Left', x: safeWidth * 0.25, y: safeHeight * 0.25, icon: '⌜' },
+        { name: 'Top Center', x: safeWidth / 2, y: safeHeight * 0.25, icon: '⌐' },
+        { name: 'Top Right', x: safeWidth * 0.75, y: safeHeight * 0.25, icon: '⌝' },
+
+        // Row 2: Middle
+        { name: 'Left Center', x: safeWidth * 0.25, y: safeHeight / 2, icon: '⊢' },
+        { name: 'Center', x: safeWidth / 2, y: safeHeight / 2, icon: '⊙' },
+        { name: 'Right Center', x: safeWidth * 0.75, y: safeHeight / 2, icon: '⊣' },
+
+        // Row 3: Bottom
+        { name: 'Bottom Left', x: safeWidth * 0.25, y: safeHeight * 0.75, icon: '⌞' },
+        { name: 'Bottom Center', x: safeWidth / 2, y: safeHeight * 0.75, icon: '⌙' },
+        { name: 'Bottom Right', x: safeWidth * 0.75, y: safeHeight * 0.75, icon: '⌟' }
+    ], [currentResolutionKey, safeWidth, safeHeight]);
+
+    // Rule of Thirds positions - SPATIALLY ORGANIZED for photography composition
+    const thirdsPresets = useMemo(() => [
+        // Row 1: Top third
+        { name: 'Top Third Left', x: safeWidth * 0.33, y: safeHeight * 0.33, icon: '⚏' },
+        { name: 'Top Third Right', x: safeWidth * 0.67, y: safeHeight * 0.33, icon: '⚎' },
+
+        // Row 2: Middle third
+        { name: 'Middle Third Left', x: safeWidth * 0.33, y: safeHeight / 2, icon: '⚋' },
+        { name: 'Middle Third Right', x: safeWidth * 0.67, y: safeHeight / 2, icon: '⚊' },
+
+        // Row 3: Bottom third
+        { name: 'Bottom Third Left', x: safeWidth * 0.33, y: safeHeight * 0.67, icon: '⚍' },
+        { name: 'Bottom Third Right', x: safeWidth * 0.67, y: safeHeight * 0.67, icon: '⚌' }
+    ], [currentResolutionKey, safeWidth, safeHeight]);
+
+    // Golden Ratio positions (1.618 ratio)
+    const goldenPresets = useMemo(() => [
+        { name: 'Golden Top Left', x: safeWidth * 0.382, y: safeHeight * 0.382, icon: '◗' },
+        { name: 'Golden Top Right', x: safeWidth * 0.618, y: safeHeight * 0.382, icon: '◖' },
+        { name: 'Golden Bottom Left', x: safeWidth * 0.382, y: safeHeight * 0.618, icon: '◥' },
+        { name: 'Golden Bottom Right', x: safeWidth * 0.618, y: safeHeight * 0.618, icon: '◤' }
+    ], [currentResolutionKey, safeWidth, safeHeight]);
+
+    // Edge positions - SPATIALLY ORGANIZED for visual grid layout (3x3 grid)
+    const edgePresets = useMemo(() => [
+        // Row 1: Top edge and corners
+        { name: 'Near Top Left Corner', x: safeWidth * 0.05, y: safeHeight * 0.05, icon: '◸' },
+        { name: 'Near Top Edge', x: safeWidth / 2, y: safeHeight * 0.05, icon: '▲' },
+        { name: 'Near Top Right Corner', x: safeWidth * 0.95, y: safeHeight * 0.05, icon: '◹' },
+
+        // Row 2: Side edges and center
+        { name: 'Near Left Edge', x: safeWidth * 0.05, y: safeHeight / 2, icon: '◀' },
+        { name: 'Center', x: safeWidth / 2, y: safeHeight / 2, icon: '⊙' },
+        { name: 'Near Right Edge', x: safeWidth * 0.95, y: safeHeight / 2, icon: '▶' },
+
+        // Row 3: Bottom edge and corners
+        { name: 'Near Bottom Left Corner', x: safeWidth * 0.05, y: safeHeight * 0.95, icon: '◺' },
+        { name: 'Near Bottom Edge', x: safeWidth / 2, y: safeHeight * 0.95, icon: '▼' },
+        { name: 'Near Bottom Right Corner', x: safeWidth * 0.95, y: safeHeight * 0.95, icon: '◿' }
+    ], [currentResolutionKey, safeWidth, safeHeight]);
+
+    // Category definitions - memoized to update when resolution changes
+    const presetCategories = useMemo(() => ({
+        basic: { name: 'Basic', presets: basicPresets, icon: '⊙' },
+        thirds: { name: 'Rule of Thirds', presets: thirdsPresets, icon: '⚏' },
+        golden: { name: 'Golden Ratio', presets: goldenPresets, icon: '◗' },
+        edge: { name: 'Edge Positions', presets: edgePresets, icon: '▲' }
+    }), [currentResolutionKey]);
+
+    // Get current category presets - memoized to prevent unnecessary recalculations
+    const getCurrentCategoryPresets = useMemo(() => {
+        return presetCategories[selectedCategory]?.presets || basicPresets;
+    }, [presetCategories, selectedCategory, basicPresets]);
 
     const handlePositionTypeChange = (newType) => {
         setPositionType(newType);
@@ -112,37 +220,67 @@ function PositionInput({ field, value, onChange, projectData }) {
         onChange(field.name, newValue);
     };
 
+    // Helper function to create position with metadata
+    const createPositionWithMetadata = (positionData, isUserSet = false) => {
+        return {
+            ...positionData,
+            ...(isUserSet && {
+                __userSet: true,
+                __setAt: currentResolutionKey,
+                __setTimestamp: Date.now()
+            })
+        };
+    };
+
     const handlePresetSelect = (preset) => {
         if (positionType === 'position') {
-            onChange(field.name, {
+            const newPosition = createPositionWithMetadata({
                 name: 'position',
                 x: Math.round(preset.x),
                 y: Math.round(preset.y)
-            });
+            }, true);
+            onChange(field.name, newPosition);
+        }
+        setShowPresets(false);
+    };
+
+    const handleArcCenterPresetSelect = (preset) => {
+        if (positionType === 'arc-path') {
+            const newPosition = createPositionWithMetadata({
+                ...currentValue,
+                center: {
+                    x: Math.round(preset.x),
+                    y: Math.round(preset.y)
+                }
+            }, true);
+            onChange(field.name, newPosition);
         }
         setShowPresets(false);
     };
 
     const handlePositionChange = (newX, newY) => {
-        onChange(field.name, {
+        const newPosition = createPositionWithMetadata({
             ...currentValue,
             x: newX,
             y: newY
-        });
+        }, true);
+        onChange(field.name, newPosition);
     };
 
     const handleArcPathChange = (property, newValue) => {
-        onChange(field.name, {
+        const newPosition = createPositionWithMetadata({
             ...currentValue,
             [property]: newValue
-        });
+        }, true);
+        onChange(field.name, newPosition);
     };
 
     const handleCenterChange = (newX, newY) => {
-        onChange(field.name, {
+        const newPosition = createPositionWithMetadata({
             ...currentValue,
             center: { x: newX, y: newY }
-        });
+        }, true);
+        onChange(field.name, newPosition);
     };
 
     return (
@@ -200,13 +338,48 @@ function PositionInput({ field, value, onChange, projectData }) {
                                 borderRadius: '4px',
                                 border: '1px solid #333'
                             }}>
+                                {/* Category Tabs */}
+                                <div style={{
+                                    display: 'flex',
+                                    gap: '0.25rem',
+                                    marginBottom: '0.5rem',
+                                    borderBottom: '1px solid #555',
+                                    paddingBottom: '0.5rem'
+                                }}>
+                                    {Object.entries(presetCategories).map(([key, category]) => (
+                                        <button
+                                            key={key}
+                                            type="button"
+                                            onClick={() => setSelectedCategory(key)}
+                                            style={{
+                                                background: selectedCategory === key ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)',
+                                                border: selectedCategory === key ? '1px solid #777' : '1px solid #555',
+                                                borderRadius: '3px',
+                                                padding: '0.25rem 0.5rem',
+                                                cursor: 'pointer',
+                                                color: selectedCategory === key ? '#fff' : '#ccc',
+                                                fontSize: '0.7rem',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.25rem',
+                                                flex: 1,
+                                                justifyContent: 'center'
+                                            }}
+                                        >
+                                            <span>{category.icon}</span>
+                                            <span>{category.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Current Category Presets */}
                                 <div style={{
                                     display: 'grid',
                                     gridTemplateColumns: 'repeat(3, 1fr)',
                                     gap: '0.25rem',
                                     fontSize: '0.7rem'
                                 }}>
-                                    {positionPresets.map(preset => (
+                                    {getCurrentCategoryPresets.map(preset => (
                                         <button
                                             key={preset.name}
                                             type="button"
@@ -223,11 +396,35 @@ function PositionInput({ field, value, onChange, projectData }) {
                                                 gap: '0.25rem',
                                                 justifyContent: 'center'
                                             }}
+                                            title={`${Math.round(preset.x)}, ${Math.round(preset.y)}`}
                                         >
                                             <span>{preset.icon}</span>
-                                            <span>{preset.name}</span>
+                                            <span style={{ fontSize: '0.6rem' }}>{preset.name}</span>
                                         </button>
                                     ))}
+                                </div>
+
+                                {/* Category Description */}
+                                <div style={{
+                                    marginTop: '0.5rem',
+                                    fontSize: '0.6rem',
+                                    color: '#888',
+                                    textAlign: 'center'
+                                }}>
+                                    {selectedCategory === 'basic' && 'Standard composition positions'}
+                                    {selectedCategory === 'thirds' && 'Photography rule of thirds (33% / 67% points)'}
+                                    {selectedCategory === 'golden' && 'Golden ratio composition (38.2% / 61.8% points)'}
+                                    {selectedCategory === 'edge' && 'Positions near canvas edges (5% / 95% points)'}
+                                </div>
+
+                                <div style={{
+                                    marginTop: '0.25rem',
+                                    fontSize: '0.6rem',
+                                    color: '#888',
+                                    textAlign: 'center'
+                                }}>
+                                    Canvas: {safeWidth} × {safeHeight} {projectState &&
+                                        (projectState.getIsHorizontal() ? '(Horizontal)' : '(Vertical)')}
                                 </div>
                             </div>
                         )}
@@ -250,7 +447,7 @@ function PositionInput({ field, value, onChange, projectData }) {
                                 onChange={(e) => handlePositionChange(parseInt(e.target.value) || 0, currentValue.y)}
                                 style={{ width: '100%' }}
                                 min={0}
-                                max={width}
+                                max={safeWidth}
                             />
                         </div>
                         <div>
@@ -261,7 +458,7 @@ function PositionInput({ field, value, onChange, projectData }) {
                                 onChange={(e) => handlePositionChange(currentValue.x, parseInt(e.target.value) || 0)}
                                 style={{ width: '100%' }}
                                 min={0}
-                                max={height}
+                                max={safeHeight}
                             />
                         </div>
                     </div>
@@ -280,6 +477,124 @@ function PositionInput({ field, value, onChange, projectData }) {
 
             {positionType === 'arc-path' && (
                 <>
+                    {/* Arc Path Center Quick Presets */}
+                    <div style={{ marginBottom: '0.5rem' }}>
+                        <button
+                            type="button"
+                            onClick={() => setShowPresets(!showPresets)}
+                            style={{
+                                background: 'rgba(255,255,255,0.1)',
+                                border: '1px solid #333',
+                                borderRadius: '4px',
+                                padding: '0.25rem 0.5rem',
+                                fontSize: '0.8rem',
+                                cursor: 'pointer',
+                                color: 'white'
+                            }}
+                        >
+                            📍 Center Quick Picks
+                        </button>
+
+                        {showPresets && (
+                            <div style={{
+                                marginTop: '0.5rem',
+                                padding: '0.5rem',
+                                background: 'rgba(0,0,0,0.3)',
+                                borderRadius: '4px',
+                                border: '1px solid #333'
+                            }}>
+                                {/* Category Tabs */}
+                                <div style={{
+                                    display: 'flex',
+                                    gap: '0.25rem',
+                                    marginBottom: '0.5rem',
+                                    borderBottom: '1px solid #555',
+                                    paddingBottom: '0.5rem'
+                                }}>
+                                    {Object.entries(presetCategories).map(([key, category]) => (
+                                        <button
+                                            key={key}
+                                            type="button"
+                                            onClick={() => setSelectedCategory(key)}
+                                            style={{
+                                                background: selectedCategory === key ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)',
+                                                border: selectedCategory === key ? '1px solid #777' : '1px solid #555',
+                                                borderRadius: '3px',
+                                                padding: '0.25rem 0.5rem',
+                                                cursor: 'pointer',
+                                                color: selectedCategory === key ? '#fff' : '#ccc',
+                                                fontSize: '0.7rem',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.25rem',
+                                                flex: 1,
+                                                justifyContent: 'center'
+                                            }}
+                                        >
+                                            <span>{category.icon}</span>
+                                            <span>{category.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Current Category Presets */}
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(3, 1fr)',
+                                    gap: '0.25rem',
+                                    fontSize: '0.7rem'
+                                }}>
+                                    {getCurrentCategoryPresets.map(preset => (
+                                        <button
+                                            key={preset.name}
+                                            type="button"
+                                            onClick={() => handleArcCenterPresetSelect(preset)}
+                                            style={{
+                                                background: 'rgba(255,255,255,0.1)',
+                                                border: '1px solid #555',
+                                                borderRadius: '3px',
+                                                padding: '0.25rem',
+                                                cursor: 'pointer',
+                                                color: 'white',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.25rem',
+                                                justifyContent: 'center'
+                                            }}
+                                            title={`Center: ${Math.round(preset.x)}, ${Math.round(preset.y)}`}
+                                        >
+                                            <span>{preset.icon}</span>
+                                            <span style={{ fontSize: '0.6rem' }}>{preset.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Category Description */}
+                                <div style={{
+                                    marginTop: '0.5rem',
+                                    fontSize: '0.6rem',
+                                    color: '#888',
+                                    textAlign: 'center'
+                                }}>
+                                    {selectedCategory === 'basic' && 'Standard composition positions for arc center'}
+                                    {selectedCategory === 'thirds' && 'Photography rule of thirds for arc center (33% / 67% points)'}
+                                    {selectedCategory === 'golden' && 'Golden ratio composition for arc center (38.2% / 61.8% points)'}
+                                    {selectedCategory === 'edge' && 'Arc center positions near canvas edges (5% / 95% points)'}
+                                </div>
+
+                                <div style={{
+                                    marginTop: '0.25rem',
+                                    fontSize: '0.6rem',
+                                    color: '#888',
+                                    textAlign: 'center'
+                                }}>
+                                    Canvas: {safeWidth} × {safeHeight} {projectState &&
+                                        (projectState.getIsHorizontal() ? '(Horizontal)' : '(Vertical)')}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     {/* Arc Path Controls */}
                     <div style={{
                         background: 'rgba(255,255,255,0.05)',
@@ -301,7 +616,7 @@ function PositionInput({ field, value, onChange, projectData }) {
                                         onChange={(e) => handleCenterChange(parseInt(e.target.value) || 0, currentValue.center?.y || 0)}
                                         style={{ width: '100%' }}
                                         min={0}
-                                        max={width}
+                                        max={safeWidth}
                                     />
                                 </div>
                                 <div>
@@ -312,7 +627,7 @@ function PositionInput({ field, value, onChange, projectData }) {
                                         onChange={(e) => handleCenterChange(currentValue.center?.x || 0, parseInt(e.target.value) || 0)}
                                         style={{ width: '100%' }}
                                         min={0}
-                                        max={height}
+                                        max={safeHeight}
                                     />
                                 </div>
                             </div>
@@ -326,7 +641,7 @@ function PositionInput({ field, value, onChange, projectData }) {
                             <input
                                 type="range"
                                 min={10}
-                                max={Math.min(width, height) / 2}
+                                max={Math.min(safeWidth, safeHeight) / 2}
                                 value={currentValue.radius || 100}
                                 onChange={(e) => handleArcPathChange('radius', parseInt(e.target.value))}
                                 style={{ width: '100%' }}
@@ -400,8 +715,8 @@ function PositionInput({ field, value, onChange, projectData }) {
                 color: '#888',
                 textAlign: 'center'
             }}>
-                Canvas: {width} × {height} {(typeof projectData?.isHorizontal === 'boolean' || typeof projectData?.isHoz === 'boolean') &&
-                    ((projectData?.isHorizontal ?? projectData?.isHoz) ? '(Forced Horizontal)' : '(Forced Vertical)')}
+                Canvas: {safeWidth} × {safeHeight} {projectState &&
+                    (projectState.getIsHorizontal() ? '(Horizontal)' : '(Vertical)')}
             </div>
         </div>
     );

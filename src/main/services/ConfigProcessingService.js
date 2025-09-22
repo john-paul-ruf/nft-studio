@@ -47,14 +47,15 @@ class ConfigProcessingService {
     /**
      * Apply Point2D center override for configurations
      * @param {Object} config - Configuration object
-     * @param {Object} projectData - Project data with resolution
+     * @param {Object} projectState - ProjectState instance with resolution
      * @returns {Object} Processed configuration
      */
-    applyPoint2DCenterOverride(config, projectData) {
-        if (!config || !projectData) return config;
+    applyPoint2DCenterOverride(config, projectState) {
+        if (!config || !projectState) return config;
 
-        const centerX = projectData.resolution ? projectData.resolution.width / 2 : 0;
-        const centerY = projectData.resolution ? projectData.resolution.height / 2 : 0;
+        const dimensions = projectState.getResolutionDimensions();
+        const centerX = dimensions.w / 2;
+        const centerY = dimensions.h / 2;
 
         return this.processObjectForCenterOverride(config, centerX, centerY);
     }

@@ -1,12 +1,8 @@
-import React, { useState, useEffect, useRef, flushSync } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import EffectPicker from '../components/EffectPicker.jsx';
-import EffectsPanel from '../components/EffectsPanel.jsx';
+import EventDrivenEffectsPanel from '../components/EventDrivenEffectsPanel.jsx';
 import EffectConfigurer from '../components/effects/EffectConfigurer.jsx';
 import EventBusMonitor from '../components/EventBusMonitor.jsx';
-import ColorSchemeService from '../services/ColorSchemeService.js';
-import PreferencesService from '../services/PreferencesService.js';
-import ProjectState from '../models/ProjectState.js';
-import { useInitialResolution } from '../hooks/useInitialResolution.js';
 
 // Canvas components and hooks
 import { createAppTheme, appThemes } from '../components/canvas/theme.js';
@@ -14,7 +10,12 @@ import CanvasToolbar from '../components/canvas/CanvasToolbar.jsx';
 import CanvasViewport from '../components/canvas/CanvasViewport.jsx';
 import useZoomPan from '../components/canvas/useZoomPan.js';
 import useEffectManagement from '../components/canvas/useEffectManagement.js';
-import useRenderManagement from '../components/canvas/useRenderManagement.js';
+
+// New clean hooks
+import useRenderPipeline from '../hooks/useRenderPipeline.js';
+import { useServices } from '../contexts/ServiceContext.js';
+import PreferencesService from '../services/PreferencesService.js';
+import ResolutionMapper from '../utils/ResolutionMapper.js';
 
 // Material-UI imports
 import {
@@ -32,106 +33,85 @@ import {
 import { Close } from '@mui/icons-material';
 import './Canvas.css';
 
+// Event-driven components
+import EventDrivenToolbarActions from '../components/EventDrivenToolbarActions.jsx';
+import EventDrivenCanvasToolbar from '../components/EventDrivenCanvasToolbar.jsx';
+
+/**
+ * Clean Canvas Component - Pure Event-Driven View Layer
+ * Zero callback props - all communication via EventBus
+ * Perfect single source of truth architecture
+ */
 export default function Canvas({ projectStateManager, projectData, onUpdateConfig }) {
-    console.log('🔍 Canvas received projectData:', projectData);
+    console.log('🎨 CANVAS MOUNT: Starting clean Canvas component');
+    console.log('🎨 CANVAS MOUNT: Props received:', { projectStateManager, projectData, onUpdateConfig });
 
-    // Get the ProjectState from the shared ProjectStateManager
+    // Services
+    const { renderPipelineService, eventBusService } = useServices();
+
+    // State management through services only
     const [projectState, setProjectState] = useState(() => projectStateManager.getProjectState());
+    const [updateCounter, setUpdateCounter] = useState(0); // Force re-renders
+    const config = projectState ? projectState.getState() : {};
 
-    // Reactive config state
-    const [config, setConfig] = useState(() => {
-        const state = projectStateManager.getProjectState();
-        return state ? state.getState() : {};
-    });
+    // Debug config changes
+    console.log('🎨 Canvas: Component render - config.effects:', config.effects?.length || 0, config.effects?.map(e => e.name || e.className) || []);
+    console.log('🎨 Canvas: Update counter:', updateCounter);
 
-    // Update local state when projectStateManager changes
+    // Update when ProjectState changes
     useEffect(() => {
         const unsubscribe = projectStateManager.onUpdate((updatedState) => {
-            console.log('ProjectState updated:', updatedState);
+            console.log('🎨 Canvas: ProjectState updated via service');
+            console.log('🎨 Canvas: Updated state effects count:', updatedState?.effects?.length || 0);
+            console.log('🎨 Canvas: Updated state effects:', updatedState?.effects?.map(e => e.name || e.className) || []);
+
             const newProjectState = projectStateManager.getProjectState();
+            console.log('🎨 Canvas: Getting fresh ProjectState from manager');
+            console.log('🎨 Canvas: Fresh ProjectState effects count:', newProjectState?.getState()?.effects?.length || 0);
+
             setProjectState(newProjectState);
-            // Force a new object reference to ensure React sees the change
-            setConfig(updatedState ? { ...updatedState } : {});
+            setUpdateCounter(prev => prev + 1); // Force re-render
+            console.log('🎨 Canvas: Forced re-render with counter increment');
+
+            if (onUpdateConfig) onUpdateConfig(updatedState);
         });
-        return unsubscribe;
-    }, [projectStateManager]);
-
-    // State for triggering re-renders when ProjectState updates
-    const [configVersion, setConfigVersion] = useState(0);
-    const [isLoading, setIsLoading] = useState(false);
-    const [lastSaveStatus, setLastSaveStatus] = useState(null);
-
-    // Set up additional update callbacks
-    useEffect(() => {
-        const unsubscribe = projectStateManager.onUpdate((newState) => {
-            if (onUpdateConfig) {
-                onUpdateConfig(newState);
-            }
-
-            // Trigger re-render
-            setConfigVersion(prev => prev + 1);
-
-            // Show save status briefly
-            setLastSaveStatus('saving');
-            setTimeout(() => setLastSaveStatus('saved'), 1000);
-            setTimeout(() => setLastSaveStatus(null), 3000);
-        });
-
         return unsubscribe;
     }, [projectStateManager, onUpdateConfig]);
 
-    // Load project from file if filePath is provided
+    // Load theme preference on mount
     useEffect(() => {
-        if (projectData?.filePath && projectData?.loadedFromFile) {
-            setIsLoading(true);
-            ProjectState.loadFromFile(projectData.filePath, onUpdateConfig)
-                .then(loadedProjectState => {
-                    // Preserve the existing onUpdate callback before replacing
-                    const existingOnUpdate = projectState.onUpdate;
-                    // Replace the current projectState with loaded one
-                    Object.assign(projectState, loadedProjectState);
-                    // Restore the onUpdate callback that includes our UI updates
-                    projectState.onUpdate = existingOnUpdate;
-                    // Update the reactive config state with the loaded data
-                    setConfig(loadedProjectState.getState());
-                    setConfigVersion(prev => prev + 1);
-                    setIsLoading(false);
-                })
-                .catch(error => {
-                    console.error('Failed to load project from file:', error);
-                    setIsLoading(false);
-                });
-        }
-    }, [projectData?.filePath, projectData?.loadedFromFile, onUpdateConfig]);
+        PreferencesService.getSelectedTheme().then(theme => {
+            console.log('🎨 Canvas: Loading saved theme preference:', theme);
+            setCurrentThemeKey(theme);
+        }).catch(error => {
+            console.warn('🎨 Canvas: Failed to load theme preference, using default:', error);
+        });
+    }, []);
 
-    const { initialResolution, isLoaded } = useInitialResolution(null); // No longer depend on projectConfig
+    // Resolution tracking no longer needed - ProjectState handles everything
 
-    // Config is now managed by reactive state above
+    // No longer need scaling callback - ProjectState handles scaling automatically
+    // when setTargetResolution() or setIsHorizontal() are called
 
-    // State hooks
-    const [showEffectPicker, setShowEffectPicker] = useState(false);
+    // Render pipeline (automatic rendering, no manual triggers)
+    const { renderResult, isRendering, renderError, renderTimer, triggerRender } = useRenderPipeline();
+
+    // UI state only
     const [selectedFrame, setSelectedFrame] = useState(0);
+    const [showEffectPicker, setShowEffectPicker] = useState(false);
+    const [currentThemeKey, setCurrentThemeKey] = useState('dark');
+    const [isRenderLoopActive, setIsRenderLoopActive] = useState(false);
+    const [showEventMonitor, setShowEventMonitor] = useState(false);
+
+    // UI refs
     const canvasRef = useRef(null);
     const frameHolderRef = useRef(null);
 
-    // Menu anchors
-    const [zoomMenuAnchor, setZoomMenuAnchor] = useState(null);
-    const [addEffectMenuOpen, setAddEffectMenuOpen] = useState(false);
-    const [colorSchemeMenuAnchor, setColorSchemeMenuAnchor] = useState(null);
-
-    // Theme state
-    const [currentThemeKey, setCurrentThemeKey] = useState('dark');
+    // Theme
     const currentTheme = createAppTheme(currentThemeKey);
-
-    // For backward compatibility, keep themeMode for existing components
     const themeMode = appThemes[currentThemeKey]?.palette.mode || 'dark';
 
-    // Update config through the shared ProjectStateManager
-    const updateConfig = (updates) => {
-        projectStateManager.updateState(updates);
-    };
-
-    // Custom hooks
+    // Canvas tools
     const {
         zoom,
         pan,
@@ -143,11 +123,11 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
         handleWheel
     } = useZoomPan();
 
+    // Effect management (delegates to services)
     const {
         availableEffects,
         effectsLoaded,
         editingEffect,
-        handleAddEffect,
         handleAddEffectDirect,
         handleEffectUpdate,
         handleEffectDelete,
@@ -159,424 +139,305 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
         handleSubEffectUpdate,
         handleAddSecondaryEffect,
         handleAddKeyframeEffect,
+        contextMenuEffect,
+        contextMenuPos,
         setEditingEffect
-    } = useEffectManagement(config, updateConfig);
+    } = useEffectManagement(projectState);
 
-    const getResolutionDimensions = () => {
-        return projectState ? projectState.getResolutionDimensions() : { width: 1024, height: 1024 };
-    };
-
-    const {
-        renderResult,
-        isRendering,
-        renderTimer,
-        isRenderLoopActive,
-        showEventMonitor,
-        handleRender,
-        handleRenderLoop,
-        setShowEventMonitor
-    } = useRenderManagement(config, getResolutionDimensions);
-
-    // Update config when initial resolution loads (for empty projects)
-    useEffect(() => {
-        console.log('🔍 Resolution update effect:', {
-            isLoaded,
-            hasProjectData: !!projectData,
-            initialResolution,
-            currentResolution: config.targetResolution,
-            shouldUpdate: isLoaded && !projectData && initialResolution !== config.targetResolution
-        });
-
-        if (isLoaded && !projectData && initialResolution !== config.targetResolution) {
-            console.log('🚀 Updating Canvas with user resolution:', initialResolution);
-            projectState.setTargetResolution(initialResolution);
-        }
-    }, [isLoaded, initialResolution, projectData, config.targetResolution, projectState]);
-
-    // Show loading while project is being loaded or resolution is being determined
-    if (isLoading || (!isLoaded && !projectData)) {
-        return <div className="canvas-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-            <div>Loading...</div>
-        </div>;
-    }
-
-    // Render image to canvas
-    useEffect(() => {
-        if (renderResult && canvasRef.current) {
-            console.log('🖼️ Loading rendered image:', renderResult?.substring(0, 50) + '...');
-
-            const canvas = canvasRef.current;
-            const ctx = canvas.getContext('2d');
-            const img = new Image();
-
-            img.onload = () => {
-                console.log('✅ Image loaded successfully, dimensions:', img.width, 'x', img.height);
-
-                // Clear canvas with black background first
-                ctx.fillStyle = '#000000';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                // Draw the image to fit the canvas
-                const canvasAspect = canvas.width / canvas.height;
-                const imgAspect = img.width / img.height;
-
-                let drawWidth, drawHeight, drawX, drawY;
-
-                if (imgAspect > canvasAspect) {
-                    // Image is wider than canvas ratio - fit by width
-                    drawWidth = canvas.width;
-                    drawHeight = canvas.width / imgAspect;
-                    drawX = 0;
-                    drawY = (canvas.height - drawHeight) / 2;
-                } else {
-                    // Image is taller than canvas ratio - fit by height
-                    drawHeight = canvas.height;
-                    drawWidth = canvas.height * imgAspect;
-                    drawX = (canvas.width - drawWidth) / 2;
-                    drawY = 0;
-                }
-
-                console.log('🎨 Drawing image at:', drawX, drawY, drawWidth, drawHeight);
-                ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
-
-                console.log('✅ Image successfully drawn to canvas');
-            };
-
-            img.onerror = (error) => {
-                console.error('❌ Failed to load rendered image:', error);
-                console.error('   Image src type:', typeof renderResult);
-                console.error('   Image src length:', renderResult?.length);
-                console.error('   Image src preview:', renderResult?.substring(0, 100));
-
-                // Draw error message on canvas
-                const canvas = canvasRef.current;
-                const ctx = canvas.getContext('2d');
-                ctx.fillStyle = '#440000';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = '#ff8888';
-                ctx.font = '16px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('Image Load Failed', canvas.width / 2, canvas.height / 2 - 10);
-                ctx.fillText('Check Console', canvas.width / 2, canvas.height / 2 + 10);
-            };
-
-            // Set crossOrigin for blob URLs and handle file:// URLs
-            if (renderResult.startsWith('blob:')) {
-                img.crossOrigin = 'anonymous';
-            } else if (renderResult.startsWith('file://')) {
-                console.log('📁 Loading from file system URL');
-                // File URLs don't need crossOrigin
-            }
-
-            img.src = renderResult;
-        } else if (renderResult) {
-            console.warn('⚠️ renderResult exists but canvasRef is not ready:', !!canvasRef.current);
+    // SINGLE SOURCE: Get dimensions directly from ProjectState
+    const getResolutionDimensions = useCallback(() => {
+        if (!projectState) {
+            console.warn('Canvas: No ProjectState available, using fallback');
+            return { w: 1920, h: 1080 };
         }
 
-        // Cleanup blob URLs to prevent memory leaks
-        return () => {
-            if (renderResult && renderResult.startsWith('blob:')) {
-                console.log('🧹 Cleaning up blob URL');
-                URL.revokeObjectURL(renderResult);
-            }
-        };
-    }, [renderResult]);
+        const dimensions = projectState.getResolutionDimensions();
+        console.log('📐 Canvas: Using ProjectState dimensions:', dimensions);
+        return dimensions;
+    }, [projectState]);
 
-    // Load default color scheme on component mount
-    useEffect(() => {
-        const loadDefaultColorScheme = async () => {
-            // Skip if colorScheme is already set (from projectConfig)
-            if (config.colorScheme) {
-                return;
-            }
-
-            try {
-                // Try to get user's default scheme
-                const defaultScheme = await PreferencesService.getDefaultColorScheme();
-                if (defaultScheme) {
-                    console.log('🎨 Loading user default color scheme:', defaultScheme);
-                    updateConfig({ colorScheme: defaultScheme });
-                    return;
-                }
-
-                // Fallback: get first available scheme
-                const allSchemes = await ColorSchemeService.getAllColorSchemes();
-                const schemeIds = Object.keys(allSchemes);
-                if (schemeIds.length > 0) {
-                    const firstScheme = schemeIds[0];
-                    console.log('🎨 Loading first available color scheme:', firstScheme);
-                    updateConfig({ colorScheme: firstScheme });
-                } else {
-                    console.warn('⚠️ No color schemes available');
-                }
-            } catch (error) {
-                console.error('❌ Failed to load default color scheme:', error);
-                // Fallback to a known scheme
-                updateConfig({ colorScheme: 'neon-cyberpunk' });
-            }
-        };
-
-        loadDefaultColorScheme();
-    }, []); // Run only on mount
-
-    // Load saved theme on component mount
-    useEffect(() => {
-        const loadSavedTheme = async () => {
-            try {
-                const savedTheme = await PreferencesService.getSelectedTheme();
-                if (savedTheme) {
-                    console.log('🎨 Loading saved theme:', savedTheme);
-                    setCurrentThemeKey(savedTheme);
-                }
-            } catch (error) {
-                console.error('❌ Failed to load saved theme:', error);
-                // Keep default theme on error
-            }
-        };
-
-        loadSavedTheme();
-    }, []); // Run only on mount
-
-    const handleResolutionChange = async (e) => {
-        const baseResolution = parseInt(e.target.value);
-        updateConfig({ targetResolution: baseResolution });
-
-        // Save resolution preference
-        try {
-            // Save the actual pixel value as the preference
-            await PreferencesService.saveLastProjectInfo(null, null, baseResolution.toString(), null);
-            console.log('💾 Saved resolution preference:', baseResolution);
-        } catch (error) {
-            console.error('❌ Failed to save resolution preference:', error);
+    // User action handlers (delegate to services, don't manage state)
+    const handleResolutionChange = useCallback((newResolution) => {
+        console.log('🎨 Canvas: User changed resolution to:', newResolution);
+        if (projectState) {
+            // SINGLE SOURCE OF TRUTH: Only update ProjectState - it will handle auto-scaling
+            projectState.setTargetResolution(newResolution);
+            console.log('✅ Canvas: ProjectState updated with new resolution and auto-scaled');
         }
-    };
+    }, [projectState]);
 
-    const handleThemeToggle = async () => {
-        const themeKeys = Object.keys(appThemes);
-        const currentIndex = themeKeys.indexOf(currentThemeKey);
-        const nextIndex = (currentIndex + 1) % themeKeys.length;
-        const newThemeKey = themeKeys[nextIndex];
+    const handleOrientationToggle = useCallback(() => {
+        console.log('🎨 Canvas: User toggled orientation');
+        if (projectState) {
+            const currentConfig = projectState.getState();
+            const newOrientation = !currentConfig.isHorizontal;
 
-        setCurrentThemeKey(newThemeKey);
-
-        // Save theme preference
-        try {
-            await PreferencesService.setSelectedTheme(newThemeKey);
-            console.log('💾 Saved theme preference:', newThemeKey);
-        } catch (error) {
-            console.error('❌ Failed to save theme preference:', error);
+            // SINGLE SOURCE OF TRUTH: Only update ProjectState - it will handle auto-scaling
+            projectState.setIsHorizontal(newOrientation);
+            console.log('✅ Canvas: ProjectState updated with new orientation and auto-scaled');
         }
-    };
+    }, [projectState]);
 
-    const handleOrientationToggle = () => {
-        updateConfig({ isHorizontal: !config.isHorizontal });
-    };
-
-    const handleFramesChange = (e) => {
-        const frames = parseInt(e.target.value);
-        updateConfig({ numFrames: frames });
-        if (selectedFrame >= frames) {
-            setSelectedFrame(frames - 1);
+    const handleFramesChange = useCallback((newFrameCount) => {
+        console.log('🎨 Canvas: User changed frame count to:', newFrameCount);
+        if (projectState) {
+            projectState.update({ numFrames: newFrameCount });
         }
-    };
+    }, [projectState]);
 
-    // Close all dropdown menus
-    const closeAllDropdowns = () => {
-        setColorSchemeMenuAnchor(null);
-        setZoomMenuAnchor(null);
-        setAddEffectMenuOpen(false);
-    };
+    // NOTE: Render loop management is now fully event-driven via EventDrivenToolbarActions
+    // The old handleRenderLoop callback has been removed in favor of event listeners below
 
-    const handleColorSchemeChange = (schemeId) => {
-        updateConfig({
-            colorScheme: schemeId
-        });
-    };
+    // Manual render trigger (user button click)
+    const handleManualRender = useCallback(() => {
+        console.log('🎨 Canvas: User triggered manual render');
+        triggerRender(selectedFrame);
+    }, [triggerRender, selectedFrame]);
 
-    const handleAddKeyframeEffectWithFrame = (targetEffect, effectIndex, newKeyframeEffect) => {
-        handleAddKeyframeEffect(targetEffect, effectIndex, newKeyframeEffect, selectedFrame);
-    };
-
-    const handleMouseDownWithRefs = (e) => {
+    // Wrapper for mouse down with refs
+    const handleCanvasMouseDown = useCallback((e) => {
         handleMouseDown(e, canvasRef, frameHolderRef);
-    };
+    }, [handleMouseDown, canvasRef, frameHolderRef]);
+
+    // Event listeners for UI state updates
+    useEffect(() => {
+        console.log('🎨 Canvas: Setting up UI event listeners');
+
+        // Theme change events
+        const unsubscribeTheme = eventBusService.subscribe('theme:changed', (payload) => {
+            console.log('🎨 Canvas: Theme change event received:', payload);
+            setCurrentThemeKey(payload.themeKey);
+        }, { component: 'Canvas' });
+
+        // Frame selection events
+        const unsubscribeFrame = eventBusService.subscribe('frame:selected', (payload) => {
+            console.log('🎨 Canvas: Frame selection event received:', payload);
+            setSelectedFrame(payload.frameIndex);
+        }, { component: 'Canvas' });
+
+        // Resolution and orientation events - trigger re-render
+        const unsubscribeResolution = eventBusService.subscribe('resolution:changed', (payload) => {
+            console.log('🎨 Canvas: Resolution change event received:', payload);
+            // The getResolutionDimensions function will automatically pick up the change
+            // from config when the component re-renders due to ProjectState update
+        }, { component: 'Canvas' });
+
+        const unsubscribeOrientation = eventBusService.subscribe('orientation:changed', (payload) => {
+            console.log('🎨 Canvas: Orientation change event received:', payload);
+            // The getResolutionDimensions function will automatically pick up the change
+            // from config when the component re-renders due to ProjectState update
+        }, { component: 'Canvas' });
+
+        // Render loop events - make modal truly event-driven
+        const unsubscribeRenderLoopToggle = eventBusService.subscribe('renderloop:toggled', (payload) => {
+            console.log('🎨 Canvas: Render loop toggle event received:', payload);
+            setIsRenderLoopActive(payload.isActive);
+            setShowEventMonitor(payload.isActive);
+            console.log('🎨 Canvas: Updated render loop state and modal visibility:', {
+                isActive: payload.isActive,
+                showModal: payload.isActive
+            });
+        }, { component: 'Canvas' });
+
+        const unsubscribeRenderLoopError = eventBusService.subscribe('renderloop:error', (payload) => {
+            console.log('🎨 Canvas: Render loop error event received:', payload);
+            // On error, ensure render loop is marked as inactive and modal is hidden
+            setIsRenderLoopActive(false);
+            setShowEventMonitor(false);
+            console.log('🎨 Canvas: Render loop error - reset states to inactive');
+        }, { component: 'Canvas' });
+
+        return () => {
+            console.log('🎨 Canvas: Cleaning up UI event listeners');
+            unsubscribeTheme();
+            unsubscribeFrame();
+            unsubscribeResolution();
+            unsubscribeOrientation();
+            unsubscribeRenderLoopToggle();
+            unsubscribeRenderLoopError();
+        };
+    }, [eventBusService]);
+
+    // Load project from file (delegate to services)
+    useEffect(() => {
+        if (projectData?.filePath && projectData?.loadedFromFile) {
+            console.log('🎨 Canvas: Loading project from file via services');
+            // Services handle file loading automatically
+        }
+    }, [projectData?.filePath, projectData?.loadedFromFile]);
 
     return (
         <ThemeProvider theme={currentTheme}>
             <CssBaseline />
-            <div className="canvas-container">
-                <CanvasToolbar
+
+            {/* Event-driven action handler - no UI, pure event listening */}
+            <EventDrivenToolbarActions projectState={projectState} />
+
+            <Box sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100vh',
+                background: themeMode === 'dark' ? '#121212' : '#f5f5f5'
+            }}>
+                {/* Event-Driven Toolbar - ZERO callback props! */}
+                <EventDrivenCanvasToolbar
                     config={config}
-                    isRendering={isRendering}
+                    projectState={projectState}
                     selectedFrame={selectedFrame}
-                    zoom={zoom}
-                    themeMode={themeMode}
-                    currentTheme={currentTheme}
-                    availableEffects={availableEffects}
-                    effectsLoaded={effectsLoaded}
                     isRenderLoopActive={isRenderLoopActive}
-                    onRender={() => handleRender(selectedFrame)}
-                    onRenderLoop={() => handleRenderLoop(selectedFrame)}
-                    onResolutionChange={handleResolutionChange}
-                    onOrientationToggle={handleOrientationToggle}
-                    onFramesChange={handleFramesChange}
-                    onFrameChange={setSelectedFrame}
-                    onZoomIn={handleZoomIn}
-                    onZoomOut={handleZoomOut}
-                    onZoomReset={handleZoomReset}
-                    onColorSchemeChange={handleColorSchemeChange}
-                    onAddEffectDirect={handleAddEffectDirect}
-                    onThemeToggle={handleThemeToggle}
-                    currentThemeKey={currentThemeKey}
-                    availableThemes={appThemes}
-                    lastSaveStatus={lastSaveStatus}
-                    currentProjectPath={projectStateManager.getPersistenceService()?.getCurrentProjectPath()}
-                    onForceSave={() => projectStateManager.forceSave()}
-                    closeAllDropdowns={closeAllDropdowns}
-                    zoomMenuAnchor={zoomMenuAnchor}
-                    setZoomMenuAnchor={setZoomMenuAnchor}
-                    colorSchemeMenuAnchor={colorSchemeMenuAnchor}
-                    setColorSchemeMenuAnchor={setColorSchemeMenuAnchor}
-                    addEffectMenuOpen={addEffectMenuOpen}
-                    setAddEffectMenuOpen={setAddEffectMenuOpen}
+                    zoom={zoom}
+                    currentTheme={currentTheme}
+                    getResolutionDimensions={getResolutionDimensions}
+                    isRendering={isRendering}
                 />
 
-                <div className="canvas-main">
+                {/* Main content area */}
+                <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+                    {/* Effects panel */}
+                    <EventDrivenEffectsPanel
+                        effects={projectState ? projectState.getState().effects || [] : []}
+                        availableEffects={availableEffects}
+                        effectsLoaded={effectsLoaded}
+                        currentTheme={currentTheme}
+                    />
+
+                    {/* Canvas viewport */}
                     <CanvasViewport
-                        ref={{ canvasRef, frameHolderRef }}
                         dimensions={getResolutionDimensions()}
                         zoom={zoom}
                         pan={pan}
                         isDragging={isDragging}
                         isRendering={isRendering}
                         renderTimer={renderTimer}
-                        onMouseDown={handleMouseDownWithRefs}
+                        renderResult={renderResult}
+                        onMouseDown={handleCanvasMouseDown}
                         onWheel={handleWheel}
                         currentTheme={currentTheme}
+                        ref={{ canvasRef, frameHolderRef }}
                     />
+                </Box>
 
-                    <EffectsPanel
-                        effects={config.effects || []}
-                        onEffectDelete={handleEffectDelete}
-                        onEffectReorder={handleEffectReorder}
-                        onEffectRightClick={handleEffectRightClick}
-                        onEffectToggleVisibility={handleEffectToggleVisibility}
-                        onEffectEdit={handleEditEffect}
-                        onEffectAddSecondary={handleAddSecondaryEffect}
-                        onEffectAddKeyframe={handleAddKeyframeEffectWithFrame}
-                    />
-                </div>
-
-                {showEffectPicker && (
-                    <EffectPicker
-                        onSelect={handleAddEffect}
-                        onClose={() => setShowEffectPicker(false)}
-                    />
-                )}
-
+                {/* Effect Picker Dialog */}
                 <Dialog
-                    open={editingEffect !== null && getEditingEffectData() !== null}
-                    onClose={() => setEditingEffect(null)}
-                    maxWidth="xl"
+                    open={showEffectPicker}
+                    onClose={() => setShowEffectPicker(false)}
+                    maxWidth="md"
                     fullWidth
-                    PaperProps={{
-                        sx: {
-                            width: '90vw',
-                            maxWidth: '1400px',
-                            height: '80vh',
-                            backgroundColor: 'background.paper',
-                        }
-                    }}
                 >
-                    <DialogTitle
-                        sx={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            backgroundColor: 'background.paper',
-                            borderBottom: '1px solid',
-                            borderColor: 'divider',
-                        }}
-                    >
-                        <Typography variant="h6" component="div">
-                            Configure {(() => {
-                                const effectData = getEditingEffectData();
-                                return effectData ? effectData.className : '';
-                            })()}
-                        </Typography>
+                    <DialogTitle>
+                        Add Effect
                         <IconButton
-                            onClick={() => setEditingEffect(null)}
-                            size="small"
-                            sx={{ color: 'text.secondary' }}
+                            onClick={() => setShowEffectPicker(false)}
+                            sx={{ position: 'absolute', right: 8, top: 8 }}
                         >
                             <Close />
                         </IconButton>
                     </DialogTitle>
-                    <DialogContent
-                        sx={{
-                            padding: 3,
-                            backgroundColor: 'background.default',
-                            '&::-webkit-scrollbar': {
-                                width: '8px',
-                            },
-                            '&::-webkit-scrollbar-track': {
-                                backgroundColor: 'rgba(0,0,0,0.1)',
-                            },
-                            '&::-webkit-scrollbar-thumb': {
-                                backgroundColor: 'rgba(0,0,0,0.3)',
-                                borderRadius: '4px',
-                            },
-                        }}
-                    >
-                        <Box sx={{ width: '100%', height: '100%' }}>
-                            {(() => {
-                                const effectData = getEditingEffectData();
-                                return effectData && (
-                                    <EffectConfigurer
-                                        selectedEffect={{
-                                            name: effectData.name || effectData.className,
-                                            className: effectData.className
-                                        }}
-                                        initialConfig={effectData.config || {}}
-                                        projectData={{
-                                            resolution: config.targetResolution,
-                                            isHoz: config.isHorizontal,
-                                            colorScheme: config.colorScheme
-                                        }}
-                                        onConfigChange={handleSubEffectUpdate}
-                                        readOnly={false}
-                                        useWideLayout={true}
-                                    />
-                                );
-                            })()}
-                        </Box>
+                    <DialogContent>
+                        <EffectPicker
+                            availableEffects={availableEffects}
+                            onAddEffect={(effect) => {
+                                handleAddEffectDirect(effect.name, effect.type);
+                                setShowEffectPicker(false);
+                            }}
+                        />
                     </DialogContent>
-                    <DialogActions
-                        sx={{
-                            padding: 2,
-                            backgroundColor: 'background.paper',
-                            borderTop: '1px solid',
-                            borderColor: 'divider',
-                        }}
-                    >
-                        <Button
-                            onClick={() => setEditingEffect(null)}
-                            variant="contained"
-                            color="primary"
-                        >
-                            Done
-                        </Button>
-                    </DialogActions>
                 </Dialog>
 
-            </div>
+                {/* Effect Configurer Dialog */}
+                <Dialog
+                    open={!!editingEffect}
+                    onClose={() => setEditingEffect(null)}
+                    maxWidth="md"
+                    fullWidth
+                >
+                    <DialogTitle>
+                        Configure Effect
+                        <IconButton
+                            onClick={() => setEditingEffect(null)}
+                            sx={{ position: 'absolute', right: 8, top: 8 }}
+                        >
+                            <Close />
+                        </IconButton>
+                    </DialogTitle>
+                    <DialogContent>
+                        {editingEffect && (() => {
+                            console.log('🎨 CANVAS: Rendering EffectConfigurer with editingEffect:', {
+                                editingEffect: editingEffect,
+                                effectIndex: editingEffect.effectIndex,
+                                effectType: editingEffect.effectType,
+                                subIndex: editingEffect.subIndex
+                            });
 
-            {/* Event Bus Monitor Modal */}
-            <EventBusMonitor
-                open={showEventMonitor}
-                onClose={() => setShowEventMonitor(false)}
-            />
+                            const editingEffectData = getEditingEffectData();
 
+                            console.log('🎨 CANVAS: getEditingEffectData returned:', {
+                                editingEffectData: editingEffectData,
+                                hasData: !!editingEffectData,
+                                registryKey: editingEffectData?.registryKey,
+                                name: editingEffectData?.name,
+                                config: editingEffectData?.config
+                            });
+
+                            // CRITICAL: Don't render EffectConfigurer if effect data is invalid
+                            if (!editingEffectData) {
+                                console.error('❌ CANVAS: Cannot render EffectConfigurer - editingEffectData is null');
+                                console.error('❌ CANVAS: Debug info:', {
+                                    editingEffect: editingEffect,
+                                    projectState: projectState?.getState()?.effects?.length || 'no project state'
+                                });
+                                return (
+                                    <div style={{ color: '#ff6b6b', padding: '1rem', textAlign: 'center' }}>
+                                        <h4>Effect Configuration Error</h4>
+                                        <p>Cannot edit this effect because it is missing required data.</p>
+                                        <p>This may be an old effect that needs to be re-added.</p>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <EffectConfigurer
+                                    selectedEffect={{
+                                        ...editingEffectData,
+                                        effectIndex: editingEffect.effectIndex,
+                                        effectType: editingEffect.effectType,
+                                        subEffectIndex: editingEffect.subIndex
+                                    }}
+                                    initialConfig={editingEffectData.config}
+                                    projectState={projectState}
+                                    getResolutionDimensions={getResolutionDimensions}
+                                />
+                            );
+                        })()}
+                    </DialogContent>
+                </Dialog>
+
+                {/* Event Monitor */}
+                {showEventMonitor && (
+                    <Dialog
+                        open={showEventMonitor}
+                        onClose={() => setShowEventMonitor(false)}
+                        maxWidth="lg"
+                        fullWidth
+                    >
+                        <DialogTitle>
+                            Render Progress Monitor
+                            <IconButton
+                                onClick={() => setShowEventMonitor(false)}
+                                sx={{ position: 'absolute', right: 8, top: 8 }}
+                            >
+                                <Close />
+                            </IconButton>
+                        </DialogTitle>
+                        <DialogContent>
+                            <EventBusMonitor
+                                open={showEventMonitor}
+                                onClose={() => setShowEventMonitor(false)}
+                            />
+                        </DialogContent>
+                    </Dialog>
+                )}
+            </Box>
         </ThemeProvider>
     );
 }

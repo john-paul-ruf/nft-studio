@@ -1,6 +1,9 @@
 // Frontend services
 import FrontendServiceFactory from './container/FrontendServiceFactory.js';
 import ProjectStateManager from './services/ProjectStateManager.js';
+import RenderPipelineService from './services/RenderPipelineService.js';
+import EventBusService from './services/EventBusService.js';
+import CommandService from './services/CommandService.js';
 
 // Utils
 import { utilsFactory } from './utils/UtilsFactory.js';
@@ -19,6 +22,9 @@ class ApplicationFactory {
         this.utilsFactory = utilsFactory;
         this.repositories = new Map();
         this.projectStateManager = null;
+        this.renderPipelineService = null;
+        this.eventBusService = EventBusService; // Singleton
+        this.commandService = CommandService; // Singleton
         this.initialized = false;
     }
 
@@ -39,6 +45,11 @@ class ApplicationFactory {
         // Initialize ProjectStateManager singleton
         this.projectStateManager = new ProjectStateManager();
         console.log('✅ ProjectStateManager initialized');
+
+        // Initialize RenderPipelineService and wire to ProjectStateManager
+        this.renderPipelineService = new RenderPipelineService();
+        this.renderPipelineService.initialize(this.projectStateManager);
+        console.log('✅ RenderPipelineService initialized');
 
         this.initialized = true;
         console.log('✅ Application factory initialized');
@@ -178,6 +189,15 @@ class ApplicationFactory {
     }
 
     /**
+     * Get RenderPipelineService singleton
+     * @returns {RenderPipelineService} Render pipeline service
+     */
+    getRenderPipelineService() {
+        this.ensureInitialized();
+        return this.renderPipelineService;
+    }
+
+    /**
      * Register custom repository
      * @param {string} name - Repository name
      * @param {*} repository - Repository instance
@@ -204,6 +224,11 @@ class ApplicationFactory {
 
             // State Management
             projectStateManager: this.getProjectStateManager(),
+            renderPipelineService: this.getRenderPipelineService(),
+
+            // Event-Driven Architecture - Single Source of Truth
+            eventBusService: this.eventBusService,
+            commandService: this.commandService,
 
             // Utils
             schemaGenerator: this.getSchemaGenerator(),

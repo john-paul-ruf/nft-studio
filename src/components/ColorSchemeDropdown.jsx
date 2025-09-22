@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ColorSchemeService from '../services/ColorSchemeService.js';
 import PreferencesService from '../services/PreferencesService.js';
 import ColorSchemeCreator from './ColorSchemeCreator.jsx';
+import { useServices } from '../contexts/ServiceContext.js';
 
 function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true, isInDropdown = false }) {
+    const { eventBusService } = useServices();
     const [allSchemes, setAllSchemes] = useState({});
     const [categorizedSchemes, setCategorizedSchemes] = useState({});
     const [showDropdown, setShowDropdown] = useState(false);
@@ -12,6 +14,20 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true,
     const [searchTerm, setSearchTerm] = useState('');
     const [favorites, setFavorites] = useState([]);
     const [defaultScheme, setDefaultScheme] = useState(null);
+
+    // Event-based color scheme change handler
+    const handleColorSchemeChange = useCallback((schemeId) => {
+        console.log('🎨 ColorSchemeDropdown: Emitting color scheme change event:', schemeId);
+        eventBusService.emit('colorscheme:change', { schemeId }, {
+            source: 'ColorSchemeDropdown',
+            component: 'ColorSchemeDropdown'
+        });
+
+        // Also call the callback if provided (backward compatibility)
+        if (onChange) {
+            onChange(schemeId);
+        }
+    }, [eventBusService, onChange]);
 
     useEffect(() => {
         loadColorSchemes();
@@ -52,7 +68,7 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true,
     const selectedScheme = allSchemes[value];
 
     const handleSchemeSelect = (schemeId) => {
-        onChange(schemeId);
+        handleColorSchemeChange(schemeId);
         setShowDropdown(false);
     };
 
@@ -83,7 +99,7 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true,
         const success = await ColorSchemeService.saveCustomScheme(newScheme);
         if (success) {
             await loadColorSchemes();
-            onChange(newScheme.id);
+            handleColorSchemeChange(newScheme.id);
         }
 
         // Clear editing state

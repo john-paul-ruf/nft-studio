@@ -7,7 +7,7 @@ function EffectAttachmentModal({
     attachmentType,
     availableEffects,
     onAttachEffect,
-    projectData,
+    projectState,
     editingEffect = null,
     isEditing = false
 }) {
@@ -220,7 +220,7 @@ function EffectAttachmentModal({
                         }}>
                             <EffectConfigurer
                                 selectedEffect={selectedEffect}
-                                projectData={projectData}
+                                projectState={projectState}
                                 onConfigChange={() => {}} // Not needed in modal
                                 onAddEffect={handleConfigComplete}
                                 isModal={true}

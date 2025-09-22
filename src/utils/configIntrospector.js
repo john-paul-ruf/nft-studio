@@ -9,10 +9,10 @@ class ConfigIntrospector {
     /**
      * Analyze a config class and extract all its properties and their types
      * @param {Object} effectMetadata - Effect metadata from discovery
-     * @param {Object} projectData - Project data for resolution context (optional)
+     * @param {Object} projectState - ProjectState instance for resolution context (optional)
      * @returns {Promise<Object>} Schema object with fields
      */
-    static async analyzeConfigClass(effectMetadata, projectData = null) {
+    static async analyzeConfigClass(effectMetadata, projectState = null) {
         try {
             // Use the actual effect name from the registry (name field, not className)
             // The name should match what's registered in the plugin registry
@@ -21,8 +21,15 @@ class ConfigIntrospector {
                 className: effectMetadata.className
             });
 
+            // Extract only serializable data needed for IPC from ProjectState
+            const projectData = projectState ? {
+                targetResolution: projectState.getTargetResolution(),
+                isHorizontal: projectState.getIsHorizontal(),
+                resolution: projectState.getTargetResolution() // Backward compatibility
+            } : null;
+
             const result = await window.api.introspectConfig({
-                effectName: effectMetadata.name, // Keep using name, it should match registry
+                effectName: effectMetadata.registryKey, // Use registryKey for consistency
                 projectData: projectData
             });
 
@@ -41,11 +48,11 @@ class ConfigIntrospector {
                 return schema;
             } else {
                 console.error('Config introspection failed:', result.error);
-                return this.getFallbackSchema(effectMetadata.configClassName || effectMetadata.name);
+                throw new Error(`Config introspection failed: ${result.error}`);
             }
         } catch (error) {
             console.error('Error analyzing config class:', error);
-            return this.getFallbackSchema(effectMetadata.configClassName || effectMetadata.name);
+            throw error;
         }
     }
 
@@ -696,47 +703,6 @@ class ConfigIntrospector {
             .trim();
     }
 
-    /**
-     * Get fallback schema for known effect types
-     * @param {string} configClass - Config class name
-     * @returns {Object} Fallback schema
-     */
-    static getFallbackSchema(configClass) {
-        const commonFields = [
-            {
-                name: 'layerOpacity',
-                type: 'percentage',
-                default: 0.7,
-                label: 'Layer Opacity'
-            },
-            {
-                name: 'center',
-                type: 'position',
-                default: { x: 540, y: 960 },
-                label: 'Center Point'
-            }
-        ];
-
-        // Add specific fields based on config class type
-        if (configClass.includes('Flare') || configClass.includes('Eye')) {
-            commonFields.push(
-                {
-                    name: 'innerColor',
-                    type: 'colorpicker',
-                    bucketType: 'color-bucket',
-                    label: 'Inner Color'
-                },
-                {
-                    name: 'outerColor',
-                    type: 'colorpicker',
-                    bucketType: 'color-bucket',
-                    label: 'Outer Color'
-                }
-            );
-        }
-
-        return { fields: commonFields };
-    }
 }
 
 export { ConfigIntrospector };

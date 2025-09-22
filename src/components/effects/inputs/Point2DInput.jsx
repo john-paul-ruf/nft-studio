@@ -1,102 +1,102 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import PositionSerializer from '../../../utils/PositionSerializer.js';
+import CenterUtils from '../../../utils/CenterUtils.js';
+import ResolutionMapper from '../../../utils/ResolutionMapper.js';
+import { useGlobalResolutionTracking } from '../../../hooks/useGlobalResolutionTracking.js';
 
-function Point2DInput({ field, value, onChange, projectData }) {
+function Point2DInput({ field, value, onChange, projectState }) {
     const [showPresets, setShowPresets] = useState(false);
 
-    // Get resolution from project data or use defaults - complete resolution mapping
-    // Handle both field names for backward compatibility (targetResolution is the correct one from ProjectState)
-    let resolution = projectData?.targetResolution || projectData?.resolution || 'hd';
+    // Use global resolution tracker as single source of truth
+    const { getCurrentDimensions, resolutionState, initializeResolution } = useGlobalResolutionTracking();
 
-    // Convert numeric resolution values to proper string keys
-    const resolutionMap = {
-        '320': 'qvga',
-        '640': 'vga',
-        '800': 'svga',
-        '1024': 'xga',
-        '1280': 'hd720',
-        '1920': 'hd',
-        '720': 'square_small',
-        '1080': 'square',
-        '2560': 'wqhd',
-        '3840': '4k',
-        '5120': '5k',
-        '7680': '8k'
-    };
+    // Get current dimensions from global tracker, fallback to project data if not available
+    const globalDimensions = getCurrentDimensions();
+    const fallbackDimensions = useMemo(() => {
+        console.log('📐 Point2DInput: Resolution calculation:', {
+            globalDimensions,
+            resolutionKey: resolutionState.resolutionKey,
+            projectState: {
+                targetResolution: projectState?.getTargetResolution(),
+                isHorizontal: projectState?.getIsHorizontal()
+            }
+        });
 
-    if (resolutionMap[resolution]) {
-        resolution = resolutionMap[resolution];
-    }
-    const resolutions = {
-        'qvga': { width: 320, height: 240 },
-        'vga': { width: 640, height: 480 },
-        'svga': { width: 800, height: 600 },
-        'xga': { width: 1024, height: 768 },
-        'hd720': { width: 1280, height: 720 },
-        'hd': { width: 1920, height: 1080 },
-        'square_small': { width: 720, height: 720 },
-        'square': { width: 1080, height: 1080 },
-        'wqhd': { width: 2560, height: 1440 },
-        '4k': { width: 3840, height: 2160 },
-        '5k': { width: 5120, height: 2880 },
-        '8k': { width: 7680, height: 4320 },
-        'portrait_hd': { width: 1080, height: 1920 },
-        'portrait_4k': { width: 2160, height: 3840 },
-        'ultrawide': { width: 3440, height: 1440 },
-        'cinema_2k': { width: 2048, height: 1080 },
-        'cinema_4k': { width: 4096, height: 2160 }
-    };
-    const baseResolution = resolutions[resolution] || resolutions.hd;
-
-    // Apply isHoz setting - handle both field names for backward compatibility
-    const autoIsHoz = baseResolution.width > baseResolution.height;
-    // Check for both isHorizontal (correct from ProjectState) and isHoz (legacy)
-    const isHoz = typeof projectData?.isHorizontal === 'boolean' ? projectData.isHorizontal :
-                  typeof projectData?.isHoz === 'boolean' ? projectData.isHoz :
-                  autoIsHoz;
-
-    // Determine actual dimensions based on orientation setting
-    let width, height;
-    if (isHoz) {
-        // Use resolution as-is for horizontal
-        width = baseResolution.width;
-        height = baseResolution.height;
-    } else {
-        // Swap dimensions for vertical orientation
-        width = baseResolution.height;
-        height = baseResolution.width;
-    }
-
-    // Generate smart defaults based on current dimensions
-    const generateSmartDefault = (field, width, height) => {
-        // If field has no default, use origin
-        if (!field.default) {
-            return { x: 0, y: 0 };
+        if (globalDimensions.width && globalDimensions.height && globalDimensions.width > 0 && globalDimensions.height > 0) {
+            console.log('✅ Point2DInput: Using global dimensions:', globalDimensions);
+            return globalDimensions;
         }
 
-        const fieldName = field.name?.toLowerCase() || '';
-
-        // Detect if this is a center field
-        if (fieldName.includes('center') || fieldName === 'center' ||
-            (field.default.x === 540 && field.default.y === 960) || // Common hardcoded center
-            (field.default.x === 960 && field.default.y === 540)) {  // Swapped dimensions center
-            return { x: Math.round(width / 2), y: Math.round(height / 2) };
+        // Fallback to ProjectState if global tracker not initialized
+        console.log('⚠️ Point2DInput: Global tracker not ready, falling back to ProjectState');
+        if (!projectState) {
+            console.error('Point2DInput: No ProjectState available - component cannot function');
+            return { width: 0, height: 0 }; // Fail fast - no fallbacks
         }
+        const fallbackDims = projectState.getResolutionDimensions();
+        console.log('📊 Point2DInput: ProjectState fallback dimensions:', fallbackDims);
 
-        // For non-center fields, scale proportionally from assumed base dimensions
-        // Most hardcoded defaults seem to assume 1080x1920 (portrait HD)
-        const baseWidth = 1080;
-        const baseHeight = 1920;
-
-        // Scale the default position proportionally
-        const scaledX = Math.round((field.default.x / baseWidth) * width);
-        const scaledY = Math.round((field.default.y / baseHeight) * height);
-
-        // Ensure scaled position is within bounds
+        // Return dimensions directly from ProjectState - no fallbacks
         return {
-            x: Math.min(Math.max(scaledX, 0), width),
-            y: Math.min(Math.max(scaledY, 0), height)
+            width: fallbackDims.w,
+            height: fallbackDims.h
         };
+    }, [globalDimensions, projectState, resolutionState.resolutionKey]);
+
+    const { width, height } = fallbackDimensions;
+
+    // Initialize global resolution tracker if not already initialized
+    useEffect(() => {
+        if (!resolutionState.resolutionKey && projectState) {
+            const resolution = projectState.getTargetResolution();
+            const isHorizontal = projectState.getIsHorizontal();
+
+            console.log('📍 Point2DInput: Initializing global resolution tracker from ProjectState:', {
+                resolution,
+                isHorizontal
+            });
+
+            initializeResolution(resolution, isHorizontal);
+        }
+    }, [resolutionState.resolutionKey, projectState, initializeResolution]);
+
+    // Generate smart defaults using unified CenterUtils
+    const generateSmartDefault = (field, width, height) => {
+        console.log('📍 Point2DInput: generateSmartDefault called with:', {
+            fieldName: field.name,
+            fieldDefault: field.default,
+            dimensions: { width, height }
+        });
+
+        if (!projectState) {
+            console.warn('⚠️ Point2DInput: Attempted to generate default without ProjectState');
+            return { x: 0, y: 0, __error: true };
+        }
+
+        // Create resolution info for CenterUtils using ProjectState
+        const resolutionInfo = {
+            width,
+            height,
+            resolution: projectState.getTargetResolution(),
+            isHorizontal: projectState.getIsHorizontal()
+        };
+
+        // Use the unified center processing logic
+        const processedValue = CenterUtils.processFieldValue(
+            field.name,
+            field.default || { x: 0, y: 0 },
+            resolutionInfo
+        );
+
+        console.log('📍 Point2DInput: generateSmartDefault result:', {
+            fieldName: field.name,
+            resolutionInfo,
+            inputValue: field.default || { x: 0, y: 0 },
+            processedValue,
+            isCenterField: CenterUtils.shouldApplyCenter(field.name, field.default)
+        });
+
+        return processedValue;
     };
 
     // Handle Position objects by converting to point2d format
@@ -112,20 +112,36 @@ function Point2DInput({ field, value, onChange, projectData }) {
         return value;
     })();
 
-    // Calculate current value with smart defaults
-    const currentValue = normalizedValue || generateSmartDefault(field, width, height);
+    // Calculate current value with smart defaults, ensuring we react to changes
+    const currentValue = useMemo(() => {
+        const resolved = normalizedValue || generateSmartDefault(field, width, height);
+        console.log('📍 Point2DInput currentValue calculated:', {
+            fieldName: field.name,
+            normalizedValue,
+            resolved,
+            dimensions: { width, height },
+            resolutionKey: resolutionState.resolutionKey
+        });
+        return resolved;
+    }, [normalizedValue, field, width, height, resolutionState.resolutionKey]);
 
-    const positionPresets = [
-        { name: 'Center', x: width / 2, y: height / 2, icon: '⊙' },
+    // Memoize position presets - SPATIALLY ORGANIZED for 3x3 grid
+    const positionPresets = useMemo(() => [
+        // Row 1: Top
         { name: 'Top Left', x: width * 0.25, y: height * 0.25, icon: '⌜' },
-        { name: 'Top Right', x: width * 0.75, y: height * 0.25, icon: '⌝' },
-        { name: 'Bottom Left', x: width * 0.25, y: height * 0.75, icon: '⌞' },
-        { name: 'Bottom Right', x: width * 0.75, y: height * 0.75, icon: '⌟' },
         { name: 'Top Center', x: width / 2, y: height * 0.25, icon: '⌐' },
-        { name: 'Bottom Center', x: width / 2, y: height * 0.75, icon: '⌙' },
+        { name: 'Top Right', x: width * 0.75, y: height * 0.25, icon: '⌝' },
+
+        // Row 2: Middle
         { name: 'Left Center', x: width * 0.25, y: height / 2, icon: '⊢' },
-        { name: 'Right Center', x: width * 0.75, y: height / 2, icon: '⊣' }
-    ];
+        { name: 'Center', x: width / 2, y: height / 2, icon: '⊙' },
+        { name: 'Right Center', x: width * 0.75, y: height / 2, icon: '⊣' },
+
+        // Row 3: Bottom
+        { name: 'Bottom Left', x: width * 0.25, y: height * 0.75, icon: '⌞' },
+        { name: 'Bottom Center', x: width / 2, y: height * 0.75, icon: '⌙' },
+        { name: 'Bottom Right', x: width * 0.75, y: height * 0.75, icon: '⌟' }
+    ], [width, height]);
 
     const handlePresetSelect = (preset) => {
         onChange(field.name, { x: Math.round(preset.x), y: Math.round(preset.y) });
@@ -198,8 +214,7 @@ function Point2DInput({ field, value, onChange, projectData }) {
                             color: '#888',
                             textAlign: 'center'
                         }}>
-                            Canvas: {width} × {height} {(typeof projectData?.isHorizontal === 'boolean' || typeof projectData?.isHoz === 'boolean') &&
-                                ((projectData?.isHorizontal ?? projectData?.isHoz) ? '(Forced Horizontal)' : '(Forced Vertical)')}
+                            Canvas: {width} × {height} {resolutionState.resolutionKey && `(${resolutionState.isHorizontal ? 'Horizontal' : 'Vertical'})`}
                         </div>
                     </div>
                 )}

@@ -302,6 +302,12 @@ class NftEffectsManager {
         try {
             await this.effectRegistryService.ensureCoreEffectsRegistered();
 
+            // Guard against undefined or null effectName
+            if (!effectName || typeof effectName !== 'string') {
+                console.error(`❌ Backend: Invalid effectName received:`, effectName);
+                throw new Error(`Invalid effect name: ${effectName}`);
+            }
+
             console.log(`🔍 Backend: Looking for effect "${effectName}"`);
 
             // Use modern plugin registry with linked config classes

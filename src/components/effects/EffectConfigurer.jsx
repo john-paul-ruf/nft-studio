@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ConfigInputFactory from './inputs/ConfigInputFactory.jsx';
 import { ConfigIntrospector } from '../../utils/configIntrospector.js';
 import EffectAttachmentModal from './EffectAttachmentModal.jsx';
 import PositionSerializer from '../../utils/PositionSerializer.js';
+import CenterUtils from '../../utils/CenterUtils.js';
+import { useServices } from '../../contexts/ServiceContext.js';
 import {
     Box,
     Typography,
@@ -14,7 +16,7 @@ import {
 
 function EffectConfigurer({
     selectedEffect,
-    projectData,
+    projectState,
     onConfigChange,
     onAddEffect,
     onAddCompleteEffect = null,
@@ -29,9 +31,25 @@ function EffectConfigurer({
     useWideLayout = false
 }) {
     const theme = useTheme();
+    const { eventBusService } = useServices();
     const [configSchema, setConfigSchema] = useState(null);
-    const [effectConfig, setEffectConfig] = useState({});
     const [percentChance, setPercentChance] = useState(100);
+
+    // Single source of truth: use initialConfig directly, no local state
+    const effectConfig = initialConfig || {};
+
+    // Debug logging for props
+    console.log('🔧 EffectConfigurer: Props received:', {
+        selectedEffect,
+        selectedEffectRegistryKey: selectedEffect?.registryKey,
+        selectedEffectName: selectedEffect?.name,
+        effectType: selectedEffect?.effectType,
+        subIndex: selectedEffect?.subEffectIndex,
+        initialConfig,
+        effectConfig,
+        hasConfig: !!initialConfig,
+        configKeys: initialConfig ? Object.keys(initialConfig) : 'none'
+    });
     const [modalState, setModalState] = useState({
         isOpen: false,
         attachmentType: null,
@@ -42,18 +60,197 @@ function EffectConfigurer({
     // Cache to prevent repeated introspection calls for the same effect
     const introspectionCache = useRef(new Map());
 
+    // Track when config has been updated by resolution changes
+    const [configUpdateCounter, setConfigUpdateCounter] = useState(0);
+
+    // Track if we're currently in live editing mode to prevent config reversion
+    const [isLiveEditing, setIsLiveEditing] = useState(false);
+
+    // Event-based handlers for config changes
+    const handleConfigChangeEvent = useCallback((newConfig) => {
+        console.log('🔧 EffectConfigurer: Emitting config change event:', { selectedEffect, newConfig });
+        console.log('🔧 EffectConfigurer: selectedEffect details:', {
+            effectIndex: selectedEffect?.effectIndex,
+            effectType: selectedEffect?.effectType,
+            subEffectIndex: selectedEffect?.subEffectIndex,
+            registryKey: selectedEffect?.registryKey
+        });
+
+        // Extract effect identification from selectedEffect
+        const effectContext = {
+            effectIndex: selectedEffect?.effectIndex,
+            effectType: selectedEffect?.effectType || 'primary',
+            subEffectIndex: selectedEffect?.subEffectIndex,
+            config: newConfig
+        };
+
+        console.log('🔧 EffectConfigurer: Emitting effectContext:', effectContext);
+
+        eventBusService.emit('effectconfigurer:config:change', effectContext, {
+            source: 'EffectConfigurer',
+            component: 'EffectConfigurer'
+        });
+
+        // Also call the callback if provided (backward compatibility)
+        if (onConfigChange) {
+            onConfigChange(newConfig);
+        }
+    }, [eventBusService, selectedEffect, onConfigChange]);
+
+    const handleAddEffectEvent = useCallback((effectData) => {
+        console.log('🔧 EffectConfigurer: Emitting add effect event:', effectData);
+
+        eventBusService.emit('effectconfigurer:effect:add', effectData, {
+            source: 'EffectConfigurer',
+            component: 'EffectConfigurer'
+        });
+
+        // Also call the callback if provided (backward compatibility)
+        if (onAddEffect) {
+            onAddEffect(effectData);
+        }
+    }, [eventBusService, onAddEffect]);
+
+    const handleAttachEffectEvent = useCallback((effectData, attachmentType, isEditing = false) => {
+        console.log('🔧 EffectConfigurer: Emitting attach effect event:', { effectData, attachmentType, isEditing });
+
+        eventBusService.emit('effectconfigurer:effect:attach', {
+            effectData,
+            attachmentType,
+            isEditing,
+            parentEffect: selectedEffect
+        }, {
+            source: 'EffectConfigurer',
+            component: 'EffectConfigurer'
+        });
+
+        // Also call the callback if provided (backward compatibility)
+        if (onAttachEffect) {
+            onAttachEffect(effectData, attachmentType, isEditing);
+        }
+    }, [eventBusService, selectedEffect, onAttachEffect]);
+
+    /**
+     * Apply center position defaults using unified CenterUtils
+     * @param {Object} config - Default configuration instance
+     * @param {Object} projectState - Project data with resolution info
+     * @returns {Object} Configuration with center positions updated
+     */
+    const applyCenterDefaults = (config, projectState) => {
+        console.log('🎯 EffectConfigurer: applyCenterDefaults called with:', {
+            config: config,
+            projectState: projectState,
+            hasTargetResolution: !!projectState?.targetResolution,
+            hasResolution: !!projectState?.resolution
+        });
+
+        const result = CenterUtils.detectAndApplyCenter(config, projectState);
+
+        console.log('🎯 EffectConfigurer: applyCenterDefaults result:', {
+            original: config,
+            processed: result,
+            changed: JSON.stringify(config) !== JSON.stringify(result)
+        });
+
+        return result;
+    };
+
     useEffect(() => {
+        console.log('🔧 EffectConfigurer: useEffect triggered with selectedEffect:', selectedEffect);
+        console.log('🔧 EffectConfigurer: selectedEffect details:', {
+            hasSelectedEffect: !!selectedEffect,
+            name: selectedEffect?.name,
+            className: selectedEffect?.className,
+            config: selectedEffect?.config
+        });
+
         if (selectedEffect) {
             loadConfigSchema(selectedEffect);
             // Only set percentChance here, let loadConfigSchema handle effectConfig
             setPercentChance(initialPercentChance || 100);
+        } else {
+            console.log('❌ EffectConfigurer: No selectedEffect, clearing config');
+            setConfigSchema(null);
+            setEffectConfig({});
         }
-    }, [selectedEffect?.name, selectedEffect?.className, initialPercentChance]); // Remove initialConfig from dependencies to prevent loops
+    }, [selectedEffect?.registryKey, initialPercentChance]); // Use registryKey only for consistency
+
+    // Listen for resolution changes and refresh config if dialog is open
+    useEffect(() => {
+        if (!eventBusService) return;
+
+        console.log('🔧 EffectConfigurer: Setting up resolution change listener');
+
+        const unsubscribeResolution = eventBusService.subscribe('resolution:changed', (payload) => {
+            console.log('🎯 EffectConfigurer: Resolution change detected while dialog open:', payload);
+
+            if (selectedEffect && effectConfig && Object.keys(effectConfig).length > 0) {
+                console.log('🔄 EffectConfigurer: Refreshing config for new resolution');
+
+                // Re-apply center defaults to current config for new resolution
+                const updatedConfig = applyCenterDefaults(effectConfig, projectState);
+                console.log('🎯 EffectConfigurer: Updated config for resolution change:', {
+                    original: effectConfig,
+                    updated: updatedConfig,
+                    changed: JSON.stringify(effectConfig) !== JSON.stringify(updatedConfig)
+                });
+
+                // Single source of truth: only notify parent, no local state
+                handleConfigChangeEvent(updatedConfig);
+                setConfigUpdateCounter(prev => prev + 1);
+            }
+        }, { component: 'EffectConfigurer' });
+
+        const unsubscribeOrientation = eventBusService.subscribe('orientation:changed', (payload) => {
+            console.log('🎯 EffectConfigurer: Orientation change detected while dialog open:', payload);
+
+            if (selectedEffect && effectConfig && Object.keys(effectConfig).length > 0) {
+                console.log('🔄 EffectConfigurer: Refreshing config for new orientation');
+
+                // Re-apply center defaults to current config for new orientation
+                const updatedConfig = applyCenterDefaults(effectConfig, projectState);
+                console.log('🎯 EffectConfigurer: Updated config for orientation change:', {
+                    original: effectConfig,
+                    updated: updatedConfig,
+                    changed: JSON.stringify(effectConfig) !== JSON.stringify(updatedConfig)
+                });
+
+                // Single source of truth: only notify parent, no local state
+                handleConfigChangeEvent(updatedConfig);
+                setConfigUpdateCounter(prev => prev + 1);
+            }
+        }, { component: 'EffectConfigurer' });
+
+        return () => {
+            console.log('🧹 EffectConfigurer: Cleaning up resolution change listeners');
+            unsubscribeResolution();
+            unsubscribeOrientation();
+        };
+    }, [eventBusService, selectedEffect, effectConfig, projectState, applyCenterDefaults, onConfigChange]);
+
+    // No local state syncing needed - initialConfig IS the source of truth
 
     const loadConfigSchema = async (effect) => {
         try {
-            // Create cache key based on effect name
-            const cacheKey = effect.name || effect.className || 'unknown';
+            console.log(`🔍 Loading config schema for effect:`, effect);
+            console.log(`🔍 Effect registryKey:`, effect?.registryKey);
+            console.log(`🔍 Effect name:`, effect?.name);
+            console.log(`🔍 Effect keys:`, Object.keys(effect || {}));
+
+            // CRITICAL: Fail fast if effect has no registryKey
+            if (!effect || !effect.registryKey) {
+                console.error('❌ loadConfigSchema: Effect missing registryKey, cannot proceed:', {
+                    effect,
+                    hasEffect: !!effect,
+                    registryKey: effect?.registryKey,
+                    name: effect?.name
+                });
+                setConfigSchema({ fields: [] });
+                return;
+            }
+
+            // Create cache key based on effect registryKey only
+            const cacheKey = effect.registryKey || 'unknown';
 
             // Check if we already have this schema cached
             if (introspectionCache.current.has(cacheKey)) {
@@ -63,7 +260,7 @@ function EffectConfigurer({
             } else {
                 console.log(`🔍 Loading new schema for ${cacheKey}`);
                 console.log('🔍 Effect object being sent to analyzeConfigClass:', effect);
-                const schema = await ConfigIntrospector.analyzeConfigClass(effect, projectData);
+                const schema = await ConfigIntrospector.analyzeConfigClass(effect, projectState);
 
                 // Cache the result
                 introspectionCache.current.set(cacheKey, schema);
@@ -74,18 +271,17 @@ function EffectConfigurer({
             const currentSchema = introspectionCache.current.get(cacheKey);
 
             // Use initial config if provided (editing mode), otherwise use defaults
-            if (initialConfig && Object.keys(initialConfig).length > 0) {
-                setEffectConfig(initialConfig);
-                onConfigChange(initialConfig);
-            } else if (currentSchema?.defaultInstance) {
-                // Use the default instance directly - PositionInput will handle project-aware defaults
-                setEffectConfig(currentSchema.defaultInstance);
-                onConfigChange(currentSchema.defaultInstance);
-            } else {
-                console.warn('No default instance available, using empty config');
-                setEffectConfig({});
-                onConfigChange({});
-            }
+            console.log('🔍 EffectConfigurer: Config decision branch:', {
+                hasInitialConfig: !!(initialConfig && Object.keys(initialConfig).length > 0),
+                hasDefaultInstance: !!currentSchema?.defaultInstance,
+                initialConfig,
+                currentSchema,
+                defaultInstance: currentSchema?.defaultInstance
+            });
+
+            // Single source of truth: We no longer set local config here
+            // The effectConfig is directly derived from initialConfig prop
+            console.log('📝 EffectConfigurer: Schema loaded - relying on single source of truth (initialConfig prop)');
         } catch (error) {
             console.error('Error loading config schema:', error);
             setConfigSchema({ fields: [] });
@@ -101,13 +297,13 @@ function EffectConfigurer({
             serializedValue = PositionSerializer.serialize(value);
         }
 
+        // Single source of truth: create new config and emit directly to ProjectState
         const newConfig = { ...effectConfig, [fieldName]: serializedValue };
-        setEffectConfig(newConfig);
-        onConfigChange(newConfig);
+        handleConfigChangeEvent(newConfig);
     };
 
     const handleAddEffect = () => {
-        onAddEffect({
+        handleAddEffectEvent({
             effectClass: selectedEffect,
             config: effectConfig,
             percentChance: percentChance
@@ -140,21 +336,17 @@ function EffectConfigurer({
     };
 
     const handleAttachEffect = (effectData, attachmentType) => {
-        if (onAttachEffect) {
-            onAttachEffect(effectData, attachmentType);
-        }
+        handleAttachEffectEvent(effectData, attachmentType);
     };
 
     const handleEditComplete = (effectData, attachmentType) => {
         // For editing mode, we need to handle the update differently
-        if (onAttachEffect) {
-            // Pass along the original effect ID to identify which effect to update
-            const updatedEffectData = {
-                ...effectData,
-                id: modalState.editingEffect?.id // Preserve the original ID
-            };
-            onAttachEffect(updatedEffectData, attachmentType, true); // true indicates editing mode
-        }
+        // Pass along the original effect ID to identify which effect to update
+        const updatedEffectData = {
+            ...effectData,
+            id: modalState.editingEffect?.id // Preserve the original ID
+        };
+        handleAttachEffectEvent(updatedEffectData, attachmentType, true); // true indicates editing mode
     };
 
     if (!selectedEffect) {
@@ -186,7 +378,7 @@ function EffectConfigurer({
                                 field={field}
                                 value={effectConfig[field.name]}
                                 onChange={handleConfigChange}
-                                projectData={projectData}
+                                projectState={projectState}
                             />
                         ))}
                     </div>
@@ -459,7 +651,7 @@ function EffectConfigurer({
                 attachmentType={modalState.attachmentType}
                 availableEffects={availableEffects || {}}
                 onAttachEffect={modalState.isEditing ? handleEditComplete : handleAttachEffect}
-                projectData={projectData}
+                projectState={projectState}
                 editingEffect={modalState.editingEffect}
                 isEditing={modalState.isEditing}
             />

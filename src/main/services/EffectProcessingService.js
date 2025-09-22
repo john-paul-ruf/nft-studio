@@ -141,11 +141,11 @@ class EffectProcessingService {
         let deserializedConfig;
         try {
             const { ConfigReconstructor } = await import('my-nft-gen/src/core/ConfigReconstructor.js');
-            const effectName = effect.registryKey || effect.className || effect.effectClass?.name;
+            const effectName = effect.registryKey;
             deserializedConfig = await ConfigReconstructor.reconstruct(effectName, userConfig);
             console.log(`🔄 Config reconstructed for ${effectName} using ConfigReconstructor`);
         } catch (reconstructionError) {
-            console.warn(`Failed to reconstruct config for ${effect.registryKey || effect.name}:`, reconstructionError.message);
+            console.warn(`Failed to reconstruct config for ${effect.registryKey}:`, reconstructionError.message);
             deserializedConfig = userConfig; // Fallback to original config
         }
 
@@ -156,8 +156,8 @@ class EffectProcessingService {
             // Ensure effects are registered with configs linked
             await registryService.ensureCoreEffectsRegistered();
 
-            // Get effect name from registryKey first, then fallback to other formats
-            const effectName = effect.registryKey || effect.className || effect.effectClass?.name;
+            // Get effect name from registryKey only
+            const effectName = effect.registryKey;
 
             if (!effectName) {
                 console.warn('No effect name found, using deserialized config');

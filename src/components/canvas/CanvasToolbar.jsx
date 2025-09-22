@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
     AppBar,
     Toolbar,
@@ -29,21 +29,24 @@ import {
     SwapHoriz,
     SwapVert,
     Search,
-    Save
+    Save,
+    Undo,
+    Redo
 } from '@mui/icons-material';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import ResolutionMapper from '../../utils/ResolutionMapper.js';
 import ColorSchemeDropdown from '../ColorSchemeDropdown.jsx';
+import UndoRedoControls from '../UndoRedoControls.jsx';
 
 export default function CanvasToolbar({
     config,
+    currentResolution,
+    isHorizontal,
     isRendering,
     selectedFrame,
     zoom,
     themeMode,
     currentTheme,
-    availableEffects,
-    effectsLoaded,
     isRenderLoopActive,
     lastSaveStatus,
     currentProjectPath,
@@ -57,7 +60,6 @@ export default function CanvasToolbar({
     onZoomOut,
     onZoomReset,
     onColorSchemeChange,
-    onAddEffectDirect,
     onThemeToggle,
     currentThemeKey,
     availableThemes,
@@ -67,9 +69,12 @@ export default function CanvasToolbar({
     setZoomMenuAnchor,
     colorSchemeMenuAnchor,
     setColorSchemeMenuAnchor,
-    addEffectMenuOpen,
-    setAddEffectMenuOpen
 }) {
+    // Use passed resolution value (single source of truth)
+    const resolutionValue = useMemo(() => {
+        return String(currentResolution || 1920);
+    }, [currentResolution]);
+
     return (
         <AppBar position="static" elevation={0}>
             <Toolbar
@@ -156,17 +161,20 @@ export default function CanvasToolbar({
                     </DropdownMenu.Root>
                 </Box>
 
+                {/* Undo/Redo Controls */}
+                <UndoRedoControls />
+
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <FormControl size="small" sx={{ minWidth: 140 }}>
                         <Select
-                            value={config.targetResolution}
+                            value={resolutionValue}
                             onChange={onResolutionChange}
                             displayEmpty
                             variant="outlined"
                             sx={{ fontSize: '13px' }}
                         >
                             {Object.entries(ResolutionMapper.getAllResolutions()).map(([width, resolution]) => (
-                                <MenuItem key={width} value={width}>
+                                <MenuItem key={width} value={String(width)}>
                                     {ResolutionMapper.getDisplayName(parseInt(width))}
                                 </MenuItem>
                             ))}
@@ -176,7 +184,7 @@ export default function CanvasToolbar({
 
                 <ToggleButton
                     value="orientation"
-                    selected={config.isHorizontal}
+                    selected={isHorizontal}
                     onClick={onOrientationToggle}
                     size="small"
                     sx={{
@@ -184,9 +192,9 @@ export default function CanvasToolbar({
                         minWidth: '40px',
                         height: '32px'
                     }}
-                    title={config.isHorizontal ? 'Switch to Vertical' : 'Switch to Horizontal'}
+                    title={isHorizontal ? 'Switch to Vertical' : 'Switch to Horizontal'}
                 >
-                    {config.isHorizontal ? <SwapHoriz /> : <SwapVert />}
+                    {isHorizontal ? <SwapHoriz /> : <SwapVert />}
                 </ToggleButton>
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -312,29 +320,18 @@ export default function CanvasToolbar({
                         <Box sx={{ p: 0 }}>
                             <ColorSchemeDropdown
                                 value={config.colorScheme || 'neon-cyberpunk'}
-                                onChange={(schemeId) => {
-                                    onColorSchemeChange(schemeId);
-                                    setColorSchemeMenuAnchor(null);
-                                }}
                                 projectData={{
                                     resolution: 'hd',
-                                    isHoz: config.isHorizontal
+                                    isHoz: isHorizontal
                                 }}
                                 showPreview={true}
                                 isInDropdown={true}
+                                onChange={() => setColorSchemeMenuAnchor(null)}
                             />
                         </Box>
                     </Menu>
                 </Box>
 
-                <AddEffectDropdown
-                    addEffectMenuOpen={addEffectMenuOpen}
-                    setAddEffectMenuOpen={setAddEffectMenuOpen}
-                    availableEffects={availableEffects}
-                    effectsLoaded={effectsLoaded}
-                    currentTheme={currentTheme}
-                    onAddEffectDirect={onAddEffectDirect}
-                />
 
                 <Box sx={{ flexGrow: 1 }} />
 
@@ -406,109 +403,6 @@ export default function CanvasToolbar({
     );
 }
 
-function AddEffectDropdown({
-    addEffectMenuOpen,
-    setAddEffectMenuOpen,
-    availableEffects,
-    effectsLoaded,
-    currentTheme,
-    onAddEffectDirect
-}) {
-    return (
-        <Box sx={{ position: 'relative' }}>
-            <DropdownMenu.Root
-                open={addEffectMenuOpen}
-                onOpenChange={setAddEffectMenuOpen}
-            >
-                <DropdownMenu.Trigger asChild>
-                    <IconButton
-                        size="small"
-                        sx={{
-                            color: 'text.primary',
-                            '&:hover': {
-                                backgroundColor: 'primary.main',
-                                color: 'white',
-                            }
-                        }}
-                        title="Add Effect"
-                    >
-                        <Add />
-                    </IconButton>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Portal>
-                    <DropdownMenu.Content
-                        side="bottom"
-                        align="start"
-                        sideOffset={5}
-                        style={{
-                            backgroundColor: currentTheme.palette.mode === 'dark' ? '#323232' : currentTheme.palette.background.paper,
-                            border: `1px solid ${currentTheme.palette.divider}`,
-                            borderRadius: '6px',
-                            boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.2)',
-                            padding: '4px',
-                            minWidth: '200px',
-                            zIndex: 9999,
-                        }}
-                    >
-                        {!effectsLoaded ? (
-                            <DropdownMenu.Item
-                                disabled
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    padding: '8px 12px',
-                                    fontSize: '14px',
-                                    color: currentTheme.palette.text.disabled,
-                                    cursor: 'default',
-                                    borderRadius: '4px',
-                                    outline: 'none',
-                                    gap: '8px',
-                                    fontStyle: 'italic'
-                                }}
-                            >
-                                Loading effects...
-                            </DropdownMenu.Item>
-                        ) : (
-                            <>
-                                {/* Primary Effects Submenu */}
-                                <EffectSubmenu
-                                    title={`Primary Effects (${availableEffects.primary.length})`}
-                                    effects={availableEffects.primary}
-                                    effectType="primary"
-                                    currentTheme={currentTheme}
-                                    onAddEffect={onAddEffectDirect}
-                                    setAddEffectMenuOpen={setAddEffectMenuOpen}
-                                />
-
-                                {/* Final Effects Submenu */}
-                                <EffectSubmenu
-                                    title={`Final Effects (${availableEffects.finalImage.length})`}
-                                    effects={availableEffects.finalImage}
-                                    effectType="finalImage"
-                                    currentTheme={currentTheme}
-                                    onAddEffect={onAddEffectDirect}
-                                    setAddEffectMenuOpen={setAddEffectMenuOpen}
-                                />
-
-                                {/* Keyframe Effects Submenu */}
-                                {availableEffects.keyFrame?.length > 0 && (
-                                    <EffectSubmenu
-                                        title={`Keyframe Effects (${availableEffects.keyFrame.length})`}
-                                        effects={availableEffects.keyFrame}
-                                        effectType="keyFrame"
-                                        currentTheme={currentTheme}
-                                        onAddEffect={onAddEffectDirect}
-                                        setAddEffectMenuOpen={setAddEffectMenuOpen}
-                                    />
-                                )}
-                            </>
-                        )}
-                    </DropdownMenu.Content>
-                </DropdownMenu.Portal>
-            </DropdownMenu.Root>
-        </Box>
-    );
-}
 
 function EffectSubmenu({
     title,

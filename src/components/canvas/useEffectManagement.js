@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
+import CenterUtils from '../../utils/CenterUtils.js';
+import { AddEffectCommand, DeleteEffectCommand, ReorderSecondaryEffectsCommand, ReorderKeyframeEffectsCommand } from '../../commands/ProjectCommands.js';
+import { useServices } from '../../contexts/ServiceContext.js';
 
-export default function useEffectManagement(config, updateConfig) {
+export default function useEffectManagement(projectState) {
+    const { commandService, eventBusService } = useServices();
+
+    // Debug ProjectState (single source of truth)
+    const currentEffects = projectState?.getState()?.effects || [];
+    console.log('🎭 useEffectManagement: Hook called with ProjectState effects:', currentEffects.length, currentEffects.map(e => e.name || e.className));
+
     const [availableEffects, setAvailableEffects] = useState({
         primary: [],
         secondary: [],
@@ -34,10 +43,192 @@ export default function useEffectManagement(config, updateConfig) {
         loadAvailableEffects();
     }, [loadAvailableEffects]);
 
+    // Listen for all effect events from event-driven architecture
+    useEffect(() => {
+        if (!eventBusService) return;
+
+        const unsubscribeEffectAdd = eventBusService.subscribe('effect:add', (payload) => {
+            console.log('🎭 useEffectManagement: Effect add event received:', payload);
+            handleAddEffectDirect(payload.effectName, payload.effectType);
+        }, { component: 'useEffectManagement' });
+
+        const unsubscribeEffectDelete = eventBusService.subscribe('effect:delete', (payload) => {
+            console.log('🎭 useEffectManagement: Effect delete event received:', payload);
+            handleEffectDelete(payload.effectIndex);
+        }, { component: 'useEffectManagement' });
+
+        const unsubscribeEffectReorder = eventBusService.subscribe('effect:reorder', (payload) => {
+            console.log('🎭 useEffectManagement: Effect reorder event received:', payload);
+            handleEffectReorder(payload.dragIndex, payload.hoverIndex);
+        }, { component: 'useEffectManagement' });
+
+        const unsubscribeEffectEdit = eventBusService.subscribe('effect:edit', (payload) => {
+            console.log('🎭 useEffectManagement: Effect edit event received:', payload);
+            handleEditEffect(payload.effectIndex, payload.effectType, payload.subIndex);
+        }, { component: 'useEffectManagement' });
+
+        const unsubscribeEffectToggleVisibility = eventBusService.subscribe('effect:togglevisibility', (payload) => {
+            console.log('🎭 useEffectManagement: Effect toggle visibility event received:', payload);
+            handleEffectToggleVisibility(payload.effectIndex);
+        }, { component: 'useEffectManagement' });
+
+        const unsubscribeEffectAddSecondary = eventBusService.subscribe('effect:addsecondary', async (payload) => {
+            console.log('🎭 useEffectManagement: Effect add secondary event received:', payload);
+
+            try {
+                // Get effect defaults from backend first
+                const result = await window.api.getEffectDefaults(payload.effectName);
+                if (!result.success) {
+                    console.error('Failed to get effect defaults for secondary effect:', result.error);
+                    return;
+                }
+
+                // Find the effect in available effects to get proper metadata
+                const effectCategory = availableEffects.secondary || [];
+                const effectData = effectCategory.find(e => e.name === payload.effectName);
+
+                const currentEffects = projectState.getState().effects || [];
+                const targetEffect = currentEffects[payload.parentIndex];
+                if (targetEffect) {
+                    const secondaryEffectData = {
+                        registryKey: payload.effectName,
+                        config: result.defaults || {}
+                    };
+
+                    console.log('🎭 EVENT HANDLER: Created secondaryEffectData:', {
+                        registryKey: secondaryEffectData.registryKey,
+                        config: secondaryEffectData.config,
+                        fullData: secondaryEffectData
+                    });
+                    console.log('🎭 EVENT HANDLER: Target effect before adding secondary:', {
+                        index: payload.parentIndex,
+                        targetEffect: targetEffect,
+                        existingSecondaryEffects: targetEffect.secondaryEffects?.length || 0
+                    });
+
+                    handleAddSecondaryEffect(targetEffect, payload.parentIndex, secondaryEffectData);
+                }
+            } catch (error) {
+                console.error('Error adding secondary effect:', error);
+            }
+        }, { component: 'useEffectManagement' });
+
+        const unsubscribeEffectAddKeyframe = eventBusService.subscribe('effect:addkeyframe', async (payload) => {
+            console.log('🎭 useEffectManagement: Effect add keyframe event received:', payload);
+
+            try {
+                // Get effect defaults from backend first
+                const result = await window.api.getEffectDefaults(payload.effectName);
+                if (!result.success) {
+                    console.error('Failed to get effect defaults for keyframe effect:', result.error);
+                    return;
+                }
+
+                // Find the effect in available effects to get proper metadata
+                const effectCategory = availableEffects.secondary || []; // Keyframe effects are in secondary category
+                const effectData = effectCategory.find(e => e.name === payload.effectName);
+
+                const currentEffects = projectState.getState().effects || [];
+                const targetEffect = currentEffects[payload.parentIndex];
+                if (targetEffect) {
+                    const keyframeEffectData = {
+                        registryKey: payload.effectName,
+                        config: result.defaults || {}
+                    };
+
+                    console.log('🎭 useEffectManagement: Adding keyframe effect with proper defaults:', keyframeEffectData);
+                    handleAddKeyframeEffect(targetEffect, payload.parentIndex, keyframeEffectData, payload.frame || 0);
+                }
+            } catch (error) {
+                console.error('Error adding keyframe effect:', error);
+            }
+        }, { component: 'useEffectManagement' });
+
+        // EffectConfigurer events
+        const unsubscribeEffectConfigChange = eventBusService.subscribe('effect:config:change', (payload) => {
+            console.log('🎭 useEffectManagement: Effect config change event received:', payload);
+
+            // Set editing context from the payload before updating config
+            if (payload.effectIndex !== undefined) {
+                const context = {
+                    effectIndex: payload.effectIndex,
+                    effectType: payload.effectType || 'primary',
+                    subIndex: payload.subEffectIndex !== undefined ? payload.subEffectIndex : null
+                };
+
+                console.log('🎯 useEffectManagement: Setting editing context from event:', context);
+                setEditingEffect(context);
+
+                // Use context directly instead of relying on async state update
+                handleConfigUpdateWithContext(payload.config, context);
+            } else {
+                // Fallback to old behavior if no context provided
+                handleSubEffectUpdate(payload.config);
+            }
+        }, { component: 'useEffectManagement' });
+
+        const unsubscribeEffectAttach = eventBusService.subscribe('effect:attach', (payload) => {
+            console.log('🎭 useEffectManagement: Effect attach event received:', payload);
+            // Handle effect attachment (secondary/keyframe effects from EffectConfigurer)
+            if (payload.parentEffect && payload.effectData) {
+                const currentEffects = projectState.getState().effects || [];
+                const parentIndex = currentEffects.findIndex(e => e === payload.parentEffect);
+                if (parentIndex !== -1) {
+                    if (payload.attachmentType === 'secondary') {
+                        handleAddSecondaryEffect(currentEffects[parentIndex], parentIndex, payload.effectData);
+                    } else if (payload.attachmentType === 'keyframe') {
+                        handleAddKeyframeEffect(currentEffects[parentIndex], parentIndex, payload.effectData, 0);
+                    }
+                }
+            }
+        }, { component: 'useEffectManagement' });
+
+        const unsubscribeSecondaryReorder = eventBusService.subscribe('effectspanel:secondary:reorder', (payload) => {
+            console.log('🎭 useEffectManagement: Secondary effect reorder event received:', payload);
+            if (projectState) {
+                const command = new ReorderSecondaryEffectsCommand(
+                    projectState,
+                    payload.parentIndex,
+                    payload.dragIndex,
+                    payload.hoverIndex
+                );
+                commandService.execute(command);
+            }
+        }, { component: 'useEffectManagement' });
+
+        const unsubscribeKeyframeReorder = eventBusService.subscribe('effectspanel:keyframe:reorder', (payload) => {
+            console.log('🎭 useEffectManagement: Keyframe effect reorder event received:', payload);
+            if (projectState) {
+                const command = new ReorderKeyframeEffectsCommand(
+                    projectState,
+                    payload.parentIndex,
+                    payload.dragIndex,
+                    payload.hoverIndex
+                );
+                commandService.execute(command);
+            }
+        }, { component: 'useEffectManagement' });
+
+        return () => {
+            unsubscribeEffectAdd();
+            unsubscribeEffectDelete();
+            unsubscribeEffectReorder();
+            unsubscribeEffectEdit();
+            unsubscribeEffectToggleVisibility();
+            unsubscribeEffectAddSecondary();
+            unsubscribeEffectAddKeyframe();
+            unsubscribeEffectConfigChange();
+            unsubscribeEffectAttach();
+            unsubscribeSecondaryReorder();
+            unsubscribeKeyframeReorder();
+        };
+    }, [eventBusService, handleAddEffectDirect, handleEffectDelete, handleEffectReorder, handleEditEffect, handleEffectToggleVisibility, handleAddSecondaryEffect, handleAddKeyframeEffect, handleSubEffectUpdate, handleConfigUpdateWithContext, projectState, availableEffects]);
+
     const handleAddEffect = useCallback((effect) => {
-        const newEffects = [...(config.effects || []), effect];
-        updateConfig({ effects: newEffects });
-    }, [config.effects, updateConfig]);
+        const currentEffects = projectState.getState().effects || [];
+        const newEffects = [...currentEffects, effect];
+        projectState.update({ effects: newEffects });
+    }, [projectState]);
 
     const handleAddEffectDirect = useCallback(async (effectName, effectType = 'primary') => {
         try {
@@ -48,19 +239,72 @@ export default function useEffectManagement(config, updateConfig) {
                 const effectCategory = availableEffects[effectType] || [];
                 const effectData = effectCategory.find(e => e.name === effectName);
 
+                // Apply center defaults immediately when adding effect
+                let processedConfig = result.defaults;
+                const projectData = projectState.getState();
+
+                console.log('🎯 useEffectManagement: Applying center defaults to newly added effect:', {
+                    effectName,
+                    originalConfig: result.defaults,
+                    projectData: {
+                        targetResolution: projectData?.targetResolution,
+                        isHorizontal: projectData?.isHorizontal
+                    }
+                });
+
+                if (projectData) {
+                    processedConfig = CenterUtils.detectAndApplyCenter(result.defaults, projectData);
+                    console.log('🎯 useEffectManagement: Center defaults applied:', {
+                        original: result.defaults,
+                        processed: processedConfig,
+                        changed: JSON.stringify(result.defaults) !== JSON.stringify(processedConfig)
+                    });
+                }
+
+                // Validate and correct effect type to prevent categorization issues
+                let validatedType = effectType;
+
+                // If effect was found in availableEffects, use its natural category
+                if (effectData && effectData.category) {
+                    const naturalCategory = effectData.category;
+                    console.log('🔍 useEffectManagement: Effect natural category validation:', {
+                        effectName,
+                        requestedType: effectType,
+                        naturalCategory: naturalCategory,
+                        effectData: effectData
+                    });
+
+                    // Use the natural category from the registry if it's valid
+                    if (['primary', 'secondary', 'keyframe', 'finalImage'].includes(naturalCategory)) {
+                        validatedType = naturalCategory;
+                        if (validatedType !== effectType) {
+                            console.warn('🔍 useEffectManagement: Corrected effect type:', {
+                                effectName,
+                                requested: effectType,
+                                corrected: validatedType
+                            });
+                        }
+                    }
+                }
+
                 const effect = {
-                    name: effectName,
-                    registryKey: effectData?.registryKey || effectName,
-                    className: effectData?.className || effectName,
-                    type: effectType,
-                    config: result.defaults,
+                    registryKey: effectName,
+                    type: validatedType,
+                    config: processedConfig,
                     visible: true
                 };
 
-                const newEffects = [...(config.effects || []), effect];
-                updateConfig({ effects: newEffects });
+                console.log('🔍 useEffectManagement: Final effect object:', {
+                    effectName,
+                    finalType: validatedType,
+                    effect
+                });
 
-                console.log(`✅ Added ${effectType} effect: ${effectName}`, effect);
+                // Use Command Pattern instead of direct state update
+                const addCommand = new AddEffectCommand(projectState, effect, effectName, effectType);
+                commandService.execute(addCommand);
+
+                console.log(`✅ Command executed: Add ${effectType} effect: ${effectName}`, effect);
             } else {
                 console.error('Failed to get effect defaults:', result.error);
                 alert(`Failed to add effect: ${result.error}`);
@@ -69,34 +313,61 @@ export default function useEffectManagement(config, updateConfig) {
             console.error('Error adding effect:', error);
             alert(`Error adding effect: ${error.message}`);
         }
-    }, [availableEffects, config.effects, updateConfig]);
+    }, [availableEffects, projectState, commandService]);
 
     const handleEffectUpdate = useCallback((index, updatedEffect) => {
-        const newEffects = [...config.effects];
+        const currentEffects = projectState.getState().effects || [];
+        const newEffects = [...currentEffects];
         newEffects[index] = updatedEffect;
-        updateConfig({ effects: newEffects });
-    }, [config.effects, updateConfig]);
+
+        console.log('🔧 HANDLE_EFFECT_UPDATE: Updating effect at index', index, {
+            originalEffect: currentEffects[index],
+            updatedEffect: updatedEffect,
+            secondaryEffectsCount: updatedEffect.secondaryEffects?.length || 0,
+            secondaryEffects: updatedEffect.secondaryEffects
+        });
+
+        projectState.update({ effects: newEffects });
+
+        // Verify what was actually stored
+        const verifyEffects = projectState.getState().effects || [];
+        const storedEffect = verifyEffects[index];
+        console.log('🔧 HANDLE_EFFECT_UPDATE: Verification - effect after storage:', {
+            storedEffect: storedEffect,
+            storedSecondaryEffects: storedEffect?.secondaryEffects,
+            storedSecondaryCount: storedEffect?.secondaryEffects?.length || 0
+        });
+    }, [projectState]);
 
     const handleEffectDelete = useCallback((index) => {
-        const newEffects = config.effects.filter((_, i) => i !== index);
-        updateConfig({ effects: newEffects });
-    }, [config.effects, updateConfig]);
+        // Get fresh effects from current ProjectState
+        const currentEffects = projectState.getState().effects || [];
+        console.log('🗑️ useEffectManagement: handleEffectDelete called with index:', index);
+        console.log('🗑️ useEffectManagement: Current effects before delete:', currentEffects.length, currentEffects.map(e => e.name || e.className));
+
+        // Use Command Pattern for delete
+        const deleteCommand = new DeleteEffectCommand(projectState, index);
+        commandService.execute(deleteCommand);
+        console.log(`✅ Command executed: Delete effect at index ${index}`);
+    }, [projectState, commandService]);
 
     const handleEffectReorder = useCallback((fromIndex, toIndex) => {
-        const newEffects = [...config.effects];
+        const currentEffects = projectState.getState().effects || [];
+        const newEffects = [...currentEffects];
         const [removed] = newEffects.splice(fromIndex, 1);
         newEffects.splice(toIndex, 0, removed);
-        updateConfig({ effects: newEffects });
-    }, [config.effects, updateConfig]);
+        projectState.update({ effects: newEffects });
+    }, [projectState]);
 
     const handleEffectToggleVisibility = useCallback((index) => {
-        const newEffects = [...config.effects];
+        const currentEffects = projectState.getState().effects || [];
+        const newEffects = [...currentEffects];
         newEffects[index] = {
             ...newEffects[index],
             visible: newEffects[index].visible === false ? true : false
         };
-        updateConfig({ effects: newEffects });
-    }, [config.effects, updateConfig]);
+        projectState.update({ effects: newEffects });
+    }, [projectState]);
 
     const handleEffectRightClick = useCallback((effect, index, e) => {
         e.preventDefault();
@@ -113,29 +384,126 @@ export default function useEffectManagement(config, updateConfig) {
     }, []);
 
     const getEditingEffectData = useCallback(() => {
-        if (!editingEffect || !config.effects[editingEffect.effectIndex]) {
+        // Get fresh effects from ProjectState every time (ensures we get scaled values)
+        const currentEffects = projectState.getState().effects || [];
+        console.log('🔍 getEditingEffectData called with:', {
+            editingEffect,
+            hasCurrentEffects: !!currentEffects.length,
+            effectsLength: currentEffects.length,
+            effectIndex: editingEffect?.effectIndex,
+            timestamp: Date.now()
+        });
+
+        if (!editingEffect || !currentEffects[editingEffect.effectIndex]) {
+            console.log('❌ getEditingEffectData: Returning null because no editingEffect or invalid index');
             return null;
         }
 
-        const mainEffect = config.effects[editingEffect.effectIndex];
+        const mainEffect = currentEffects[editingEffect.effectIndex];
+        console.log('🔍 getEditingEffectData: Found mainEffect (fresh from ProjectState):', mainEffect);
 
         if (editingEffect.effectType === 'primary') {
             return mainEffect;
         } else if (editingEffect.effectType === 'secondary' && mainEffect.secondaryEffects && editingEffect.subIndex !== null) {
-            return mainEffect.secondaryEffects[editingEffect.subIndex];
+            const secondaryEffect = mainEffect.secondaryEffects[editingEffect.subIndex];
+            console.log('🔍 getEditingEffectData: Returning secondary effect:', secondaryEffect);
+            console.log('🔍 getEditingEffectData: Secondary effect details:', {
+                registryKey: secondaryEffect.registryKey,
+                config: secondaryEffect.config,
+                hasConfig: !!secondaryEffect.config,
+                configKeys: secondaryEffect.config ? Object.keys(secondaryEffect.config) : 'none'
+            });
+
+            // CRITICAL: Secondary effect MUST have registryKey - no fallbacks
+            if (!secondaryEffect.registryKey) {
+                console.error('❌ getEditingEffectData: Secondary effect missing registryKey:', secondaryEffect);
+                return null;
+            }
+
+            // Ensure secondary effect has proper registryKey for EffectConfigurer
+            return {
+                ...secondaryEffect,
+                name: secondaryEffect.registryKey
+            };
         } else if (editingEffect.effectType === 'keyframe' && mainEffect.keyframeEffects && editingEffect.subIndex !== null) {
-            return mainEffect.keyframeEffects[editingEffect.subIndex];
+            const keyframeEffect = mainEffect.keyframeEffects[editingEffect.subIndex];
+            console.log('🔍 getEditingEffectData: Returning keyframe effect:', keyframeEffect);
+            console.log('🔍 getEditingEffectData: Keyframe effect details:', {
+                registryKey: keyframeEffect.registryKey,
+                config: keyframeEffect.config,
+                hasConfig: !!keyframeEffect.config,
+                configKeys: keyframeEffect.config ? Object.keys(keyframeEffect.config) : 'none'
+            });
+
+            // CRITICAL: Keyframe effect MUST have registryKey - no fallbacks
+            if (!keyframeEffect.registryKey) {
+                console.error('❌ getEditingEffectData: Keyframe effect missing registryKey:', keyframeEffect);
+                return null;
+            }
+
+            // Ensure keyframe effect has proper registryKey for EffectConfigurer
+            return {
+                ...keyframeEffect,
+                name: keyframeEffect.registryKey
+            };
         }
 
         return null;
-    }, [editingEffect, config.effects]);
+    }, [editingEffect, projectState]);
 
-    const handleSubEffectUpdate = useCallback((newConfig) => {
-        if (!editingEffect || !config.effects[editingEffect.effectIndex]) {
+    // Updated version that uses context directly instead of relying on async state
+    const handleConfigUpdateWithContext = useCallback((newConfig, context) => {
+        console.log('🔧 useEffectManagement: handleConfigUpdateWithContext called with:', { newConfig, context });
+
+        const currentEffects = projectState.getState().effects || [];
+        if (!context || !currentEffects[context.effectIndex]) {
+            console.warn('🔧 useEffectManagement: Invalid context or effect not found:', { context, effectsLength: currentEffects.length });
             return;
         }
 
-        const mainEffect = config.effects[editingEffect.effectIndex];
+        const mainEffect = currentEffects[context.effectIndex];
+
+        if (context.effectType === 'primary') {
+            console.log('🔧 useEffectManagement: Updating primary effect config');
+            const updatedEffect = {
+                ...mainEffect,
+                config: newConfig
+            };
+            handleEffectUpdate(context.effectIndex, updatedEffect);
+        } else if (context.effectType === 'secondary' && context.subIndex !== null) {
+            console.log('🔧 useEffectManagement: Updating secondary effect config at index:', context.subIndex);
+            const updatedSecondaryEffects = [...(mainEffect.secondaryEffects || [])];
+            updatedSecondaryEffects[context.subIndex] = {
+                ...updatedSecondaryEffects[context.subIndex],
+                config: newConfig
+            };
+            const updatedEffect = {
+                ...mainEffect,
+                secondaryEffects: updatedSecondaryEffects
+            };
+            handleEffectUpdate(context.effectIndex, updatedEffect);
+        } else if (context.effectType === 'keyframe' && context.subIndex !== null) {
+            console.log('🔧 useEffectManagement: Updating keyframe effect config at index:', context.subIndex);
+            const updatedKeyframeEffects = [...(mainEffect.keyframeEffects || [])];
+            updatedKeyframeEffects[context.subIndex] = {
+                ...updatedKeyframeEffects[context.subIndex],
+                config: newConfig
+            };
+            const updatedEffect = {
+                ...mainEffect,
+                keyframeEffects: updatedKeyframeEffects
+            };
+            handleEffectUpdate(context.effectIndex, updatedEffect);
+        }
+    }, [projectState, handleEffectUpdate]);
+
+    const handleSubEffectUpdate = useCallback((newConfig) => {
+        const currentEffects = projectState.getState().effects || [];
+        if (!editingEffect || !currentEffects[editingEffect.effectIndex]) {
+            return;
+        }
+
+        const mainEffect = currentEffects[editingEffect.effectIndex];
 
         if (editingEffect.effectType === 'primary') {
             const updatedEffect = {
@@ -166,16 +534,31 @@ export default function useEffectManagement(config, updateConfig) {
             };
             handleEffectUpdate(editingEffect.effectIndex, updatedEffect);
         }
-    }, [editingEffect, config.effects, handleEffectUpdate]);
+    }, [editingEffect, projectState, handleEffectUpdate]);
 
-    const handleAddSecondaryEffect = useCallback(async (targetEffect, effectIndex, newSecondaryEffect) => {
+    const handleAddSecondaryEffect = useCallback((targetEffect, effectIndex, newSecondaryEffect) => {
         try {
-            const defaults = await window.api.getEffectDefaults(newSecondaryEffect.name);
+            console.log('🎭 HANDLE_ADD_SECONDARY: Received data:', {
+                targetEffect: targetEffect,
+                effectIndex: effectIndex,
+                newSecondaryEffect: newSecondaryEffect,
+                registryKey: newSecondaryEffect.registryKey,
+                config: newSecondaryEffect.config
+            });
+
+            // CRITICAL: Ensure registryKey is always present
+            if (!newSecondaryEffect.registryKey) {
+                console.error('🎭 HANDLE_ADD_SECONDARY: MISSING REGISTRY KEY!', newSecondaryEffect);
+                throw new Error('Secondary effect must have a registryKey');
+            }
+
+            // Use the already-fetched config data instead of making another API call
             const secondaryEffectToAdd = {
-                registryKey: newSecondaryEffect.registryKey || newSecondaryEffect.name,
-                className: newSecondaryEffect.className || newSecondaryEffect.name,
-                config: defaults || {}
+                registryKey: newSecondaryEffect.registryKey,
+                config: newSecondaryEffect.config || {}
             };
+
+            console.log('🎭 HANDLE_ADD_SECONDARY: Effect to add:', secondaryEffectToAdd);
 
             const updatedEffect = {
                 ...targetEffect,
@@ -184,21 +567,37 @@ export default function useEffectManagement(config, updateConfig) {
                     secondaryEffectToAdd
                 ]
             };
+
+            console.log('🎭 HANDLE_ADD_SECONDARY: Updated effect with new secondary:', {
+                originalSecondaryCount: targetEffect.secondaryEffects?.length || 0,
+                newSecondaryCount: updatedEffect.secondaryEffects.length,
+                newSecondaryEffect: updatedEffect.secondaryEffects[updatedEffect.secondaryEffects.length - 1]
+            });
+
             handleEffectUpdate(effectIndex, updatedEffect);
         } catch (error) {
             console.error('Failed to add secondary effect:', error);
         }
     }, [handleEffectUpdate]);
 
-    const handleAddKeyframeEffect = useCallback(async (targetEffect, effectIndex, newKeyframeEffect, selectedFrame) => {
+    const handleAddKeyframeEffect = useCallback((targetEffect, effectIndex, newKeyframeEffect, selectedFrame) => {
         try {
-            const defaults = await window.api.getEffectDefaults(newKeyframeEffect.name);
+            console.log('🎭 handleAddKeyframeEffect: Creating keyframe effect with registryKey:', newKeyframeEffect.registryKey);
+            console.log('🎭 handleAddKeyframeEffect: Using pre-fetched config:', newKeyframeEffect.config);
+
+            // CRITICAL: Ensure registryKey is always present
+            if (!newKeyframeEffect.registryKey) {
+                throw new Error('Keyframe effect must have a registryKey');
+            }
+
+            // Use the already-fetched config data instead of making another API call
             const keyframeEffectToAdd = {
                 frame: selectedFrame,
-                registryKey: newKeyframeEffect.registryKey || newKeyframeEffect.name,
-                className: newKeyframeEffect.className || newKeyframeEffect.name,
-                config: defaults || {}
+                registryKey: newKeyframeEffect.registryKey,
+                config: newKeyframeEffect.config || {}
             };
+
+            console.log('🎭 handleAddKeyframeEffect: Keyframe effect to add:', keyframeEffectToAdd);
 
             const updatedEffect = {
                 ...targetEffect,

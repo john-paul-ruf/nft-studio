@@ -1,5 +1,6 @@
 import React from 'react';
 import { ServiceProvider, useServices } from './contexts/ServiceContext.js';
+import { ResolutionTrackingProvider } from './hooks/useGlobalResolutionTracking.js';
 import { useNavigation } from './hooks/useNavigation.js';
 import Intro from './pages/Intro.jsx';
 import ProjectWizard from './pages/ProjectWizard.jsx';
@@ -15,6 +16,14 @@ import ApplicationFactory from './ApplicationFactory.js';
 function AppRouter() {
     const { currentView, currentParams, navigateToWizard, navigateToCanvas, navigateToIntro } = useNavigation();
     const { projectStateManager } = useServices();
+
+    // Debug logging for router state
+    console.log('🔍 App Router:', { currentView, currentParams });
+    console.log('🔍 ProjectStateManager availability:', {
+        projectStateManager: !!projectStateManager,
+        type: typeof projectStateManager,
+        methods: projectStateManager ? Object.getOwnPropertyNames(Object.getPrototypeOf(projectStateManager)) : 'N/A'
+    });
 
     const renderCurrentView = () => {
         switch (currentView) {
@@ -52,6 +61,11 @@ function AppRouter() {
                                             await projectStateManager.initialize(projectState, projectDirectory);
 
                                             // Navigate to Canvas (manager is already initialized)
+                                            console.log('🚀 Loading existing project - navigating to Canvas with params:', {
+                                                projectInitialized: true,
+                                                loadedFromFile: true,
+                                                filePath
+                                            });
                                             navigateToCanvas({
                                                 projectInitialized: true,
                                                 loadedFromFile: true,
@@ -71,6 +85,11 @@ function AppRouter() {
                                                 // Initialize the shared ProjectStateManager with the loaded project
                                                 await projectStateManager.initialize(projectState, projectDirectory);
 
+                                                console.log('🚀 Legacy project loading - navigating to Canvas with params:', {
+                                                    projectInitialized: true,
+                                                    loadedFromFile: true,
+                                                    filePath
+                                                });
                                                 navigateToCanvas({
                                                     projectInitialized: true,
                                                     loadedFromFile: true,
@@ -98,6 +117,7 @@ function AppRouter() {
                     <ProjectWizard
                         projectStateManager={projectStateManager}
                         onComplete={(config) => {
+                            console.log('🚀 ProjectWizard onComplete - navigating to Canvas with config:', config);
                             navigateToCanvas({ projectConfig: config });
                         }}
                         onCancel={navigateToIntro}
@@ -165,7 +185,9 @@ function App() {
 
     return (
         <ServiceProvider value={contextValue}>
-            <AppRouter />
+            <ResolutionTrackingProvider>
+                <AppRouter />
+            </ResolutionTrackingProvider>
         </ServiceProvider>
     );
 }

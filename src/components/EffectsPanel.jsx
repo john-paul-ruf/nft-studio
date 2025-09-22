@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import * as ContextMenu from '@radix-ui/react-context-menu';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { useServices } from '../contexts/ServiceContext.js';
 import {
     Box,
     Typography,
@@ -27,7 +29,8 @@ import {
     Edit,
     Add,
     Schedule,
-    ChevronRight
+    ChevronRight,
+    KeyboardArrowRight
 } from '@mui/icons-material';
 
 export default function EffectsPanel({
@@ -38,10 +41,23 @@ export default function EffectsPanel({
     onEffectToggleVisibility,
     onEffectEdit,
     onEffectAddSecondary,
-    onEffectAddKeyframe
+    onEffectAddKeyframe,
+    onSecondaryEffectReorder,
+    onKeyframeEffectReorder,
+    // Add Effect props
+    availableEffects,
+    effectsLoaded,
+    currentTheme
 }) {
     const theme = useTheme();
+    const { eventBusService } = useServices();
     const [draggedIndex, setDraggedIndex] = useState(null);
+    const [draggedSecondaryIndex, setDraggedSecondaryIndex] = useState(null);
+    const [draggedKeyframeIndex, setDraggedKeyframeIndex] = useState(null);
+    const [addEffectMenuOpen, setAddEffectMenuOpen] = useState(false);
+
+    // Debug effects prop changes
+    console.log('📋 EffectsPanel: Component render - received effects:', effects?.length || 0, effects?.map(e => e.name || e.className) || []);
     const [expandedEffects, setExpandedEffects] = useState(new Set());
     const [secondaryEffects, setSecondaryEffects] = useState([]);
     const [keyframeEffects, setKeyframeEffects] = useState([]);
@@ -61,6 +77,19 @@ export default function EffectsPanel({
             console.error('Failed to load effects:', error);
         }
     };
+
+    // Event-driven Add Effect handler
+    const handleAddEffectEvent = useCallback((effectName, effectType) => {
+        console.log('🔥 EffectsPanel: Emitting effect add event:', { effectName, effectType });
+        eventBusService.emit('effectspanel:effect:add', {
+            effectName,
+            effectType
+        }, {
+            source: 'EffectsPanel',
+            component: 'EffectsPanel'
+        });
+        setAddEffectMenuOpen(false);
+    }, [eventBusService]);
 
     const handleDragStart = (e, index, section) => {
         setDraggedIndex({ index, section });
@@ -82,6 +111,53 @@ export default function EffectsPanel({
         setDraggedIndex(null);
     };
 
+    // Sub-effect drag handlers
+    const handleSecondaryDragStart = (e, parentIndex, subIndex) => {
+        setDraggedSecondaryIndex({ parentIndex, subIndex });
+        e.dataTransfer.effectAllowed = 'move';
+        e.stopPropagation(); // Prevent parent drag
+    };
+
+    const handleSecondaryDragOver = (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        e.stopPropagation();
+    };
+
+    const handleSecondaryDrop = (e, parentIndex, dropIndex) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (draggedSecondaryIndex !== null &&
+            draggedSecondaryIndex.parentIndex === parentIndex &&
+            draggedSecondaryIndex.subIndex !== dropIndex) {
+            onSecondaryEffectReorder && onSecondaryEffectReorder(parentIndex, draggedSecondaryIndex.subIndex, dropIndex);
+        }
+        setDraggedSecondaryIndex(null);
+    };
+
+    const handleKeyframeDragStart = (e, parentIndex, subIndex) => {
+        setDraggedKeyframeIndex({ parentIndex, subIndex });
+        e.dataTransfer.effectAllowed = 'move';
+        e.stopPropagation(); // Prevent parent drag
+    };
+
+    const handleKeyframeDragOver = (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        e.stopPropagation();
+    };
+
+    const handleKeyframeDrop = (e, parentIndex, dropIndex) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (draggedKeyframeIndex !== null &&
+            draggedKeyframeIndex.parentIndex === parentIndex &&
+            draggedKeyframeIndex.subIndex !== dropIndex) {
+            onKeyframeEffectReorder && onKeyframeEffectReorder(parentIndex, draggedKeyframeIndex.subIndex, dropIndex);
+        }
+        setDraggedKeyframeIndex(null);
+    };
+
     const toggleExpanded = (index) => {
         const newExpanded = new Set(expandedEffects);
         if (newExpanded.has(index)) {
@@ -92,11 +168,12 @@ export default function EffectsPanel({
         setExpandedEffects(newExpanded);
     };
 
-    const formatEffectName = (className) => {
-        if (!className || typeof className !== 'string') {
+    const formatEffectName = (effect) => {
+        const registryKey = effect?.registryKey || effect;
+        if (!registryKey || typeof registryKey !== 'string') {
             return 'Unknown Effect';
         }
-        return className.replace(/([A-Z])/g, ' $1').trim();
+        return registryKey.replace(/([A-Z])/g, ' $1').trim();
     };
 
     const renderSecondaryEffects = (effect, parentOriginalIndex) => {
@@ -107,19 +184,26 @@ export default function EffectsPanel({
                 {effect.secondaryEffects.map((secondary, idx) => (
                     <ContextMenu.Root key={idx}>
                         <ContextMenu.Trigger asChild>
-                            <Paper
-                                elevation={0}
-                                sx={{
-                                    backgroundColor: theme.palette.mode === 'dark' ? '#2a2a2a' : '#f8f8f8',
-                                    border: `1px solid ${theme.palette.divider}`,
-                                    borderRadius: 1,
-                                    p: 1,
-                                    mb: 0.25,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    cursor: 'pointer',
-                                    '&:hover': {
-                                        backgroundColor: theme.palette.action.hover,
+                            <Box
+                                draggable={true}
+                                onDragStart={(e) => handleSecondaryDragStart(e, parentOriginalIndex, idx)}
+                                onDragOver={handleSecondaryDragOver}
+                                onDrop={(e) => handleSecondaryDrop(e, parentOriginalIndex, idx)}
+                                sx={{ cursor: 'grab', '&:active': { cursor: 'grabbing' } }}
+                            >
+                                <Paper
+                                    elevation={0}
+                                    sx={{
+                                        backgroundColor: theme.palette.mode === 'dark' ? '#2a2a2a' : '#f8f8f8',
+                                        border: `1px solid ${theme.palette.divider}`,
+                                        borderRadius: 1,
+                                        p: 1,
+                                        mb: 0.25,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        cursor: 'pointer',
+                                        '&:hover': {
+                                            backgroundColor: theme.palette.action.hover,
                                     }
                                 }}
                             >
@@ -137,9 +221,10 @@ export default function EffectsPanel({
                                         fontSize: '13px'
                                     }}
                                 >
-                                    {formatEffectName(secondary.className)}
+                                    {formatEffectName(secondary)}
                                 </Typography>
-                            </Paper>
+                                </Paper>
+                            </Box>
                         </ContextMenu.Trigger>
                         <ContextMenu.Portal>
                             <ContextMenu.Content style={menuStyles}>
@@ -166,39 +251,47 @@ export default function EffectsPanel({
                 {effect.keyframeEffects.map((keyframe, idx) => (
                     <ContextMenu.Root key={idx}>
                         <ContextMenu.Trigger asChild>
-                            <Paper
-                                elevation={0}
-                                sx={{
-                                    backgroundColor: theme.palette.mode === 'dark' ? '#2a2a2a' : '#f8f8f8',
-                                    border: `1px solid ${theme.palette.divider}`,
-                                    borderRadius: 1,
-                                    p: 1,
-                                    mb: 0.25,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    cursor: 'pointer',
-                                    '&:hover': {
-                                        backgroundColor: theme.palette.action.hover,
-                                    }
-                                }}
+                            <Box
+                                draggable={true}
+                                onDragStart={(e) => handleKeyframeDragStart(e, parentOriginalIndex, idx)}
+                                onDragOver={handleKeyframeDragOver}
+                                onDrop={(e) => handleKeyframeDrop(e, parentOriginalIndex, idx)}
+                                sx={{ cursor: 'grab', '&:active': { cursor: 'grabbing' } }}
                             >
-                                <ArrowForward
+                                <Paper
+                                    elevation={0}
                                     sx={{
-                                        fontSize: 14,
-                                        color: theme.palette.text.secondary,
-                                        mr: 1
-                                    }}
-                                />
-                                <Typography
-                                    variant="body2"
-                                    sx={{
-                                        color: theme.palette.text.primary,
-                                        fontSize: '13px'
+                                        backgroundColor: theme.palette.mode === 'dark' ? '#2a2a2a' : '#f8f8f8',
+                                        border: `1px solid ${theme.palette.divider}`,
+                                        borderRadius: 1,
+                                        p: 1,
+                                        mb: 0.25,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        cursor: 'pointer',
+                                        '&:hover': {
+                                            backgroundColor: theme.palette.action.hover,
+                                        }
                                     }}
                                 >
-                                    Frame {keyframe.frame}: {formatEffectName(keyframe.className)}
-                                </Typography>
-                            </Paper>
+                                    <ArrowForward
+                                        sx={{
+                                            fontSize: 14,
+                                            color: theme.palette.text.secondary,
+                                            mr: 1
+                                        }}
+                                    />
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            color: theme.palette.text.primary,
+                                            fontSize: '13px'
+                                        }}
+                                    >
+                                        Frame {keyframe.frame}: {formatEffectName(keyframe)}
+                                    </Typography>
+                                </Paper>
+                            </Box>
                         </ContextMenu.Trigger>
                         <ContextMenu.Portal>
                             <ContextMenu.Content style={menuStyles}>
@@ -218,7 +311,23 @@ export default function EffectsPanel({
     };
 
     const isFinalEffect = (effect) => {
-        return effect && effect.type === 'finalImage';
+        if (!effect) return false;
+
+        // Explicitly exclude secondary and keyframe effects from final effects
+        if (effect.type === 'secondary' || effect.type === 'keyframe') {
+            console.log('📋 EffectsPanel: Excluding from final effects:', effect.name || effect.className, 'type:', effect.type);
+            return false;
+        }
+
+        // Only allow actual final image effects
+        const isFinal = effect.type === 'finalImage';
+        console.log('📋 EffectsPanel: Effect categorization:', {
+            name: effect.name || effect.className,
+            type: effect.type,
+            isFinal
+        });
+
+        return isFinal;
     };
 
     // Context menu styles
@@ -256,102 +365,120 @@ export default function EffectsPanel({
         margin: '4px 0',
     };
 
-    const renderContextMenu = (effect, originalIndex) => (
-        <ContextMenu.Portal>
-            <ContextMenu.Content style={menuStyles}>
-                <ContextMenu.Item
-                    style={itemStyles}
-                    onSelect={() => onEffectEdit && onEffectEdit(originalIndex)}
-                >
-                    <Edit fontSize="small" />
-                    Edit Effect
-                </ContextMenu.Item>
+    const renderContextMenu = (effect, originalIndex) => {
+        const isEffectFinal = isFinalEffect(effect);
+        console.log('📋 EffectsPanel: Rendering context menu for effect:', {
+            name: effect.name || effect.className,
+            type: effect.type,
+            isFinal: isEffectFinal
+        });
 
-                <ContextMenu.Separator style={separatorStyles} />
+        return (
+            <ContextMenu.Portal>
+                <ContextMenu.Content style={menuStyles}>
+                    <ContextMenu.Item
+                        style={itemStyles}
+                        onSelect={() => onEffectEdit && onEffectEdit(originalIndex)}
+                    >
+                        <Edit fontSize="small" />
+                        Edit Effect
+                    </ContextMenu.Item>
 
-                <ContextMenu.Sub>
-                    <ContextMenu.SubTrigger style={{...itemStyles, justifyContent: 'space-between'}}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <Add fontSize="small" />
-                            Add Secondary Effect
-                        </div>
-                        <ChevronRight fontSize="small" />
-                    </ContextMenu.SubTrigger>
-                    <ContextMenu.Portal>
-                        <ContextMenu.SubContent style={{...menuStyles, minWidth: '180px'}}>
-                            {secondaryEffects.length === 0 ? (
-                                <ContextMenu.Item
-                                    disabled
-                                    style={{
-                                        ...itemStyles,
-                                        fontStyle: 'italic',
-                                        color: theme.palette.text.disabled,
-                                        cursor: 'default'
-                                    }}
-                                >
-                                    No secondary effects available
-                                </ContextMenu.Item>
-                            ) : (
-                                secondaryEffects.map((secondaryEffect, index) => (
-                                    <ContextMenu.Item
-                                        key={index}
-                                        style={itemStyles}
-                                        onSelect={() => onEffectAddSecondary && onEffectAddSecondary(effect, originalIndex, secondaryEffect)}
-                                    >
-                                        {secondaryEffect.displayName || secondaryEffect.name}
-                                    </ContextMenu.Item>
-                                ))
-                            )}
-                        </ContextMenu.SubContent>
-                    </ContextMenu.Portal>
-                </ContextMenu.Sub>
+                    {/* Only show secondary and keyframe options for non-final effects */}
+                    {!isEffectFinal && (
+                        <>
+                            <ContextMenu.Separator style={separatorStyles} />
 
-                <ContextMenu.Separator style={separatorStyles} />
+                            <ContextMenu.Sub>
+                                <ContextMenu.SubTrigger style={{...itemStyles, justifyContent: 'space-between'}}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Add fontSize="small" />
+                                        Add Secondary Effect
+                                    </div>
+                                    <ChevronRight fontSize="small" />
+                                </ContextMenu.SubTrigger>
+                                <ContextMenu.Portal>
+                                    <ContextMenu.SubContent style={{...menuStyles, minWidth: '180px'}}>
+                                        {secondaryEffects.length === 0 ? (
+                                            <ContextMenu.Item
+                                                disabled
+                                                style={{
+                                                    ...itemStyles,
+                                                    fontStyle: 'italic',
+                                                    color: theme.palette.text.disabled,
+                                                    cursor: 'default'
+                                                }}
+                                            >
+                                                No secondary effects available
+                                            </ContextMenu.Item>
+                                        ) : (
+                                            secondaryEffects.map((secondaryEffect, index) => (
+                                                <ContextMenu.Item
+                                                    key={index}
+                                                    style={itemStyles}
+                                                    onSelect={() => onEffectAddSecondary && onEffectAddSecondary(secondaryEffect.name || secondaryEffect.className, 'secondary', originalIndex)}
+                                                >
+                                                    {secondaryEffect.displayName || secondaryEffect.name}
+                                                </ContextMenu.Item>
+                                            ))
+                                        )}
+                                    </ContextMenu.SubContent>
+                                </ContextMenu.Portal>
+                            </ContextMenu.Sub>
 
-                <ContextMenu.Sub>
-                    <ContextMenu.SubTrigger style={{...itemStyles, justifyContent: 'space-between'}}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <Schedule fontSize="small" />
-                            Add Keyframe Effect
-                        </div>
-                        <ChevronRight fontSize="small" />
-                    </ContextMenu.SubTrigger>
-                    <ContextMenu.Portal>
-                        <ContextMenu.SubContent style={{...menuStyles, minWidth: '180px'}}>
-                            {keyframeEffects.length === 0 ? (
-                                <ContextMenu.Item
-                                    disabled
-                                    style={{
-                                        ...itemStyles,
-                                        fontStyle: 'italic',
-                                        color: theme.palette.text.disabled,
-                                        cursor: 'default'
-                                    }}
-                                >
-                                    No keyframe effects available
-                                </ContextMenu.Item>
-                            ) : (
-                                keyframeEffects.map((keyframeEffect, index) => (
-                                    <ContextMenu.Item
-                                        key={index}
-                                        style={itemStyles}
-                                        onSelect={() => onEffectAddKeyframe && onEffectAddKeyframe(effect, originalIndex, keyframeEffect)}
-                                    >
-                                        {keyframeEffect.displayName || keyframeEffect.name} at frame
-                                    </ContextMenu.Item>
-                                ))
-                            )}
-                        </ContextMenu.SubContent>
-                    </ContextMenu.Portal>
-                </ContextMenu.Sub>
-            </ContextMenu.Content>
-        </ContextMenu.Portal>
-    );
+                            <ContextMenu.Separator style={separatorStyles} />
+
+                            <ContextMenu.Sub>
+                                <ContextMenu.SubTrigger style={{...itemStyles, justifyContent: 'space-between'}}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Schedule fontSize="small" />
+                                        Add Keyframe Effect
+                                    </div>
+                                    <ChevronRight fontSize="small" />
+                                </ContextMenu.SubTrigger>
+                                <ContextMenu.Portal>
+                                    <ContextMenu.SubContent style={{...menuStyles, minWidth: '180px'}}>
+                                        {keyframeEffects.length === 0 ? (
+                                            <ContextMenu.Item
+                                                disabled
+                                                style={{
+                                                    ...itemStyles,
+                                                    fontStyle: 'italic',
+                                                    color: theme.palette.text.disabled,
+                                                    cursor: 'default'
+                                                }}
+                                            >
+                                                No keyframe effects available
+                                            </ContextMenu.Item>
+                                        ) : (
+                                            keyframeEffects.map((keyframeEffect, index) => (
+                                                <ContextMenu.Item
+                                                    key={index}
+                                                    style={itemStyles}
+                                                    onSelect={() => onEffectAddKeyframe && onEffectAddKeyframe(keyframeEffect.name || keyframeEffect.className, 'keyframe', originalIndex)}
+                                                >
+                                                    {keyframeEffect.displayName || keyframeEffect.name} at frame
+                                                </ContextMenu.Item>
+                                            ))
+                                        )}
+                                    </ContextMenu.SubContent>
+                                </ContextMenu.Portal>
+                            </ContextMenu.Sub>
+                        </>
+                    )}
+                </ContextMenu.Content>
+            </ContextMenu.Portal>
+        );
+    };
 
     // Split effects into Primary and Final sections
     const effectsWithIndices = effects.map((effect, originalIndex) => ({ effect, originalIndex }));
+    console.log('📋 EffectsPanel: effectsWithIndices:', effectsWithIndices.map(({ effect, originalIndex }) => `${originalIndex}: ${effect.name || effect.className}`));
+
     const primaryEffects = effectsWithIndices.filter(({ effect }) => !isFinalEffect(effect));
     const finalEffects = effectsWithIndices.filter(({ effect }) => isFinalEffect(effect));
+    console.log('📋 EffectsPanel: primaryEffects count:', primaryEffects.length);
+    console.log('📋 EffectsPanel: finalEffects count:', finalEffects.length);
 
     // Reusable effect rendering function
     const renderEffect = ({ effect, originalIndex }, sortedIndex, section) => {
@@ -433,7 +560,7 @@ export default function EffectsPanel({
                                         fontSize: '13px'
                                     }}
                                 >
-                                    {formatEffectName(effect.className)}
+                                    {formatEffectName(effect)}
                                 </Typography>
                                 {isFinalEffect(effect) && (
                                     <Chip
@@ -455,6 +582,8 @@ export default function EffectsPanel({
                                 size="small"
                                 onClick={(e) => {
                                     e.stopPropagation();
+                                    console.log('🗑️ EffectsPanel: Delete button clicked for originalIndex:', originalIndex);
+                                    console.log('🗑️ EffectsPanel: Effect being deleted:', effect.name || effect.className);
                                     onEffectDelete(originalIndex);
                                 }}
                                 title="Delete layer"
@@ -501,7 +630,10 @@ export default function EffectsPanel({
                 sx={{
                     backgroundColor: theme.palette.background.default,
                     p: 2,
-                    borderBottom: `1px solid ${theme.palette.divider}`
+                    borderBottom: `1px solid ${theme.palette.divider}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
                 }}
             >
                 <Typography
@@ -515,6 +647,17 @@ export default function EffectsPanel({
                 >
                     Layers
                 </Typography>
+                {/* Add Effect Button */}
+                {availableEffects && effectsLoaded && (
+                    <AddEffectDropdown
+                        addEffectMenuOpen={addEffectMenuOpen}
+                        setAddEffectMenuOpen={setAddEffectMenuOpen}
+                        availableEffects={availableEffects}
+                        effectsLoaded={effectsLoaded}
+                        currentTheme={currentTheme || theme}
+                        onAddEffect={handleAddEffectEvent}
+                    />
+                )}
             </Box>
             <Box
                 sx={{
@@ -591,5 +734,190 @@ export default function EffectsPanel({
                 )}
             </Box>
         </Paper>
+    );
+}
+
+function AddEffectDropdown({
+    addEffectMenuOpen,
+    setAddEffectMenuOpen,
+    availableEffects,
+    effectsLoaded,
+    currentTheme,
+    onAddEffect
+}) {
+    return (
+        <Box sx={{ position: 'relative' }}>
+            <DropdownMenu.Root
+                open={addEffectMenuOpen}
+                onOpenChange={setAddEffectMenuOpen}
+            >
+                <DropdownMenu.Trigger asChild>
+                    <IconButton
+                        size="small"
+                        sx={{
+                            color: 'text.primary',
+                            '&:hover': {
+                                backgroundColor: 'primary.main',
+                                color: 'white',
+                            }
+                        }}
+                        title="Add Effect"
+                    >
+                        <Add />
+                    </IconButton>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Portal>
+                    <DropdownMenu.Content
+                        side="bottom"
+                        align="start"
+                        sideOffset={5}
+                        style={{
+                            backgroundColor: currentTheme.palette.mode === 'dark' ? '#323232' : currentTheme.palette.background.paper,
+                            border: `1px solid ${currentTheme.palette.divider}`,
+                            borderRadius: '6px',
+                            boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.2)',
+                            padding: '4px',
+                            minWidth: '200px',
+                            zIndex: 9999,
+                        }}
+                    >
+                        {!effectsLoaded ? (
+                            <DropdownMenu.Item
+                                disabled
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    padding: '8px 12px',
+                                    fontSize: '14px',
+                                    color: currentTheme.palette.text.disabled,
+                                    cursor: 'default',
+                                    borderRadius: '4px',
+                                    outline: 'none',
+                                    gap: '8px',
+                                    fontStyle: 'italic'
+                                }}
+                            >
+                                Loading effects...
+                            </DropdownMenu.Item>
+                        ) : (
+                            <>
+                                {/* Primary Effects Submenu */}
+                                <EffectSubmenu
+                                    title={`Primary Effects (${availableEffects.primary.length})`}
+                                    effects={availableEffects.primary}
+                                    effectType="primary"
+                                    currentTheme={currentTheme}
+                                    onAddEffect={onAddEffect}
+                                    setAddEffectMenuOpen={setAddEffectMenuOpen}
+                                />
+
+                                {/* Final Effects Submenu */}
+                                <EffectSubmenu
+                                    title={`Final Effects (${availableEffects.finalImage.length})`}
+                                    effects={availableEffects.finalImage}
+                                    effectType="finalImage"
+                                    currentTheme={currentTheme}
+                                    onAddEffect={onAddEffect}
+                                    setAddEffectMenuOpen={setAddEffectMenuOpen}
+                                />
+
+                                {/* Keyframe Effects Submenu */}
+                                {availableEffects.keyFrame?.length > 0 && (
+                                    <EffectSubmenu
+                                        title={`Keyframe Effects (${availableEffects.keyFrame.length})`}
+                                        effects={availableEffects.keyFrame}
+                                        effectType="keyFrame"
+                                        currentTheme={currentTheme}
+                                        onAddEffect={onAddEffect}
+                                        setAddEffectMenuOpen={setAddEffectMenuOpen}
+                                    />
+                                )}
+                            </>
+                        )}
+                    </DropdownMenu.Content>
+                </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+        </Box>
+    );
+}
+
+function EffectSubmenu({
+    title,
+    effects,
+    effectType,
+    currentTheme,
+    onAddEffect,
+    setAddEffectMenuOpen
+}) {
+    return (
+        <DropdownMenu.Sub>
+            <DropdownMenu.SubTrigger
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 12px',
+                    fontSize: '14px',
+                    color: currentTheme.palette.text.primary,
+                    cursor: 'pointer',
+                    borderRadius: '4px',
+                    outline: 'none',
+                    gap: '8px',
+                }}
+            >
+                <span>{title}</span>
+                <KeyboardArrowRight sx={{ fontSize: 16 }} />
+            </DropdownMenu.SubTrigger>
+            <DropdownMenu.Portal>
+                <DropdownMenu.SubContent
+                    style={{
+                        backgroundColor: currentTheme.palette.mode === 'dark' ? '#323232' : currentTheme.palette.background.paper,
+                        border: `1px solid ${currentTheme.palette.divider}`,
+                        borderRadius: '6px',
+                        boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.2)',
+                        padding: '4px',
+                        minWidth: '220px',
+                        maxHeight: '300px',
+                        overflowY: 'auto',
+                        zIndex: 10000,
+                    }}
+                >
+                    {effects.map((effect) => (
+                        <DropdownMenu.Item
+                            key={effect.name}
+                            style={{
+                                padding: 0,
+                                borderRadius: '4px',
+                                outline: 'none',
+                            }}
+                            onSelect={async (event) => {
+                                event.preventDefault();
+                                try {
+                                    await onAddEffect(effect.name, effectType);
+                                    setAddEffectMenuOpen(false);
+                                } catch (error) {
+                                    console.error('Error adding effect:', error);
+                                }
+                            }}
+                        >
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    padding: '6px 12px',
+                                    fontSize: '13px',
+                                    color: currentTheme.palette.text.primary,
+                                    cursor: 'pointer',
+                                    borderRadius: '4px',
+                                    width: '100%',
+                                }}
+                            >
+                                {effect.displayName || effect.name}
+                            </div>
+                        </DropdownMenu.Item>
+                    ))}
+                </DropdownMenu.SubContent>
+            </DropdownMenu.Portal>
+        </DropdownMenu.Sub>
     );
 }

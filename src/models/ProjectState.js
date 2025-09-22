@@ -1,4 +1,5 @@
 import ResolutionMapper from '../utils/ResolutionMapper.js';
+import PositionScaler from '../utils/PositionScaler.js';
 
 /**
  * ProjectState class manages the frontend project configuration and state
@@ -28,7 +29,7 @@ export default class ProjectState {
             isHorizontal: false,
             numFrames: 100,
             effects: [],
-            colorScheme: null,
+            colorScheme: 'vapor-dreams',  // Set default color scheme
             colorSchemeData: null,
             outputDirectory: null,
             renderStartFrame: 0,
@@ -49,9 +50,21 @@ export default class ProjectState {
      * @param {Object} updates - Updates to apply
      */
     update(updates) {
+        const oldEffectsCount = this.state?.effects?.length || 0;
+        console.log('📝 ProjectState.update: Before update - effects count:', oldEffectsCount);
+        console.log('📝 ProjectState.update: Updates being applied:', updates);
+
         this.state = { ...this.state, ...updates };
+
+        const newEffectsCount = this.state?.effects?.length || 0;
+        console.log('📝 ProjectState.update: After update - effects count:', newEffectsCount);
+        console.log('📝 ProjectState.update: New effects:', this.state?.effects?.map(e => e.name || e.className) || []);
+
         if (this.onUpdate) {
+            console.log('📝 ProjectState.update: Calling onUpdate callback');
             this.onUpdate(this.getState());
+        } else {
+            console.log('📝 ProjectState.update: No onUpdate callback set');
         }
     }
 
@@ -80,11 +93,24 @@ export default class ProjectState {
     }
 
     /**
-     * Set target resolution
+     * Set target resolution and trigger auto-scaling
      * @param {number|string} resolution
      */
     setTargetResolution(resolution) {
+        // Get current dimensions before changing resolution
+        const oldDimensions = this.getResolutionDimensions();
+
+        // Update the resolution
         this.update({ targetResolution: resolution });
+
+        // Get new dimensions after resolution change
+        const newDimensions = this.getResolutionDimensions();
+
+        // Auto-scale all positions if dimensions changed
+        if (oldDimensions.w !== newDimensions.w || oldDimensions.h !== newDimensions.h) {
+            console.log('🎯 ProjectState: Resolution changed, auto-scaling positions');
+            this.scaleAllPositions(oldDimensions.w, oldDimensions.h, newDimensions.w, newDimensions.h);
+        }
     }
 
     /**
@@ -96,6 +122,31 @@ export default class ProjectState {
     }
 
     /**
+     * Scale all effect positions based on resolution change
+     * @param {number} oldWidth - Previous canvas width
+     * @param {number} oldHeight - Previous canvas height
+     * @param {number} newWidth - New canvas width
+     * @param {number} newHeight - New canvas height
+     */
+    scaleAllPositions(oldWidth, oldHeight, newWidth, newHeight) {
+        console.log('🔄 ProjectState: Scaling all positions...');
+
+        // Use PositionScaler to scale all effects
+        const scaledEffects = PositionScaler.scaleEffectsPositions(
+            this.state.effects,
+            oldWidth,
+            oldHeight,
+            newWidth,
+            newHeight
+        );
+
+        // Update state with scaled effects using proper update method
+        this.update({ effects: scaledEffects });
+
+        console.log('✅ ProjectState: All positions scaled successfully');
+    }
+
+    /**
      * Get orientation
      * @returns {boolean}
      */
@@ -104,11 +155,24 @@ export default class ProjectState {
     }
 
     /**
-     * Set orientation
+     * Set orientation and trigger auto-scaling
      * @param {boolean} isHorizontal
      */
     setIsHorizontal(isHorizontal) {
+        // Get current dimensions before changing orientation
+        const oldDimensions = this.getResolutionDimensions();
+
+        // Update the orientation
         this.update({ isHorizontal });
+
+        // Get new dimensions after orientation change
+        const newDimensions = this.getResolutionDimensions();
+
+        // Auto-scale all positions if dimensions changed
+        if (oldDimensions.w !== newDimensions.w || oldDimensions.h !== newDimensions.h) {
+            console.log('🎯 ProjectState: Orientation changed, auto-scaling positions');
+            this.scaleAllPositions(oldDimensions.w, oldDimensions.h, newDimensions.w, newDimensions.h);
+        }
     }
 
     /**
@@ -183,6 +247,60 @@ export default class ProjectState {
         const effects = [...this.state.effects];
         const [movedEffect] = effects.splice(sourceIndex, 1);
         effects.splice(destinationIndex, 0, movedEffect);
+        this.setEffects(effects);
+    }
+
+    /**
+     * Reorder secondary effects within a parent effect
+     * @param {number} parentIndex - Index of the parent effect
+     * @param {number} sourceIndex - Source index within secondaryEffects array
+     * @param {number} destinationIndex - Destination index within secondaryEffects array
+     */
+    reorderSecondaryEffects(parentIndex, sourceIndex, destinationIndex) {
+        const effects = [...this.state.effects];
+        const parentEffect = effects[parentIndex];
+
+        if (!parentEffect || !parentEffect.secondaryEffects || parentEffect.secondaryEffects.length === 0) {
+            console.warn('ProjectState: Cannot reorder secondary effects - parent effect or secondaryEffects not found');
+            return;
+        }
+
+        const secondaryEffects = [...parentEffect.secondaryEffects];
+        const [movedSecondaryEffect] = secondaryEffects.splice(sourceIndex, 1);
+        secondaryEffects.splice(destinationIndex, 0, movedSecondaryEffect);
+
+        effects[parentIndex] = {
+            ...parentEffect,
+            secondaryEffects: secondaryEffects
+        };
+
+        this.setEffects(effects);
+    }
+
+    /**
+     * Reorder keyframe effects within a parent effect
+     * @param {number} parentIndex - Index of the parent effect
+     * @param {number} sourceIndex - Source index within keyframeEffects array
+     * @param {number} destinationIndex - Destination index within keyframeEffects array
+     */
+    reorderKeyframeEffects(parentIndex, sourceIndex, destinationIndex) {
+        const effects = [...this.state.effects];
+        const parentEffect = effects[parentIndex];
+
+        if (!parentEffect || !parentEffect.keyframeEffects || parentEffect.keyframeEffects.length === 0) {
+            console.warn('ProjectState: Cannot reorder keyframe effects - parent effect or keyframeEffects not found');
+            return;
+        }
+
+        const keyframeEffects = [...parentEffect.keyframeEffects];
+        const [movedKeyframeEffect] = keyframeEffects.splice(sourceIndex, 1);
+        keyframeEffects.splice(destinationIndex, 0, movedKeyframeEffect);
+
+        effects[parentIndex] = {
+            ...parentEffect,
+            keyframeEffects: keyframeEffects
+        };
+
         this.setEffects(effects);
     }
 

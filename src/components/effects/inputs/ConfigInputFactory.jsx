@@ -13,8 +13,8 @@ import MultiSelectInput from './MultiSelectInput.jsx';
 import MultiStepInput from './MultiStepInput.jsx';
 import SparsityFactorInput from './SparsityFactorInput.jsx';
 
-function ConfigInputFactory({ field, value, onChange, projectData }) {
-    const commonProps = { field, value, onChange, projectData };
+function ConfigInputFactory({ field, value, onChange, projectState }) {
+    const commonProps = { field, value, onChange, projectState };
 
     switch (field.type) {
         case 'range':

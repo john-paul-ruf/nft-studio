@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useServices } from '../../contexts/ServiceContext.js';
 
 export default function useZoomPan() {
+    const { eventBusService } = useServices();
     const [zoom, setZoom] = useState(1);
     const [pan, setPan] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
@@ -47,6 +49,33 @@ export default function useZoomPan() {
             setZoom(prev => Math.max(0.1, Math.min(prev * delta, 10)));
         }
     }, []);
+
+    // Event listeners for zoom commands
+    useEffect(() => {
+        console.log('🔎 useZoomPan: Setting up event listeners');
+
+        const unsubscribeZoomIn = eventBusService.subscribe('zoom:in', () => {
+            console.log('🔎 useZoomPan: Zoom in event received');
+            handleZoomIn();
+        }, { component: 'useZoomPan' });
+
+        const unsubscribeZoomOut = eventBusService.subscribe('zoom:out', () => {
+            console.log('🔎 useZoomPan: Zoom out event received');
+            handleZoomOut();
+        }, { component: 'useZoomPan' });
+
+        const unsubscribeZoomReset = eventBusService.subscribe('zoom:reset', () => {
+            console.log('🔎 useZoomPan: Zoom reset event received');
+            handleZoomReset();
+        }, { component: 'useZoomPan' });
+
+        return () => {
+            console.log('🔎 useZoomPan: Cleaning up event listeners');
+            unsubscribeZoomIn();
+            unsubscribeZoomOut();
+            unsubscribeZoomReset();
+        };
+    }, [eventBusService, handleZoomIn, handleZoomOut, handleZoomReset]);
 
     // Global mouse event listeners for dragging
     useEffect(() => {

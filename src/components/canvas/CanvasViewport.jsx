@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useEffect } from 'react';
 
 const CanvasViewport = forwardRef(({
     dimensions,
@@ -7,11 +7,36 @@ const CanvasViewport = forwardRef(({
     isDragging,
     isRendering,
     renderTimer,
+    renderResult,
     onMouseDown,
     onWheel,
     currentTheme
 }, ref) => {
     const { canvasRef, frameHolderRef } = ref;
+
+    // Draw renderResult to canvas when it changes
+    useEffect(() => {
+        if (renderResult && canvasRef.current) {
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+
+            img.onload = () => {
+                // Clear canvas first
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                // Draw image to fill the canvas
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            };
+
+            img.onerror = (error) => {
+                console.error('Failed to load render result image:', error);
+                // Clear canvas on error
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            };
+
+            img.src = renderResult;
+        }
+    }, [renderResult]);
 
     return (
         <div

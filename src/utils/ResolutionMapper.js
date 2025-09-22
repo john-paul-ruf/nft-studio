@@ -54,9 +54,9 @@ class ResolutionMapper {
         375: { w: 375, h: 667, name: "iPhone 6/7/8", category: "Mobile" },
         414: { w: 414, h: 736, name: "iPhone Plus", category: "Mobile" },
 
-        // Social Media Optimized (using 1080 for square, separate key for stories)
-        1080: { w: 1080, h: 1080, name: "Instagram Square", category: "Social" }
-        // Note: Instagram Story (1080x1920) would conflict with 1080 key, handle separately if needed
+        // Social Media Optimized (using unique keys to avoid conflicts)
+        1081: { w: 1080, h: 1080, name: "Instagram Square", category: "Social" }
+        // Note: Key 1080 is reserved for potential 1080p conflicts, using 1081 for square
     };
 
     /**
@@ -112,32 +112,38 @@ class ResolutionMapper {
 
     /**
      * Get dimensions for a given width, handling orientation
-     * @param {number} width - The width to look up
+     * @param {number|string} width - The width to look up or string resolution name
      * @param {boolean} isHorizontal - Whether orientation is horizontal
      * @returns {Object} Dimensions object with w and h
      */
     static getDimensions(width, isHorizontal = true) {
-        const resolution = this.getByWidth(width);
-        if (!resolution) {
-            // Fallback to Full HD if resolution not found
-            // When horizontal: landscape (1920x1080), when vertical: portrait (1080x1920)
-            return isHorizontal ? { w: 1920, h: 1080 } : { w: 1080, h: 1920 };
+        // Convert string resolution names to numeric width values
+        if (typeof width === 'string') {
+            width = this.parseStringResolution(width);
         }
 
-        const isNaturallyPortrait = this.isNaturallyPortrait(resolution);
+        const resolution = this.getByWidth(width);
+        if (!resolution) {
+            throw new Error(`Resolution ${width} not found - no fallbacks allowed`);
+        }
 
-        if (isNaturallyPortrait) {
-            // For naturally portrait resolutions (like mobile),
-            // horizontal means landscape (swap to wide), vertical means keep portrait
+        // Check if this resolution is naturally portrait (mobile) or landscape (desktop)
+        const isNaturallyPortraitResolution = this.isNaturallyPortrait(resolution);
+
+        if (isNaturallyPortraitResolution) {
+            // Mobile resolutions are stored in portrait format (e.g., 360x640)
+            // If user wants portrait: return as-is
+            // If user wants landscape: swap dimensions
             return isHorizontal
-                ? { w: resolution.h, h: resolution.w }  // Swap to make landscape
-                : { w: resolution.w, h: resolution.h }; // Keep original portrait
+                ? { w: resolution.h, h: resolution.w }  // Swap to landscape
+                : { w: resolution.w, h: resolution.h }; // Keep portrait
         } else {
-            // For naturally landscape resolutions (like desktop),
-            // horizontal means keep landscape, vertical means swap to portrait
+            // Desktop resolutions are stored in landscape format (e.g., 1920x1080)
+            // If user wants landscape: return as-is
+            // If user wants portrait: swap dimensions
             return isHorizontal
-                ? { w: resolution.w, h: resolution.h }  // Keep original landscape
-                : { w: resolution.h, h: resolution.w }; // Swap to make portrait
+                ? { w: resolution.w, h: resolution.h }  // Keep landscape
+                : { w: resolution.h, h: resolution.w }; // Swap to portrait
         }
     }
 
@@ -176,6 +182,42 @@ class ResolutionMapper {
                 ? current
                 : closest;
         });
+    }
+
+    /**
+     * Convert string resolution names to numeric width values
+     * @param {string} resolutionName - String resolution name (e.g., 'qvga', 'hd', etc.)
+     * @returns {number} Numeric width value
+     */
+    static parseStringResolution(resolutionName) {
+        if (typeof resolutionName !== 'string') {
+            return this.getDefaultResolution();
+        }
+
+        // Common string resolution mappings
+        const stringToWidth = {
+            'qvga': 320, 'vga': 640, 'svga': 800, 'xga': 1024,
+            'hd720': 1280, 'hd': 1920, 'square_small': 720, 'square': 1080,
+            'wqhd': 2560, '4k': 3840, '5k': 5120, '8k': 7680,
+            // Alternative names
+            'fullhd': 1920, 'fhd': 1920, 'uhd': 3840, '4kuhd': 3840,
+            'qhd': 2560, '1440p': 2560, '720p': 1280, '1080p': 1920
+        };
+
+        const normalized = resolutionName.toLowerCase().trim();
+
+        if (stringToWidth[normalized]) {
+            return stringToWidth[normalized];
+        }
+
+        // Try to parse as a number
+        const parsed = parseInt(resolutionName);
+        if (!isNaN(parsed) && parsed > 0) {
+            return parsed;
+        }
+
+        console.warn(`Unknown string resolution '${resolutionName}', falling back to Full HD`);
+        return this.getDefaultResolution();
     }
 
     /**
