@@ -49,6 +49,7 @@ class PreferencesService {
             theme: {
                 selectedTheme: 'dark' // User's preferred theme (dark, light, cyberpunk)
             },
+            effectDefaults: {}, // Object mapping registryKey to default config objects
             lastModified: new Date().toISOString()
         };
     }
@@ -347,6 +348,70 @@ class PreferencesService {
             console.error('Error saving selected theme:', error);
             return false;
         }
+    }
+
+    /**
+     * Get effect defaults for a specific effect type
+     * @param {string} registryKey - Registry key of the effect
+     * @returns {Promise<Object|null>} Effect default config or null if not set
+     */
+    static async getEffectDefaults(registryKey) {
+        const preferences = await this.getPreferences();
+        return preferences.effectDefaults?.[registryKey] || null;
+    }
+
+    /**
+     * Set effect defaults for a specific effect type
+     * @param {string} registryKey - Registry key of the effect
+     * @param {Object} config - Default configuration to save
+     * @returns {Promise<boolean>} Success status
+     */
+    static async setEffectDefaults(registryKey, config) {
+        try {
+            const preferences = await this.getPreferences();
+
+            if (!preferences.effectDefaults) {
+                preferences.effectDefaults = {};
+            }
+
+            preferences.effectDefaults[registryKey] = config;
+            console.log(`💾 Saving effect defaults for ${registryKey}:`, config);
+            return await this.savePreferences(preferences);
+        } catch (error) {
+            console.error('Error saving effect defaults:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Remove effect defaults for a specific effect type
+     * @param {string} registryKey - Registry key of the effect
+     * @returns {Promise<boolean>} Success status
+     */
+    static async removeEffectDefaults(registryKey) {
+        try {
+            const preferences = await this.getPreferences();
+
+            if (preferences.effectDefaults && preferences.effectDefaults[registryKey]) {
+                delete preferences.effectDefaults[registryKey];
+                return await this.savePreferences(preferences);
+            }
+
+            return true; // Already removed or doesn't exist
+        } catch (error) {
+            console.error('Error removing effect defaults:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Check if effect defaults exist for a specific effect type
+     * @param {string} registryKey - Registry key of the effect
+     * @returns {Promise<boolean>} True if defaults exist
+     */
+    static async hasEffectDefaults(registryKey) {
+        const preferences = await this.getPreferences();
+        return !!(preferences.effectDefaults && preferences.effectDefaults[registryKey]);
     }
 }
 

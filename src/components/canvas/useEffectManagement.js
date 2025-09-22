@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import CenterUtils from '../../utils/CenterUtils.js';
 import { AddEffectCommand, DeleteEffectCommand, ReorderSecondaryEffectsCommand, ReorderKeyframeEffectsCommand } from '../../commands/ProjectCommands.js';
 import { useServices } from '../../contexts/ServiceContext.js';
+import PreferencesService from '../../services/PreferencesService.js';
 
 export default function useEffectManagement(projectState) {
     const { commandService, eventBusService } = useServices();
@@ -86,13 +87,25 @@ export default function useEffectManagement(projectState) {
                 // Find the effect in available effects to get proper metadata
                 const effectCategory = availableEffects.secondary || [];
                 const effectData = effectCategory.find(e => e.name === payload.effectName);
+                const registryKey = effectData?.registryKey || payload.effectName;
+
+                // Check for user-saved defaults first
+                const savedDefaults = await PreferencesService.getEffectDefaults(registryKey);
+                const config = savedDefaults || result.defaults || {};
+
+                console.log('🎭 useEffectManagement: Using secondary effect defaults:', {
+                    effectName: payload.effectName,
+                    registryKey,
+                    usingSavedDefaults: !!savedDefaults,
+                    config
+                });
 
                 const currentEffects = projectState.getState().effects || [];
                 const targetEffect = currentEffects[payload.parentIndex];
                 if (targetEffect) {
                     const secondaryEffectData = {
                         registryKey: payload.effectName,
-                        config: result.defaults || {}
+                        config
                     };
 
                     console.log('🎭 EVENT HANDLER: Created secondaryEffectData:', {
@@ -127,13 +140,25 @@ export default function useEffectManagement(projectState) {
                 // Find the effect in available effects to get proper metadata
                 const effectCategory = availableEffects.secondary || []; // Keyframe effects are in secondary category
                 const effectData = effectCategory.find(e => e.name === payload.effectName);
+                const registryKey = effectData?.registryKey || payload.effectName;
+
+                // Check for user-saved defaults first
+                const savedDefaults = await PreferencesService.getEffectDefaults(registryKey);
+                const config = savedDefaults || result.defaults || {};
+
+                console.log('🎭 useEffectManagement: Using keyframe effect defaults:', {
+                    effectName: payload.effectName,
+                    registryKey,
+                    usingSavedDefaults: !!savedDefaults,
+                    config
+                });
 
                 const currentEffects = projectState.getState().effects || [];
                 const targetEffect = currentEffects[payload.parentIndex];
                 if (targetEffect) {
                     const keyframeEffectData = {
                         registryKey: payload.effectName,
-                        config: result.defaults || {}
+                        config
                     };
 
                     console.log('🎭 useEffectManagement: Adding keyframe effect with proper defaults:', keyframeEffectData);
@@ -235,17 +260,28 @@ export default function useEffectManagement(projectState) {
             // Get effect defaults from backend
             const result = await window.api.getEffectDefaults(effectName);
             if (result.success) {
-                // Find the effect in our available effects to get the className
+                // Find the effect in our available effects to get the registryKey
                 const effectCategory = availableEffects[effectType] || [];
                 const effectData = effectCategory.find(e => e.name === effectName);
+                const registryKey = effectData?.registryKey || effectName;
+
+                // Check for user-saved defaults first
+                const savedDefaults = await PreferencesService.getEffectDefaults(registryKey);
+                let processedConfig = savedDefaults || result.defaults;
+
+                console.log('🎯 useEffectManagement: Using effect defaults:', {
+                    effectName,
+                    registryKey,
+                    usingSavedDefaults: !!savedDefaults,
+                    config: processedConfig
+                });
 
                 // Apply center defaults immediately when adding effect
-                let processedConfig = result.defaults;
                 const projectData = projectState.getState();
 
                 console.log('🎯 useEffectManagement: Applying center defaults to newly added effect:', {
                     effectName,
-                    originalConfig: result.defaults,
+                    originalConfig: processedConfig,
                     projectData: {
                         targetResolution: projectData?.targetResolution,
                         isHorizontal: projectData?.isHorizontal
@@ -253,9 +289,9 @@ export default function useEffectManagement(projectState) {
                 });
 
                 if (projectData) {
-                    processedConfig = CenterUtils.detectAndApplyCenter(result.defaults, projectData);
+                    processedConfig = CenterUtils.detectAndApplyCenter(processedConfig, projectData);
                     console.log('🎯 useEffectManagement: Center defaults applied:', {
-                        original: result.defaults,
+                        original: savedDefaults || result.defaults,
                         processed: processedConfig,
                         changed: JSON.stringify(result.defaults) !== JSON.stringify(processedConfig)
                     });

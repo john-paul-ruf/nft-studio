@@ -1,5 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import EffectConfigurer from './EffectConfigurer.jsx';
+import {
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button,
+    IconButton,
+    Box,
+    Typography,
+    Grid,
+    Card,
+    CardContent,
+    CardActionArea,
+    Alert,
+    useTheme
+} from '@mui/material';
+import { Close } from '@mui/icons-material';
 
 function EffectAttachmentModal({
     isOpen,
@@ -11,6 +28,7 @@ function EffectAttachmentModal({
     editingEffect = null,
     isEditing = false
 }) {
+    const theme = useTheme();
     const [selectedEffect, setSelectedEffect] = useState(null);
     const [step, setStep] = useState(1); // 1: select effect, 2: configure effect
 
@@ -27,7 +45,6 @@ function EffectAttachmentModal({
         }
     }, [isOpen, isEditing, editingEffect]);
 
-    if (!isOpen) return null;
 
     const typeInfo = {
         secondary: {
@@ -71,209 +88,144 @@ function EffectAttachmentModal({
     };
 
     return (
-        <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000
-        }}>
-            <div style={{
-                backgroundColor: '#1a1a1a',
-                border: `2px solid ${info.color}`,
-                borderRadius: '12px',
-                width: step === 2 ? '90vw' : '600px',
-                maxWidth: step === 2 ? '1200px' : '600px',
-                maxHeight: '90vh',
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column'
-            }}>
-                {/* Header */}
-                <div style={{
+        <Dialog
+            open={isOpen}
+            onClose={handleClose}
+            maxWidth={step === 2 ? 'xl' : 'md'}
+            fullWidth
+            PaperProps={{
+                sx: {
+                    backgroundColor: theme.palette.background.paper,
+                    backgroundImage: 'none'
+                }
+            }}
+        >
+            <DialogTitle
+                sx={{
                     background: `linear-gradient(135deg, ${info.color}20 0%, ${info.color}10 100%)`,
-                    padding: '1.5rem',
                     borderBottom: `1px solid ${info.color}40`,
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center'
-                }}>
-                    <div>
-                        <h3 style={{
-                            margin: 0,
-                            color: info.color,
-                            fontSize: '1.25rem'
-                        }}>
-                            {info.title}
-                        </h3>
-                        <p style={{
-                            margin: '0.5rem 0 0 0',
-                            color: '#aaa',
-                            fontSize: '0.9rem'
-                        }}>
-                            {info.description}
-                        </p>
-                    </div>
-                    <button
-                        onClick={handleClose}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#999',
-                            fontSize: '1.5rem',
-                            cursor: 'pointer',
-                            padding: '0.5rem',
-                            borderRadius: '4px'
-                        }}
-                        onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-                        onMouseOut={(e) => e.target.style.background = 'none'}
-                    >
-                        ×
-                    </button>
-                </div>
+                }}
+            >
+                <Box>
+                    <Typography variant="h6" sx={{ color: info.color }}>
+                        {info.title}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
+                        {info.description}
+                    </Typography>
+                </Box>
+                <IconButton
+                    onClick={handleClose}
+                    size="small"
+                    sx={{ color: theme.palette.text.secondary }}
+                >
+                    <Close />
+                </IconButton>
+            </DialogTitle>
 
-                {/* Content */}
-                <div style={{
-                    flex: 1,
-                    overflow: 'auto',
-                    padding: '1.5rem'
-                }}>
-                    {step === 1 ? (
-                        // Effect Selection
-                        <div>
-                            {effects.length > 0 ? (
-                                <div style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-                                    gap: '1rem'
-                                }}>
-                                    {effects.map(effect => (
-                                        <div
-                                            key={effect.name || effect.displayName}
-                                            className="welcome-card"
-                                            onClick={() => handleEffectSelect(effect)}
-                                            style={{
-                                                cursor: 'pointer',
-                                                padding: '1rem',
-                                                background: 'rgba(255,255,255,0.05)',
-                                                border: '1px solid rgba(255,255,255,0.1)',
-                                                borderRadius: '8px',
-                                                transition: 'all 0.2s ease'
-                                            }}
-                                            onMouseOver={(e) => {
-                                                e.currentTarget.style.background = `${info.color}20`;
-                                                e.currentTarget.style.borderColor = `${info.color}60`;
-                                            }}
-                                            onMouseOut={(e) => {
-                                                e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                                                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+            <DialogContent dividers sx={{ p: 3 }}>
+                {step === 1 ? (
+                    // Effect Selection
+                    <Box>
+                        {effects.length > 0 ? (
+                            <Grid container spacing={2}>
+                                {effects.map(effect => (
+                                    <Grid item xs={12} sm={6} md={4} key={effect.name || effect.displayName}>
+                                        <Card
+                                            sx={{
+                                                height: '100%',
+                                                transition: 'all 0.2s',
+                                                border: `1px solid ${theme.palette.divider}`,
+                                                '&:hover': {
+                                                    borderColor: info.color,
+                                                    backgroundColor: `${info.color}10`
+                                                }
                                             }}
                                         >
-                                            <h4 style={{
-                                                margin: '0 0 0.5rem 0',
-                                                color: '#fff',
-                                                fontSize: '1rem'
-                                            }}>
-                                                {effect.displayName || effect.name}
-                                            </h4>
-                                            {effect.description && (
-                                                <p style={{
-                                                    margin: 0,
-                                                    color: '#aaa',
-                                                    fontSize: '0.85rem'
-                                                }}>
-                                                    {effect.description}
-                                                </p>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div style={{
-                                    textAlign: 'center',
-                                    padding: '3rem',
-                                    color: '#888'
-                                }}>
-                                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📭</div>
-                                    <h4 style={{ color: '#aaa', margin: '0 0 0.5rem 0' }}>
+                                            <CardActionArea
+                                                onClick={() => handleEffectSelect(effect)}
+                                                sx={{ height: '100%', p: 2 }}
+                                            >
+                                                <CardContent sx={{ p: 0 }}>
+                                                    <Typography variant="subtitle1" gutterBottom>
+                                                        {effect.displayName || effect.name}
+                                                    </Typography>
+                                                    {effect.description && (
+                                                        <Typography variant="body2" color="text.secondary">
+                                                            {effect.description}
+                                                        </Typography>
+                                                    )}
+                                                </CardContent>
+                                            </CardActionArea>
+                                        </Card>
+                                    </Grid>
+                                ))}
+                            </Grid>
+                        ) : (
+                            <Alert
+                                severity="info"
+                                sx={{
+                                    justifyContent: 'center',
+                                    backgroundColor: 'transparent',
+                                    color: theme.palette.text.secondary
+                                }}
+                            >
+                                <Box textAlign="center">
+                                    <Typography variant="h3" sx={{ mb: 2 }}>📭</Typography>
+                                    <Typography variant="h6" gutterBottom>
                                         No {attachmentType} effects available
-                                    </h4>
-                                    <p style={{ margin: 0, fontSize: '0.9rem' }}>
+                                    </Typography>
+                                    <Typography variant="body2">
                                         There are no {attachmentType} effects to attach at this time.
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        // Effect Configuration
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: '1fr',
-                            gap: '1rem',
-                            maxHeight: '60vh',
-                            overflow: 'auto'
-                        }}>
-                            <EffectConfigurer
-                                selectedEffect={selectedEffect}
-                                projectState={projectState}
-                                onConfigChange={() => {}} // Not needed in modal
-                                onAddEffect={handleConfigComplete}
-                                isModal={true}
-                                initialConfig={isEditing ? editingEffect?.config : undefined}
-                                initialPercentChance={isEditing ? editingEffect?.percentChance : undefined}
-                            />
-                        </div>
-                    )}
-                </div>
+                                    </Typography>
+                                </Box>
+                            </Alert>
+                        )}
+                    </Box>
+                ) : (
+                    // Effect Configuration
+                    <Box sx={{ maxHeight: '60vh', overflow: 'auto' }}>
+                        <EffectConfigurer
+                            selectedEffect={selectedEffect}
+                            projectState={projectState}
+                            onConfigChange={() => {}} // Not needed in modal
+                            onAddEffect={handleConfigComplete}
+                            isModal={true}
+                            initialConfig={isEditing ? editingEffect?.config : undefined}
+                            initialPercentChance={isEditing ? editingEffect?.percentChance : undefined}
+                        />
+                    </Box>
+                )}
+            </DialogContent>
 
-                {/* Footer */}
-                <div style={{
-                    padding: '1rem 1.5rem',
-                    borderTop: '1px solid rgba(255,255,255,0.1)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    background: 'rgba(255,255,255,0.02)'
-                }}>
-                    <button
-                        onClick={handleBack}
-                        style={{
-                            background: 'rgba(255,255,255,0.1)',
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            borderRadius: '6px',
-                            padding: '0.75rem 1.5rem',
-                            color: '#fff',
-                            cursor: 'pointer',
-                            fontSize: '0.9rem'
+            <DialogActions sx={{ px: 3, py: 2 }}>
+                <Button
+                    onClick={handleBack}
+                    variant="outlined"
+                    sx={{ mr: 'auto' }}
+                >
+                    {step === 1 ? 'Cancel' : 'Back to Selection'}
+                </Button>
+
+                {step === 1 && effects.length === 0 && (
+                    <Button
+                        onClick={handleClose}
+                        variant="contained"
+                        sx={{
+                            background: `linear-gradient(135deg, ${info.color} 0%, ${info.color}cc 100%)`,
+                            '&:hover': {
+                                background: `linear-gradient(135deg, ${info.color}dd 0%, ${info.color} 100%)`
+                            }
                         }}
                     >
-                        {step === 1 ? 'Cancel' : 'Back to Selection'}
-                    </button>
-
-                    {step === 1 && effects.length === 0 && (
-                        <button
-                            onClick={handleClose}
-                            style={{
-                                background: `linear-gradient(135deg, ${info.color} 0%, ${info.color}cc 100%)`,
-                                border: 'none',
-                                borderRadius: '6px',
-                                padding: '0.75rem 1.5rem',
-                                color: 'white',
-                                cursor: 'pointer',
-                                fontSize: '0.9rem'
-                            }}
-                        >
-                            Close
-                        </button>
-                    )}
-                </div>
-            </div>
-        </div>
+                        Close
+                    </Button>
+                )}
+            </DialogActions>
+        </Dialog>
     );
 }
 

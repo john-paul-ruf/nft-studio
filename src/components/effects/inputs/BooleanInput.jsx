@@ -1,20 +1,20 @@
 import React from 'react';
+import { FormControlLabel, Checkbox } from '@mui/material';
 
 function BooleanInput({ field, value, onChange }) {
     const currentValue = value !== undefined ? value : field.default || false;
 
     return (
-        <div className="boolean-input">
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                <input
-                    type="checkbox"
+        <FormControlLabel
+            control={
+                <Checkbox
                     checked={currentValue}
                     onChange={(e) => onChange(field.name, e.target.checked)}
-                    style={{ transform: 'scale(1.2)' }}
+                    size="small"
                 />
-                <span>{field.label}</span>
-            </label>
-        </div>
+            }
+            label={field.label}
+        />
     );
 }
 

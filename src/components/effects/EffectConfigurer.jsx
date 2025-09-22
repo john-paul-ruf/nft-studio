@@ -5,13 +5,25 @@ import EffectAttachmentModal from './EffectAttachmentModal.jsx';
 import PositionSerializer from '../../utils/PositionSerializer.js';
 import CenterUtils from '../../utils/CenterUtils.js';
 import { useServices } from '../../contexts/ServiceContext.js';
+import PreferencesService from '../../services/PreferencesService.js';
 import {
     Box,
     Typography,
     Grid,
     Paper,
+    Button,
+    Card,
+    CardContent,
+    Chip,
+    Alert,
+    Slider,
+    TextField,
+    CircularProgress,
+    Divider,
+    Stack,
     useTheme
 } from '@mui/material';
+import { Add, Close } from '@mui/icons-material';
 
 
 function EffectConfigurer({
@@ -366,12 +378,56 @@ function EffectConfigurer({
     }
 
     return (
-        <div style={{ color: '#ffffff' }}>
-            <h3 style={{ color: '#ffffff', marginBottom: '1rem' }}>Configure {selectedEffect.name}</h3>
+        <Box sx={{ px: 3, py: 2 }}>
+            <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                sx={{
+                    position: 'sticky',
+                    top: 0,
+                    backgroundColor: theme.palette.background.default,
+                    zIndex: 10,
+                    py: 3,
+                    px: 2,
+                    mb: 3,
+                    borderBottom: `1px solid ${theme.palette.divider}`,
+                    boxShadow: `0 2px 4px ${theme.palette.action.hover}`,
+                    borderRadius: '8px 8px 0 0'
+                }}
+            >
+                <Typography variant="h5" component="h3">
+                    Configure {selectedEffect.registryKey}
+                </Typography>
+                <Button
+                    onClick={async () => {
+                        const registryKey = selectedEffect.registryKey;
+                        if (registryKey && effectConfig) {
+                            const success = await PreferencesService.setEffectDefaults(registryKey, effectConfig);
+                            if (success) {
+                                console.log(`✅ Saved default config for ${registryKey}`);
+                            } else {
+                                console.error(`❌ Failed to save default config for ${registryKey}`);
+                            }
+                        }
+                    }}
+                    variant="contained"
+                    size="small"
+                    sx={{
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        '&:hover': {
+                            background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
+                            transform: 'translateY(-1px)',
+                        }
+                    }}
+                >
+                    Set as Default
+                </Button>
+            </Box>
 
-            <div style={{ marginTop: '1.5rem' }}>
+            <Box mt={3}>
                 {configSchema?.fields?.length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <Stack spacing={2}>
                         {configSchema.fields.map(field => (
                             <ConfigInputFactory
                                 key={field.name}
@@ -381,267 +437,254 @@ function EffectConfigurer({
                                 projectState={projectState}
                             />
                         ))}
-                    </div>
+                    </Stack>
                 ) : (
-                    <div style={{
-                        textAlign: 'center',
-                        padding: '2rem',
-                        color: '#cccccc',
-                        background: 'rgba(255,255,255,0.05)',
-                        borderRadius: '8px',
-                        border: '1px dashed rgba(255,255,255,0.2)'
-                    }}>
-                        <div style={{
-                            border: '4px solid rgba(255,255,255,0.1)',
-                            borderTop: '4px solid #667eea',
-                            borderRadius: '50%',
-                            width: '30px',
-                            height: '30px',
-                            animation: 'spin 1s linear infinite',
-                            margin: '0 auto 1rem'
-                        }} />
-                        Loading configuration options...
-                    </div>
+                    <Paper
+                        elevation={3}
+                        sx={{
+                            p: 4,
+                            textAlign: 'center',
+                            backgroundColor: theme.palette.action.hover,
+                            border: `1px dashed ${theme.palette.divider}`,
+                            borderRadius: 2,
+                            minHeight: '200px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center'
+                        }}
+                    >
+                        <CircularProgress
+                            size={48}
+                            sx={{
+                                mb: 3,
+                                color: theme.palette.primary.main
+                            }}
+                        />
+                        <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                            Loading Configuration
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            Analyzing effect properties...
+                        </Typography>
+                    </Paper>
                 )}
-            </div>
+            </Box>
 
             {/* Attached Effects Display (for primary effects) */}
             {effectType === 'primary' && (
-                <div style={{
-                    marginTop: '1.5rem',
-                    padding: '1rem',
-                    background: 'rgba(255, 193, 7, 0.1)',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(255, 193, 7, 0.3)'
-                }}>
-                    <h4 style={{ color: '#ffc107', marginBottom: '1rem' }}>Attached Effects</h4>
+                <Paper
+                    elevation={2}
+                    sx={{
+                        mt: 3,
+                        p: 3,
+                        background: 'rgba(255, 193, 7, 0.1)',
+                        borderRadius: 2,
+                        border: '1px solid rgba(255, 193, 7, 0.3)'
+                    }}
+                >
+                    <Typography variant="h6" sx={{ color: '#ffc107', mb: 2 }}>
+                        Attached Effects
+                    </Typography>
 
                     {/* Secondary Effects */}
-                    <div style={{ marginBottom: '1rem' }}>
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            marginBottom: '0.5rem'
-                        }}>
-                            <h5 style={{ color: '#28a745', margin: 0, fontSize: '0.9rem' }}>
+                    <Box sx={{ mb: 2 }}>
+                        <Box
+                            display="flex"
+                            justifyContent="space-between"
+                            alignItems="center"
+                            sx={{ mb: 1 }}
+                        >
+                            <Typography variant="subtitle2" sx={{ color: '#28a745', fontWeight: 600 }}>
                                 ✨ Secondary Effects ({(attachedEffects?.secondary || []).length})
-                            </h5>
-                            <button
+                            </Typography>
+                            <Button
                                 onClick={() => handleOpenAttachmentModal('secondary')}
-                                style={{
+                                variant="contained"
+                                size="small"
+                                sx={{
                                     background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    padding: '0.25rem 0.75rem',
-                                    color: 'white',
-                                    fontSize: '0.8rem',
-                                    cursor: 'pointer'
+                                    fontSize: '0.75rem',
+                                    py: 0.5,
+                                    px: 1.5,
+                                    '&:hover': {
+                                        background: 'linear-gradient(135deg, #20c997 0%, #28a745 100%)',
+                                    }
                                 }}
                             >
                                 + Attach Secondary
-                            </button>
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', minHeight: '2rem' }}>
+                            </Button>
+                        </Box>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, minHeight: '2rem' }}>
                             {(attachedEffects?.secondary || []).map(effect => (
-                                <div
+                                <Chip
                                     key={effect.id}
-                                    style={{
-                                        background: 'rgba(40, 167, 69, 0.2)',
-                                        padding: '0.4rem 0.8rem',
-                                        borderRadius: '15px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem',
-                                        fontSize: '0.8rem',
-                                        color: '#28a745',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s ease'
-                                    }}
+                                    label={`${effect.effectClass.registryKey} (${effect.percentChance}%)`}
                                     onClick={() => handleEditAttachedEffect('secondary', effect)}
-                                    onMouseOver={(e) => {
-                                        e.currentTarget.style.background = 'rgba(40, 167, 69, 0.3)';
-                                        e.currentTarget.style.transform = 'scale(1.05)';
-                                    }}
-                                    onMouseOut={(e) => {
-                                        e.currentTarget.style.background = 'rgba(40, 167, 69, 0.2)';
-                                        e.currentTarget.style.transform = 'scale(1)';
-                                    }}
-                                    title="Click to edit this effect"
-                                >
-                                    <span>{effect.effectClass.name} ({effect.percentChance}%)</span>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onRemoveAttachedEffect && onRemoveAttachedEffect('secondary', effect.id);
-                                        }}
-                                        style={{
-                                            background: 'none',
-                                            border: 'none',
+                                    onDelete={() => onRemoveAttachedEffect && onRemoveAttachedEffect('secondary', effect.id)}
+                                    clickable
+                                    sx={{
+                                        backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                                        color: '#28a745',
+                                        fontSize: '0.75rem',
+                                        '&:hover': {
+                                            backgroundColor: 'rgba(40, 167, 69, 0.3)',
+                                            transform: 'scale(1.05)',
+                                        },
+                                        '& .MuiChip-deleteIcon': {
                                             color: '#dc3545',
-                                            cursor: 'pointer',
-                                            fontSize: '1rem',
-                                            padding: '0',
-                                            lineHeight: '1'
-                                        }}
-                                        title="Remove this effect"
-                                    >
-                                        ×
-                                    </button>
-                                </div>
+                                            '&:hover': {
+                                                color: '#c82333',
+                                            }
+                                        }
+                                    }}
+                                />
                             ))}
                             {(attachedEffects?.secondary || []).length === 0 && (
-                                <div style={{ color: '#888', fontSize: '0.85rem', fontStyle: 'italic', padding: '0.5rem 0' }}>
+                                <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic', py: 1 }}>
                                     No secondary effects attached
-                                </div>
+                                </Typography>
                             )}
-                        </div>
-                    </div>
+                        </Box>
+                    </Box>
 
                     {/* Key Frame Effects */}
-                    <div>
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            marginBottom: '0.5rem'
-                        }}>
-                            <h5 style={{ color: '#007bff', margin: 0, fontSize: '0.9rem' }}>
+                    <Box>
+                        <Box
+                            display="flex"
+                            justifyContent="space-between"
+                            alignItems="center"
+                            sx={{ mb: 1 }}
+                        >
+                            <Typography variant="subtitle2" sx={{ color: '#007bff', fontWeight: 600 }}>
                                 🔑 Key Frame Effects ({(attachedEffects?.keyFrame || []).length})
-                            </h5>
-                            <button
+                            </Typography>
+                            <Button
                                 onClick={() => handleOpenAttachmentModal('keyFrame')}
-                                style={{
+                                variant="contained"
+                                size="small"
+                                sx={{
                                     background: 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    padding: '0.25rem 0.75rem',
-                                    color: 'white',
-                                    fontSize: '0.8rem',
-                                    cursor: 'pointer'
+                                    fontSize: '0.75rem',
+                                    py: 0.5,
+                                    px: 1.5,
+                                    '&:hover': {
+                                        background: 'linear-gradient(135deg, #0056b3 0%, #007bff 100%)',
+                                    }
                                 }}
                             >
                                 + Attach Key Frame
-                            </button>
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', minHeight: '2rem' }}>
+                            </Button>
+                        </Box>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, minHeight: '2rem' }}>
                             {(attachedEffects?.keyFrame || []).map(effect => (
-                                <div
+                                <Chip
                                     key={effect.id}
-                                    style={{
-                                        background: 'rgba(0, 123, 255, 0.2)',
-                                        padding: '0.4rem 0.8rem',
-                                        borderRadius: '15px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem',
-                                        fontSize: '0.8rem',
-                                        color: '#007bff',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s ease'
-                                    }}
+                                    label={`${effect.effectClass.registryKey} (${effect.percentChance}%)`}
                                     onClick={() => handleEditAttachedEffect('keyFrame', effect)}
-                                    onMouseOver={(e) => {
-                                        e.currentTarget.style.background = 'rgba(0, 123, 255, 0.3)';
-                                        e.currentTarget.style.transform = 'scale(1.05)';
-                                    }}
-                                    onMouseOut={(e) => {
-                                        e.currentTarget.style.background = 'rgba(0, 123, 255, 0.2)';
-                                        e.currentTarget.style.transform = 'scale(1)';
-                                    }}
-                                    title="Click to edit this effect"
-                                >
-                                    <span>{effect.effectClass.name} ({effect.percentChance}%)</span>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onRemoveAttachedEffect && onRemoveAttachedEffect('keyFrame', effect.id);
-                                        }}
-                                        style={{
-                                            background: 'none',
-                                            border: 'none',
+                                    onDelete={() => onRemoveAttachedEffect && onRemoveAttachedEffect('keyFrame', effect.id)}
+                                    clickable
+                                    sx={{
+                                        backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                                        color: '#007bff',
+                                        fontSize: '0.75rem',
+                                        '&:hover': {
+                                            backgroundColor: 'rgba(0, 123, 255, 0.3)',
+                                            transform: 'scale(1.05)',
+                                        },
+                                        '& .MuiChip-deleteIcon': {
                                             color: '#dc3545',
-                                            cursor: 'pointer',
-                                            fontSize: '1rem',
-                                            padding: '0',
-                                            lineHeight: '1'
-                                        }}
-                                        title="Remove this effect"
-                                    >
-                                        ×
-                                    </button>
-                                </div>
+                                            '&:hover': {
+                                                color: '#c82333',
+                                            }
+                                        }
+                                    }}
+                                />
                             ))}
                             {(attachedEffects?.keyFrame || []).length === 0 && (
-                                <div style={{ color: '#888', fontSize: '0.85rem', fontStyle: 'italic', padding: '0.5rem 0' }}>
+                                <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic', py: 1 }}>
                                     No key frame effects attached
-                                </div>
+                                </Typography>
                             )}
-                        </div>
-                    </div>
-                </div>
+                        </Box>
+                    </Box>
+                </Paper>
             )}
 
             {/* Percent Chance Section */}
-            <div style={{
-                marginTop: '1.5rem',
-                padding: '1rem',
-                background: 'rgba(102, 126, 234, 0.1)',
-                borderRadius: '8px',
-                border: '1px solid rgba(102, 126, 234, 0.3)'
-            }}>
-                <h4 style={{ color: '#ffffff', marginBottom: '1rem' }}>Effect Probability</h4>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <label style={{
-                        color: '#cccccc',
-                        fontSize: '0.9rem',
-                        minWidth: '120px'
-                    }}>
+            <Paper
+                elevation={2}
+                sx={{
+                    mt: 3,
+                    p: 3,
+                    background: 'rgba(102, 126, 234, 0.1)',
+                    borderRadius: 2,
+                    border: '1px solid rgba(102, 126, 234, 0.3)'
+                }}
+            >
+                <Typography variant="h6" sx={{ color: '#ffffff', mb: 2 }}>
+                    Effect Probability
+                </Typography>
+                <Box display="flex" alignItems="center" gap={2}>
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            color: '#cccccc',
+                            minWidth: '120px'
+                        }}
+                    >
                         Chance to occur:
-                    </label>
-                    <input
-                        type="range"
-                        min="0"
-                        max="100"
+                    </Typography>
+                    <Slider
                         value={percentChance}
-                        onChange={(e) => setPercentChance(parseInt(e.target.value))}
-                        style={{
+                        onChange={(e, value) => setPercentChance(value)}
+                        min={0}
+                        max={100}
+                        step={1}
+                        sx={{
                             flex: 1,
-                            height: '6px',
-                            background: 'rgba(255,255,255,0.2)',
-                            borderRadius: '3px',
-                            outline: 'none',
-                            cursor: 'pointer'
+                            color: 'rgba(102, 126, 234, 0.8)',
+                            '& .MuiSlider-track': {
+                                backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                            },
+                            '& .MuiSlider-rail': {
+                                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                            }
                         }}
                     />
-                    <input
+                    <TextField
                         type="number"
-                        min="0"
-                        max="100"
+                        size="small"
                         value={percentChance}
                         onChange={(e) => setPercentChance(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
-                        style={{
-                            width: '60px',
-                            padding: '0.25rem',
-                            background: 'rgba(255,255,255,0.1)',
-                            border: '1px solid rgba(255,255,255,0.3)',
-                            borderRadius: '4px',
-                            color: '#ffffff',
-                            textAlign: 'center'
+                        inputProps={{
+                            min: 0,
+                            max: 100,
+                            style: { textAlign: 'center' }
+                        }}
+                        sx={{
+                            width: '80px',
+                            '& .MuiInputBase-root': {
+                                backgroundColor: 'rgba(255,255,255,0.1)',
+                                color: '#ffffff'
+                            }
                         }}
                     />
-                    <span style={{ color: '#cccccc', fontSize: '0.9rem' }}>%</span>
-                </div>
-                <div style={{
-                    marginTop: '0.5rem',
-                    fontSize: '0.8rem',
-                    color: '#aaaaaa'
-                }}>
+                    <Typography variant="body2" sx={{ color: '#cccccc' }}>%</Typography>
+                </Box>
+                <Typography
+                    variant="body2"
+                    sx={{
+                        mt: 1,
+                        color: '#aaaaaa',
+                        fontStyle: 'italic'
+                    }}
+                >
                     {percentChance === 0 ? 'Effect will never occur' :
                      percentChance === 100 ? 'Effect will always occur' :
                      `Effect will occur ${percentChance}% of the time`}
-                </div>
-            </div>
+                </Typography>
+            </Paper>
 
 
             {/* Attachment Modal */}
@@ -655,7 +698,7 @@ function EffectConfigurer({
                 editingEffect={modalState.editingEffect}
                 isEditing={modalState.isEditing}
             />
-        </div>
+        </Box>
     );
 }
 
