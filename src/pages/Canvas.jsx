@@ -299,6 +299,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                         availableEffects={availableEffects}
                         effectsLoaded={effectsLoaded}
                         currentTheme={currentTheme}
+                        projectState={projectState}
                     />
 
                     {/* Canvas viewport */}

@@ -69,6 +69,7 @@ function EffectConfigurer({
         isEditing: false
     });
 
+
     // Cache to prevent repeated introspection calls for the same effect
     const introspectionCache = useRef(new Map());
 
@@ -361,6 +362,7 @@ function EffectConfigurer({
         handleAttachEffectEvent(updatedEffectData, attachmentType, true); // true indicates editing mode
     };
 
+
     if (!selectedEffect) {
         return (
             <div style={{
@@ -608,6 +610,7 @@ function EffectConfigurer({
                             )}
                         </Box>
                     </Box>
+
                 </Paper>
             )}
 
@@ -698,6 +701,7 @@ function EffectConfigurer({
                 editingEffect={modalState.editingEffect}
                 isEditing={modalState.isEditing}
             />
+
         </Box>
     );
 }

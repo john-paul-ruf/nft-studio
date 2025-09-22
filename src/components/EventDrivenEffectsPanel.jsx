@@ -11,7 +11,8 @@ export default function EventDrivenEffectsPanel({
     effects,
     availableEffects,
     effectsLoaded,
-    currentTheme
+    currentTheme,
+    projectState
 }) {
     const { eventBusService } = useServices();
 
@@ -94,6 +95,7 @@ export default function EventDrivenEffectsPanel({
             availableEffects={availableEffects}
             effectsLoaded={effectsLoaded}
             currentTheme={currentTheme}
+            projectState={projectState}
         />
     );
 }

@@ -244,9 +244,12 @@ export default function EventDrivenToolbarActions({ projectState }) {
             (payload) => {
                 console.log('🔥 EventDrivenToolbarActions: EffectsPanel add effect event:', payload);
                 // Convert EffectsPanel events to the standard effect:add event
+                // Preserve all payload data including config for specialty effects
                 eventBusService.emit('effect:add', {
                     effectName: payload.effectName,
-                    effectType: payload.effectType || 'primary'
+                    effectType: payload.effectType || 'primary',
+                    config: payload.config, // Preserve config data for specialty effects
+                    percentChance: payload.percentChance
                 }, { source: 'EventDrivenToolbarActions' });
             },
             { component: 'EventDrivenToolbarActions' }

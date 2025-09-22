@@ -8,7 +8,7 @@ function Point2DInput({ field, value, onChange, projectState }) {
     const [showPresets, setShowPresets] = useState(false);
 
     // Use global resolution tracker as single source of truth
-    const { getCurrentDimensions, resolutionState, initializeResolution } = useGlobalResolutionTracking();
+    const { getCurrentDimensions, resolutionState, initializeResolution, updateResolution } = useGlobalResolutionTracking();
 
     // Get current dimensions from global tracker, fallback to project data if not available
     const globalDimensions = getCurrentDimensions();
@@ -59,6 +59,30 @@ function Point2DInput({ field, value, onChange, projectState }) {
             initializeResolution(resolution, isHorizontal);
         }
     }, [resolutionState.resolutionKey, projectState, initializeResolution]);
+
+    // Update global resolution tracker when projectState changes (after initialization)
+    useEffect(() => {
+        if (resolutionState.resolutionKey && projectState) {
+            const currentResolution = projectState.getTargetResolution();
+            const currentIsHorizontal = projectState.getIsHorizontal();
+
+            // Check if resolution actually changed
+            const currentDimensions = projectState.getResolutionDimensions();
+            const expectedKey = `${currentResolution}-${currentDimensions.w}x${currentDimensions.h}-${currentIsHorizontal ? 'h' : 'v'}`;
+
+            if (resolutionState.resolutionKey !== expectedKey) {
+                console.log('📍 Point2DInput: ProjectState resolution changed, updating global tracker:', {
+                    oldKey: resolutionState.resolutionKey,
+                    newKey: expectedKey,
+                    resolution: currentResolution,
+                    isHorizontal: currentIsHorizontal,
+                    dimensions: currentDimensions
+                });
+
+                updateResolution(currentResolution, currentIsHorizontal);
+            }
+        }
+    }, [projectState, resolutionState.resolutionKey, updateResolution]);
 
     // Generate smart defaults using unified CenterUtils
     const generateSmartDefault = (field, width, height) => {

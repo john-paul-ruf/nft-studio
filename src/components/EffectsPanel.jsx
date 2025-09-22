@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import * as ContextMenu from '@radix-ui/react-context-menu';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useServices } from '../contexts/ServiceContext.js';
+import PreferencesService from '../services/PreferencesService.js';
+import SpecialtyEffectsModal from './effects/SpecialtyEffectsModal.jsx';
 import {
     Box,
     Typography,
@@ -28,6 +30,7 @@ import {
     ArrowForward,
     Edit,
     Add,
+    StarBorder,
     Schedule,
     ChevronRight,
     KeyboardArrowRight
@@ -47,7 +50,8 @@ export default function EffectsPanel({
     // Add Effect props
     availableEffects,
     effectsLoaded,
-    currentTheme
+    currentTheme,
+    projectState
 }) {
     const theme = useTheme();
     const { eventBusService } = useServices();
@@ -55,6 +59,7 @@ export default function EffectsPanel({
     const [draggedSecondaryIndex, setDraggedSecondaryIndex] = useState(null);
     const [draggedKeyframeIndex, setDraggedKeyframeIndex] = useState(null);
     const [addEffectMenuOpen, setAddEffectMenuOpen] = useState(false);
+    const [specialtyModalOpen, setSpecialtyModalOpen] = useState(false);
 
     // Debug effects prop changes
     console.log('📋 EffectsPanel: Component render - received effects:', effects?.length || 0, effects?.map(e => e.name || e.className) || []);
@@ -89,6 +94,104 @@ export default function EffectsPanel({
             component: 'EffectsPanel'
         });
         setAddEffectMenuOpen(false);
+    }, [eventBusService]);
+
+    // Specialty effects creation handler
+    const handleCreateSpecialty = useCallback(async (specialtyData) => {
+        console.log('🌟 EffectsPanel: Creating specialty effects:', specialtyData);
+
+        // Detect position property name from effect's default config
+        const detectPositionProperty = (effectClass) => {
+            const defaultConfig = effectClass.defaultConfig || {};
+
+            // Check for common position property names
+            if (defaultConfig.center !== undefined) return 'center';
+            if (defaultConfig.position !== undefined) return 'position';
+            if (defaultConfig.point !== undefined) return 'point';
+            if (defaultConfig.location !== undefined) return 'location';
+
+            // Fallback to 'center' for most effects
+            return 'center';
+        };
+
+        const positionPropertyName = detectPositionProperty(specialtyData.effectClass);
+        console.log('🌟 EffectsPanel: Detected position property name:', positionPropertyName);
+
+        // Get effect configuration in priority order:
+        // 1. Custom config from wizard (highest priority)
+        // 2. User-saved defaults
+        // 3. Effect's default config (fallback)
+        const registryKey = specialtyData.effectClass.registryKey;
+        const savedDefaults = await PreferencesService.getEffectDefaults(registryKey);
+
+        let baseConfig;
+        let configSource;
+
+        if (specialtyData.effectConfig) {
+            // Use custom configuration from the wizard
+            baseConfig = specialtyData.effectConfig;
+            configSource = 'Wizard Configuration';
+        } else if (savedDefaults) {
+            // Use user-saved defaults
+            baseConfig = savedDefaults;
+            configSource = 'User Preferences';
+        } else {
+            // Fallback to raw defaults
+            baseConfig = specialtyData.effectClass.defaultConfig;
+            configSource = 'Default Configuration';
+        }
+
+        console.log('🌟 EffectsPanel: Using effect configuration:', {
+            registryKey,
+            hasWizardConfig: !!specialtyData.effectConfig,
+            hasUserPreferences: !!savedDefaults,
+            configSource,
+            finalConfig: configSource
+        });
+
+        // Create individual effects for each position
+        specialtyData.positions.forEach((position, index) => {
+            // Create proper Position object structure
+            const positionObject = {
+                name: 'position',
+                x: Math.round(position.x),
+                y: Math.round(position.y),
+                __className: 'Position'
+            };
+
+            const effectData = {
+                effectName: specialtyData.effectClass.registryKey,
+                effectType: 'primary',
+                config: {
+                    // Use user preferences first, fallback to raw defaults
+                    ...baseConfig,
+                    // Override position with calculated position using correct property name
+                    [positionPropertyName]: positionObject,
+                    // Add specialty metadata
+                    specialtyGroup: `${specialtyData.effectClass.registryKey}_${Date.now()}`,
+                    specialtyIndex: index,
+                    specialtyTotal: specialtyData.positions.length
+                },
+                percentChance: 100 // Specialty effects always occur
+            };
+
+            console.log('🌟 EffectsPanel: Creating effect with position:', {
+                effectName: specialtyData.effectClass.registryKey,
+                positionPropertyName,
+                positionObject,
+                originalPosition: position,
+                usingUserDefaults: !!savedDefaults
+            });
+
+            // Emit individual effect creation events
+            eventBusService.emit('effectspanel:effect:add', effectData, {
+                source: 'EffectsPanel',
+                component: 'SpecialtyCreator'
+            });
+        });
+
+        // Close the modal
+        setSpecialtyModalOpen(false);
     }, [eventBusService]);
 
     const handleDragStart = (e, index, section) => {
@@ -656,6 +759,7 @@ export default function EffectsPanel({
                         effectsLoaded={effectsLoaded}
                         currentTheme={currentTheme || theme}
                         onAddEffect={handleAddEffectEvent}
+                        onOpenSpecialty={() => setSpecialtyModalOpen(true)}
                     />
                 )}
             </Box>
@@ -733,6 +837,15 @@ export default function EffectsPanel({
                     </>
                 )}
             </Box>
+
+            {/* Specialty Effects Modal */}
+            <SpecialtyEffectsModal
+                isOpen={specialtyModalOpen}
+                onClose={() => setSpecialtyModalOpen(false)}
+                availableEffects={availableEffects || {}}
+                onCreateSpecialty={handleCreateSpecialty}
+                projectState={projectState}
+            />
         </Paper>
     );
 }
@@ -743,7 +856,8 @@ function AddEffectDropdown({
     availableEffects,
     effectsLoaded,
     currentTheme,
-    onAddEffect
+    onAddEffect,
+    onOpenSpecialty
 }) {
     return (
         <Box sx={{ position: 'relative' }}>
@@ -809,6 +923,7 @@ function AddEffectDropdown({
                                     currentTheme={currentTheme}
                                     onAddEffect={onAddEffect}
                                     setAddEffectMenuOpen={setAddEffectMenuOpen}
+                                    onOpenSpecialty={onOpenSpecialty}
                                 />
 
                                 {/* Final Effects Submenu */}
@@ -847,7 +962,8 @@ function EffectSubmenu({
     effectType,
     currentTheme,
     onAddEffect,
-    setAddEffectMenuOpen
+    setAddEffectMenuOpen,
+    onOpenSpecialty
 }) {
     return (
         <DropdownMenu.Sub>
@@ -882,6 +998,42 @@ function EffectSubmenu({
                         zIndex: 10000,
                     }}
                 >
+                    {/* Add Specialty option for primary effects */}
+                    {effectType === 'primary' && onOpenSpecialty && (
+                        <DropdownMenu.Item
+                            style={{
+                                padding: 0,
+                                borderRadius: '4px',
+                                outline: 'none',
+                            }}
+                            onSelect={(event) => {
+                                event.preventDefault();
+                                onOpenSpecialty();
+                                setAddEffectMenuOpen(false);
+                            }}
+                        >
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    padding: '6px 12px',
+                                    fontSize: '13px',
+                                    color: '#9c27b0',
+                                    cursor: 'pointer',
+                                    borderRadius: '4px',
+                                    width: '100%',
+                                    gap: '8px',
+                                    borderBottom: `1px solid ${currentTheme.palette.divider}`,
+                                    marginBottom: '4px',
+                                    fontWeight: 600
+                                }}
+                            >
+                                <StarBorder sx={{ fontSize: 16 }} />
+                                Specialty...
+                            </div>
+                        </DropdownMenu.Item>
+                    )}
+
                     {effects.map((effect) => (
                         <DropdownMenu.Item
                             key={effect.name}

@@ -50,7 +50,14 @@ export default function useEffectManagement(projectState) {
 
         const unsubscribeEffectAdd = eventBusService.subscribe('effect:add', (payload) => {
             console.log('🎭 useEffectManagement: Effect add event received:', payload);
-            handleAddEffectDirect(payload.effectName, payload.effectType);
+
+            // Check if this is a specialty effect with pre-calculated config
+            if (payload.config && payload.config.specialtyGroup) {
+                console.log('🌟 useEffectManagement: Detected specialty effect, using provided config:', payload.config);
+                handleAddEffectWithConfig(payload.effectName, payload.effectType, payload.config, payload.percentChance);
+            } else {
+                handleAddEffectDirect(payload.effectName, payload.effectType);
+            }
         }, { component: 'useEffectManagement' });
 
         const unsubscribeEffectDelete = eventBusService.subscribe('effect:delete', (payload) => {
@@ -254,6 +261,43 @@ export default function useEffectManagement(projectState) {
         const newEffects = [...currentEffects, effect];
         projectState.update({ effects: newEffects });
     }, [projectState]);
+
+    // Handle adding effects with pre-calculated config (for specialty effects)
+    const handleAddEffectWithConfig = useCallback(async (effectName, effectType = 'primary', config, percentChance = 100) => {
+        try {
+            console.log('🌟 useEffectManagement: Adding effect with provided config:', {
+                effectName,
+                effectType,
+                config,
+                percentChance
+            });
+
+            // Find the effect in our available effects to get the registryKey
+            const effectCategory = availableEffects[effectType] || [];
+            const effectData = effectCategory.find(e => e.name === effectName);
+            const registryKey = effectData?.registryKey || effectName;
+
+            // For specialty effects, use the provided config directly without centering
+            const effect = {
+                name: effectName,
+                className: effectData?.className || effectName,
+                registryKey: registryKey,
+                config: config, // Use the provided config as-is
+                type: effectType,
+                percentChance: percentChance || 100
+            };
+
+            console.log('🌟 useEffectManagement: Created specialty effect:', effect);
+
+            // Add the effect directly to project state
+            const currentEffects = projectState.getState().effects || [];
+            const newEffects = [...currentEffects, effect];
+            projectState.update({ effects: newEffects });
+
+        } catch (error) {
+            console.error('🌟 useEffectManagement: Error adding effect with config:', error);
+        }
+    }, [availableEffects, projectState]);
 
     const handleAddEffectDirect = useCallback(async (effectName, effectType = 'primary') => {
         try {
