@@ -39,19 +39,40 @@ class ColorSchemeService {
                 'neon-underground', 'mystic-ritual', 'street-canvas', 'bass-drop', 'vapor-dreams'
             ],
             'Cyberpunk & Neon': [
-                'neon-cyberpunk', 'synthwave', 'electric-blue'
+                'neon-cyberpunk', 'synthwave', 'electric-blue', 'matrix-code', 'holographic', 'neon-tokyo'
             ],
             'Warm & Fire': [
-                'fire-ember', 'sunset-horizon', 'lava-flow'
+                'fire-ember', 'sunset-horizon', 'lava-flow', 'dragon-fire', 'summer-heat'
             ],
             'Cool & Ocean': [
-                'ocean-depth', 'arctic-ice', 'tropical-reef'
+                'ocean-depth', 'arctic-ice', 'tropical-reef', 'coral-reef-deep', 'winter-frost'
+            ],
+            'Tropical & Vibrant': [
+                'caribbean-sunset', 'jungle-fever', 'mango-tango'
             ],
             'Nature & Earth': [
-                'forest-mystique', 'autumn-leaves', 'desert-sand'
+                'forest-mystique', 'autumn-leaves', 'desert-sand', 'elven-forest', 'harvest-moon', 'zen-garden', 'volcanic-ash', 'northern-lights', 'thunderstorm', 'sandstorm'
             ],
             'Cosmic & Space': [
-                'cosmic-void', 'stellar-nebula', 'solar-flare'
+                'cosmic-void', 'stellar-nebula', 'solar-flare', 'alien-world'
+            ],
+            'Gothic & Dark': [
+                'gothic-cathedral', 'midnight-noir', 'blood-moon', 'shadow-realm'
+            ],
+            'Sci-Fi & Futuristic': [
+                'chrome-finish'
+            ],
+            'Fantasy & Magic': [
+                'unicorn-magic', 'wizard-tower'
+            ],
+            'Seasonal': [
+                'spring-bloom'
+            ],
+            'Urban & Street': [
+                'graffiti-wall', 'subway-tiles', 'rust-metal'
+            ],
+            'Vintage & Classic': [
+                'art-deco', 'victorian-elegance', 'americana-classic', 'prohibition-era', 'retro-gaming', 'vintage-sepia'
             ],
             'Monochrome & Minimal': [
                 'grayscale-elegance', 'high-contrast'
@@ -59,8 +80,11 @@ class ColorSchemeService {
             'Pastel & Soft': [
                 'pastel-dreams', 'soft-spring'
             ],
-            'Retro & Vintage': [
-                'retro-gaming', 'vintage-sepia'
+            'Abstract & Artistic': [
+                'paint-splash', 'geometric-fusion', 'watercolor-dream', 'oil-painting'
+            ],
+            'Mystical & Spiritual': [
+                'chakra-alignment', 'crystal-healing', 'tarot-mysticism'
             ],
             'Custom': []
         };
