@@ -74,18 +74,17 @@ const EVENT_CATEGORIES = {
     CUSTOM: { label: 'Custom', color: '#9E9E9E', icon: '📌' }
 };
 
-export default function EventBusMonitor({ open, onClose, onOpen }) {
+export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, setIsMinimized }) {
     const [events, setEvents] = useState([]);
     const [filteredEvents, setFilteredEvents] = useState([]);
     const [isPaused, setIsPaused] = useState(false);
     const [selectedTab, setSelectedTab] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCategories, setSelectedCategories] = useState(['FRAME', 'VIDEO', 'ERROR']);
+    const [selectedCategories, setSelectedCategories] = useState(['FRAME', 'VIDEO', 'ERROR', 'RENDER_LOOP']);
     const [expandedEvents, setExpandedEvents] = useState(new Set());
     const [autoScroll, setAutoScroll] = useState(true);
     const [showTimestamps, setShowTimestamps] = useState(true);
     const [eventStats, setEventStats] = useState({});
-    const [isMinimized, setIsMinimized] = useState(false);
     const [isStoppingRenderLoop, setIsStoppingRenderLoop] = useState(false);
     const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(true);
     // Progress tracking state
@@ -110,12 +109,41 @@ export default function EventBusMonitor({ open, onClose, onOpen }) {
             const handleEvent = (eventData) => {
                 console.log('📨 EventBusMonitor received IPC event:', eventData);
 
-                // Track progress events - calculate progress directly from frame events
-                if (eventData.eventName === 'frameCompleted') {
+                // Track render session lifecycle events
+                if (eventData.eventName === 'render.loop.start') {
+                    // Start of render session - show progress component
+                    setRenderProgress(prev => ({
+                        ...prev,
+                        isRendering: true,
+                        progress: 0,
+                        currentFrame: 0,
+                        fps: 0,
+                        eta: '',
+                        startTime: Date.now(),
+                        projectName: eventData.data?.projectName || prev.projectName,
+                        totalFrames: prev.totalFrames || 100
+                    }));
+                } else if (eventData.eventName === 'render.loop.complete' || eventData.eventName === 'render.loop.error') {
+                    // End of render session - hide progress component
+                    setRenderProgress(prev => ({
+                        ...prev,
+                        isRendering: false,
+                        progress: eventData.eventName === 'render.loop.complete' ? 100 : prev.progress
+                    }));
+                } else if (eventData.eventName === 'frameCompleted') {
+                    // Track progress events - calculate progress directly from frame events
                     const { frameNumber, totalFrames, renderTime, projectName } = eventData.data || {};
                     const now = Date.now();
 
                     setRenderProgress(prev => {
+                        // If we receive frameCompleted but aren't tracking rendering yet, start tracking
+                        // This handles cases where frameCompleted arrives before render.loop.start
+                        const shouldStartRendering = !prev.isRendering && (frameNumber !== undefined || totalFrames !== undefined);
+                        
+                        if (!prev.isRendering && !shouldStartRendering) {
+                            return prev;
+                        }
+
                         // Calculate progress from frame completion
                         const currentFrameNumber = frameNumber !== undefined ? frameNumber : prev.currentFrame;
                         const currentTotalFrames = totalFrames || prev.totalFrames || 100;
@@ -155,7 +183,7 @@ export default function EventBusMonitor({ open, onClose, onOpen }) {
 
                         return {
                             ...prev,
-                            isRendering: calculatedProgress < 100,
+                            isRendering: shouldStartRendering || prev.isRendering,
                             currentFrame: currentFrameNumber,
                             totalFrames: currentTotalFrames,
                             progress: calculatedProgress,
@@ -164,17 +192,24 @@ export default function EventBusMonitor({ open, onClose, onOpen }) {
                             eta: etaFormatted,
                             lastFrameTime: renderTime || 0,
                             avgRenderTime: framesCompleted > 0 ? Math.round(elapsedTime * 1000 / framesCompleted) : 0,
-                            startTime: startTime
+                            startTime: shouldStartRendering ? now : startTime
                         };
                     });
                 } else if (eventData.eventName === 'frameStarted') {
-                    // Handle frame start events for project initialization
-                    setRenderProgress(prev => ({
-                        ...prev,
-                        isRendering: true,
-                        totalFrames: eventData.data?.totalFrames || prev.totalFrames,
-                        projectName: eventData.data?.projectName || prev.projectName
-                    }));
+                    // Handle frame start events - start rendering tracking if not already started
+                    const { frameNumber, totalFrames, projectName } = eventData.data || {};
+                    setRenderProgress(prev => {
+                        // If this is the first frame and we're not already rendering, start tracking
+                        const shouldStartRendering = !prev.isRendering && (frameNumber === 0 || frameNumber === undefined);
+                        
+                        return {
+                            ...prev,
+                            isRendering: shouldStartRendering || prev.isRendering,
+                            totalFrames: totalFrames || prev.totalFrames,
+                            projectName: projectName || prev.projectName,
+                            startTime: shouldStartRendering ? Date.now() : prev.startTime
+                        };
+                    });
                 }
 
                 const newEvent = {
@@ -322,11 +357,11 @@ export default function EventBusMonitor({ open, onClose, onOpen }) {
     }, [filteredEvents, autoScroll]);
 
     useEffect(() => {
-        // Reset minimized state when modal is opened
-        if (open) {
+        // Reset minimized state when modal is opened (only if setIsMinimized is available)
+        if (open && setIsMinimized) {
             setIsMinimized(false);
         }
-    }, [open]);
+    }, [open, setIsMinimized]);
 
     const detectCategory = (eventType) => {
         const lowerType = eventType.toLowerCase();
@@ -662,12 +697,12 @@ export default function EventBusMonitor({ open, onClose, onOpen }) {
 
     return (
         <>
-            {/* Progress Widget - Show when modal is closed but render is active */}
-            {!open && renderProgress.isRendering && (
+            {/* Progress Widget - Show when modal is closed or minimized and render is active */}
+            {(!open || isMinimized) && renderProgress.isRendering && (
                 <RenderProgressWidget
                     renderProgress={renderProgress}
                     onOpen={() => {
-                        setIsMinimized(false);
+                        if (setIsMinimized) setIsMinimized(false);
                         if (onOpen) onOpen();
                     }}
                     onStop={stopRenderLoop}
@@ -677,7 +712,7 @@ export default function EventBusMonitor({ open, onClose, onOpen }) {
 
             {/* Main Dialog - Takes up most of the screen */}
             <Dialog 
-                open={open} 
+                open={open && !isMinimized} 
                 onClose={onClose} 
                 maxWidth={false}
                 fullWidth
@@ -713,8 +748,7 @@ export default function EventBusMonitor({ open, onClose, onOpen }) {
                             </Tooltip>
                         )}
                         <IconButton onClick={() => {
-                            setIsMinimized(true);
-                            onClose();
+                            if (setIsMinimized) setIsMinimized(true);
                         }}>
                             <Minimize />
                         </IconButton>

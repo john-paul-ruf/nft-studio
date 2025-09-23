@@ -103,6 +103,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
     const [currentThemeKey, setCurrentThemeKey] = useState('dark');
     const [isRenderLoopActive, setIsRenderLoopActive] = useState(false);
     const [showEventMonitor, setShowEventMonitor] = useState(false);
+    const [isEventMonitorMinimized, setIsEventMonitorMinimized] = useState(false);
 
 
     // UI refs
@@ -422,6 +423,8 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                     open={showEventMonitor}
                     onClose={() => setShowEventMonitor(false)}
                     onOpen={() => setShowEventMonitor(true)}
+                    isMinimized={isEventMonitorMinimized}
+                    setIsMinimized={setIsEventMonitorMinimized}
                 />
 
 

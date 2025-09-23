@@ -645,6 +645,14 @@ class NftProjectManager {
                 });
             }
 
+            // Also emit via IPC for EventBusMonitor
+            this.emitProgressEvent('render.loop.start', {
+                timestamp: Date.now(),
+                projectName: project.projectName,
+                loopId,
+                workerId
+            });
+
             // Check if loop was terminated before starting
             if (!this.renderLoopActive) {
                 this.logger.info('Render loop was terminated before starting generation');
@@ -669,6 +677,14 @@ class NftProjectManager {
                     });
                 }
 
+                // Also emit via IPC for EventBusMonitor
+                this.emitProgressEvent('render.loop.complete', {
+                    timestamp: Date.now(),
+                    projectName: project.projectName,
+                    loopId,
+                    workerId
+                });
+
                 // Mark render loop as inactive after completion
                 this.renderLoopActive = false;
                 
@@ -689,6 +705,15 @@ class NftProjectManager {
                     workerId
                 });
             }
+
+            // Also emit via IPC for EventBusMonitor
+            this.emitProgressEvent('render.loop.error', {
+                timestamp: Date.now(),
+                error: error.message,
+                projectName: project.projectName,
+                loopId,
+                workerId
+            });
 
             // Mark render loop as inactive after error
             this.renderLoopActive = false;
