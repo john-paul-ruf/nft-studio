@@ -566,6 +566,9 @@ class NftProjectManager {
         try {
             // Import event bus for render loop monitoring
             const {UnifiedEventBus} = await import('my-nft-gen/src/core/events/UnifiedEventBus.js');
+            
+            // Import the new loop terminator
+            const { default: loopTerminator } = await import('../../core/events/LoopTerminator.js');
 
             // Create a new NFT gen project (same as renderFrame)
             console.log('🎯 Creating project with projectDirectory:', config.projectDirectory);
@@ -591,17 +594,29 @@ class NftProjectManager {
                 console.log('✅ Event bus attached to render loop project');
             }
 
-            // Set up loop control
+            // Generate unique IDs for tracking
+            const loopId = `render-loop-${Date.now()}`;
+            const workerId = `worker-${loopId}`;
+
+            // Set up loop control with new event-driven system
             this.renderLoopActive = true;
             this.activeRenderLoop = project;
             this.activeRenderLoopEventBus = eventBus;
             this.activeWorkerProcess = null;
+            this.currentLoopId = loopId;
+            this.currentWorkerId = workerId;
+
+            // Register with loop terminator
+            loopTerminator.registerWorker(workerId, loopId);
+
+            // Set up event-driven termination listeners
+            this.setupWorkerTerminationListeners(workerId, loopId);
 
             // Start the continuous loop in background
-            this.runRenderLoop(project, eventBus);
+            this.runRenderLoop(project, eventBus, loopId, workerId);
 
-            this.logger.success('Render loop started with event monitoring');
-            return { success: true, message: 'Render loop started' };
+            this.logger.success('Render loop started with event monitoring and termination support');
+            return { success: true, message: 'Render loop started', loopId, workerId };
 
         } catch (error) {
             this.logger.error('Render loop failed', error);
@@ -613,34 +628,53 @@ class NftProjectManager {
      * Internal method to run the actual render loop
      * @param {Object} project - Configured project instance
      * @param {Object} eventBus - Event bus for monitoring
+     * @param {string} loopId - Unique loop identifier
+     * @param {string} workerId - Unique worker identifier
      */
-    async runRenderLoop(project, eventBus) {
+    async runRenderLoop(project, eventBus, loopId, workerId) {
         try {
-            this.logger.info('Starting generateRandomLoop');
+            this.logger.info(`Starting generateRandomLoop for loop: ${loopId}, worker: ${workerId}`);
 
             // Emit render loop start event
             if (eventBus) {
                 eventBus.emit('render.loop.start', {
                     timestamp: Date.now(),
-                    projectName: project.projectName
+                    projectName: project.projectName,
+                    loopId,
+                    workerId
                 });
             }
 
-            // Generate a single random loop
-            await project.generateRandomLoop();
-
-            this.logger.info('generateRandomLoop completed');
-
-            // Emit render loop complete event
-            if (eventBus) {
-                eventBus.emit('render.loop.complete', {
-                    timestamp: Date.now(),
-                    projectName: project.projectName
-                });
+            // Check if loop was terminated before starting
+            if (!this.renderLoopActive) {
+                this.logger.info('Render loop was terminated before starting generation');
+                await this.cleanupWorker(workerId, 'terminated_before_start');
+                return;
             }
 
-            // Mark render loop as inactive after completion
-            this.renderLoopActive = false;
+            // Create a custom generateRandomLoop that we can interrupt
+            await this.generateRandomLoopWithTermination(project, workerId);
+
+            // Only proceed if still active (not terminated)
+            if (this.renderLoopActive) {
+                this.logger.info('generateRandomLoop completed');
+
+                // Emit render loop complete event
+                if (eventBus) {
+                    eventBus.emit('render.loop.complete', {
+                        timestamp: Date.now(),
+                        projectName: project.projectName,
+                        loopId,
+                        workerId
+                    });
+                }
+
+                // Mark render loop as inactive after completion
+                this.renderLoopActive = false;
+                
+                // Unregister worker on completion
+                await this.cleanupWorker(workerId, 'completed');
+            }
 
         } catch (error) {
             this.logger.error('Render loop failed', error);
@@ -650,52 +684,306 @@ class NftProjectManager {
                 eventBus.emit('render.loop.error', {
                     timestamp: Date.now(),
                     error: error.message,
-                    projectName: project.projectName
+                    projectName: project.projectName,
+                    loopId,
+                    workerId
                 });
             }
 
             // Mark render loop as inactive after error
             this.renderLoopActive = false;
+            
+            // Unregister worker on error
+            await this.cleanupWorker(workerId, 'error');
         }
 
         this.logger.success('Render loop finished');
     }
 
     /**
-     * Stop render loop - actually kills the worker process if running
+     * Generate random loop with proper termination support
+     * @param {Object} project - Project instance
+     * @param {string} workerId - Worker ID for tracking
+     */
+    async generateRandomLoopWithTermination(project, workerId) {
+        // Create a race between the generation and termination
+        return new Promise(async (resolve, reject) => {
+            let generationPromise = null;
+            let terminationListener = null;
+            
+            // Set up termination listener that can cancel the generation
+            const setupTerminationListener = () => {
+                return new Promise((terminationResolve) => {
+                    const checkTermination = setInterval(() => {
+                        if (!this.renderLoopActive) {
+                            clearInterval(checkTermination);
+                            this.logger.info('Render loop termination requested during generation');
+                            terminationResolve('terminated');
+                        }
+                    }, 100); // Check every 100ms for faster response
+                    
+                    // Store the interval so we can clear it later
+                    terminationListener = checkTermination;
+                });
+            };
+            
+            try {
+                // Start both the generation and termination listener
+                generationPromise = project.generateRandomLoop();
+                const terminationPromise = setupTerminationListener();
+                
+                // Race between generation completion and termination request
+                const result = await Promise.race([
+                    generationPromise.then(() => 'completed'),
+                    terminationPromise
+                ]);
+                
+                if (result === 'terminated') {
+                    this.logger.info('Generation was terminated by user request');
+                    
+                    // Try to find and kill any child processes
+                    await this.killAnyActiveChildProcesses();
+                    
+                    reject(new Error('Render loop terminated by user'));
+                } else {
+                    this.logger.info('Generation completed successfully');
+                    resolve();
+                }
+                
+            } catch (error) {
+                this.logger.error('Generation failed:', error);
+                reject(error);
+            } finally {
+                // Clean up the termination listener
+                if (terminationListener) {
+                    clearInterval(terminationListener);
+                }
+            }
+        });
+    }
+    
+    /**
+     * Kill any active child processes that might be running
+     * This is a fallback method to ensure processes are terminated
+     */
+    async killAnyActiveChildProcesses() {
+        try {
+            const { execSync } = await import('child_process');
+            
+            // Find any node processes running GenerateLoopWorkerThread.js
+            try {
+                const psOutput = execSync('ps aux | grep GenerateLoopWorkerThread.js | grep -v grep', { encoding: 'utf8' });
+                const lines = psOutput.trim().split('\n');
+                
+                for (const line of lines) {
+                    if (line.trim()) {
+                        const parts = line.trim().split(/\s+/);
+                        const pid = parts[1];
+                        if (pid && !isNaN(pid)) {
+                            this.logger.info(`Killing GenerateLoopWorkerThread process PID: ${pid}`);
+                            try {
+                                process.kill(parseInt(pid), 'SIGTERM');
+                                
+                                // Force kill after 3 seconds if still running
+                                setTimeout(() => {
+                                    try {
+                                        process.kill(parseInt(pid), 'SIGKILL');
+                                    } catch (e) {
+                                        // Process already dead, ignore
+                                    }
+                                }, 3000);
+                            } catch (killError) {
+                                this.logger.warn(`Failed to kill process ${pid}:`, killError.message);
+                            }
+                        }
+                    }
+                }
+            } catch (psError) {
+                // ps command failed, probably no matching processes
+                this.logger.info('No GenerateLoopWorkerThread processes found to kill');
+            }
+            
+        } catch (error) {
+            this.logger.warn('Failed to kill child processes:', error.message);
+        }
+    }
+
+    /**
+     * Stop render loop - uses new event-driven worker termination
      * @returns {Promise<Object>} Stop result
      */
     async stopRenderLoop() {
-        this.logger.info('Stopping render loop');
+        this.logger.info('Stopping render loop using event-driven termination');
 
         if (!this.renderLoopActive) {
             this.logger.info('No render loop active');
             return { success: true, message: 'No render loop was active' };
         }
 
-        // Signal the loop to stop
-        this.renderLoopActive = false;
+        try {
+            // Import the loop terminator
+            const { killWorker } = await import('../../core/events/LoopTerminator.js');
 
-        // If there's an active worker process, kill it
-        if (this.activeWorkerProcess) {
-            this.logger.info('Killing active worker process');
-            this.activeWorkerProcess.kill('SIGTERM');
-            this.activeWorkerProcess = null;
+            // Use event-driven worker termination
+            if (this.currentWorkerId) {
+                this.logger.info(`Terminating worker via event system: ${this.currentWorkerId}`);
+                killWorker(this.currentWorkerId, 'SIGTERM');
+            } else {
+                // Fallback to old method if no worker ID
+                this.logger.info('No worker ID available, using fallback termination');
+                
+                // Signal the loop to stop
+                this.renderLoopActive = false;
+
+                // If there's an active worker process, kill it
+                if (this.activeWorkerProcess) {
+                    this.logger.info('Killing active worker process');
+                    this.activeWorkerProcess.kill('SIGTERM');
+                    this.activeWorkerProcess = null;
+                }
+            }
+
+            // Clean up will be handled by the event-driven system
+            // But we still need to clean up local references
+            await this.cleanupWorker(this.currentWorkerId || 'unknown', 'user_stopped');
+
+            this.logger.success('Render loop stop initiated via event system');
+            return { success: true, message: 'Render loop stopped via event system' };
+
+        } catch (error) {
+            this.logger.error('Failed to stop render loop via event system, using fallback', error);
+            
+            // Fallback to old method
+            this.renderLoopActive = false;
+            
+            if (this.activeWorkerProcess) {
+                this.activeWorkerProcess.kill('SIGTERM');
+                this.activeWorkerProcess = null;
+            }
+            
+            if (this.activeRenderLoopEventBus) {
+                this.activeRenderLoopEventBus.removeAllListeners();
+                this.activeRenderLoopEventBus.clear();
+                this.activeRenderLoopEventBus = null;
+            }
+            
+            this.activeRenderLoop = null;
+            this.currentLoopId = null;
+            this.currentWorkerId = null;
+            
+            return { success: true, message: 'Render loop stopped (fallback method)' };
         }
+    }
 
-        // Clean up event bus if present
-        if (this.activeRenderLoopEventBus) {
-            this.logger.info('Cleaning up render loop event bus');
-            this.activeRenderLoopEventBus.removeAllListeners();
-            this.activeRenderLoopEventBus.clear();
-            this.activeRenderLoopEventBus = null;
+    /**
+     * Set up event-driven worker termination listeners
+     * @param {string} workerId - Worker ID to listen for
+     * @param {string} loopId - Loop ID associated with worker
+     */
+    setupWorkerTerminationListeners(workerId, loopId) {
+        // Import EventBusService for listening to termination events
+        import('../../services/EventBusService.js').then(({ default: EventBusService }) => {
+            // Listen for specific worker kill commands
+            const unsubscribeKillWorker = EventBusService.subscribe('killWorker', async (data) => {
+                if (data.workerId === workerId || data.workerId === 'all') {
+                    this.logger.info(`Received kill command for worker: ${workerId}`);
+                    await this.terminateWorker(workerId, data.signal || 'SIGTERM');
+                }
+            }, { component: 'NftProjectManager' });
+
+            // Listen for kill all workers commands
+            const unsubscribeKillAllWorkers = EventBusService.subscribe('killAllWorkers', async (data) => {
+                this.logger.info(`Received kill all workers command`);
+                await this.terminateWorker(workerId, data.signal || 'SIGTERM');
+            }, { component: 'NftProjectManager' });
+
+            // Store unsubscribe functions for cleanup
+            this.workerTerminationUnsubscribers = [unsubscribeKillWorker, unsubscribeKillAllWorkers];
+        });
+    }
+
+    /**
+     * Terminate a specific worker
+     * @param {string} workerId - Worker ID to terminate
+     * @param {string} signal - Signal to send (SIGTERM, SIGKILL, etc.)
+     */
+    async terminateWorker(workerId, signal = 'SIGTERM') {
+        this.logger.info(`Terminating worker ${workerId} with signal ${signal}`);
+
+        try {
+            // Signal the loop to stop
+            this.renderLoopActive = false;
+
+            // If there's an active worker process, kill it
+            if (this.activeWorkerProcess) {
+                this.logger.info(`Killing active worker process with ${signal}`);
+                this.activeWorkerProcess.kill(signal);
+                this.activeWorkerProcess = null;
+            }
+
+            // Also try to kill any child processes that might be running
+            await this.killAnyActiveChildProcesses();
+
+            // Clean up worker
+            await this.cleanupWorker(workerId, `terminated_${signal}`);
+
+            // Import EventBusService to emit success event
+            const { default: EventBusService } = await import('../../services/EventBusService.js');
+            EventBusService.emit('workerKilled', {
+                workerId,
+                signal,
+                timestamp: Date.now()
+            }, { source: 'NftProjectManager' });
+
+        } catch (error) {
+            this.logger.error(`Failed to terminate worker ${workerId}:`, error);
+
+            // Import EventBusService to emit failure event
+            const { default: EventBusService } = await import('../../services/EventBusService.js');
+            EventBusService.emit('workerKillFailed', {
+                workerId,
+                signal,
+                error: error.message,
+                timestamp: Date.now()
+            }, { source: 'NftProjectManager' });
         }
+    }
 
-        // Clean up project reference
-        this.activeRenderLoop = null;
+    /**
+     * Clean up worker resources
+     * @param {string} workerId - Worker ID to clean up
+     * @param {string} reason - Reason for cleanup
+     */
+    async cleanupWorker(workerId, reason) {
+        this.logger.info(`Cleaning up worker ${workerId} (reason: ${reason})`);
 
-        this.logger.success('Render loop stopped');
-        return { success: true, message: 'Render loop stopped' };
+        try {
+            // Clean up event bus if present
+            if (this.activeRenderLoopEventBus) {
+                this.logger.info('Cleaning up render loop event bus');
+                this.activeRenderLoopEventBus.removeAllListeners();
+                this.activeRenderLoopEventBus.clear();
+                this.activeRenderLoopEventBus = null;
+            }
+
+            // Clean up project reference
+            this.activeRenderLoop = null;
+            this.currentLoopId = null;
+            this.currentWorkerId = null;
+
+            // Clean up termination listeners
+            if (this.workerTerminationUnsubscribers) {
+                this.workerTerminationUnsubscribers.forEach(unsubscribe => unsubscribe());
+                this.workerTerminationUnsubscribers = null;
+            }
+
+            // Unregister from loop terminator
+            const { default: loopTerminator } = await import('../../core/events/LoopTerminator.js');
+            loopTerminator.unregisterWorker(workerId, reason);
+
+        } catch (error) {
+            this.logger.error(`Error during worker cleanup:`, error);
+        }
     }
 
     /**

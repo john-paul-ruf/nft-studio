@@ -116,6 +116,7 @@ export default function EventDrivenCanvasToolbar({
     }, [eventBusService]);
 
 
+
     const closeAllDropdowns = useCallback(() => {
         setZoomMenuAnchor(null);
         setColorSchemeMenuAnchor(null);
@@ -152,6 +153,7 @@ export default function EventDrivenCanvasToolbar({
                 cyberpunk: { name: 'Cyberpunk' }
             }}
             onForceSave={null}
+            onLoopControlToggle={null}
             closeAllDropdowns={closeAllDropdowns}
             zoomMenuAnchor={zoomMenuAnchor}
             setZoomMenuAnchor={setZoomMenuAnchor}

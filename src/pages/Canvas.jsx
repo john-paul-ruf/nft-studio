@@ -37,6 +37,7 @@ import './Canvas.css';
 import EventDrivenToolbarActions from '../components/EventDrivenToolbarActions.jsx';
 import EventDrivenCanvasToolbar from '../components/EventDrivenCanvasToolbar.jsx';
 
+
 /**
  * Clean Canvas Component - Pure Event-Driven View Layer
  * Zero callback props - all communication via EventBus
@@ -102,6 +103,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
     const [currentThemeKey, setCurrentThemeKey] = useState('dark');
     const [isRenderLoopActive, setIsRenderLoopActive] = useState(false);
     const [showEventMonitor, setShowEventMonitor] = useState(false);
+
 
     // UI refs
     const canvasRef = useRef(null);
@@ -246,6 +248,8 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
             setShowEventMonitor(false);
             console.log('🎨 Canvas: Render loop error - reset states to inactive');
         }, { component: 'Canvas' });
+
+
 
         return () => {
             console.log('🎨 Canvas: Cleaning up UI event listeners');
@@ -419,6 +423,8 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                     onClose={() => setShowEventMonitor(false)}
                     onOpen={() => setShowEventMonitor(true)}
                 />
+
+
             </Box>
         </ThemeProvider>
     );

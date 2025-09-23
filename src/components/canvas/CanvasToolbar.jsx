@@ -69,6 +69,7 @@ export default function CanvasToolbar({
     setZoomMenuAnchor,
     colorSchemeMenuAnchor,
     setColorSchemeMenuAnchor,
+
 }) {
     // Use passed resolution value (single source of truth)
     const resolutionValue = useMemo(() => {
@@ -372,6 +373,7 @@ export default function CanvasToolbar({
                 )}
 
                 <Box className="toolbar-group">
+
                     <Tooltip title={`Current theme: ${availableThemes[currentThemeKey]?.name || currentThemeKey} (click to cycle)`}>
                         <IconButton
                             onClick={onThemeToggle}

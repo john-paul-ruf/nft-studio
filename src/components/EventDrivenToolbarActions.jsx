@@ -125,10 +125,24 @@ export default function EventDrivenToolbarActions({ projectState }) {
                         const result = await window.api.startRenderLoop(enhancedConfig);
                         console.log('✅ EventDrivenToolbarActions: Render loop started:', result);
                     } else {
-                        // Stop render loop
-                        console.log('🔥 EventDrivenToolbarActions: Stopping render loop');
-                        const result = await window.api.stopRenderLoop();
-                        console.log('✅ EventDrivenToolbarActions: Render loop stopped:', result);
+                        // Stop render loop using new event-driven system
+                        console.log('🔥 EventDrivenToolbarActions: Stopping render loop using event-driven system');
+                        
+                        try {
+                            // Try the new event-driven approach first
+                            const { killAllWorkers } = await import('../core/events/LoopTerminator.js');
+                            console.log('🔥 EventDrivenToolbarActions: Using event-driven worker termination');
+                            killAllWorkers('SIGTERM');
+                            
+                            // Also call the API for backward compatibility
+                            const result = await window.api.stopRenderLoop();
+                            console.log('✅ EventDrivenToolbarActions: Render loop stopped via event system:', result);
+                        } catch (importError) {
+                            console.warn('⚠️ EventDrivenToolbarActions: Event-driven termination not available, using fallback:', importError);
+                            // Fallback to old method
+                            const result = await window.api.stopRenderLoop();
+                            console.log('✅ EventDrivenToolbarActions: Render loop stopped via fallback:', result);
+                        }
                     }
 
                     // Emit the toggle event to update UI state

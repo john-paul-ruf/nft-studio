@@ -54,6 +54,7 @@ import {
 } from '@mui/icons-material';
 import RenderProgressWidget from './RenderProgressWidget';
 
+
 const EVENT_CATEGORIES = {
     FRAME: { label: 'Frame', color: '#4CAF50', icon: '🖼️' },
     EFFECT: { label: 'Effects', color: '#2196F3', icon: '✨' },
@@ -228,6 +229,76 @@ export default function EventBusMonitor({ open, onClose, onOpen }) {
         }
     }, [open, isPaused]);
 
+    // Set up event-driven worker event listeners
+    useEffect(() => {
+        if (open) {
+            let unsubscribeWorkerStarted, unsubscribeWorkerKilled, unsubscribeWorkerKillFailed;
+
+            // Import EventBusService and set up worker event listeners
+            import('../services/EventBusService.js').then(({ default: EventBusService }) => {
+                console.log('🎯 EventBusMonitor: Setting up event-driven worker listeners');
+
+                // Listen for worker started events
+                unsubscribeWorkerStarted = EventBusService.subscribe('workerStarted', (data) => {
+                    console.log('🎯 EventBusMonitor: Worker started event:', data);
+                    const newEvent = {
+                        id: Date.now() + Math.random(),
+                        type: 'workerStarted',
+                        category: 'WORKER',
+                        timestamp: new Date().toISOString(),
+                        data: data,
+                        raw: JSON.stringify(data, null, 2)
+                    };
+                    setEvents(prev => [newEvent, ...prev].slice(0, maxEvents));
+                }, { component: 'EventBusMonitor' });
+
+                // Listen for worker killed events
+                unsubscribeWorkerKilled = EventBusService.subscribe('workerKilled', (data) => {
+                    console.log('🎯 EventBusMonitor: Worker killed event:', data);
+                    const newEvent = {
+                        id: Date.now() + Math.random(),
+                        type: 'workerKilled',
+                        category: 'WORKER',
+                        timestamp: new Date().toISOString(),
+                        data: data,
+                        raw: JSON.stringify(data, null, 2)
+                    };
+                    setEvents(prev => [newEvent, ...prev].slice(0, maxEvents));
+                    
+                    // Update render progress to show stopped state
+                    setRenderProgress(prev => ({
+                        ...prev,
+                        isRendering: false
+                    }));
+                }, { component: 'EventBusMonitor' });
+
+                // Listen for worker kill failed events
+                unsubscribeWorkerKillFailed = EventBusService.subscribe('workerKillFailed', (data) => {
+                    console.log('🎯 EventBusMonitor: Worker kill failed event:', data);
+                    const newEvent = {
+                        id: Date.now() + Math.random(),
+                        type: 'workerKillFailed',
+                        category: 'ERROR',
+                        timestamp: new Date().toISOString(),
+                        data: data,
+                        raw: JSON.stringify(data, null, 2)
+                    };
+                    setEvents(prev => [newEvent, ...prev].slice(0, maxEvents));
+                }, { component: 'EventBusMonitor' });
+
+            }).catch(error => {
+                console.error('❌ EventBusMonitor: Failed to set up worker event listeners:', error);
+            });
+
+            return () => {
+                console.log('🧹 EventBusMonitor: Cleaning up event-driven worker listeners');
+                if (unsubscribeWorkerStarted) unsubscribeWorkerStarted();
+                if (unsubscribeWorkerKilled) unsubscribeWorkerKilled();
+                if (unsubscribeWorkerKillFailed) unsubscribeWorkerKillFailed();
+            };
+        }
+    }, [open]);
+
     useEffect(() => {
         // Filter events based on search and categories
         const filtered = events.filter(event => {
@@ -376,9 +447,23 @@ export default function EventBusMonitor({ open, onClose, onOpen }) {
         
         setIsStoppingRenderLoop(true);
         try {
-            console.log('🛑 EventBusMonitor: Stopping render loop');
-            const result = await window.api.stopRenderLoop();
-            console.log('✅ EventBusMonitor: Render loop stopped:', result);
+            console.log('🛑 EventBusMonitor: Stopping render loop using new event-driven system');
+            
+            // Try the new event-driven approach first
+            try {
+                const { killAllWorkers } = await import('../core/events/LoopTerminator.js');
+                console.log('🛑 EventBusMonitor: Using event-driven worker termination');
+                killAllWorkers('SIGTERM');
+                
+                // Also call the API for backward compatibility
+                const result = await window.api.stopRenderLoop();
+                console.log('✅ EventBusMonitor: Render loop stopped via event system:', result);
+            } catch (importError) {
+                console.warn('⚠️ EventBusMonitor: Event-driven termination not available, using fallback:', importError);
+                // Fallback to old method
+                const result = await window.api.stopRenderLoop();
+                console.log('✅ EventBusMonitor: Render loop stopped via fallback:', result);
+            }
             
             // Reset render progress state
             setRenderProgress(prev => ({
@@ -883,7 +968,7 @@ export default function EventBusMonitor({ open, onClose, onOpen }) {
                     </Typography>
                 </DialogActions>
                 </Dialog>
-            )}
+            )
         </>
     );
 }
