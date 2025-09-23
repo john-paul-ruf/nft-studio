@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import { PlayArrow, Settings, Schedule } from '@mui/icons-material';
 import EffectConfigurer from './EffectConfigurer.jsx';
+import PreferencesService from '../../services/PreferencesService.js';
 
 const steps = ['Select Effect', 'Configure Effect', 'Set Keyframe Range'];
 
@@ -71,15 +72,33 @@ export default function BulkAddKeyframeModal({
         setActiveStep((prevStep) => prevStep - 1);
     };
 
-    const handleEffectSelect = (effect) => {
+    const handleEffectSelect = async (effect) => {
         // Ensure the effect has the required registryKey property
         const effectWithRegistryKey = {
             ...effect,
             registryKey: effect.registryKey || effect.name || effect.className
         };
         setSelectedEffect(effectWithRegistryKey);
-        // Initialize with default config
-        setEffectConfig({});
+        
+        // Initialize effectConfig with defaults (user preferences or effect defaults)
+        try {
+            // Try to get user-saved defaults first
+            const savedDefaults = await PreferencesService.getEffectDefaults(effectWithRegistryKey.registryKey);
+            const initialConfig = savedDefaults || effect.defaultConfig || {};
+
+            console.log('🎬 BulkAddKeyframeModal: Initializing effect config:', {
+                effectName: effectWithRegistryKey.registryKey,
+                usingSavedDefaults: !!savedDefaults,
+                configSource: savedDefaults ? 'User Preferences' : 'Default Config',
+                config: initialConfig
+            });
+
+            setEffectConfig(initialConfig);
+        } catch (error) {
+            console.error('🎬 BulkAddKeyframeModal: Error loading preferences:', error);
+            // Fallback to effect defaults
+            setEffectConfig(effect.defaultConfig || {});
+        }
     };
 
     const handleConfigChange = (config) => {
