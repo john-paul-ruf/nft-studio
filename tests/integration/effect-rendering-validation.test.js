@@ -74,7 +74,10 @@ class EffectRenderingValidationTests {
             config: defaultsResult.defaults,
             type: 'primary',
             secondaryEffects: [],
-            keyframeEffects: []
+            attachedEffects: {
+                    secondary: [],
+                    keyFrame: []
+                }
         };
 
         // Test that effect processing can handle this object
@@ -162,7 +165,10 @@ class EffectRenderingValidationTests {
                     config: defaultsResult.defaults,
                     type: effect.name.includes('final') ? 'finalImage' : 'primary',
                     secondaryEffects: [],
-                    keyframeEffects: []
+                    attachedEffects: {
+                    secondary: [],
+                    keyFrame: []
+                }
                 };
 
                 // Test processing (simplified)

@@ -105,7 +105,7 @@ class AddButtonToRenderFlowTests {
             config: defaultsResponse.defaults,
             type: fuzzFlare.category || 'primary',
             secondaryEffects: [],
-            keyframeEffects: []
+            attachedEffects: { secondary: [], keyFrame: [] }
         };
 
         await this.test('Effect object created with correct structure', () => {
@@ -281,7 +281,7 @@ class AddButtonToRenderFlowTests {
                         config: defaultsResponse.defaults,
                         type: 'primary',
                         secondaryEffects: [],
-                        keyframeEffects: []
+                        attachedEffects: { secondary: [], keyFrame: [] }
                     };
 
                     // Test processing

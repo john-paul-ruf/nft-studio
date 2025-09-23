@@ -74,7 +74,7 @@ class RenderButtonFrameTest {
                             className: 'hex',
                             config: configResult.defaultInstance,
                             secondaryEffects: [],
-                            keyframeEffects: []
+                            attachedEffects: { secondary: [], keyFrame: [] }
                         }
                     ],
                     colorScheme: 'neon-cyberpunk'

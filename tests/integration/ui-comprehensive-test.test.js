@@ -207,7 +207,10 @@ class UIConfigTestSuite {
                 },
                 type: 'primary',
                 secondaryEffects: [],
-                keyframeEffects: []
+                attachedEffects: {
+                    secondary: [],
+                    keyFrame: []
+                }
             };
 
             console.log('   UI Effect Config:', effectFromUI);

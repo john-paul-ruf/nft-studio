@@ -2,6 +2,8 @@
  * Service responsible for effect processing operations only
  * Follows Single Responsibility Principle
  */
+
+
 class EffectProcessingService {
     /**
      * Process effects configuration into LayerConfig instances
@@ -33,6 +35,8 @@ class EffectProcessingService {
 
         for (const effect of effects) {
             try {
+                // Use effect directly - single source of truth format
+                
                 // Use registryKey only - no fallbacks to force proper key passing
                 const effectName = effect.registryKey;
 
@@ -73,9 +77,9 @@ class EffectProcessingService {
 
                 const configInstance = await this.createConfigInstance(effect, myNftGenPath);
 
-                // Process attached secondary effects - handle both formats
+                // Process attached secondary effects - single source of truth
                 const possibleSecondaryEffects = [];
-                const secondaryEffects = effect.secondaryEffects || effect.attachedEffects?.secondary || [];
+                const secondaryEffects = effect.attachedEffects?.secondary || [];
 
                 for (const secondaryEffect of secondaryEffects) {
                     const secondaryEffectName = secondaryEffect.registryKey;
@@ -90,6 +94,48 @@ class EffectProcessingService {
                             currentEffectConfig: secondaryConfigInstance,
                         });
                         possibleSecondaryEffects.push(secondaryLayerConfig);
+                    }
+                }
+
+                // Process attached keyframe effects as special secondary effects
+                const keyframeEffects = effect.attachedEffects?.keyFrame || [];
+
+                for (const keyframeEffect of keyframeEffects) {
+                    const keyframeEffectName = keyframeEffect.registryKey;
+                    const KeyframeEffectClass = EffectRegistry.getGlobal(keyframeEffectName);
+                    if (KeyframeEffectClass) {
+                        const keyframeConfigInstance = await this.createConfigInstance(keyframeEffect, myNftGenPath);
+
+                        // Create a wrapper class that handles frame timing for keyframe effects
+                        class KeyframeEffectWrapper extends KeyframeEffectClass {
+                            constructor(options) {
+                                super(options);
+                                this.keyframeFrame = keyframeEffect.frame || 0;
+                                this.isKeyframeEffect = true;
+                                this.originalName = keyframeEffectName;
+                            }
+
+                            async invoke(layer, currentFrame, totalFrames) {
+                                // Only apply keyframe effect on its designated frame
+                                if (currentFrame === this.keyframeFrame) {
+                                    console.log(`🎬 Applying keyframe effect ${this.originalName} on frame ${currentFrame}`);
+                                    return await super.invoke(layer, currentFrame, totalFrames);
+                                }
+                                // Skip keyframe effect on other frames
+                                return;
+                            }
+                        }
+
+                        const keyframeLayerConfig = new LayerConfig({
+                            name: `keyframe_${keyframeEffectName}_frame_${keyframeEffect.frame || 0}`,
+                            effect: KeyframeEffectWrapper,
+                            percentChance: 100,
+                            currentEffectConfig: keyframeConfigInstance,
+                        });
+                        
+                        // Add keyframe effects to secondary effects so they get processed
+                        possibleSecondaryEffects.push(keyframeLayerConfig);
+                        console.log(`🎬 Processed keyframe effect: ${keyframeEffectName} for frame ${keyframeEffect.frame || 0} (added as secondary effect)`);
                     }
                 }
 
@@ -115,12 +161,15 @@ class EffectProcessingService {
                     name: layerConfig.name,
                     effectClassName: layerConfig.Effect?.name || layerConfig.Effect?.constructor?.name || 'no effect class name',
                     hasEffect: !!layerConfig.Effect,
-                    hasConfig: !!layerConfig.currentEffectConfig
+                    hasConfig: !!layerConfig.currentEffectConfig,
+                    secondaryEffectsCount: possibleSecondaryEffects.length,
+                    keyframeEffectsCount: keyframeEffects.length,
+                    note: 'Keyframe effects are now included in secondaryEffectsCount'
                 });
                 allPrimaryEffects.push(layerConfig);
 
             } catch (error) {
-                console.error(`Error processing effect ${effect.effectClass?.name}:`, error);
+                console.error(`Error processing effect ${migratedEffect.effectClass?.name}:`, error);
             }
         }
 

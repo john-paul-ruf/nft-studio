@@ -172,7 +172,10 @@ class EffectDefaultsTests {
                         config: defaults || {},
                         type: effect.category || 'primary',
                         secondaryEffects: [],
-                        keyframeEffects: []
+                        attachedEffects: {
+                            secondary: [],
+                            keyFrame: []
+                        }
                     };
 
                     return { success: true, effect: newEffect };

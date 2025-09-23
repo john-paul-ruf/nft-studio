@@ -221,7 +221,7 @@ class FuzzFlareEditTest {
                         },
                         type: 'primary',
                         secondaryEffects: [],
-                        keyframeEffects: []
+                        attachedEffects: { secondary: [], keyFrame: [] }
                     }
                 ],
                 colorScheme: 'neon-cyberpunk',

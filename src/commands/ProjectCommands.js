@@ -6,6 +6,7 @@
 import { Command } from '../services/CommandService.js';
 import EventBusService from '../services/EventBusService.js';
 
+
 /**
  * Command to add an effect to the project
  */
@@ -306,8 +307,15 @@ export class ReorderKeyframeEffectsCommand extends Command {
             const currentEffects = projectState.getState().effects || [];
             const parentEffect = currentEffects[parentIndex];
 
-            if (!parentEffect || !parentEffect.keyframeEffects || parentEffect.keyframeEffects.length === 0) {
-                throw new Error(`Cannot reorder keyframe effects - parent effect at index ${parentIndex} not found or has no keyframe effects`);
+            if (!parentEffect) {
+                throw new Error(`Cannot reorder keyframe effects - parent effect at index ${parentIndex} not found`);
+            }
+
+            // Use single source of truth for keyframe effects
+            const keyframeEffects = parentEffect.attachedEffects?.keyFrame || [];
+            
+            if (keyframeEffects.length === 0) {
+                throw new Error(`Cannot reorder keyframe effects - parent effect at index ${parentIndex} has no keyframe effects`);
             }
 
             console.log('🔄 ReorderKeyframeEffectsCommand: Reordering keyframe effects');
@@ -321,7 +329,7 @@ export class ReorderKeyframeEffectsCommand extends Command {
                 parentIndex,
                 sourceIndex,
                 destinationIndex,
-                total: parentEffect.keyframeEffects.length
+                total: keyframeEffects.length
             }, { source: 'ReorderKeyframeEffectsCommand' });
 
             return { success: true, parentIndex, sourceIndex, destinationIndex };
@@ -333,12 +341,17 @@ export class ReorderKeyframeEffectsCommand extends Command {
             // To undo, we swap the destination back to source
             projectState.reorderKeyframeEffects(parentIndex, destinationIndex, sourceIndex);
 
+            // Get updated keyframe effects count for event
+            const currentEffects = projectState.getState().effects || [];
+            const parentEffect = currentEffects[parentIndex];
+            const keyframeEffects = parentEffect?.attachedEffects?.keyFrame || [];
+
             // Emit event for UI updates
             EventBusService.emit('keyframe:reordered', {
                 parentIndex,
                 sourceIndex: destinationIndex,
                 destinationIndex: sourceIndex,
-                total: projectState.getState().effects[parentIndex].keyframeEffects.length
+                total: keyframeEffects.length
             }, { source: 'ReorderKeyframeEffectsCommand' });
 
             return { success: true };
@@ -348,5 +361,200 @@ export class ReorderKeyframeEffectsCommand extends Command {
         this.parentIndex = parentIndex;
         this.sourceIndex = sourceIndex;
         this.destinationIndex = destinationIndex;
+    }
+}
+
+/**
+ * Command to delete a secondary effect from a parent effect
+ */
+export class DeleteSecondaryEffectCommand extends Command {
+    constructor(projectState, parentIndex, secondaryIndex) {
+        let deletedSecondaryEffect = null;
+
+        const executeAction = () => {
+            const currentEffects = projectState.getState().effects || [];
+            const parentEffect = currentEffects[parentIndex];
+
+            if (!parentEffect || !parentEffect.secondaryEffects || parentEffect.secondaryEffects.length === 0) {
+                throw new Error(`Cannot delete secondary effect - parent effect at index ${parentIndex} not found or has no secondary effects`);
+            }
+
+            if (secondaryIndex < 0 || secondaryIndex >= parentEffect.secondaryEffects.length) {
+                throw new Error(`Invalid secondary effect index: ${secondaryIndex}. Valid range: 0 to ${parentEffect.secondaryEffects.length - 1}`);
+            }
+
+            console.log('🗑️ DeleteSecondaryEffectCommand: Deleting secondary effect');
+            console.log('🗑️ DeleteSecondaryEffectCommand: Parent index:', parentIndex, 'Secondary index:', secondaryIndex);
+
+            deletedSecondaryEffect = parentEffect.secondaryEffects[secondaryIndex];
+            
+            // Create new effects array with updated parent effect
+            const newEffects = [...currentEffects];
+            newEffects[parentIndex] = {
+                ...parentEffect,
+                secondaryEffects: parentEffect.secondaryEffects.filter((_, index) => index !== secondaryIndex)
+            };
+
+            projectState.update({ effects: newEffects });
+
+            // Emit event for UI updates
+            EventBusService.emit('secondary:removed', {
+                parentIndex,
+                secondaryIndex,
+                deletedEffect: deletedSecondaryEffect,
+                total: newEffects[parentIndex].secondaryEffects.length
+            }, { source: 'DeleteSecondaryEffectCommand' });
+
+            return { success: true, deletedSecondaryEffect, parentIndex, secondaryIndex };
+        };
+
+        const undoAction = () => {
+            if (!deletedSecondaryEffect) {
+                throw new Error('No secondary effect to restore');
+            }
+
+            const currentEffects = projectState.getState().effects || [];
+            const parentEffect = currentEffects[parentIndex];
+
+            if (!parentEffect) {
+                throw new Error(`Cannot restore secondary effect - parent effect at index ${parentIndex} not found`);
+            }
+
+            console.log('↩️ DeleteSecondaryEffectCommand: Restoring secondary effect');
+
+            // Create new effects array with restored secondary effect
+            const newEffects = [...currentEffects];
+            const newSecondaryEffects = [...(parentEffect.secondaryEffects || [])];
+            newSecondaryEffects.splice(secondaryIndex, 0, deletedSecondaryEffect);
+            
+            newEffects[parentIndex] = {
+                ...parentEffect,
+                secondaryEffects: newSecondaryEffects
+            };
+
+            projectState.update({ effects: newEffects });
+
+            // Emit event for UI updates
+            EventBusService.emit('secondary:added', {
+                parentIndex,
+                secondaryIndex,
+                effect: deletedSecondaryEffect,
+                total: newEffects[parentIndex].secondaryEffects.length
+            }, { source: 'DeleteSecondaryEffectCommand' });
+
+            return { success: true };
+        };
+
+        super(`Delete Secondary Effect #${secondaryIndex}`, executeAction, undoAction);
+        this.parentIndex = parentIndex;
+        this.secondaryIndex = secondaryIndex;
+    }
+}
+
+/**
+ * Command to delete a keyframe effect from a parent effect
+ */
+export class DeleteKeyframeEffectCommand extends Command {
+    constructor(projectState, parentIndex, keyframeIndex) {
+        let deletedKeyframeEffect = null;
+
+        const executeAction = () => {
+            const currentEffects = projectState.getState().effects || [];
+            const parentEffect = currentEffects[parentIndex];
+
+            if (!parentEffect) {
+                throw new Error(`Cannot delete keyframe effect - parent effect at index ${parentIndex} not found`);
+            }
+
+            // Use single source of truth for keyframe effects
+            const keyframeEffects = parentEffect.attachedEffects?.keyFrame || [];
+
+            if (keyframeEffects.length === 0) {
+                throw new Error(`Cannot delete keyframe effect - parent effect at index ${parentIndex} has no keyframe effects`);
+            }
+
+            if (keyframeIndex < 0 || keyframeIndex >= keyframeEffects.length) {
+                throw new Error(`Invalid keyframe effect index: ${keyframeIndex}. Valid range: 0 to ${keyframeEffects.length - 1}`);
+            }
+
+            console.log('🗑️ DeleteKeyframeEffectCommand: Deleting keyframe effect');
+            console.log('🗑️ DeleteKeyframeEffectCommand: Parent index:', parentIndex, 'Keyframe index:', keyframeIndex);
+
+            deletedKeyframeEffect = keyframeEffects[keyframeIndex];
+            
+            // Create new effects array with updated parent effect using single source of truth
+            const newEffects = [...currentEffects];
+            const updatedKeyframeEffects = keyframeEffects.filter((_, index) => index !== keyframeIndex);
+            newEffects[parentIndex] = {
+                ...parentEffect,
+                attachedEffects: {
+                    ...parentEffect.attachedEffects,
+                    keyFrame: updatedKeyframeEffects
+                }
+            };
+
+            projectState.update({ effects: newEffects });
+
+            // Get updated count for event
+            const updatedKeyframeEffectsCount = newEffects[parentIndex].attachedEffects?.keyFrame?.length || 0;
+
+            // Emit event for UI updates
+            EventBusService.emit('keyframe:removed', {
+                parentIndex,
+                keyframeIndex,
+                deletedEffect: deletedKeyframeEffect,
+                total: updatedKeyframeEffectsCount
+            }, { source: 'DeleteKeyframeEffectCommand' });
+
+            return { success: true, deletedKeyframeEffect, parentIndex, keyframeIndex };
+        };
+
+        const undoAction = () => {
+            if (!deletedKeyframeEffect) {
+                throw new Error('No keyframe effect to restore');
+            }
+
+            const currentEffects = projectState.getState().effects || [];
+            const parentEffect = currentEffects[parentIndex];
+
+            if (!parentEffect) {
+                throw new Error(`Cannot restore keyframe effect - parent effect at index ${parentIndex} not found`);
+            }
+
+            console.log('↩️ DeleteKeyframeEffectCommand: Restoring keyframe effect');
+
+            // Restore using single source of truth format
+            const currentKeyframeEffects = parentEffect.attachedEffects?.keyFrame || [];
+            const newKeyframeEffects = [...currentKeyframeEffects];
+            newKeyframeEffects.splice(keyframeIndex, 0, deletedKeyframeEffect);
+
+            const newEffects = [...currentEffects];
+            newEffects[parentIndex] = {
+                ...parentEffect,
+                attachedEffects: {
+                    ...parentEffect.attachedEffects,
+                    keyFrame: newKeyframeEffects
+                }
+            };
+
+            projectState.update({ effects: newEffects });
+
+            // Get updated count for event
+            const updatedKeyframeEffectsCount = newEffects[parentIndex].attachedEffects?.keyFrame?.length || 0;
+
+            // Emit event for UI updates
+            EventBusService.emit('keyframe:added', {
+                parentIndex,
+                keyframeIndex,
+                effect: deletedKeyframeEffect,
+                total: updatedKeyframeEffectsCount
+            }, { source: 'DeleteKeyframeEffectCommand' });
+
+            return { success: true };
+        };
+
+        super(`Delete Keyframe Effect #${keyframeIndex}`, executeAction, undoAction);
+        this.parentIndex = parentIndex;
+        this.keyframeIndex = keyframeIndex;
     }
 }

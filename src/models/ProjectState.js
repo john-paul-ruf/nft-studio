@@ -1,6 +1,7 @@
 import ResolutionMapper from '../utils/ResolutionMapper.js';
 import PositionScaler from '../utils/PositionScaler.js';
 
+
 /**
  * ProjectState class manages the frontend project configuration and state
  * Encapsulates all project-related data and provides methods for manipulation
@@ -287,18 +288,30 @@ export default class ProjectState {
         const effects = [...this.state.effects];
         const parentEffect = effects[parentIndex];
 
-        if (!parentEffect || !parentEffect.keyframeEffects || parentEffect.keyframeEffects.length === 0) {
-            console.warn('ProjectState: Cannot reorder keyframe effects - parent effect or keyframeEffects not found');
+        if (!parentEffect) {
+            console.warn('ProjectState: Cannot reorder keyframe effects - parent effect not found');
             return;
         }
 
-        const keyframeEffects = [...parentEffect.keyframeEffects];
-        const [movedKeyframeEffect] = keyframeEffects.splice(sourceIndex, 1);
-        keyframeEffects.splice(destinationIndex, 0, movedKeyframeEffect);
+        // Use single source of truth for keyframe effects
+        const keyframeEffects = parentEffect.attachedEffects?.keyFrame || [];
 
+        if (keyframeEffects.length === 0) {
+            console.warn('ProjectState: Cannot reorder keyframe effects - no keyframe effects found');
+            return;
+        }
+
+        const reorderedKeyframeEffects = [...keyframeEffects];
+        const [movedKeyframeEffect] = reorderedKeyframeEffects.splice(sourceIndex, 1);
+        reorderedKeyframeEffects.splice(destinationIndex, 0, movedKeyframeEffect);
+
+        // Update using single source of truth format
         effects[parentIndex] = {
             ...parentEffect,
-            keyframeEffects: keyframeEffects
+            attachedEffects: {
+                ...parentEffect.attachedEffects,
+                keyFrame: reorderedKeyframeEffects
+            }
         };
 
         this.setEffects(effects);

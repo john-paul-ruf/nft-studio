@@ -4,6 +4,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useServices } from '../contexts/ServiceContext.js';
 import PreferencesService from '../services/PreferencesService.js';
 import SpecialtyEffectsModal from './effects/SpecialtyEffectsModal.jsx';
+import BulkAddKeyframeModal from './effects/BulkAddKeyframeModal.jsx';
 import {
     Box,
     Typography,
@@ -33,7 +34,8 @@ import {
     StarBorder,
     Schedule,
     ChevronRight,
-    KeyboardArrowRight
+    KeyboardArrowRight,
+    PlaylistAdd
 } from '@mui/icons-material';
 
 export default function EffectsPanel({
@@ -47,6 +49,8 @@ export default function EffectsPanel({
     onEffectAddKeyframe,
     onSecondaryEffectReorder,
     onKeyframeEffectReorder,
+    onSecondaryEffectDelete,
+    onKeyframeEffectDelete,
     // Add Effect props
     availableEffects,
     effectsLoaded,
@@ -60,6 +64,8 @@ export default function EffectsPanel({
     const [draggedKeyframeIndex, setDraggedKeyframeIndex] = useState(null);
     const [addEffectMenuOpen, setAddEffectMenuOpen] = useState(false);
     const [specialtyModalOpen, setSpecialtyModalOpen] = useState(false);
+    const [bulkAddModalOpen, setBulkAddModalOpen] = useState(false);
+    const [bulkAddTargetIndex, setBulkAddTargetIndex] = useState(null);
 
     // Debug effects prop changes
     console.log('📋 EffectsPanel: Component render - received effects:', effects?.length || 0, effects?.map(e => e.name || e.className) || []);
@@ -194,6 +200,31 @@ export default function EffectsPanel({
         setSpecialtyModalOpen(false);
     }, [eventBusService]);
 
+    // Bulk Add Keyframes handler
+    const handleBulkAddKeyframes = useCallback((keyframeEffectsData) => {
+        if (bulkAddTargetIndex === null || !keyframeEffectsData || keyframeEffectsData.length === 0) {
+            return;
+        }
+
+        // Emit events for each keyframe effect using the standard event format
+        keyframeEffectsData.forEach(keyframeData => {
+            eventBusService.emit('effectspanel:effect:addkeyframe', {
+                effectName: keyframeData.registryKey,
+                effectType: 'keyframe',
+                parentIndex: bulkAddTargetIndex,
+                frame: keyframeData.frame,
+                config: keyframeData.config
+            }, {
+                source: 'EffectsPanel',
+                component: 'BulkAddKeyframes'
+            });
+        });
+
+        // Close the modal and reset state
+        setBulkAddModalOpen(false);
+        setBulkAddTargetIndex(null);
+    }, [eventBusService, bulkAddTargetIndex]);
+
     const handleDragStart = (e, index, section) => {
         setDraggedIndex({ index, section });
         e.dataTransfer.effectAllowed = 'move';
@@ -279,6 +310,21 @@ export default function EffectsPanel({
         return registryKey.replace(/([A-Z])/g, ' $1').trim();
     };
 
+    const formatKeyframeDisplay = (keyframe) => {
+        // Check if keyframe has config with keyFrames array
+        if (keyframe.config && keyframe.config.keyFrames && Array.isArray(keyframe.config.keyFrames)) {
+            const frames = keyframe.config.keyFrames;
+            if (frames.length === 1) {
+                return `Frame ${frames[0]}`;
+            } else if (frames.length > 1) {
+                return `Frames ${frames.join(', ')}`;
+            }
+        }
+        
+        // Fallback to the old single frame display
+        return `Frame ${keyframe.frame || 0}`;
+    };
+
     const renderSecondaryEffects = (effect, parentOriginalIndex) => {
         if (!effect.secondaryEffects || effect.secondaryEffects.length === 0) return null;
 
@@ -304,28 +350,51 @@ export default function EffectsPanel({
                                         mb: 0.25,
                                         display: 'flex',
                                         alignItems: 'center',
+                                        justifyContent: 'space-between',
                                         cursor: 'pointer',
                                         '&:hover': {
                                             backgroundColor: theme.palette.action.hover,
                                     }
                                 }}
                             >
-                                <SubdirectoryArrowRight
-                                    sx={{
-                                        fontSize: 14,
-                                        color: theme.palette.text.secondary,
-                                        mr: 1
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <SubdirectoryArrowRight
+                                        sx={{
+                                            fontSize: 14,
+                                            color: theme.palette.text.secondary,
+                                            mr: 1
+                                        }}
+                                    />
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            color: theme.palette.text.primary,
+                                            fontSize: '13px'
+                                        }}
+                                    >
+                                        {formatEffectName(secondary)}
+                                    </Typography>
+                                </Box>
+                                <IconButton
+                                    size="small"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onSecondaryEffectDelete && onSecondaryEffectDelete(parentOriginalIndex, idx);
                                     }}
-                                />
-                                <Typography
-                                    variant="body2"
+                                    title="Delete secondary effect"
                                     sx={{
-                                        color: theme.palette.text.primary,
-                                        fontSize: '13px'
+                                        p: 0,
+                                        color: theme.palette.text.secondary,
+                                        opacity: 0.7,
+                                        '&:hover': {
+                                            opacity: 1,
+                                            transform: 'scale(1.1)',
+                                            color: theme.palette.error.main
+                                        }
                                     }}
                                 >
-                                    {formatEffectName(secondary)}
-                                </Typography>
+                                    <Delete sx={{ fontSize: 14 }} />
+                                </IconButton>
                                 </Paper>
                             </Box>
                         </ContextMenu.Trigger>
@@ -338,6 +407,14 @@ export default function EffectsPanel({
                                     <Edit fontSize="small" />
                                     Edit Secondary Effect
                                 </ContextMenu.Item>
+                                <ContextMenu.Separator style={separatorStyles} />
+                                <ContextMenu.Item
+                                    style={itemStyles}
+                                    onSelect={() => onSecondaryEffectDelete && onSecondaryEffectDelete(parentOriginalIndex, idx)}
+                                >
+                                    <Delete fontSize="small" />
+                                    Delete Secondary Effect
+                                </ContextMenu.Item>
                             </ContextMenu.Content>
                         </ContextMenu.Portal>
                     </ContextMenu.Root>
@@ -347,11 +424,12 @@ export default function EffectsPanel({
     };
 
     const renderKeyframeEffects = (effect, parentOriginalIndex) => {
-        if (!effect.keyframeEffects || effect.keyframeEffects.length === 0) return null;
+        const keyframeEffects = effect.attachedEffects?.keyFrame || [];
+        if (!keyframeEffects || keyframeEffects.length === 0) return null;
 
         return (
             <Box sx={{ ml: 2, mt: 0.5 }}>
-                {effect.keyframeEffects.map((keyframe, idx) => (
+                {keyframeEffects.map((keyframe, idx) => (
                     <ContextMenu.Root key={idx}>
                         <ContextMenu.Trigger asChild>
                             <Box
@@ -371,28 +449,51 @@ export default function EffectsPanel({
                                         mb: 0.25,
                                         display: 'flex',
                                         alignItems: 'center',
+                                        justifyContent: 'space-between',
                                         cursor: 'pointer',
                                         '&:hover': {
                                             backgroundColor: theme.palette.action.hover,
                                         }
                                     }}
                                 >
-                                    <ArrowForward
-                                        sx={{
-                                            fontSize: 14,
-                                            color: theme.palette.text.secondary,
-                                            mr: 1
+                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <ArrowForward
+                                            sx={{
+                                                fontSize: 14,
+                                                color: theme.palette.text.secondary,
+                                                mr: 1
+                                            }}
+                                        />
+                                        <Typography
+                                            variant="body2"
+                                            sx={{
+                                                color: theme.palette.text.primary,
+                                                fontSize: '13px'
+                                            }}
+                                        >
+                                            {formatKeyframeDisplay(keyframe)}: {formatEffectName(keyframe)}
+                                        </Typography>
+                                    </Box>
+                                    <IconButton
+                                        size="small"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onKeyframeEffectDelete && onKeyframeEffectDelete(parentOriginalIndex, idx);
                                         }}
-                                    />
-                                    <Typography
-                                        variant="body2"
+                                        title="Delete keyframe effect"
                                         sx={{
-                                            color: theme.palette.text.primary,
-                                            fontSize: '13px'
+                                            p: 0,
+                                            color: theme.palette.text.secondary,
+                                            opacity: 0.7,
+                                            '&:hover': {
+                                                opacity: 1,
+                                                transform: 'scale(1.1)',
+                                                color: theme.palette.error.main
+                                            }
                                         }}
                                     >
-                                        Frame {keyframe.frame}: {formatEffectName(keyframe)}
-                                    </Typography>
+                                        <Delete sx={{ fontSize: 14 }} />
+                                    </IconButton>
                                 </Paper>
                             </Box>
                         </ContextMenu.Trigger>
@@ -404,6 +505,14 @@ export default function EffectsPanel({
                                 >
                                     <Edit fontSize="small" />
                                     Edit Keyframe Effect
+                                </ContextMenu.Item>
+                                <ContextMenu.Separator style={separatorStyles} />
+                                <ContextMenu.Item
+                                    style={itemStyles}
+                                    onSelect={() => onKeyframeEffectDelete && onKeyframeEffectDelete(parentOriginalIndex, idx)}
+                                >
+                                    <Delete fontSize="small" />
+                                    Delete Keyframe Effect
                                 </ContextMenu.Item>
                             </ContextMenu.Content>
                         </ContextMenu.Portal>
@@ -567,6 +676,19 @@ export default function EffectsPanel({
                                     </ContextMenu.SubContent>
                                 </ContextMenu.Portal>
                             </ContextMenu.Sub>
+
+                            <ContextMenu.Separator style={separatorStyles} />
+
+                            <ContextMenu.Item
+                                style={itemStyles}
+                                onSelect={() => {
+                                    setBulkAddTargetIndex(originalIndex);
+                                    setBulkAddModalOpen(true);
+                                }}
+                            >
+                                <PlaylistAdd fontSize="small" />
+                                Bulk Add Keyframes
+                            </ContextMenu.Item>
                         </>
                     )}
                 </ContextMenu.Content>
@@ -588,7 +710,8 @@ export default function EffectsPanel({
         const isExpanded = expandedEffects.has(`${section}-${sortedIndex}`);
         const hasChildren =
             (effect.secondaryEffects?.length > 0) ||
-            (effect.keyframeEffects?.length > 0);
+            (effect.attachedEffects?.keyFrame?.length > 0) ||
+            false; // keyframeEffects legacy property removed
 
         return (
             <ContextMenu.Root key={`${section}-${originalIndex}`}>
@@ -844,6 +967,18 @@ export default function EffectsPanel({
                 onClose={() => setSpecialtyModalOpen(false)}
                 availableEffects={availableEffects || {}}
                 onCreateSpecialty={handleCreateSpecialty}
+                projectState={projectState}
+            />
+
+            {/* Bulk Add Keyframe Modal */}
+            <BulkAddKeyframeModal
+                isOpen={bulkAddModalOpen}
+                onClose={() => {
+                    setBulkAddModalOpen(false);
+                    setBulkAddTargetIndex(null);
+                }}
+                onBulkAdd={handleBulkAddKeyframes}
+                keyframeEffects={keyframeEffects}
                 projectState={projectState}
             />
         </Paper>

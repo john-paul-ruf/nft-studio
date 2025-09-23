@@ -21,7 +21,10 @@ function simulateEffectPicker() {
         },
         type: 'primary',
         secondaryEffects: [],
-        keyframeEffects: []
+        attachedEffects: {
+            secondary: [],
+            keyFrame: []
+        }
     };
 
     console.log('   ✓ Effect created:', {

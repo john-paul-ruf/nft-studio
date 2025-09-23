@@ -42,12 +42,11 @@ class NftProjectManager {
             const project = await this.createProject(projectState);
             const settings = await this.createProjectSettings(project, projectState);
 
-            // Store the project for potential reuse
+            // Store the project for potential reuse - only store essential objects, not duplicate state
             this.activeProjects.set(config.projectName, {
                 project,
                 settings,
-                projectState,
-                config
+                projectState  // Only store ProjectState - config can be derived via projectState.getState()
             });
 
             this.logger.success(`Project "${config.projectName}" initialized successfully`);
@@ -207,8 +206,6 @@ class NftProjectManager {
             return;
         }
 
-        console.log(`⚙️  Configuring ${config.effects.length} effects for project`);
-
         const myNftGenPath = path.resolve(process.cwd(), '../my-nft-gen');
         const { default: effectProcessor } = await import('../services/EffectProcessingService.js');
 
@@ -234,27 +231,43 @@ class NftProjectManager {
                     break;
                 case 'primary':
                 default:
+                    // Keep keyframe effects attached to primary effects - don't extract them
+                    // The my-nft-gen library should handle keyframe effects as part of the primary effect
                     primaryEffects.push(effect);
+                    
+                    // Extract secondary effects from primary effects - handle both formats
+                    const secondaryEffectsArray = effect.secondaryEffects || effect.attachedEffects?.secondary || [];
+                    if (Array.isArray(secondaryEffectsArray) && secondaryEffectsArray.length > 0) {
+                        for (const secondaryEffect of secondaryEffectsArray) {
+                            // Add secondary effect with proper structure
+                            secondaryEffects.push({
+                                ...secondaryEffect,
+                                type: 'secondary',
+                                parentEffectIndex: primaryEffects.length - 1 // Reference to parent effect
+                            });
+                        }
+                    }
                     break;
             }
         }
 
         // Process and add primary effects in order
         if (primaryEffects.length > 0) {
-            console.log('🔍 DEBUG: Processing primary effects:', primaryEffects.length);
+            // Log keyframe effects for debugging
+            primaryEffects.forEach((effect, index) => {
+                const keyframeEffects = effect.attachedEffects?.keyFrame || [];
+                if (keyframeEffects.length > 0) {
+                    console.log(`🎬 Primary effect ${index} (${effect.name || effect.className}) has ${keyframeEffects.length} keyframe effects:`, 
+                        keyframeEffects.map(kf => `Frame ${kf.frame}: ${kf.registryKey}`));
+                }
+            });
+
             const processedEffects = await effectProcessor.processEffects(
                 primaryEffects,
                 myNftGenPath
             );
 
-            console.log('🔍 DEBUG: Processed effects count:', processedEffects.length);
             for (const layerConfig of processedEffects) {
-                console.log('🔍 DEBUG: Adding primary effect to project:', {
-                    layerConfigName: layerConfig.name,
-                    layerConfigType: layerConfig.constructor.name,
-                    hasEffect: !!layerConfig.effect,
-                    effectName: layerConfig.effect?.name || layerConfig.effect?.constructor?.name
-                });
                 project.addPrimaryEffect({layerConfig});
             }
         }
@@ -271,147 +284,23 @@ class NftProjectManager {
             }
         }
 
-        // Process and add keyframe effects if the project supports them
-        if (keyframeEffects.length > 0 && project.addKeyframeEffect) {
-            const processedEffects = await effectProcessor.processEffects(
-                keyframeEffects,
-                myNftGenPath
-            );
-
-            for (const layerConfig of processedEffects) {
-                project.addKeyframeEffect({layerConfig});
-            }
-        }
+        // Keyframe effects are now kept attached to their parent primary effects
+        // and processed as part of the primary effect configuration
 
         // Process and add final effects in order
         if (finalEffects.length > 0) {
-            console.log('🔍 DEBUG: Processing final effects:', finalEffects.length);
             const processedEffects = await effectProcessor.processEffects(
                 finalEffects,
                 myNftGenPath
             );
 
-            console.log('🔍 DEBUG: Processed final effects count:', processedEffects.length);
             for (const layerConfig of processedEffects) {
-                console.log('🔍 DEBUG: Adding final effect to project:', {
-                    layerConfigName: layerConfig.name,
-                    layerConfigType: layerConfig.constructor.name,
-                    hasEffect: !!layerConfig.effect,
-                    effectName: layerConfig.effect?.name || layerConfig.effect?.constructor?.name
-                });
                 project.addFinalEffect({layerConfig});
             }
         }
     }
 
-    /**
-     * Configure project from UI parameters including effect classes and config instances (Legacy implementation)
-     * @param {Object} project - Project instance to configure
-     * @param {Object} config - UI configuration containing effects
-     * @returns {Promise<void>}
-     */
-    async configureProjectFromUI(project, config) {
-        if (!config.effects || !Array.isArray(config.effects) || config.effects.length === 0) {
-            console.log('⚠️  No effects configured for legacy project');
-            return;
-        }
 
-        console.log(`⚙️  Configuring ${config.effects.length} effects for legacy project`);
-
-        const myNftGenPath = path.resolve(process.cwd(), '../my-nft-gen');
-        const { default: effectProcessor } = await import('../services/EffectProcessingService.js');
-
-        // Group effects by type while maintaining order
-        const primaryEffects = [];
-        const secondaryEffects = [];
-        const keyframeEffects = [];
-        const finalEffects = [];
-
-        // Categorize effects while preserving their order
-        for (const effect of config.effects) {
-            const effectType = effect.type || 'primary';
-            switch (effectType) {
-                case 'secondary':
-                    secondaryEffects.push(effect);
-                    break;
-                case 'keyframe':
-                    keyframeEffects.push(effect);
-                    break;
-                case 'final':
-                case 'finalImage':  // Support both naming conventions
-                    finalEffects.push(effect);
-                    break;
-                case 'primary':
-                default:
-                    primaryEffects.push(effect);
-                    break;
-            }
-        }
-
-        // Process and add primary effects in order
-        if (primaryEffects.length > 0) {
-            console.log('🔍 DEBUG: Processing primary effects:', primaryEffects.length);
-            const processedEffects = await effectProcessor.processEffects(
-                primaryEffects,
-                myNftGenPath
-            );
-
-            console.log('🔍 DEBUG: Processed effects count:', processedEffects.length);
-            for (const layerConfig of processedEffects) {
-                console.log('🔍 DEBUG: Adding primary effect to project:', {
-                    layerConfigName: layerConfig.name,
-                    layerConfigType: layerConfig.constructor.name,
-                    hasEffect: !!layerConfig.effect,
-                    effectName: layerConfig.effect?.name || layerConfig.effect?.constructor?.name
-                });
-                project.addPrimaryEffect({layerConfig});
-            }
-        }
-
-        // Process and add secondary effects if the project supports them
-        if (secondaryEffects.length > 0 && project.addSecondaryEffect) {
-            const processedEffects = await effectProcessor.processEffects(
-                secondaryEffects,
-                myNftGenPath
-            );
-
-            for (const layerConfig of processedEffects) {
-                project.addSecondaryEffect({layerConfig});
-            }
-        }
-
-        // Process and add keyframe effects if the project supports them
-        if (keyframeEffects.length > 0 && project.addKeyframeEffect) {
-            const processedEffects = await effectProcessor.processEffects(
-                keyframeEffects,
-                myNftGenPath
-            );
-
-            for (const layerConfig of processedEffects) {
-                project.addKeyframeEffect({layerConfig});
-            }
-        }
-
-        // Process and add final effects in order
-        if (finalEffects.length > 0) {
-            console.log('🔍 DEBUG: Processing final effects:', finalEffects.length);
-            const processedEffects = await effectProcessor.processEffects(
-                finalEffects,
-                myNftGenPath
-            );
-
-            console.log('🔍 DEBUG: Processed final effects count:', processedEffects.length);
-            for (const layerConfig of processedEffects) {
-                console.log('🔍 DEBUG: Adding final effect to project:', {
-                    layerConfigName: layerConfig.name,
-                    layerConfigType: layerConfig.constructor.name,
-                    hasEffect: !!layerConfig.effect,
-                    effectName: layerConfig.effect?.name || layerConfig.effect?.constructor?.name
-                });
-                project.addFinalEffect({layerConfig});
-            }
-        }
-    }
 
     /**
      * Create a new Project instance
@@ -423,19 +312,10 @@ class NftProjectManager {
         const {Project} = await import('my-nft-gen/src/app/Project.js');
         const {ColorScheme} = await import('my-nft-gen/src/core/color/ColorScheme.js');
 
-        console.log('🔍 Backend resolution debug:', {
-            'projectConfig.resolution': projectConfig.resolution,
-            'projectConfig.targetResolution': projectConfig.targetResolution,
-            'projectConfig.width': projectConfig.width,
-            'projectConfig.height': projectConfig.height
-        });
-
         // Use targetResolution if resolution is not provided (for Canvas renders)
         const resolutionKey = projectConfig.resolution || projectConfig.targetResolution;
         const resolution = this.getResolutionFromConfig(resolutionKey);
         const isHorizontal = projectConfig.isHorizontal;
-
-        console.log('🎯 Backend using resolution:', { resolutionKey, resolution, isHorizontal });
 
         // Build colorSchemeInfo from projectConfig.colorScheme
         const colorSchemeInfo = await this.buildColorSchemeInfo(projectConfig);
@@ -656,7 +536,8 @@ class NftProjectManager {
     /**
      * Get active project
      * @param {string} projectName - Project name
-     * @returns {Object|null} Active project data
+     * @returns {Object|null} Active project data with { project, settings, projectState }
+     * Note: To get config, use activeProject.projectState.getState() - maintains single source of truth
      */
     getActiveProject(projectName) {
         return this.activeProjects.get(projectName) || null;

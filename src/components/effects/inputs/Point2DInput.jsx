@@ -1,88 +1,37 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import PositionSerializer from '../../../utils/PositionSerializer.js';
 import CenterUtils from '../../../utils/CenterUtils.js';
-import ResolutionMapper from '../../../utils/ResolutionMapper.js';
-import { useGlobalResolutionTracking } from '../../../hooks/useGlobalResolutionTracking.js';
 
 function Point2DInput({ field, value, onChange, projectState }) {
     const [showPresets, setShowPresets] = useState(false);
 
-    // Use global resolution tracker as single source of truth
-    const { getCurrentDimensions, resolutionState, initializeResolution, updateResolution } = useGlobalResolutionTracking();
-
-    // Get current dimensions from global tracker, fallback to project data if not available
-    const globalDimensions = getCurrentDimensions();
-    const fallbackDimensions = useMemo(() => {
-        console.log('📐 Point2DInput: Resolution calculation:', {
-            globalDimensions,
-            resolutionKey: resolutionState.resolutionKey,
-            projectState: {
-                targetResolution: projectState?.getTargetResolution(),
-                isHorizontal: projectState?.getIsHorizontal()
-            }
-        });
-
-        if (globalDimensions.width && globalDimensions.height && globalDimensions.width > 0 && globalDimensions.height > 0) {
-            console.log('✅ Point2DInput: Using global dimensions:', globalDimensions);
-            return globalDimensions;
-        }
-
-        // Fallback to ProjectState if global tracker not initialized
-        console.log('⚠️ Point2DInput: Global tracker not ready, falling back to ProjectState');
+    // SINGLE SOURCE: Get dimensions ONLY from ProjectState
+    const { width, height, currentResolutionKey } = useMemo(() => {
         if (!projectState) {
             console.error('Point2DInput: No ProjectState available - component cannot function');
-            return { width: 0, height: 0 }; // Fail fast - no fallbacks
+            return { width: 0, height: 0, currentResolutionKey: 'error' }; // Fail fast - no fallbacks
         }
-        const fallbackDims = projectState.getResolutionDimensions();
-        console.log('📊 Point2DInput: ProjectState fallback dimensions:', fallbackDims);
 
-        // Return dimensions directly from ProjectState - no fallbacks
+        const dimensions = projectState.getResolutionDimensions();
+        const resolution = projectState.getTargetResolution();
+        const isHorizontal = projectState.getIsHorizontal();
+        const key = `${resolution}-${dimensions.w}x${dimensions.h}-${isHorizontal ? 'h' : 'v'}`;
+
+        console.log('📐 Point2DInput: Using ProjectState dimensions:', {
+            dimensions,
+            resolution,
+            isHorizontal,
+            resolutionKey: key
+        });
+
         return {
-            width: fallbackDims.w,
-            height: fallbackDims.h
+            width: dimensions.w,
+            height: dimensions.h,
+            currentResolutionKey: key
         };
-    }, [globalDimensions, projectState, resolutionState.resolutionKey]);
+    }, [projectState]);
 
-    const { width, height } = fallbackDimensions;
-
-    // Initialize global resolution tracker if not already initialized
-    useEffect(() => {
-        if (!resolutionState.resolutionKey && projectState) {
-            const resolution = projectState.getTargetResolution();
-            const isHorizontal = projectState.getIsHorizontal();
-
-            console.log('📍 Point2DInput: Initializing global resolution tracker from ProjectState:', {
-                resolution,
-                isHorizontal
-            });
-
-            initializeResolution(resolution, isHorizontal);
-        }
-    }, [resolutionState.resolutionKey, projectState, initializeResolution]);
-
-    // Update global resolution tracker when projectState changes (after initialization)
-    useEffect(() => {
-        if (resolutionState.resolutionKey && projectState) {
-            const currentResolution = projectState.getTargetResolution();
-            const currentIsHorizontal = projectState.getIsHorizontal();
-
-            // Check if resolution actually changed
-            const currentDimensions = projectState.getResolutionDimensions();
-            const expectedKey = `${currentResolution}-${currentDimensions.w}x${currentDimensions.h}-${currentIsHorizontal ? 'h' : 'v'}`;
-
-            if (resolutionState.resolutionKey !== expectedKey) {
-                console.log('📍 Point2DInput: ProjectState resolution changed, updating global tracker:', {
-                    oldKey: resolutionState.resolutionKey,
-                    newKey: expectedKey,
-                    resolution: currentResolution,
-                    isHorizontal: currentIsHorizontal,
-                    dimensions: currentDimensions
-                });
-
-                updateResolution(currentResolution, currentIsHorizontal);
-            }
-        }
-    }, [projectState, resolutionState.resolutionKey, updateResolution]);
+    // Resolution tracking removed - ProjectState is the single source of truth
 
     // Generate smart defaults using unified CenterUtils
     const generateSmartDefault = (field, width, height) => {
@@ -144,10 +93,10 @@ function Point2DInput({ field, value, onChange, projectState }) {
             normalizedValue,
             resolved,
             dimensions: { width, height },
-            resolutionKey: resolutionState.resolutionKey
+            resolutionKey: currentResolutionKey
         });
         return resolved;
-    }, [normalizedValue, field, width, height, resolutionState.resolutionKey]);
+    }, [normalizedValue, field, width, height, currentResolutionKey]);
 
     // Memoize position presets - SPATIALLY ORGANIZED for 3x3 grid
     const positionPresets = useMemo(() => [
@@ -238,7 +187,7 @@ function Point2DInput({ field, value, onChange, projectState }) {
                             color: '#888',
                             textAlign: 'center'
                         }}>
-                            Canvas: {width} × {height} {resolutionState.resolutionKey && `(${resolutionState.isHorizontal ? 'Horizontal' : 'Vertical'})`}
+                            Canvas: {width} × {height} ({projectState?.getIsHorizontal() ? 'Horizontal' : 'Vertical'})
                         </div>
                     </div>
                 )}

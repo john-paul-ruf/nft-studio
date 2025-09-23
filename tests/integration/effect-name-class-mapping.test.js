@@ -233,7 +233,10 @@ class EffectNameClassMappingTests {
                 config: defaultsResult.defaults,
                 type: 'primary',
                 secondaryEffects: [],
-                keyframeEffects: []
+                attachedEffects: {
+                    secondary: [],
+                    keyFrame: []
+                }
             };
 
             console.log(`   Created effect object with className: ${effectObject.className}`);

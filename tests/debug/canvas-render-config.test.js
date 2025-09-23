@@ -23,7 +23,10 @@ const mockCanvasState = {
             },
             type: 'primary',
             secondaryEffects: [],
-            keyframeEffects: []
+            attachedEffects: {
+                secondary: [],
+                keyFrame: []
+            }
         }
     ],
     colorScheme: 'neon-cyberpunk'
@@ -79,7 +82,7 @@ if (renderConfig.effects && renderConfig.effects.length > 0) {
             type: effect.type,
             configKeys: effect.config ? Object.keys(effect.config) : 'no config',
             hasSecondaryEffects: Array.isArray(effect.secondaryEffects),
-            hasKeyframeEffects: Array.isArray(effect.keyframeEffects)
+            hasKeyframeEffects: Array.isArray(effect.attachedEffects?.keyFrame)
         });
     });
 }

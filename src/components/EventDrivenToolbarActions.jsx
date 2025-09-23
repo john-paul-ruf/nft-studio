@@ -342,7 +342,9 @@ export default function EventDrivenToolbarActions({ projectState }) {
                 eventBusService.emit('effect:addkeyframe', {
                     effectName: payload.effectName,
                     effectType: payload.effectType,
-                    parentIndex: payload.parentIndex
+                    parentIndex: payload.parentIndex,
+                    frame: payload.frame,
+                    config: payload.config
                 }, { source: 'EventDrivenToolbarActions' });
             },
             { component: 'EventDrivenToolbarActions' }

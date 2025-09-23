@@ -233,7 +233,7 @@ class DialogFixesRegressionTests {
                         config: {},
                         type: effect.category || 'primary',
                         secondaryEffects: [],
-                        keyframeEffects: []
+                        attachedEffects: { secondary: [], keyFrame: [] }
                     };
 
                     if (typeof onSelect === 'function') {

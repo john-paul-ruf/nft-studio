@@ -1,6 +1,5 @@
 import React from 'react';
 import { ServiceProvider, useServices } from './contexts/ServiceContext.js';
-import { ResolutionTrackingProvider } from './hooks/useGlobalResolutionTracking.js';
 import { useNavigation } from './hooks/useNavigation.js';
 import Intro from './pages/Intro.jsx';
 import ProjectWizard from './pages/ProjectWizard.jsx';
@@ -185,9 +184,7 @@ function App() {
 
     return (
         <ServiceProvider value={contextValue}>
-            <ResolutionTrackingProvider>
-                <AppRouter />
-            </ResolutionTrackingProvider>
+            <AppRouter />
         </ServiceProvider>
     );
 }

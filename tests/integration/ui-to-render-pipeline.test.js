@@ -62,7 +62,10 @@ class UIToRenderPipelineTest {
                 },
                 type: 'primary',
                 secondaryEffects: [],
-                keyframeEffects: []
+                attachedEffects: {
+                    secondary: [],
+                    keyFrame: []
+                }
             };
 
             console.log('   UI Effect Config:', JSON.stringify(uiStoredEffect, null, 2));
@@ -124,7 +127,10 @@ class UIToRenderPipelineTest {
                         },
                         type: 'primary',
                         secondaryEffects: [],
-                        keyframeEffects: []
+                        attachedEffects: {
+                    secondary: [],
+                    keyFrame: []
+                }
                     }
                 ],
 
@@ -316,7 +322,10 @@ class UIToRenderPipelineTest {
                         },
                         type: 'primary',
                         secondaryEffects: [],
-                        keyframeEffects: []
+                        attachedEffects: {
+                    secondary: [],
+                    keyFrame: []
+                }
                     }
                 ],
                 colorScheme: 'neon-cyberpunk',

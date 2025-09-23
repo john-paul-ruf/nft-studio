@@ -1,16 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useGlobalResolutionTracking } from '../../../hooks/useGlobalResolutionTracking.js';
 import CenterUtils from '../../../utils/CenterUtils.js';
-import ResolutionKeyUtils from '../../../utils/ResolutionKeyUtils.js';
 
 function PositionInput({ field, value, onChange, projectState }) {
     const [showPresets, setShowPresets] = useState(false);
     const [positionType, setPositionType] = useState('position');
     const [selectedCategory, setSelectedCategory] = useState('basic');
     const [debounceTimer, setDebounceTimer] = useState(null);
-
-    // Use global resolution tracking instead of component-level state
-    const { lastResolutionKey, hasResolutionChanged, updateResolution, initializeResolution } = useGlobalResolutionTracking();
 
     // SINGLE SOURCE: Get resolution data ONLY from ProjectState
     const { safeWidth, safeHeight, currentResolutionKey } = useMemo(() => {
@@ -41,33 +36,8 @@ function PositionInput({ field, value, onChange, projectState }) {
         }
     }, [value]);
 
-    // Initialize resolution tracking only (SCALING DISABLED - Canvas handles all scaling)
-    useEffect(() => {
-        console.log('🔍 PositionInput useEffect triggered (SCALING DISABLED):', {
-            currentResolutionKey,
-            lastResolutionKey,
-            hasValue: !!value,
-            valueType: value?.name,
-            safeWidth,
-            safeHeight
-        });
-
-        // Initialize resolution if this is the first time
-        if (!lastResolutionKey) {
-            console.log('🔧 Initializing global resolution key:', currentResolutionKey);
-            initializeResolution(currentResolutionKey);
-            return;
-        }
-
-        // Only update resolution tracking - NO SCALING (Canvas handles scaling globally)
-        const resolutionChanged = hasResolutionChanged(currentResolutionKey);
-        if (resolutionChanged) {
-            console.log('🎯 PositionInput: Resolution changed, updating tracking only (Canvas will handle scaling)');
-            updateResolution(currentResolutionKey);
-        }
-    }, [currentResolutionKey]);
-
-    // DEAD CODE ELIMINATED - Scaling handled by Canvas component only
+    // Resolution tracking removed - ProjectState is the single source of truth
+    // Canvas component handles all scaling globally
 
 
     // Generate default values using ProjectState dimensions ONLY

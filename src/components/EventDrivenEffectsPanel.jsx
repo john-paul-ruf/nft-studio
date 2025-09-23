@@ -80,6 +80,20 @@ export default function EventDrivenEffectsPanel({
         });
     }, [eventBusService]);
 
+    const handleSecondaryEffectDelete = useCallback((parentIndex, secondaryIndex) => {
+        eventBusService.emit('effectspanel:secondary:delete', { parentIndex, secondaryIndex }, {
+            source: 'EventDrivenEffectsPanel',
+            component: 'EventDrivenEffectsPanel'
+        });
+    }, [eventBusService]);
+
+    const handleKeyframeEffectDelete = useCallback((parentIndex, keyframeIndex) => {
+        eventBusService.emit('effectspanel:keyframe:delete', { parentIndex, keyframeIndex }, {
+            source: 'EventDrivenEffectsPanel',
+            component: 'EventDrivenEffectsPanel'
+        });
+    }, [eventBusService]);
+
     return (
         <EffectsPanel
             effects={effects}
@@ -92,6 +106,8 @@ export default function EventDrivenEffectsPanel({
             onEffectAddKeyframe={handleEffectAddKeyframe}
             onSecondaryEffectReorder={handleSecondaryEffectReorder}
             onKeyframeEffectReorder={handleKeyframeEffectReorder}
+            onSecondaryEffectDelete={handleSecondaryEffectDelete}
+            onKeyframeEffectDelete={handleKeyframeEffectDelete}
             availableEffects={availableEffects}
             effectsLoaded={effectsLoaded}
             currentTheme={currentTheme}

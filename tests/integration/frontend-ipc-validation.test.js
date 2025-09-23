@@ -154,7 +154,10 @@ class FrontendIPCValidationTests {
                 config: response.defaults,
                 type: testEffect.category || 'primary',
                 secondaryEffects: [],
-                keyframeEffects: []
+                attachedEffects: {
+                    secondary: [],
+                    keyFrame: []
+                }
             };
 
             console.log(`   ✓ Created effect object: ${JSON.stringify(newEffect, null, 2)}`);

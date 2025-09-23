@@ -98,7 +98,7 @@ async function simulateEffectSelection() {
                 config: defaultsResult.defaults,
                 type: testEffect.category || 'primary',
                 secondaryEffects: [],
-                keyframeEffects: []
+                attachedEffects: { secondary: [], keyFrame: [] }
             };
 
             console.log('✅ Effect object created successfully');

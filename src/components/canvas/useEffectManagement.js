@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import CenterUtils from '../../utils/CenterUtils.js';
-import { AddEffectCommand, DeleteEffectCommand, ReorderSecondaryEffectsCommand, ReorderKeyframeEffectsCommand } from '../../commands/ProjectCommands.js';
+import { AddEffectCommand, DeleteEffectCommand, ReorderSecondaryEffectsCommand, ReorderKeyframeEffectsCommand, DeleteSecondaryEffectCommand, DeleteKeyframeEffectCommand } from '../../commands/ProjectCommands.js';
 import { useServices } from '../../contexts/ServiceContext.js';
 import PreferencesService from '../../services/PreferencesService.js';
+
 
 export default function useEffectManagement(projectState) {
     const { commandService, eventBusService } = useServices();
@@ -149,14 +150,21 @@ export default function useEffectManagement(projectState) {
                 const effectData = effectCategory.find(e => e.name === payload.effectName);
                 const registryKey = effectData?.registryKey || payload.effectName;
 
-                // Check for user-saved defaults first
-                const savedDefaults = await PreferencesService.getEffectDefaults(registryKey);
-                const config = savedDefaults || result.defaults || {};
+                // Use config from payload if provided, otherwise check for user-saved defaults
+                let config;
+                if (payload.config && Object.keys(payload.config).length > 0) {
+                    config = payload.config;
+                    console.log('🎭 useEffectManagement: Using config from payload (bulk add)');
+                } else {
+                    const savedDefaults = await PreferencesService.getEffectDefaults(registryKey);
+                    config = savedDefaults || result.defaults || {};
+                    console.log('🎭 useEffectManagement: Using default config');
+                }
 
-                console.log('🎭 useEffectManagement: Using keyframe effect defaults:', {
+                console.log('🎭 useEffectManagement: Using keyframe effect config:', {
                     effectName: payload.effectName,
                     registryKey,
-                    usingSavedDefaults: !!savedDefaults,
+                    fromPayload: !!(payload.config && Object.keys(payload.config).length > 0),
                     config
                 });
 
@@ -168,7 +176,7 @@ export default function useEffectManagement(projectState) {
                         config
                     };
 
-                    console.log('🎭 useEffectManagement: Adding keyframe effect with proper defaults:', keyframeEffectData);
+                    console.log('🎭 useEffectManagement: Adding keyframe effect:', keyframeEffectData);
                     handleAddKeyframeEffect(targetEffect, payload.parentIndex, keyframeEffectData, payload.frame || 0);
                 }
             } catch (error) {
@@ -241,6 +249,30 @@ export default function useEffectManagement(projectState) {
             }
         }, { component: 'useEffectManagement' });
 
+        const unsubscribeSecondaryDelete = eventBusService.subscribe('effectspanel:secondary:delete', (payload) => {
+            console.log('🎭 useEffectManagement: Secondary effect delete event received:', payload);
+            if (projectState) {
+                const command = new DeleteSecondaryEffectCommand(
+                    projectState,
+                    payload.parentIndex,
+                    payload.secondaryIndex
+                );
+                commandService.execute(command);
+            }
+        }, { component: 'useEffectManagement' });
+
+        const unsubscribeKeyframeDelete = eventBusService.subscribe('effectspanel:keyframe:delete', (payload) => {
+            console.log('🎭 useEffectManagement: Keyframe effect delete event received:', payload);
+            if (projectState) {
+                const command = new DeleteKeyframeEffectCommand(
+                    projectState,
+                    payload.parentIndex,
+                    payload.keyframeIndex
+                );
+                commandService.execute(command);
+            }
+        }, { component: 'useEffectManagement' });
+
         return () => {
             unsubscribeEffectAdd();
             unsubscribeEffectDelete();
@@ -253,6 +285,8 @@ export default function useEffectManagement(projectState) {
             unsubscribeEffectAttach();
             unsubscribeSecondaryReorder();
             unsubscribeKeyframeReorder();
+            unsubscribeSecondaryDelete();
+            unsubscribeKeyframeDelete();
         };
     }, [eventBusService, handleAddEffectDirect, handleEffectDelete, handleEffectReorder, handleEditEffect, handleEffectToggleVisibility, handleAddSecondaryEffect, handleAddKeyframeEffect, handleSubEffectUpdate, handleConfigUpdateWithContext, projectState, availableEffects]);
 
@@ -505,15 +539,24 @@ export default function useEffectManagement(projectState) {
                 ...secondaryEffect,
                 name: secondaryEffect.registryKey
             };
-        } else if (editingEffect.effectType === 'keyframe' && mainEffect.keyframeEffects && editingEffect.subIndex !== null) {
-            const keyframeEffect = mainEffect.keyframeEffects[editingEffect.subIndex];
+        } else if (editingEffect.effectType === 'keyframe' && editingEffect.subIndex !== null) {
+            // Use single source of truth for keyframe effects
+            const keyframeEffects = mainEffect.attachedEffects?.keyFrame || [];
+            const keyframeEffect = keyframeEffects[editingEffect.subIndex];
+            
             console.log('🔍 getEditingEffectData: Returning keyframe effect:', keyframeEffect);
             console.log('🔍 getEditingEffectData: Keyframe effect details:', {
-                registryKey: keyframeEffect.registryKey,
-                config: keyframeEffect.config,
-                hasConfig: !!keyframeEffect.config,
-                configKeys: keyframeEffect.config ? Object.keys(keyframeEffect.config) : 'none'
+                registryKey: keyframeEffect?.registryKey,
+                config: keyframeEffect?.config,
+                hasConfig: !!keyframeEffect?.config,
+                configKeys: keyframeEffect?.config ? Object.keys(keyframeEffect.config) : 'none',
+                foundInAttachedEffects: !!mainEffect.attachedEffects?.keyFrame
             });
+
+            if (!keyframeEffect) {
+                console.error('❌ getEditingEffectData: Keyframe effect not found at index:', editingEffect.subIndex);
+                return null;
+            }
 
             // CRITICAL: Keyframe effect MUST have registryKey - no fallbacks
             if (!keyframeEffect.registryKey) {
@@ -564,14 +607,20 @@ export default function useEffectManagement(projectState) {
             handleEffectUpdate(context.effectIndex, updatedEffect);
         } else if (context.effectType === 'keyframe' && context.subIndex !== null) {
             console.log('🔧 useEffectManagement: Updating keyframe effect config at index:', context.subIndex);
-            const updatedKeyframeEffects = [...(mainEffect.keyframeEffects || [])];
+            
+            // Use single source of truth for keyframe effects
+            const currentKeyframeEffects = mainEffect.attachedEffects?.keyFrame || [];
+            const updatedKeyframeEffects = [...currentKeyframeEffects];
             updatedKeyframeEffects[context.subIndex] = {
                 ...updatedKeyframeEffects[context.subIndex],
                 config: newConfig
             };
             const updatedEffect = {
                 ...mainEffect,
-                keyframeEffects: updatedKeyframeEffects
+                attachedEffects: {
+                    ...mainEffect.attachedEffects,
+                    keyFrame: updatedKeyframeEffects
+                }
             };
             handleEffectUpdate(context.effectIndex, updatedEffect);
         }
@@ -603,14 +652,19 @@ export default function useEffectManagement(projectState) {
             };
             handleEffectUpdate(editingEffect.effectIndex, updatedEffect);
         } else if (editingEffect.effectType === 'keyframe' && editingEffect.subIndex !== null) {
-            const updatedKeyframeEffects = [...(mainEffect.keyframeEffects || [])];
+            // Use single source of truth for keyframe effects
+            const currentKeyframeEffects = mainEffect.attachedEffects?.keyFrame || [];
+            const updatedKeyframeEffects = [...currentKeyframeEffects];
             updatedKeyframeEffects[editingEffect.subIndex] = {
                 ...updatedKeyframeEffects[editingEffect.subIndex],
                 config: newConfig
             };
             const updatedEffect = {
                 ...mainEffect,
-                keyframeEffects: updatedKeyframeEffects
+                attachedEffects: {
+                    ...mainEffect.attachedEffects,
+                    keyFrame: updatedKeyframeEffects
+                }
             };
             handleEffectUpdate(editingEffect.effectIndex, updatedEffect);
         }
@@ -679,12 +733,15 @@ export default function useEffectManagement(projectState) {
 
             console.log('🎭 handleAddKeyframeEffect: Keyframe effect to add:', keyframeEffectToAdd);
 
+            // Use single source of truth for keyframe effects
+            const currentKeyframeEffects = targetEffect.attachedEffects?.keyFrame || [];
+            const updatedKeyframeEffects = [...currentKeyframeEffects, keyframeEffectToAdd];
             const updatedEffect = {
                 ...targetEffect,
-                keyframeEffects: [
-                    ...(targetEffect.keyframeEffects || []),
-                    keyframeEffectToAdd
-                ]
+                attachedEffects: {
+                    ...targetEffect.attachedEffects,
+                    keyFrame: updatedKeyframeEffects
+                }
             };
             handleEffectUpdate(effectIndex, updatedEffect);
         } catch (error) {
