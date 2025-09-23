@@ -27,7 +27,8 @@ import {
     Tooltip,
     ToggleButton,
     ToggleButtonGroup,
-    LinearProgress
+    LinearProgress,
+    Collapse
 } from '@mui/material';
 import {
     Clear,
@@ -46,8 +47,12 @@ import {
     Info,
     CheckCircle,
     Warning,
-    Timeline
+    Timeline,
+    Stop,
+    Minimize,
+    Maximize
 } from '@mui/icons-material';
+import RenderProgressWidget from './RenderProgressWidget';
 
 const EVENT_CATEGORIES = {
     FRAME: { label: 'Frame', color: '#4CAF50', icon: '🖼️' },
@@ -68,7 +73,7 @@ const EVENT_CATEGORIES = {
     CUSTOM: { label: 'Custom', color: '#9E9E9E', icon: '📌' }
 };
 
-export default function EventBusMonitor({ open, onClose }) {
+export default function EventBusMonitor({ open, onClose, onOpen }) {
     const [events, setEvents] = useState([]);
     const [filteredEvents, setFilteredEvents] = useState([]);
     const [isPaused, setIsPaused] = useState(false);
@@ -79,6 +84,9 @@ export default function EventBusMonitor({ open, onClose }) {
     const [autoScroll, setAutoScroll] = useState(true);
     const [showTimestamps, setShowTimestamps] = useState(true);
     const [eventStats, setEventStats] = useState({});
+    const [isMinimized, setIsMinimized] = useState(false);
+    const [isStoppingRenderLoop, setIsStoppingRenderLoop] = useState(false);
+    const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(true);
     // Progress tracking state
     const [renderProgress, setRenderProgress] = useState({
         isRendering: false,
@@ -242,6 +250,13 @@ export default function EventBusMonitor({ open, onClose }) {
         }
     }, [filteredEvents, autoScroll]);
 
+    useEffect(() => {
+        // Reset minimized state when modal is opened
+        if (open) {
+            setIsMinimized(false);
+        }
+    }, [open]);
+
     const detectCategory = (eventType) => {
         const lowerType = eventType.toLowerCase();
 
@@ -354,6 +369,32 @@ export default function EventBusMonitor({ open, onClose }) {
         linkElement.setAttribute('href', dataUri);
         linkElement.setAttribute('download', exportFileDefaultName);
         linkElement.click();
+    };
+
+    const stopRenderLoop = async () => {
+        if (!renderProgress.isRendering || isStoppingRenderLoop) return;
+        
+        setIsStoppingRenderLoop(true);
+        try {
+            console.log('🛑 EventBusMonitor: Stopping render loop');
+            const result = await window.api.stopRenderLoop();
+            console.log('✅ EventBusMonitor: Render loop stopped:', result);
+            
+            // Reset render progress state
+            setRenderProgress(prev => ({
+                ...prev,
+                isRendering: false,
+                progress: 0,
+                currentFrame: 0,
+                fps: 0,
+                eta: '',
+                startTime: null
+            }));
+        } catch (error) {
+            console.error('❌ EventBusMonitor: Failed to stop render loop:', error);
+        } finally {
+            setIsStoppingRenderLoop(false);
+        }
     };
 
     const formatEventData = (data) => {
@@ -535,7 +576,35 @@ export default function EventBusMonitor({ open, onClose }) {
     );
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+        <>
+            {/* Progress Widget - Show when modal is closed but render is active */}
+            {!open && renderProgress.isRendering && (
+                <RenderProgressWidget
+                    renderProgress={renderProgress}
+                    onOpen={() => {
+                        setIsMinimized(false);
+                        if (onOpen) onOpen();
+                    }}
+                    onStop={stopRenderLoop}
+                    isStoppingRenderLoop={isStoppingRenderLoop}
+                />
+            )}
+
+            {/* Main Dialog - Takes up most of the screen */}
+            <Dialog 
+                open={open} 
+                onClose={onClose} 
+                maxWidth={false}
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        width: '95vw',
+                        height: '90vh',
+                        maxWidth: 'none',
+                        maxHeight: 'none'
+                    }
+                }}
+            >
             <DialogTitle>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -547,177 +616,274 @@ export default function EventBusMonitor({ open, onClose }) {
                     </Box>
 
                     <Box sx={{ display: 'flex', gap: 1 }}>
-                        <IconButton onClick={() => setIsPaused(!isPaused)} color={isPaused ? 'error' : 'primary'}>
-                            {isPaused ? <PlayArrow /> : <Pause />}
-                        </IconButton>
-                        <IconButton onClick={clearEvents}>
-                            <Clear />
-                        </IconButton>
-                        <IconButton onClick={exportEvents}>
-                            <Download />
+                        {renderProgress.isRendering && (
+                            <Tooltip title={isStoppingRenderLoop ? "Stopping..." : "Stop Render Loop"}>
+                                <IconButton 
+                                    onClick={stopRenderLoop} 
+                                    color="error"
+                                    disabled={isStoppingRenderLoop}
+                                >
+                                    <Stop />
+                                </IconButton>
+                            </Tooltip>
+                        )}
+                        <IconButton onClick={() => {
+                            setIsMinimized(true);
+                            onClose();
+                        }}>
+                            <Minimize />
                         </IconButton>
                     </Box>
                 </Box>
             </DialogTitle>
 
             <DialogContent>
-                <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-                    <Tabs value={selectedTab} onChange={(e, v) => setSelectedTab(v)}>
-                        <Tab label={`Live Events (${filteredEvents.length})`} />
-                        <Tab label="Statistics" />
-                        <Tab label="Filters" />
-                    </Tabs>
-                </Box>
-
-                {selectedTab === 0 && (
-                    <>
-                        <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-                            <TextField
-                                size="small"
-                                placeholder="Search events..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                InputProps={{
-                                    startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />
-                                }}
-                                sx={{ flex: 1 }}
-                            />
-
-                            <FormControlLabel
-                                control={
-                                    <Checkbox
-                                        checked={autoScroll}
-                                        onChange={(e) => setAutoScroll(e.target.checked)}
-                                    />
-                                }
-                                label="Auto-scroll"
-                            />
-
-                            <FormControlLabel
-                                control={
-                                    <Checkbox
-                                        checked={showTimestamps}
-                                        onChange={(e) => setShowTimestamps(e.target.checked)}
-                                    />
-                                }
-                                label="Timestamps"
-                            />
+                {/* Progress Bar - Always visible when rendering */}
+                {renderProgress.isRendering && (
+                    <Paper sx={{ p: 2, mb: 2, bgcolor: 'primary.dark', color: 'primary.contrastText' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                                🎬 Rendering: {renderProgress.projectName}
+                            </Typography>
+                            <Typography variant="caption">
+                                {renderProgress.currentFrame}/{renderProgress.totalFrames} frames
+                            </Typography>
                         </Box>
 
-                        {/* Progress Bar */}
-                        {renderProgress.isRendering && (
-                            <Paper sx={{ p: 2, mb: 2, bgcolor: 'primary.dark', color: 'primary.contrastText' }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                                        🎬 Rendering: {renderProgress.projectName}
-                                    </Typography>
-                                    <Typography variant="caption">
-                                        {renderProgress.currentFrame}/{renderProgress.totalFrames} frames
-                                    </Typography>
-                                </Box>
+                        <LinearProgress
+                            variant="determinate"
+                            value={renderProgress.progress}
+                            sx={{
+                                height: 8,
+                                borderRadius: 1,
+                                mb: 1,
+                                bgcolor: 'rgba(255,255,255,0.2)',
+                                '& .MuiLinearProgress-bar': {
+                                    borderRadius: 1,
+                                    bgcolor: '#00ff88'
+                                }
+                            }}
+                        />
 
-                                <LinearProgress
-                                    variant="determinate"
-                                    value={renderProgress.progress}
-                                    sx={{
-                                        height: 8,
-                                        borderRadius: 1,
-                                        mb: 1,
-                                        bgcolor: 'rgba(255,255,255,0.2)',
-                                        '& .MuiLinearProgress-bar': {
-                                            borderRadius: 1,
-                                            bgcolor: '#00ff88'
-                                        }
-                                    }}
-                                />
-
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                                {renderProgress.progress}% complete
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 2 }}>
+                                {renderProgress.fps > 0 && (
                                     <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                                        {renderProgress.progress}% complete
+                                        {renderProgress.fps} fps
                                     </Typography>
-                                    <Box sx={{ display: 'flex', gap: 2 }}>
-                                        {renderProgress.fps > 0 && (
-                                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                                                {renderProgress.fps} fps
-                                            </Typography>
-                                        )}
-                                        {renderProgress.lastFrameTime > 0 && (
-                                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                                                {renderProgress.lastFrameTime}ms/frame
-                                            </Typography>
-                                        )}
-                                        {renderProgress.eta && (
-                                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                                                ETA: {renderProgress.eta}
-                                            </Typography>
-                                        )}
+                                )}
+                                {renderProgress.lastFrameTime > 0 && (
+                                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                                        {renderProgress.lastFrameTime}ms/frame
+                                    </Typography>
+                                )}
+                                {renderProgress.eta && (
+                                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                                        ETA: {renderProgress.eta}
+                                    </Typography>
+                                )}
+                            </Box>
+                        </Box>
+                    </Paper>
+                )}
+
+                <Collapse in={!isMinimized}>
+                    <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+                        <Tabs value={selectedTab} onChange={(e, v) => setSelectedTab(v)}>
+                            <Tab label={`Live Events (${filteredEvents.length})`} />
+                            <Tab label="Statistics" />
+                        </Tabs>
+                    </Box>
+
+                    {selectedTab === 0 && (
+                        <>
+                            {/* Compact Filters Section */}
+                            <Paper 
+                                elevation={1}
+                                sx={{ 
+                                    p: 1.5, 
+                                    mb: 2, 
+                                    bgcolor: 'background.paper',
+                                    borderRadius: 1,
+                                    border: '1px solid',
+                                    borderColor: 'divider'
+                                }}
+                            >
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                                    <Box 
+                                        sx={{ 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            gap: 1,
+                                            cursor: 'pointer',
+                                            '&:hover': { opacity: 0.8 }
+                                        }}
+                                        onClick={() => setIsFiltersCollapsed(!isFiltersCollapsed)}
+                                    >
+                                        <Typography 
+                                            variant="subtitle2" 
+                                            sx={{ 
+                                                display: 'flex', 
+                                                alignItems: 'center', 
+                                                gap: 1,
+                                                fontWeight: 600,
+                                                color: 'text.primary'
+                                            }}
+                                        >
+                                            <FilterList fontSize="small" />
+                                            Event Filters
+                                        </Typography>
+                                        <IconButton size="small">
+                                            {isFiltersCollapsed ? <ExpandMore /> : <ExpandLess />}
+                                        </IconButton>
+                                    </Box>
+                                    <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Button
+                                            size="small"
+                                            variant="text"
+                                            onClick={() => setSelectedCategories(Object.keys(EVENT_CATEGORIES))}
+                                            sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                                        >
+                                            Select All
+                                        </Button>
+                                        <Button
+                                            size="small"
+                                            variant="text"
+                                            onClick={() => setSelectedCategories([])}
+                                            sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                                        >
+                                            Clear All
+                                        </Button>
                                     </Box>
                                 </Box>
+                                
+                                <Collapse in={!isFiltersCollapsed}>
+                                    {/* Search and Options Row */}
+                                    <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                                        <TextField
+                                            variant="outlined"
+                                            size="small"
+                                            placeholder="Search events..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            InputProps={{
+                                                startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} fontSize="small" />
+                                            }}
+                                            sx={{ 
+                                                flex: 1, 
+                                                minWidth: 250,
+                                                '& .MuiOutlinedInput-root': {
+                                                    borderRadius: 1
+                                                }
+                                            }}
+                                        />
+
+                                        <Box sx={{ display: 'flex', gap: 1 }}>
+                                            <FormControlLabel
+                                                control={
+                                                    <Checkbox
+                                                        checked={autoScroll}
+                                                        onChange={(e) => setAutoScroll(e.target.checked)}
+                                                        size="small"
+                                                    />
+                                                }
+                                                label="Auto-scroll"
+                                                sx={{ '& .MuiFormControlLabel-label': { fontSize: '0.75rem' } }}
+                                            />
+
+                                            <FormControlLabel
+                                                control={
+                                                    <Checkbox
+                                                        checked={showTimestamps}
+                                                        onChange={(e) => setShowTimestamps(e.target.checked)}
+                                                        size="small"
+                                                    />
+                                                }
+                                                label="Timestamps"
+                                                sx={{ '& .MuiFormControlLabel-label': { fontSize: '0.75rem' } }}
+                                            />
+                                        </Box>
+                                    </Box>
+
+                                    {/* Category Filters */}
+                                    <Box sx={{ mb: 1 }}>
+                                        <Typography 
+                                            variant="caption" 
+                                            sx={{ 
+                                                mb: 1, 
+                                                color: 'text.secondary',
+                                                fontWeight: 500,
+                                                textTransform: 'uppercase',
+                                                letterSpacing: 0.5,
+                                                display: 'block'
+                                            }}
+                                        >
+                                            Categories ({selectedCategories.length} selected)
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                            {Object.entries(EVENT_CATEGORIES).map(([key, config]) => (
+                                                <Chip
+                                                    key={key}
+                                                    label={`${config.icon} ${config.label}`}
+                                                    variant={selectedCategories.includes(key) ? "filled" : "outlined"}
+                                                    size="small"
+                                                    onClick={() => {
+                                                        setSelectedCategories(prev =>
+                                                            prev.includes(key)
+                                                                ? prev.filter(c => c !== key)
+                                                                : [...prev, key]
+                                                        );
+                                                    }}
+                                                    sx={{
+                                                        borderRadius: 1,
+                                                        fontWeight: 500,
+                                                        fontSize: '0.7rem',
+                                                        height: 24,
+                                                        transition: 'all 0.2s ease-in-out',
+                                                        ...(selectedCategories.includes(key) ? {
+                                                            bgcolor: config.color,
+                                                            color: 'white',
+                                                            borderColor: config.color,
+                                                            '&:hover': {
+                                                                bgcolor: config.color,
+                                                                opacity: 0.8
+                                                            }
+                                                        } : {
+                                                            borderColor: config.color,
+                                                            color: config.color,
+                                                            '&:hover': {
+                                                                bgcolor: config.color + '15',
+                                                                borderColor: config.color
+                                                            }
+                                                        })
+                                                    }}
+                                                />
+                                            ))}
+                                        </Box>
+                                    </Box>
+                                </Collapse>
                             </Paper>
-                        )}
 
-                        {renderEventList()}
-                    </>
-                )}
+                            {renderEventList()}
+                        </>
+                    )}
 
-                {selectedTab === 1 && renderStatsPanel()}
-
-                {selectedTab === 2 && (
-                    <Box sx={{ p: 2 }}>
-                        <Typography variant="subtitle1" gutterBottom>Filter by Category</Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                            {Object.entries(EVENT_CATEGORIES).map(([key, config]) => (
-                                <Chip
-                                    key={key}
-                                    label={`${config.icon} ${config.label}`}
-                                    onClick={() => {
-                                        setSelectedCategories(prev =>
-                                            prev.includes(key)
-                                                ? prev.filter(c => c !== key)
-                                                : [...prev, key]
-                                        );
-                                    }}
-                                    sx={{
-                                        bgcolor: selectedCategories.includes(key)
-                                            ? config.color + '33'
-                                            : 'action.disabledBackground',
-                                        color: selectedCategories.includes(key)
-                                            ? config.color
-                                            : 'text.disabled',
-                                        '&:hover': {
-                                            bgcolor: config.color + '55'
-                                        }
-                                    }}
-                                />
-                            ))}
-                        </Box>
-
-                        <Box sx={{ mt: 2 }}>
-                            <Button
-                                size="small"
-                                onClick={() => setSelectedCategories(Object.keys(EVENT_CATEGORIES))}
-                            >
-                                Select All
-                            </Button>
-                            <Button
-                                size="small"
-                                onClick={() => setSelectedCategories([])}
-                            >
-                                Clear All
-                            </Button>
-                        </Box>
-                    </Box>
-                )}
+                    {selectedTab === 1 && renderStatsPanel()}
+                </Collapse>
             </DialogContent>
 
-            <DialogActions>
-                <Typography variant="caption" sx={{ flex: 1, pl: 2, color: 'text.secondary' }}>
-                    {isPaused ? '⏸️ Paused' : '🔴 Recording'} |
-                    Total: {events.length} |
-                    Filtered: {filteredEvents.length}
-                </Typography>
-                <Button onClick={onClose}>Close</Button>
-            </DialogActions>
-        </Dialog>
+                <DialogActions>
+                    <Typography variant="caption" sx={{ flex: 1, pl: 2, color: 'text.secondary' }}>
+                        {isPaused ? '⏸️ Paused' : '🔴 Recording'} |
+                        Total: {events.length} |
+                        Filtered: {filteredEvents.length}
+                    </Typography>
+                </DialogActions>
+                </Dialog>
+            )}
+        </>
     );
 }

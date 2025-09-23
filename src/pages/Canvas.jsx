@@ -414,30 +414,11 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                 </Dialog>
 
                 {/* Event Monitor */}
-                {showEventMonitor && (
-                    <Dialog
-                        open={showEventMonitor}
-                        onClose={() => setShowEventMonitor(false)}
-                        maxWidth="lg"
-                        fullWidth
-                    >
-                        <DialogTitle>
-                            Render Progress Monitor
-                            <IconButton
-                                onClick={() => setShowEventMonitor(false)}
-                                sx={{ position: 'absolute', right: 8, top: 8 }}
-                            >
-                                <Close />
-                            </IconButton>
-                        </DialogTitle>
-                        <DialogContent>
-                            <EventBusMonitor
-                                open={showEventMonitor}
-                                onClose={() => setShowEventMonitor(false)}
-                            />
-                        </DialogContent>
-                    </Dialog>
-                )}
+                <EventBusMonitor
+                    open={showEventMonitor}
+                    onClose={() => setShowEventMonitor(false)}
+                    onOpen={() => setShowEventMonitor(true)}
+                />
             </Box>
         </ThemeProvider>
     );
