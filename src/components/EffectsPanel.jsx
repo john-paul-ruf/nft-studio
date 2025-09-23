@@ -310,6 +310,25 @@ export default function EffectsPanel({
         return registryKey.replace(/([A-Z])/g, ' $1').trim();
     };
 
+    const formatEffectId = (id) => {
+        if (!id || typeof id !== 'string') {
+            return null;
+        }
+        
+        // If it's a UUID-like string, show only the first 8 characters
+        if (id.length > 16 && id.includes('-')) {
+            return id.substring(0, 8).toUpperCase();
+        }
+        
+        // If it's a long string, truncate and add ellipsis
+        if (id.length > 12) {
+            return id.substring(0, 8).toUpperCase() + '...';
+        }
+        
+        // For shorter IDs, just uppercase them
+        return id.toUpperCase();
+    };
+
     const formatKeyframeDisplay = (keyframe) => {
         // Check if keyframe has config with keyFrames array
         if (keyframe.config && keyframe.config.keyFrames && Array.isArray(keyframe.config.keyFrames)) {
@@ -376,16 +395,34 @@ export default function EffectsPanel({
                                     </Typography>
                                     {secondary.id && (
                                         <Chip
-                                            label={secondary.id}
+                                            label={formatEffectId(secondary.id)}
                                             size="small"
+                                            title={`Full ID: ${secondary.id}`}
                                             sx={{
-                                                height: 14,
-                                                fontSize: '8px',
-                                                backgroundColor: theme.palette.mode === 'dark' ? '#424242' : '#e0e0e0',
-                                                color: theme.palette.text.secondary,
-                                                fontFamily: 'monospace',
+                                                height: 16,
+                                                fontSize: '9px',
+                                                fontWeight: 500,
+                                                backgroundColor: theme.palette.mode === 'dark' 
+                                                    ? 'rgba(255, 183, 77, 0.16)' 
+                                                    : 'rgba(255, 152, 0, 0.08)',
+                                                color: theme.palette.mode === 'dark' 
+                                                    ? '#ffb74d' 
+                                                    : '#f57c00',
+                                                border: `1px solid ${theme.palette.mode === 'dark' 
+                                                    ? 'rgba(255, 183, 77, 0.3)' 
+                                                    : 'rgba(255, 152, 0, 0.2)'}`,
+                                                fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace',
+                                                letterSpacing: '0.3px',
                                                 '& .MuiChip-label': {
-                                                    px: 0.5
+                                                    px: 0.5,
+                                                    py: 0.2
+                                                },
+                                                '&:hover': {
+                                                    backgroundColor: theme.palette.mode === 'dark' 
+                                                        ? 'rgba(255, 183, 77, 0.24)' 
+                                                        : 'rgba(255, 152, 0, 0.12)',
+                                                    transform: 'scale(1.05)',
+                                                    transition: 'all 0.2s ease-in-out'
                                                 }
                                             }}
                                         />
@@ -491,16 +528,34 @@ export default function EffectsPanel({
                                         </Typography>
                                         {keyframe.id && (
                                             <Chip
-                                                label={keyframe.id}
+                                                label={formatEffectId(keyframe.id)}
                                                 size="small"
+                                                title={`Full ID: ${keyframe.id}`}
                                                 sx={{
-                                                    height: 14,
-                                                    fontSize: '8px',
-                                                    backgroundColor: theme.palette.mode === 'dark' ? '#424242' : '#e0e0e0',
-                                                    color: theme.palette.text.secondary,
-                                                    fontFamily: 'monospace',
+                                                    height: 16,
+                                                    fontSize: '9px',
+                                                    fontWeight: 500,
+                                                    backgroundColor: theme.palette.mode === 'dark' 
+                                                        ? 'rgba(129, 199, 132, 0.16)' 
+                                                        : 'rgba(76, 175, 80, 0.08)',
+                                                    color: theme.palette.mode === 'dark' 
+                                                        ? '#81c784' 
+                                                        : '#388e3c',
+                                                    border: `1px solid ${theme.palette.mode === 'dark' 
+                                                        ? 'rgba(129, 199, 132, 0.3)' 
+                                                        : 'rgba(76, 175, 80, 0.2)'}`,
+                                                    fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace',
+                                                    letterSpacing: '0.3px',
                                                     '& .MuiChip-label': {
-                                                        px: 0.5
+                                                        px: 0.5,
+                                                        py: 0.2
+                                                    },
+                                                    '&:hover': {
+                                                        backgroundColor: theme.palette.mode === 'dark' 
+                                                            ? 'rgba(129, 199, 132, 0.24)' 
+                                                            : 'rgba(76, 175, 80, 0.12)',
+                                                        transform: 'scale(1.05)',
+                                                        transition: 'all 0.2s ease-in-out'
                                                     }
                                                 }}
                                             />
@@ -822,16 +877,34 @@ export default function EffectsPanel({
                                 </Typography>
                                 {effect.id && (
                                     <Chip
-                                        label={effect.id}
+                                        label={formatEffectId(effect.id)}
                                         size="small"
+                                        title={`Full ID: ${effect.id}`}
                                         sx={{
-                                            height: 16,
-                                            fontSize: '9px',
-                                            backgroundColor: theme.palette.mode === 'dark' ? '#424242' : '#e0e0e0',
-                                            color: theme.palette.text.secondary,
-                                            fontFamily: 'monospace',
+                                            height: 18,
+                                            fontSize: '10px',
+                                            fontWeight: 600,
+                                            backgroundColor: theme.palette.mode === 'dark' 
+                                                ? 'rgba(144, 202, 249, 0.16)' 
+                                                : 'rgba(25, 118, 210, 0.08)',
+                                            color: theme.palette.mode === 'dark' 
+                                                ? '#90caf9' 
+                                                : '#1976d2',
+                                            border: `1px solid ${theme.palette.mode === 'dark' 
+                                                ? 'rgba(144, 202, 249, 0.3)' 
+                                                : 'rgba(25, 118, 210, 0.2)'}`,
+                                            fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace',
+                                            letterSpacing: '0.5px',
                                             '& .MuiChip-label': {
-                                                px: 0.5
+                                                px: 0.75,
+                                                py: 0.25
+                                            },
+                                            '&:hover': {
+                                                backgroundColor: theme.palette.mode === 'dark' 
+                                                    ? 'rgba(144, 202, 249, 0.24)' 
+                                                    : 'rgba(25, 118, 210, 0.12)',
+                                                transform: 'scale(1.05)',
+                                                transition: 'all 0.2s ease-in-out'
                                             }
                                         }}
                                     />

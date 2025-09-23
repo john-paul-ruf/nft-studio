@@ -693,6 +693,7 @@ export default function useEffectManagement(projectState) {
 
             // Use the already-fetched config data instead of making another API call
             const secondaryEffectToAdd = {
+                id: newSecondaryEffect.id,
                 registryKey: newSecondaryEffect.registryKey,
                 config: newSecondaryEffect.config || {}
             };
@@ -731,6 +732,7 @@ export default function useEffectManagement(projectState) {
 
             // Use the already-fetched config data instead of making another API call
             const keyframeEffectToAdd = {
+                id: newKeyframeEffect.id,
                 frame: selectedFrame,
                 registryKey: newKeyframeEffect.registryKey,
                 config: newKeyframeEffect.config || {}
