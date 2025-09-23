@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import CenterUtils from '../../utils/CenterUtils.js';
+import IdGenerator from '../../utils/IdGenerator.js';
 import { AddEffectCommand, DeleteEffectCommand, ReorderSecondaryEffectsCommand, ReorderKeyframeEffectsCommand, DeleteSecondaryEffectCommand, DeleteKeyframeEffectCommand } from '../../commands/ProjectCommands.js';
 import { useServices } from '../../contexts/ServiceContext.js';
 import PreferencesService from '../../services/PreferencesService.js';
@@ -112,6 +113,7 @@ export default function useEffectManagement(projectState) {
                 const targetEffect = currentEffects[payload.parentIndex];
                 if (targetEffect) {
                     const secondaryEffectData = {
+                        id: IdGenerator.generateId(),
                         registryKey: payload.effectName,
                         config
                     };
@@ -172,6 +174,7 @@ export default function useEffectManagement(projectState) {
                 const targetEffect = currentEffects[payload.parentIndex];
                 if (targetEffect) {
                     const keyframeEffectData = {
+                        id: IdGenerator.generateId(),
                         registryKey: payload.effectName,
                         config
                     };
@@ -313,6 +316,7 @@ export default function useEffectManagement(projectState) {
 
             // For specialty effects, use the provided config directly without centering
             const effect = {
+                id: IdGenerator.generateId(),
                 name: effectName,
                 className: effectData?.className || effectName,
                 registryKey: registryKey,
@@ -402,6 +406,7 @@ export default function useEffectManagement(projectState) {
                 }
 
                 const effect = {
+                    id: IdGenerator.generateId(),
                     registryKey: effectName,
                     type: validatedType,
                     config: processedConfig,

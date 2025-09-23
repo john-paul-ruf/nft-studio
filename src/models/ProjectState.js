@@ -529,12 +529,12 @@ export default class ProjectState {
      * Create ProjectState from JSON string
      * @param {string} jsonString - JSON serialized project state
      * @param {Function} onUpdate - Update callback
-     * @returns {ProjectState} New ProjectState instance
+     * @returns {Promise<ProjectState>} New ProjectState instance
      */
-    static fromJSON(jsonString, onUpdate = null) {
+    static async fromJSON(jsonString, onUpdate = null) {
         try {
             const data = JSON.parse(jsonString);
-            return ProjectState.fromObject(data, onUpdate);
+            return await ProjectState.fromObject(data, onUpdate);
         } catch (error) {
             throw new Error(`Failed to deserialize ProjectState: ${error.message}`);
         }
@@ -544,9 +544,9 @@ export default class ProjectState {
      * Create ProjectState from plain object
      * @param {Object} data - Plain object with version, timestamp, and state
      * @param {Function} onUpdate - Update callback
-     * @returns {ProjectState} New ProjectState instance
+     * @returns {Promise<ProjectState>} New ProjectState instance
      */
-    static fromObject(data, onUpdate = null) {
+    static async fromObject(data, onUpdate = null) {
         if (!data || typeof data !== 'object') {
             throw new Error('Invalid data provided for ProjectState deserialization');
         }
@@ -564,6 +564,12 @@ export default class ProjectState {
         // Create new instance with hydrated state
         const instance = new ProjectState(null, onUpdate);
         instance.state = { ...instance.state, ...data.state };
+
+        // Ensure all effects have IDs (for backward compatibility)
+        if (instance.state.effects && Array.isArray(instance.state.effects)) {
+            const IdGenerator = (await import('../utils/IdGenerator.js')).default;
+            instance.state.effects = IdGenerator.ensureEffectsIds(instance.state.effects);
+        }
 
         return instance;
     }
@@ -634,7 +640,7 @@ export default class ProjectState {
         try {
             const result = await window.api.loadProjectFile(filePath);
             if (result.success) {
-                return ProjectState.fromJSON(JSON.stringify(result.projectData), onUpdate);
+                return await ProjectState.fromJSON(JSON.stringify(result.projectData), onUpdate);
             } else {
                 throw new Error(result.error);
             }

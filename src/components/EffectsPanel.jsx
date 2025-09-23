@@ -357,7 +357,7 @@ export default function EffectsPanel({
                                     }
                                 }}
                             >
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                     <SubdirectoryArrowRight
                                         sx={{
                                             fontSize: 14,
@@ -374,6 +374,22 @@ export default function EffectsPanel({
                                     >
                                         {formatEffectName(secondary)}
                                     </Typography>
+                                    {secondary.id && (
+                                        <Chip
+                                            label={secondary.id}
+                                            size="small"
+                                            sx={{
+                                                height: 14,
+                                                fontSize: '8px',
+                                                backgroundColor: theme.palette.mode === 'dark' ? '#424242' : '#e0e0e0',
+                                                color: theme.palette.text.secondary,
+                                                fontFamily: 'monospace',
+                                                '& .MuiChip-label': {
+                                                    px: 0.5
+                                                }
+                                            }}
+                                        />
+                                    )}
                                 </Box>
                                 <IconButton
                                     size="small"
@@ -456,7 +472,7 @@ export default function EffectsPanel({
                                         }
                                     }}
                                 >
-                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <ArrowForward
                                             sx={{
                                                 fontSize: 14,
@@ -473,6 +489,22 @@ export default function EffectsPanel({
                                         >
                                             {formatKeyframeDisplay(keyframe)}: {formatEffectName(keyframe)}
                                         </Typography>
+                                        {keyframe.id && (
+                                            <Chip
+                                                label={keyframe.id}
+                                                size="small"
+                                                sx={{
+                                                    height: 14,
+                                                    fontSize: '8px',
+                                                    backgroundColor: theme.palette.mode === 'dark' ? '#424242' : '#e0e0e0',
+                                                    color: theme.palette.text.secondary,
+                                                    fontFamily: 'monospace',
+                                                    '& .MuiChip-label': {
+                                                        px: 0.5
+                                                    }
+                                                }}
+                                            />
+                                        )}
                                     </Box>
                                     <IconButton
                                         size="small"
@@ -788,6 +820,22 @@ export default function EffectsPanel({
                                 >
                                     {formatEffectName(effect)}
                                 </Typography>
+                                {effect.id && (
+                                    <Chip
+                                        label={effect.id}
+                                        size="small"
+                                        sx={{
+                                            height: 16,
+                                            fontSize: '9px',
+                                            backgroundColor: theme.palette.mode === 'dark' ? '#424242' : '#e0e0e0',
+                                            color: theme.palette.text.secondary,
+                                            fontFamily: 'monospace',
+                                            '& .MuiChip-label': {
+                                                px: 0.5
+                                            }
+                                        }}
+                                    />
+                                )}
                                 {isFinalEffect(effect) && (
                                     <Chip
                                         label="Final"

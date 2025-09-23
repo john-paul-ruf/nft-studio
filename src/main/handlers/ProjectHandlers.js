@@ -16,7 +16,7 @@ class ProjectHandlers {
     register() {
         ipcMain.handle('start-new-project', async (event, projectInput) => {
             // Convert to ProjectState if needed
-            const projectState = this.ensureProjectState(projectInput);
+            const projectState = await this.ensureProjectState(projectInput);
             return await this.projectManager.startNewProject(projectState);
         });
 
@@ -26,13 +26,13 @@ class ProjectHandlers {
 
         ipcMain.handle('render-frame', async (event, configInput, frameNumber) => {
             // Convert to ProjectState if needed
-            const projectState = this.ensureProjectState(configInput);
+            const projectState = await this.ensureProjectState(configInput);
             return await this.projectManager.renderFrame(projectState, frameNumber);
         });
 
         ipcMain.handle('start-render-loop', async (event, configInput) => {
             // Convert to ProjectState if needed
-            const projectState = this.ensureProjectState(configInput);
+            const projectState = await this.ensureProjectState(configInput);
             return await this.projectManager.startRenderLoop(projectState);
         });
 
@@ -44,16 +44,16 @@ class ProjectHandlers {
     /**
      * Ensure input is a ProjectState instance
      * @param {Object|ProjectState} input - Input to convert
-     * @returns {ProjectState} ProjectState instance
+     * @returns {Promise<ProjectState>} ProjectState instance
      */
-    ensureProjectState(input) {
+    async ensureProjectState(input) {
         if (input instanceof ProjectState) {
             return input;
         }
 
         // Handle serialized ProjectState
         if (input && input.state && input.version) {
-            return ProjectState.fromObject(input);
+            return await ProjectState.fromObject(input);
         }
 
         // Handle legacy config objects

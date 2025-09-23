@@ -27,7 +27,7 @@ class NftProjectManager {
         this.logger.header('Starting New NFT Project');
 
         // Convert input to ProjectState if needed
-        const projectState = this.ensureProjectState(projectInput);
+        const projectState = await this.ensureProjectState(projectInput);
         const config = projectState.getState();
 
         this.logger.info('Project Configuration Received', {
@@ -109,7 +109,7 @@ class NftProjectManager {
      */
     async renderFrame(configInput, frameNumber) {
         // Convert input to ProjectState if needed
-        const projectState = this.ensureProjectState(configInput);
+        const projectState = await this.ensureProjectState(configInput);
         const config = projectState.getState();
 
         this.logger.info('Starting frame render', { frameNumber, config: config.projectName });
@@ -177,16 +177,16 @@ class NftProjectManager {
     /**
      * Ensure input is a ProjectState instance
      * @param {Object|ProjectState} input - Input to convert
-     * @returns {ProjectState} ProjectState instance
+     * @returns {Promise<ProjectState>} ProjectState instance
      */
-    ensureProjectState(input) {
+    async ensureProjectState(input) {
         if (input instanceof ProjectState) {
             return input;
         }
 
         // Handle serialized ProjectState
         if (input && input.state && input.version) {
-            return ProjectState.fromObject(input);
+            return await ProjectState.fromObject(input);
         }
 
         // Handle legacy config objects
@@ -557,7 +557,7 @@ class NftProjectManager {
      */
     async startRenderLoop(configInput) {
         // Convert input to ProjectState if needed
-        const projectState = this.ensureProjectState(configInput);
+        const projectState = await this.ensureProjectState(configInput);
         const config = projectState.getState();
 
         console.log('🔥 NftProjectManager.startRenderLoop() called with config:', config);
