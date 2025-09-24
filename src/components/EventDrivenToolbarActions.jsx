@@ -91,7 +91,14 @@ export default function EventDrivenToolbarActions({ projectState }) {
 
                         // Process color scheme data like RenderPipelineService does
                         let colorSchemeData = null;
-                        if (config.colorScheme) {
+
+                        // First, check if we already have colorSchemeData (e.g., from imported project)
+                        if (config.colorSchemeData) {
+                            console.log('🎨 EventDrivenToolbarActions: Using existing colorSchemeData from config');
+                            colorSchemeData = config.colorSchemeData;
+                        }
+                        // Otherwise, try to load color scheme by name
+                        else if (config.colorScheme) {
                             try {
                                 const ColorSchemeService = (await import('../services/ColorSchemeService.js')).default;
                                 const fullScheme = await ColorSchemeService.getColorScheme(config.colorScheme);
@@ -103,10 +110,10 @@ export default function EventDrivenToolbarActions({ projectState }) {
                                         neutrals: fullScheme.neutrals || [],
                                         backgrounds: fullScheme.backgrounds || []
                                     };
-                                    console.log('🎨 EventDrivenToolbarActions: Processed color scheme data:', colorSchemeData);
+                                    console.log('🎨 EventDrivenToolbarActions: Loaded color scheme by name:', colorSchemeData);
                                 }
                             } catch (error) {
-                                console.warn('⚠️ EventDrivenToolbarActions: Could not load color scheme:', error);
+                                console.warn('⚠️ EventDrivenToolbarActions: Could not load color scheme by name:', error);
                             }
                         }
 

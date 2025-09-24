@@ -1,5 +1,6 @@
 import IdGenerator from './IdGenerator.js';
 import ResolutionMapper from './ResolutionMapper.js';
+import { PositionScaler } from './PositionScaler.js';
 
 /**
  * Converts settings files (render configuration) to project format (UI state)
@@ -23,7 +24,13 @@ export default class SettingsToProjectConverter {
             effectsCount: (settings.effects || settings.allPrimaryEffects)?.length || 0,
             hasConfig: !!settings.config,
             hasFinalSize: !!settings.finalSize,
+            finalSize: settings.finalSize,
             hasColorScheme: !!settings.colorScheme
+        });
+
+        console.log('🎯 Resolution detection for position scaling:', {
+            settingsFinalSize: settings.finalSize,
+            providedProjectName: projectName
         });
 
         try {
@@ -62,6 +69,9 @@ export default class SettingsToProjectConverter {
                     source: 'settings-file'
                 } : null
             };
+
+            // Apply position scaling if resolution changed
+            project = await this.scalePositionsIfNeeded(project, settings);
 
             console.log('✅ SettingsToProjectConverter: Conversion complete');
             console.log('📊 Project summary:', {
@@ -167,28 +177,119 @@ export default class SettingsToProjectConverter {
             ...res
         }));
 
-        const matchingResolution = resolutionEntries.find(res =>
+        // Find all matching resolutions (there might be duplicates with different keys)
+        const matchingResolutions = resolutionEntries.filter(res =>
             res.width === width && res.height === height
         );
 
-        if (matchingResolution) {
-            console.log('📐 Found matching resolution:', matchingResolution.name);
-            return matchingResolution.name;
+        if (matchingResolutions.length > 0) {
+            // Prefer resolution key that matches the longest side for consistency
+            let preferredKey = width;
+
+            // Use explicit longestSide if available in settings
+            const explicitLongest = settings.fileConfig?.finalImageSize?.longestSide ||
+                                   settings.longestSideInPixels ||
+                                   settings.longestSide;
+            if (explicitLongest) {
+                preferredKey = explicitLongest;
+                console.log(`📐 Using explicit longestSide (${preferredKey}) as preferred resolution key`);
+            }
+
+            const preferredMatch = matchingResolutions.find(res => res.key === preferredKey);
+            if (preferredMatch) {
+                console.log('📐 Found preferred matching resolution:', preferredMatch.name);
+                return preferredMatch.key;
+            }
+
+            // Fall back to width-based match
+            const widthBasedMatch = matchingResolutions.find(res => res.key === width);
+            if (widthBasedMatch) {
+                console.log('📐 Found width-based matching resolution:', widthBasedMatch.name);
+                return widthBasedMatch.key;
+            }
+
+            // Fall back to first match if no preferred key found
+            const firstMatch = matchingResolutions[0];
+            console.log('📐 Found matching resolution:', firstMatch.name);
+            return firstMatch.key;
         }
 
-        // Settings file resolution is truth - create custom resolution identifier
-        // This ensures the exact resolution from settings is preserved
-        const customResolution = `${width}x${height}`;
-        console.log('📐 Using custom resolution from settings (exact match):', customResolution);
-        return customResolution;
+        // Settings file resolution is truth - find closest standard resolution
+        // Use explicit longestSide if available, otherwise fall back to width
+        const explicitLongest = settings.fileConfig?.finalImageSize?.longestSide ||
+                               settings.longestSideInPixels ||
+                               settings.longestSide;
+        const targetWidth = explicitLongest || width;
+        const closestWidth = ResolutionMapper.getClosestResolution(targetWidth);
+        const closestResolution = ResolutionMapper.getByWidth(closestWidth);
+
+        console.log(`📐 Custom resolution ${width}x${height} mapped to closest standard: ${closestResolution.w}x${closestResolution.h} (${closestResolution.name})`);
+
+        // Return the width key for the closest resolution to ensure proper scaling
+        return closestWidth;
     }
 
     /**
      * Determine if the project is horizontal based on resolution
+     * Uses longest/shortest side analysis to correctly infer original orientation intent
      */
     static determineOrientation(settings) {
-        if (!settings.finalSize) return false;
-        return settings.finalSize.width > settings.finalSize.height;
+        if (!settings.finalSize) return true; // Default to horizontal
+
+        const { width, height } = settings.finalSize;
+
+        // Handle square resolutions first
+        if (width === height) {
+            // For square resolutions, default to horizontal orientation
+            return true;
+        }
+
+        // Use explicit longestSide and shortestSide if available in settings
+        let longestSide, shortestSide;
+
+        // Check multiple possible locations for longest/shortest side info
+        const explicitLongest = settings.fileConfig?.finalImageSize?.longestSide ||
+                               settings.longestSideInPixels ||
+                               settings.longestSide;
+        const explicitShortest = settings.fileConfig?.finalImageSize?.shortestSide ||
+                                settings.shortestSideInPixels ||
+                                settings.shortestSide;
+
+        if (explicitLongest && explicitShortest) {
+            longestSide = explicitLongest;
+            shortestSide = explicitShortest;
+            console.log(`📐 Using explicit longest/shortest sides from settings: ${longestSide}x${shortestSide}`);
+        } else {
+            // Fall back to calculating from finalSize dimensions
+            longestSide = Math.max(width, height);
+            shortestSide = Math.min(width, height);
+            console.log(`📐 Calculated longest/shortest sides from finalSize: ${longestSide}x${shortestSide}`);
+        }
+
+        // Find matching resolution in ResolutionMapper using the longest dimension
+        const resolution = ResolutionMapper.getByWidth(longestSide);
+
+        if (!resolution) {
+            // No matching resolution found - fallback to simple comparison
+            return width > height;
+        }
+
+        // Get standard resolution's longest and shortest sides
+        const standardLongSide = Math.max(resolution.w, resolution.h);
+        const standardShortSide = Math.min(resolution.w, resolution.h);
+
+        // Check if the settings dimensions match a known orientation pattern
+        if (width === standardLongSide && height === standardShortSide) {
+            // Width is the long side → Horizontal/Landscape orientation
+            return true;
+        } else if (width === standardShortSide && height === standardLongSide) {
+            // Width is the short side → Portrait orientation
+            return false;
+        }
+
+        // If dimensions don't exactly match standard, fallback to simple comparison
+        // This handles custom resolutions or slight variations
+        return width > height;
     }
 
     /**
@@ -554,14 +655,52 @@ export default class SettingsToProjectConverter {
     static convertColorSchemeData(settings) {
         if (!settings.colorScheme) return null;
 
+        // Extract color arrays from the correct locations in settings
+        const colors = settings.colorScheme.colorBucket || [];
+        const neutrals = settings.neutrals || settings.colorScheme.neutrals || [];
+        const backgrounds = settings.backgrounds || settings.colorScheme.backgrounds || [];
+        const lights = settings.lights || settings.colorScheme.lights || [];
+
+        console.log('🎨 Color scheme extraction:', {
+            colorsCount: colors.length,
+            neutralsCount: neutrals.length,
+            backgroundsCount: backgrounds.length,
+            lightsCount: lights.length,
+            hasColorScheme: !!settings.colorScheme,
+            colorSchemeKeys: settings.colorScheme ? Object.keys(settings.colorScheme) : []
+        });
+
+        // Ensure we have minimum required data - generate fallbacks if needed
+        if (colors.length === 0) {
+            console.warn('⚠️ No colors found in colorScheme.colorBucket, cannot create color scheme');
+            return null; // Can't proceed without colors
+        }
+
+        // Generate fallback arrays if missing - use the colors as fallbacks
+        let finalNeutrals = neutrals.length > 0 ? neutrals : colors.slice(0, Math.max(1, Math.floor(colors.length / 2)));
+        let finalBackgrounds = backgrounds.length > 0 ? backgrounds : colors.slice(0, Math.max(1, Math.floor(colors.length / 3)));
+        let finalLights = lights.length > 0 ? lights : colors; // Use all colors as lights fallback
+
+        console.log('🎨 Final color scheme arrays:', {
+            colors: colors.length,
+            neutrals: finalNeutrals.length,
+            backgrounds: finalBackgrounds.length,
+            lights: finalLights.length,
+            generatedFallbacks: {
+                neutrals: neutrals.length === 0,
+                backgrounds: backgrounds.length === 0,
+                lights: lights.length === 0
+            }
+        });
+
         return {
             // Main color palette - NftProjectManager expects 'colors' array
-            colors: settings.colorScheme.colorBucket || [],
+            colors,
 
-            // Additional color categories from settings
-            neutrals: settings.neutrals || [],
-            backgrounds: settings.backgrounds || [],
-            lights: settings.lights || [],
+            // Additional color categories - NftProjectManager requires these
+            neutrals: finalNeutrals,
+            backgrounds: finalBackgrounds,
+            lights: finalLights,
 
             // Preserve color scheme info
             info: settings.colorScheme.colorSchemeInfo || '',
@@ -615,6 +754,66 @@ export default class SettingsToProjectConverter {
         }
 
         return errors;
+    }
+
+    /**
+     * Scale positions if the target resolution differs from the settings resolution
+     * @param {Object} project - Converted project data
+     * @param {Object} settings - Original settings data
+     * @returns {Object} Project with scaled positions
+     */
+    static async scalePositionsIfNeeded(project, settings) {
+        if (!settings.finalSize || !project.effects?.length) {
+            console.log('🎯 No position scaling needed: no finalSize or no effects');
+            return project;
+        }
+
+        // Get original resolution from settings
+        const originalWidth = settings.finalSize.width;
+        const originalHeight = settings.finalSize.height;
+
+        // Get target resolution from converted project
+        let targetWidth, targetHeight;
+
+        if (typeof project.targetResolution === 'number') {
+            // Numeric resolution key - use ResolutionMapper
+            const targetResolutionData = ResolutionMapper.getDimensions(project.targetResolution, project.isHorizontal);
+            targetWidth = targetResolutionData.w;
+            targetHeight = targetResolutionData.h;
+        } else {
+            console.warn('🎯 Unexpected targetResolution format:', project.targetResolution, 'using original resolution');
+            targetWidth = originalWidth;
+            targetHeight = originalHeight;
+        }
+
+        console.log('🎯 Position scaling analysis:', {
+            originalResolution: `${originalWidth}x${originalHeight}`,
+            targetResolution: `${targetWidth}x${targetHeight}`,
+            resolutionChanged: originalWidth !== targetWidth || originalHeight !== targetHeight,
+            effectsCount: project.effects.length
+        });
+
+        // Only scale if resolution actually changed
+        if (originalWidth === targetWidth && originalHeight === targetHeight) {
+            console.log('🎯 No position scaling needed: resolutions are identical');
+            return project;
+        }
+
+        console.log('🎯 Scaling positions from settings resolution to target resolution...');
+
+        // Use PositionScaler to scale all effect positions
+        const scaledEffects = PositionScaler.scaleEffectsPositions(
+            project.effects,
+            originalWidth,
+            originalHeight,
+            targetWidth,
+            targetHeight
+        );
+
+        return {
+            ...project,
+            effects: scaledEffects
+        };
     }
 
     /**

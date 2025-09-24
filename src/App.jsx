@@ -97,6 +97,23 @@ function AppRouter() {
                 return (
                     <Intro
                         onNewProject={navigateToWizard}
+                        onImportProject={async (result) => {
+                            try {
+                                // Initialize the shared ProjectStateManager with the imported project
+                                await projectStateManager.initialize(result.projectState, result.projectDirectory);
+
+                                // Navigate to Canvas with the imported project
+                                navigateToCanvas({
+                                    projectInitialized: true,
+                                    loadedFromFile: true,
+                                    filePath: result.filePath,
+                                    convertedFromSettings: result.convertedFromSettings,
+                                    originalSettingsFile: result.settingsFile
+                                });
+                            } catch (error) {
+                                alert('Error loading imported project: ' + error.message);
+                            }
+                        }}
                         onEditProject={async () => {
                             try {
                                 console.log('🔍 Opening file dialog for project selection...');
@@ -203,6 +220,23 @@ function AppRouter() {
                 return (
                     <Intro
                         onNewProject={navigateToWizard}
+                        onImportProject={async (result) => {
+                            try {
+                                // Initialize the shared ProjectStateManager with the imported project
+                                await projectStateManager.initialize(result.projectState, result.projectDirectory);
+
+                                // Navigate to Canvas with the imported project
+                                navigateToCanvas({
+                                    projectInitialized: true,
+                                    loadedFromFile: true,
+                                    filePath: result.filePath,
+                                    convertedFromSettings: result.convertedFromSettings,
+                                    originalSettingsFile: result.settingsFile
+                                });
+                            } catch (error) {
+                                alert('Error loading imported project: ' + error.message);
+                            }
+                        }}
                         onEditProject={async () => {
                             try {
                                 const result = await window.api.selectFile({

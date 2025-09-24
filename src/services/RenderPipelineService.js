@@ -118,7 +118,14 @@ export class RenderPipelineService {
 
         // Prepare color scheme data
         let colorSchemeData = null;
-        if (config.colorScheme) {
+
+        // First, check if we already have colorSchemeData (e.g., from imported project)
+        if (config.colorSchemeData) {
+            console.log('🎨 RenderPipelineService: Using existing colorSchemeData from config');
+            colorSchemeData = config.colorSchemeData;
+        }
+        // Otherwise, try to load color scheme by name
+        else if (config.colorScheme) {
             try {
                 const ColorSchemeService = (await import('./ColorSchemeService.js')).default;
                 const fullScheme = await ColorSchemeService.getColorScheme(config.colorScheme);
@@ -132,7 +139,7 @@ export class RenderPipelineService {
                     };
                 }
             } catch (error) {
-                console.warn('Warning: Could not load color scheme:', error);
+                console.warn('Warning: Could not load color scheme by name:', error);
             }
         }
 
