@@ -9,19 +9,23 @@
     top: 0;
     left: 0;
     z-index: 1000;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
 .wizard-content {
     background: #2d2d2d;
     border-radius: 12px;
-    width: 600px;
+    width: 100%;
+    max-width: 500px;
+    min-width: 400px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     overflow: hidden;
 }
 
 .wizard-header {
     background: #323232;
-    padding: 30px;
+    padding: 24px 30px;
     border-bottom: 1px solid #444;
 }
 
@@ -68,8 +72,8 @@
 }
 
 .wizard-body {
-    padding: 40px;
-    min-height: 200px;
+    padding: 30px;
+    min-height: 150px;
 }
 
 .wizard-step-content {
@@ -126,7 +130,7 @@
 
 .wizard-footer {
     background: #323232;
-    padding: 20px 30px;
+    padding: 18px 30px;
     border-top: 1px solid #444;
     display: flex;
     justify-content: space-between;
