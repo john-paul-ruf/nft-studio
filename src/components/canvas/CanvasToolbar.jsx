@@ -31,7 +31,8 @@ import {
     Search,
     Save,
     Undo,
-    Redo
+    Redo,
+    FileUpload
 } from '@mui/icons-material';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import ResolutionMapper from '../../utils/ResolutionMapper.js';
@@ -73,6 +74,7 @@ export default function CanvasToolbar({
     projectStateManager,
     onNewProject,
     onOpenProject,
+    onImportProject,
     isReadOnly = false,
     isProjectResuming = false
 
@@ -232,6 +234,7 @@ export default function CanvasToolbar({
                     projectStateManager={projectStateManager}
                     onNewProject={onNewProject}
                     onOpenProject={onOpenProject}
+                    onImportProject={onImportProject}
                 />
 
                 {/* Undo/Redo Controls */}

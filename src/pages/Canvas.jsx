@@ -3,6 +3,7 @@ import EffectPicker from '../components/EffectPicker.jsx';
 import EventDrivenEffectsPanel from '../components/EventDrivenEffectsPanel.jsx';
 import EffectConfigurer from '../components/effects/EffectConfigurer.jsx';
 import EventBusMonitor from '../components/EventBusMonitor.jsx';
+import ImportProjectWizard from '../components/ImportProjectWizard.jsx';
 
 // Canvas components and hooks
 import { createAppTheme, appThemes } from '../components/canvas/theme.js';
@@ -119,6 +120,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
     const [isEventMonitorMinimized, setIsEventMonitorMinimized] = useState(false);
     const [isProjectResuming, setIsProjectResuming] = useState(false);
     const [isEventMonitorForResumedProject, setIsEventMonitorForResumedProject] = useState(false);
+    const [showImportWizard, setShowImportWizard] = useState(false);
 
 
     // UI refs
@@ -330,6 +332,12 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
             setIsProjectResuming(false);
         }, { component: 'Canvas' });
 
+        // Listen for import wizard show request
+        const unsubscribeShowImportWizard = eventBusService.subscribe('ui:show-import-wizard', (payload) => {
+            console.log('🎨 Canvas: Show import wizard event received:', payload);
+            setShowImportWizard(true);
+        }, { component: 'Canvas' });
+
         return () => {
             console.log('🎨 Canvas: Cleaning up UI event listeners');
             unsubscribeTheme();
@@ -343,6 +351,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
             unsubscribeProjectResume();
             unsubscribeProjectResumeStart();
             unsubscribeProjectResumeSuccess();
+            unsubscribeShowImportWizard();
         };
     }, [eventBusService]);
 
@@ -516,6 +525,32 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                     setIsMinimized={setIsEventMonitorMinimized}
                     isForResumedProject={isEventMonitorForResumedProject}
                 />
+
+                {/* Import Project Wizard */}
+                {showImportWizard && (
+                    <ImportProjectWizard
+                        onComplete={async (result) => {
+                            try {
+                                // Initialize the shared ProjectStateManager with the imported project
+                                await projectStateManager.initialize(result.projectState, result.projectDirectory);
+
+                                // Update local state to reflect the new project
+                                setProjectState(result.projectState);
+                                setUpdateCounter(prev => prev + 1);
+
+                                // Close the wizard
+                                setShowImportWizard(false);
+
+                                // Force a re-render by updating the update counter
+                                setUpdateCounter(prev => prev + 1);
+                            } catch (error) {
+                                console.error('Error loading imported project:', error);
+                                alert('Error loading imported project: ' + error.message);
+                            }
+                        }}
+                        onCancel={() => setShowImportWizard(false)}
+                    />
+                )}
 
 
             </Box>

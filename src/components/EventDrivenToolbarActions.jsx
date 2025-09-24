@@ -411,6 +411,16 @@ export default function EventDrivenToolbarActions({ projectState }) {
             { component: 'EventDrivenToolbarActions' }
         );
 
+        // Project import events
+        const unsubscribeProjectImport = eventBusService.subscribe(
+            'project:import',
+            (payload) => {
+                console.log('🔥 EventDrivenToolbarActions: Project import event:', payload);
+                eventBusService.emit('ui:show-import-wizard', {}, { source: 'EventDrivenToolbarActions' });
+            },
+            { component: 'EventDrivenToolbarActions' }
+        );
+
         // Cleanup all subscriptions
         return () => {
             console.log('🔥 EventDrivenToolbarActions: Cleaning up subscriptions');
@@ -438,6 +448,7 @@ export default function EventDrivenToolbarActions({ projectState }) {
             unsubscribeEffectConfigurerConfig();
             unsubscribeEffectConfigurerAdd();
             unsubscribeEffectConfigurerAttach();
+            unsubscribeProjectImport();
         };
     }, [eventBusService, commandService, renderPipelineService, projectState]);
 

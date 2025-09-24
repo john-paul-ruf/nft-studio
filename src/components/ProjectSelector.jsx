@@ -11,7 +11,8 @@ import {
     FolderOpen,
     Add,
     PlayArrow,
-    Settings
+    Settings,
+    FileUpload
 } from '@mui/icons-material';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useServices } from '../contexts/ServiceContext.js';
@@ -20,7 +21,8 @@ export default function ProjectSelector({
     currentTheme,
     projectStateManager,
     onNewProject,
-    onOpenProject
+    onOpenProject,
+    onImportProject
 }) {
     const { eventBusService } = useServices();
     const [menuAnchor, setMenuAnchor] = useState(null);
@@ -45,6 +47,19 @@ export default function ProjectSelector({
         } else {
             // Emit event for open project
             eventBusService.emit('project:open', {}, {
+                source: 'ProjectSelector',
+                component: 'ProjectSelector'
+            });
+        }
+    };
+
+    const handleImportProject = () => {
+        setMenuAnchor(null);
+        if (onImportProject) {
+            onImportProject();
+        } else {
+            // Emit event for import project
+            eventBusService.emit('project:import', {}, {
                 source: 'ProjectSelector',
                 component: 'ProjectSelector'
             });
@@ -118,7 +133,26 @@ export default function ProjectSelector({
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
                         <FolderOpen fontSize="small" style={{ marginRight: '8px' }} />
-                        <span>Open Existing Project</span>
+                        <span>Edit Project</span>
+                    </DropdownMenu.Item>
+
+                    <DropdownMenu.Item
+                        className="radix-dropdown-item"
+                        onClick={handleImportProject}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '8px 12px',
+                            cursor: 'pointer',
+                            outline: 'none',
+                            borderRadius: '2px',
+                            color: currentTheme.palette.text.primary
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = currentTheme.palette.action.hover}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                        <FileUpload fontSize="small" style={{ marginRight: '8px' }} />
+                        <span>Import from Settings</span>
                     </DropdownMenu.Item>
 
                 </DropdownMenu.Content>
