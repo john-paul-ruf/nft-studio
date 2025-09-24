@@ -5,6 +5,7 @@ import FileSystemRenderer from './FileSystemRenderer.js';
 import defaultLogger from '../utils/logger.js';
 import ProjectState from '../../models/ProjectState.js';
 import SettingsToProjectConverter from '../../utils/SettingsToProjectConverter.js';
+import ResolutionMapper from '../../utils/ResolutionMapper.js';
 
 /**
  * NFT-specific implementation of project management
@@ -131,8 +132,8 @@ class NftProjectManager {
                     : settingsDir;
 
                 this.logger.info('Converting settings file to project format...');
-                // Convert and serialize for IPC in one step
-                const convertedProject = await SettingsToProjectConverter.convertSettingsToProject(settings, null, true);
+                // Convert and serialize for IPC in one step - skip position scaling for imports
+                const convertedProject = await SettingsToProjectConverter.convertSettingsToProject(settings, null, true, true);
 
                 projectData = {
                     ...convertedProject,
@@ -384,10 +385,31 @@ class NftProjectManager {
         const {Project} = await import('my-nft-gen/src/app/Project.js');
         const {ColorScheme} = await import('my-nft-gen/src/core/color/ColorScheme.js');
 
-        // Use targetResolution if resolution is not provided (for Canvas renders)
-        const resolutionKey = projectConfig.resolution || projectConfig.targetResolution;
-        const resolution = this.getResolutionFromConfig(resolutionKey);
+        // SINGLE SOURCE OF TRUTH for dimensions
+        let longestSide, shortestSide;
         const isHorizontal = projectConfig.isHorizontal;
+
+        if (projectConfig.width && projectConfig.height) {
+            // Direct dimensions from RenderPipeline (render-frame path)
+            // These are already oriented correctly based on isHorizontal from ProjectState
+            const width = projectConfig.width;
+            const height = projectConfig.height;
+            longestSide = Math.max(width, height);
+            shortestSide = Math.min(width, height);
+        } else if (projectConfig.longestSideInPixels && projectConfig.shortestSideInPixels) {
+            // Imported project path - dimensions already set correctly
+            longestSide = projectConfig.longestSideInPixels;
+            shortestSide = projectConfig.shortestSideInPixels;
+        } else {
+            // New project or resume path - calculate from resolution
+            const resolutionKey = projectConfig.resolution || projectConfig.targetResolution;
+            const resolution = this.getResolutionFromConfig(resolutionKey);
+
+            // Resolution mapping always returns landscape format (width > height)
+            // Backend Project class will handle orientation based on isHorizontal flag
+            longestSide = Math.max(resolution.width, resolution.height);
+            shortestSide = Math.min(resolution.width, resolution.height);
+        }
 
         // Build colorSchemeInfo from projectConfig.colorScheme
         const colorSchemeInfo = await this.buildColorSchemeInfo(projectConfig);
@@ -401,8 +423,8 @@ class NftProjectManager {
             backgrounds: colorSchemeInfo.backgrounds, //array of hex
             lights: colorSchemeInfo.lights, //array of hex
             numberOfFrame: projectConfig.numFrames,
-            longestSideInPixels: Math.max(resolution.width, resolution.height),
-            shortestSideInPixels: Math.min(resolution.width, resolution.height),
+            longestSideInPixels: longestSide,
+            shortestSideInPixels: shortestSide,
             isHorizontal: isHorizontal,
             maxConcurrentFrameBuilderThreads: 1,
             renderJumpFrames: 1,
@@ -526,63 +548,22 @@ class NftProjectManager {
 
     /**
      * Get resolution configuration from resolution key or pixel width
+     * Uses ResolutionMapper for consistency across the application
      * @param {string|number} resolutionKey - Resolution key (legacy) or pixel width (new)
      * @returns {Object} Resolution object with width and height
      */
     getResolutionFromConfig(resolutionKey) {
-        // If it's a number, treat it as pixel width (new format)
-        if (typeof resolutionKey === 'number' || !isNaN(parseInt(resolutionKey))) {
-            const width = parseInt(resolutionKey);
-
-            // Complete resolution mapping to match ResolutionMapper
-            const allResolutions = {
-                160: {width: 160, height: 120},
-                240: {width: 240, height: 180},
-                320: {width: 320, height: 240},
-                360: {width: 360, height: 640},
-                375: {width: 375, height: 667},
-                414: {width: 414, height: 736},
-                480: {width: 480, height: 360},
-                640: {width: 640, height: 480},
-                800: {width: 800, height: 600},
-                854: {width: 854, height: 480},
-                960: {width: 960, height: 540},
-                1024: {width: 1024, height: 768},
-                1080: {width: 1080, height: 1080},
-                1152: {width: 1152, height: 864},
-                1280: {width: 1280, height: 720},
-                1366: {width: 1366, height: 768},
-                1440: {width: 1440, height: 900},
-                1600: {width: 1600, height: 900},
-                1680: {width: 1680, height: 1050},
-                1920: {width: 1920, height: 1080},
-                2048: {width: 2048, height: 1080},
-                2560: {width: 2560, height: 1440},
-                2880: {width: 2880, height: 1620},
-                3200: {width: 3200, height: 1800},
-                3440: {width: 3440, height: 1440},
-                3840: {width: 3840, height: 2160},
-                4096: {width: 4096, height: 2160},
-                5120: {width: 5120, height: 2880},
-                6144: {width: 6144, height: 3456},
-                7680: {width: 7680, height: 4320},
-                8192: {width: 8192, height: 4320}
+        try {
+            // Use ResolutionMapper for consistency
+            const dimensions = ResolutionMapper.getDimensions(resolutionKey);
+            return {
+                width: dimensions.w,
+                height: dimensions.h
             };
-
-            return allResolutions[width] || {width: 1920, height: 1080};
+        } catch (error) {
+            console.warn(`Resolution ${resolutionKey} not found in ResolutionMapper, using default`, error);
+            return {width: 1920, height: 1080};
         }
-
-        // Legacy string-based resolution mapping for backward compatibility
-        const legacyResolutionMap = {
-            'hd': {width: 1920, height: 1080},
-            'fhd': {width: 1920, height: 1080},
-            '4k': {width: 3840, height: 2160},
-            'uhd': {width: 3840, height: 2160},
-            'square_hd': {width: 1080, height: 1080},
-            'square_4k': {width: 2160, height: 2160}
-        };
-
-        return legacyResolutionMap[resolutionKey] || {width: 1920, height: 1080};
     }
 
     /**

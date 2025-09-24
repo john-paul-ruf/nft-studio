@@ -55,8 +55,7 @@ class ResolutionMapper {
         414: { w: 414, h: 736, name: "iPhone Plus", category: "Mobile" },
 
         // Social Media Optimized (using unique keys to avoid conflicts)
-        1080: { w: 1920, h: 1080, name: "1080p", category: "HD" },  // Handle 1080p reference by height
-        1081: { w: 1080, h: 1080, name: "Instagram Square", category: "Social" }
+        1080: { w: 1080, h: 1080, name: "Instagram Square", category: "Social" }
     };
 
     /**
@@ -127,24 +126,19 @@ class ResolutionMapper {
             throw new Error(`Resolution ${width} not found - no fallbacks allowed`);
         }
 
-        // Check if this resolution is naturally portrait (mobile) or landscape (desktop)
-        const isNaturallyPortraitResolution = this.isNaturallyPortrait(resolution);
-
-        if (isNaturallyPortraitResolution) {
-            // Mobile resolutions are stored in portrait format (e.g., 360x640)
-            // If user wants portrait: return as-is
-            // If user wants landscape: swap dimensions
-            return isHorizontal
-                ? { w: resolution.h, h: resolution.w }  // Swap to landscape
-                : { w: resolution.w, h: resolution.h }; // Keep portrait
-        } else {
-            // Desktop resolutions are stored in landscape format (e.g., 1920x1080)
-            // If user wants landscape: return as-is
-            // If user wants portrait: swap dimensions
-            return isHorizontal
-                ? { w: resolution.w, h: resolution.h }  // Keep landscape
-                : { w: resolution.h, h: resolution.w }; // Swap to portrait
+        // For vertical orientation, swap width and height
+        if (!isHorizontal) {
+            return {
+                w: resolution.h,
+                h: resolution.w
+            };
         }
+
+        // For horizontal orientation, return as stored
+        return {
+            w: resolution.w,
+            h: resolution.h
+        };
     }
 
     /**

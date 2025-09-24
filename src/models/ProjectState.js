@@ -156,24 +156,19 @@ export default class ProjectState {
     }
 
     /**
-     * Set orientation and trigger auto-scaling
+     * Set orientation (no scaling needed - dimensions don't change)
      * @param {boolean} isHorizontal
      */
     setIsHorizontal(isHorizontal) {
-        // Get current dimensions before changing orientation
-        const oldDimensions = this.getResolutionDimensions();
+        // Orientation no longer changes dimensions
+        // It's just metadata for how the backend interprets the dimensions
+        console.log('🎯 ProjectState: Setting orientation to', isHorizontal ? 'horizontal' : 'vertical');
 
         // Update the orientation
         this.update({ isHorizontal });
 
-        // Get new dimensions after orientation change
-        const newDimensions = this.getResolutionDimensions();
-
-        // Auto-scale all positions if dimensions changed
-        if (oldDimensions.w !== newDimensions.w || oldDimensions.h !== newDimensions.h) {
-            console.log('🎯 ProjectState: Orientation changed, auto-scaling positions');
-            this.scaleAllPositions(oldDimensions.w, oldDimensions.h, newDimensions.w, newDimensions.h);
-        }
+        // No scaling needed - dimensions remain the same
+        console.log('🎯 ProjectState: No position scaling needed - dimensions unchanged');
     }
 
     /**

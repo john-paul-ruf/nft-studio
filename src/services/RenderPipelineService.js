@@ -122,6 +122,7 @@ export class RenderPipelineService {
         // First, check if we already have colorSchemeData (e.g., from imported project)
         if (config.colorSchemeData) {
             console.log('🎨 RenderPipelineService: Using existing colorSchemeData from config');
+            console.log('🎨 RenderPipelineService: colorSchemeData:', config.colorSchemeData);
             colorSchemeData = config.colorSchemeData;
         }
         // Otherwise, try to load color scheme by name
@@ -130,13 +131,16 @@ export class RenderPipelineService {
                 const ColorSchemeService = (await import('./ColorSchemeService.js')).default;
                 const fullScheme = await ColorSchemeService.getColorScheme(config.colorScheme);
                 if (fullScheme) {
+                    // The backend expects 'colors' array - use lights as the main colors
                     colorSchemeData = {
                         name: fullScheme.name,
-                        colors: fullScheme.lights || [],
+                        colors: fullScheme.lights || [],  // Backend expects 'colors'
                         lights: fullScheme.lights || [],
                         neutrals: fullScheme.neutrals || [],
                         backgrounds: fullScheme.backgrounds || []
                     };
+                    console.log('🎨 RenderPipelineService: Loaded color scheme by ID:', config.colorScheme);
+                    console.log('🎨 RenderPipelineService: colorSchemeData:', colorSchemeData);
                 }
             } catch (error) {
                 console.warn('Warning: Could not load color scheme by name:', error);

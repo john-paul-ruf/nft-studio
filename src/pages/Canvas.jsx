@@ -283,11 +283,13 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
         const unsubscribeProjectOpen = eventBusService.subscribe('project:open', async (payload) => {
             console.log('🎨 Canvas: Open project event received:', payload);
             try {
-                // Use the dialog service to open file dialog
+                // Use the dialog service to open file dialog - support both .nftproject and JSON files
                 const result = await window.api.selectFile({
                     title: 'Open Project',
                     filters: [
-                        { name: 'JSON Files', extensions: ['json'] }
+                        { name: 'NFT Project Files', extensions: ['nftproject'] },
+                        { name: 'JSON Files', extensions: ['json'] },
+                        { name: 'All Files', extensions: ['*'] }
                     ],
                     properties: ['openFile']
                 });
@@ -295,13 +297,38 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                 if (!result.canceled && result.filePaths.length > 0) {
                     const filePath = result.filePaths[0];
                     console.log('🎨 Canvas: Loading project from:', filePath);
-                    
-                    // Load the project file
-                    const projectData = await window.api.loadProject(filePath);
-                    if (projectData.success) {
-                        // Update project state with loaded data
-                        if (projectState) {
-                            projectState.loadFromData(projectData.data);
+
+                    // Check if it's a .nftproject file
+                    if (filePath.endsWith('.nftproject')) {
+                        // Load as ProjectState using the same approach as intro wizard
+                        const ProjectState = (await import('../models/ProjectState.js')).default;
+                        const loadedProjectState = await ProjectState.loadFromFile(filePath);
+
+                        if (loadedProjectState) {
+                            console.log('✅ Project loaded successfully:', loadedProjectState.getProjectName());
+
+                            // Get the directory from the file path
+                            const projectDirectory = filePath.substring(0, filePath.lastIndexOf('/'));
+
+                            // Initialize the shared ProjectStateManager with the loaded project
+                            await projectStateManager.initialize(loadedProjectState, projectDirectory);
+
+                            // Update local project state
+                            setProjectState(loadedProjectState);
+
+                            // Trigger a re-render
+                            renderPipelineService.triggerRender(selectedFrame);
+                        } else {
+                            console.error('❌ Failed to load project from file');
+                        }
+                    } else {
+                        // Legacy JSON file handling
+                        const projectData = await window.api.loadProject(filePath);
+                        if (projectData.success) {
+                            // Update project state with loaded data
+                            if (projectState) {
+                                projectState.loadFromData(projectData.data);
+                            }
                         }
                     }
                 }

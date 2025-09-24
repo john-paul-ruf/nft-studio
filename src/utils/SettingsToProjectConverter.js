@@ -16,7 +16,7 @@ export default class SettingsToProjectConverter {
      * @param {boolean} serializeForIPC - Whether to serialize complex objects for IPC transmission
      * @returns {Object} Project data compatible with ProjectState
      */
-    static async convertSettingsToProject(settings, projectName = null, serializeForIPC = false) {
+    static async convertSettingsToProject(settings, projectName = null, serializeForIPC = false, skipPositionScaling = false) {
         console.log('🔄 SettingsToProjectConverter: Converting settings to project format');
         console.log('📄 Settings structure:', {
             hasEffects: !!settings.effects,
@@ -70,8 +70,12 @@ export default class SettingsToProjectConverter {
                 } : null
             };
 
-            // Apply position scaling if resolution changed
-            project = await this.scalePositionsIfNeeded(project, settings);
+            // Apply position scaling if resolution changed (skip for imports)
+            if (!skipPositionScaling) {
+                project = await this.scalePositionsIfNeeded(project, settings);
+            } else {
+                console.log('🎯 Skipping position scaling for imported project');
+            }
 
             console.log('✅ SettingsToProjectConverter: Conversion complete');
             console.log('📊 Project summary:', {
@@ -234,6 +238,12 @@ export default class SettingsToProjectConverter {
      * Uses longest/shortest side analysis to correctly infer original orientation intent
      */
     static determineOrientation(settings) {
+        // FIRST: Check if settings already has isHorizontal flag (from newer exports)
+        if (typeof settings.isHorizontal === 'boolean') {
+            console.log(`📐 Using explicit isHorizontal from settings: ${settings.isHorizontal}`);
+            return settings.isHorizontal;
+        }
+
         if (!settings.finalSize) return true; // Default to horizontal
 
         const { width, height } = settings.finalSize;
@@ -244,10 +254,7 @@ export default class SettingsToProjectConverter {
             return true;
         }
 
-        // Use explicit longestSide and shortestSide if available in settings
-        let longestSide, shortestSide;
-
-        // Check multiple possible locations for longest/shortest side info
+        // PRIORITY: Use explicit longestSide and shortestSide to determine orientation
         const explicitLongest = settings.fileConfig?.finalImageSize?.longestSide ||
                                settings.longestSideInPixels ||
                                settings.longestSide;
@@ -256,39 +263,28 @@ export default class SettingsToProjectConverter {
                                 settings.shortestSide;
 
         if (explicitLongest && explicitShortest) {
-            longestSide = explicitLongest;
-            shortestSide = explicitShortest;
-            console.log(`📐 Using explicit longest/shortest sides from settings: ${longestSide}x${shortestSide}`);
-        } else {
-            // Fall back to calculating from finalSize dimensions
-            longestSide = Math.max(width, height);
-            shortestSide = Math.min(width, height);
-            console.log(`📐 Calculated longest/shortest sides from finalSize: ${longestSide}x${shortestSide}`);
+            console.log(`📐 Using explicit longest/shortest sides from settings: ${explicitLongest}x${explicitShortest}`);
+            console.log(`📐 Actual dimensions: ${width}x${height}`);
+
+            // Determine orientation based on whether width or height matches longestSide
+            if (width === explicitLongest && height === explicitShortest) {
+                // Width is the long side = horizontal/landscape
+                console.log(`📐 Orientation: horizontal (width=${width} matches longestSide=${explicitLongest})`);
+                return true;
+            } else if (height === explicitLongest && width === explicitShortest) {
+                // Height is the long side = vertical/portrait
+                console.log(`📐 Orientation: vertical (height=${height} matches longestSide=${explicitLongest})`);
+                return false;
+            } else {
+                // Dimensions don't exactly match - could be due to scaling or custom resolution
+                console.warn(`📐 Warning: Dimensions ${width}x${height} don't exactly match longest/shortest ${explicitLongest}x${explicitShortest}`);
+                // Fall back to comparing which dimension is closer to longest
+                return width >= height;
+            }
         }
 
-        // Find matching resolution in ResolutionMapper using the longest dimension
-        const resolution = ResolutionMapper.getByWidth(longestSide);
-
-        if (!resolution) {
-            // No matching resolution found - fallback to simple comparison
-            return width > height;
-        }
-
-        // Get standard resolution's longest and shortest sides
-        const standardLongSide = Math.max(resolution.w, resolution.h);
-        const standardShortSide = Math.min(resolution.w, resolution.h);
-
-        // Check if the settings dimensions match a known orientation pattern
-        if (width === standardLongSide && height === standardShortSide) {
-            // Width is the long side → Horizontal/Landscape orientation
-            return true;
-        } else if (width === standardShortSide && height === standardLongSide) {
-            // Width is the short side → Portrait orientation
-            return false;
-        }
-
-        // If dimensions don't exactly match standard, fallback to simple comparison
-        // This handles custom resolutions or slight variations
+        // No explicit longest/shortest - fallback to simple comparison
+        console.log(`📐 No explicit longest/shortest sides found, using simple comparison: ${width}x${height}`);
         return width > height;
     }
 
@@ -767,6 +763,7 @@ export default class SettingsToProjectConverter {
             console.log('🎯 No position scaling needed: no finalSize or no effects');
             return project;
         }
+
 
         // Get original resolution from settings
         const originalWidth = settings.finalSize.width;

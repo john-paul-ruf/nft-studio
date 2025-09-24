@@ -223,10 +223,35 @@ export default function EventDrivenToolbarActions({ projectState }) {
         // Color scheme change events from toolbar
         const unsubscribeColorScheme = eventBusService.subscribe(
             'toolbar:colorscheme:change',
-            (payload) => {
+            async (payload) => {
                 console.log('🔥 EventDrivenToolbarActions: Color scheme change event:', payload);
                 if (projectState) {
-                    projectState.update({ colorScheme: payload.schemeId });
+                    // Import ColorSchemeService dynamically
+                    const ColorSchemeService = (await import('../services/ColorSchemeService.js')).default;
+                    const fullScheme = await ColorSchemeService.getColorScheme(payload.schemeId);
+
+                    if (fullScheme) {
+                        // The backend expects 'colors' array - use lights as the main colors
+                        const colorSchemeData = {
+                            name: fullScheme.name,
+                            colors: fullScheme.lights || [],  // Backend expects 'colors'
+                            lights: fullScheme.lights || [],
+                            neutrals: fullScheme.neutrals || [],
+                            backgrounds: fullScheme.backgrounds || [],
+                            metadata: fullScheme.metadata || {}
+                        };
+
+                        // Update both colorScheme ID and colorSchemeData
+                        projectState.update({
+                            colorScheme: payload.schemeId,
+                            colorSchemeData: colorSchemeData
+                        });
+                        console.log('✅ EventDrivenToolbarActions: Updated color scheme and data');
+                    } else {
+                        // Fallback to just updating the ID if scheme not found
+                        projectState.update({ colorScheme: payload.schemeId });
+                        console.warn('⚠️ EventDrivenToolbarActions: Color scheme not found:', payload.schemeId);
+                    }
                 }
             },
             { component: 'EventDrivenToolbarActions' }
@@ -235,10 +260,35 @@ export default function EventDrivenToolbarActions({ projectState }) {
         // Color scheme change events from ColorSchemeDropdown directly
         const unsubscribeColorSchemeDropdown = eventBusService.subscribe(
             'colorscheme:change',
-            (payload) => {
+            async (payload) => {
                 console.log('🔥 EventDrivenToolbarActions: ColorSchemeDropdown change event:', payload);
                 if (projectState) {
-                    projectState.update({ colorScheme: payload.schemeId });
+                    // Import ColorSchemeService dynamically
+                    const ColorSchemeService = (await import('../services/ColorSchemeService.js')).default;
+                    const fullScheme = await ColorSchemeService.getColorScheme(payload.schemeId);
+
+                    if (fullScheme) {
+                        // The backend expects 'colors' array - use lights as the main colors
+                        const colorSchemeData = {
+                            name: fullScheme.name,
+                            colors: fullScheme.lights || [],  // Backend expects 'colors'
+                            lights: fullScheme.lights || [],
+                            neutrals: fullScheme.neutrals || [],
+                            backgrounds: fullScheme.backgrounds || [],
+                            metadata: fullScheme.metadata || {}
+                        };
+
+                        // Update both colorScheme ID and colorSchemeData
+                        projectState.update({
+                            colorScheme: payload.schemeId,
+                            colorSchemeData: colorSchemeData
+                        });
+                        console.log('✅ EventDrivenToolbarActions: Updated color scheme and data');
+                    } else {
+                        // Fallback to just updating the ID if scheme not found
+                        projectState.update({ colorScheme: payload.schemeId });
+                        console.warn('⚠️ EventDrivenToolbarActions: Color scheme not found:', payload.schemeId);
+                    }
                 }
             },
             { component: 'EventDrivenToolbarActions' }

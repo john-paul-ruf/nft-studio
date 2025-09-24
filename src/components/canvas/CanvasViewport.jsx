@@ -22,10 +22,15 @@ const CanvasViewport = forwardRef(({
             const img = new Image();
 
             img.onload = () => {
+                // Set canvas size to match project dimensions
+                canvas.width = dimensions.w;
+                canvas.height = dimensions.h;
+
                 // Clear canvas first
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                // Draw image to fill the canvas
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                // Draw image scaled to fit canvas dimensions exactly
+                ctx.drawImage(img, 0, 0, dimensions.w, dimensions.h);
             };
 
             img.onerror = (error) => {
@@ -36,7 +41,7 @@ const CanvasViewport = forwardRef(({
 
             img.src = renderResult;
         }
-    }, [renderResult]);
+    }, [renderResult, dimensions]);
 
     return (
         <div

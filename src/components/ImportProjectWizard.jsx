@@ -109,9 +109,12 @@ export default function ImportProjectWizard({ onComplete, onCancel }) {
             }
 
             // Convert settings to project format with custom name
+            // Skip position scaling for imported projects - positions are already correct
             const projectData = await SettingsToProjectConverter.convertSettingsToProject(
                 settings,
-                projectName.trim()
+                projectName.trim(),
+                false,  // serializeForIPC
+                true    // skipPositionScaling - important for imports!
             );
 
             // Create project state

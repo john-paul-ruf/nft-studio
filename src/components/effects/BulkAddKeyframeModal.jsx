@@ -17,10 +17,12 @@ import {
     Step,
     StepLabel,
     Chip,
+    Divider,
     useTheme
 } from '@mui/material';
 import { PlayArrow, Settings, Schedule } from '@mui/icons-material';
 import EffectConfigurer from './EffectConfigurer.jsx';
+import BulkPositionQuickPick from './BulkPositionQuickPick.jsx';
 import PreferencesService from '../../services/PreferencesService.js';
 
 const steps = ['Select Effect', 'Configure Effect', 'Set Keyframe Range'];
@@ -213,6 +215,37 @@ export default function BulkAddKeyframeModal({
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                             Configure the settings for <strong>{selectedEffect?.displayName || selectedEffect?.name}</strong>:
                         </Typography>
+
+                        {/* Quick Position Picker for effects that have position fields */}
+                        {effectConfig && Object.keys(effectConfig).some(key =>
+                            key.toLowerCase().includes('position') ||
+                            key.toLowerCase().includes('location') ||
+                            key.toLowerCase().includes('placement')
+                        ) && (
+                            <Box sx={{ mb: 3 }}>
+                                <BulkPositionQuickPick
+                                    projectState={projectState}
+                                    onPositionSelect={(position) => {
+                                        // Find the position field and update it
+                                        const positionFields = Object.keys(effectConfig).filter(key =>
+                                            key.toLowerCase().includes('position') ||
+                                            key.toLowerCase().includes('location') ||
+                                            key.toLowerCase().includes('placement')
+                                        );
+
+                                        if (positionFields.length > 0) {
+                                            const updatedConfig = { ...effectConfig };
+                                            positionFields.forEach(field => {
+                                                updatedConfig[field] = position;
+                                            });
+                                            handleConfigChange(updatedConfig);
+                                        }
+                                    }}
+                                />
+                                <Divider sx={{ my: 3 }} />
+                            </Box>
+                        )}
+
                         {selectedEffect && (
                             <EffectConfigurer
                                 selectedEffect={selectedEffect}
