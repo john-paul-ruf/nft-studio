@@ -4,6 +4,7 @@ import path from 'path';
 import FileSystemRenderer from './FileSystemRenderer.js';
 import defaultLogger from '../utils/logger.js';
 import ProjectState from '../../models/ProjectState.js';
+import SettingsToProjectConverter from '../../utils/SettingsToProjectConverter.js';
 
 /**
  * NFT-specific implementation of project management
@@ -67,36 +68,107 @@ class NftProjectManager {
     }
 
     /**
-     * Resume an existing project
+     * Resume an existing project directly using ResumeProject
      * @param {string} settingsPath - Path to project settings
      * @returns {Promise<Object>} Project resume result
      */
     async resumeProject(settingsPath) {
+        this.logger.header('Resuming Project Using ResumeProject');
+
         try {
-            const {RequestNewWorkerThread} = await import('my-nft-gen/src/core/worker-threads/RequestNewWorkerThread.js');
-            const {UnifiedEventBus} = await import('my-nft-gen/src/core/events/UnifiedEventBus.js');
+            // Import the new ProjectResumer
+            const { default: ProjectResumer } = await import('../../utils/ProjectResumer.js');
 
-            // Create event bus
-            const eventBus = new UnifiedEventBus({
-                enableDebug: false,
-                enableMetrics: true,
-                enableEventHistory: true
-            });
+            // Use the simplified resume logic
+            const resumeResult = await ProjectResumer.resumeFromSettings(settingsPath);
 
-            // Set up event forwarding
-            this.setupEventForwarding(eventBus);
+            if (resumeResult.success) {
+                this.logger.success('Project resumed successfully via ResumeProject');
+                return resumeResult;
+            } else {
+                this.logger.error('Project resume failed:', resumeResult.error);
+                return resumeResult;
+            }
 
-            // Start worker thread
-            await RequestNewWorkerThread(settingsPath, eventBus);
+        } catch (error) {
+            this.logger.error('Failed to resume project', error);
+            return {
+                success: false,
+                error: error.message,
+                settingsPath: settingsPath
+            };
+        }
+    }
+
+    /**
+     * Import project data from settings file for editing
+     * @param {string} settingsPath - Path to project settings
+     * @returns {Promise<Object>} Import result with project data
+     */
+    async importFromSettings(settingsPath) {
+        this.logger.header('Importing Project from Settings File');
+
+        try {
+            const fs = await import('fs/promises');
+
+            // Convert relative path to absolute path
+            const absoluteSettingsPath = path.isAbsolute(settingsPath)
+                ? settingsPath
+                : path.resolve(process.cwd(), settingsPath);
+
+            this.logger.info('Importing project from settings file:', absoluteSettingsPath);
+
+            // Load and convert project settings file using existing logic
+            let projectData = null;
+            try {
+                const settingsContent = await fs.readFile(absoluteSettingsPath, 'utf8');
+                const settings = JSON.parse(settingsContent);
+
+                // Get the project directory from the settings file location (remove 'settings' folder)
+                const settingsDir = path.dirname(absoluteSettingsPath);
+                const correctProjectDirectory = settingsDir.endsWith('settings')
+                    ? path.dirname(settingsDir)
+                    : settingsDir;
+
+                this.logger.info('Converting settings file to project format...');
+                // Convert and serialize for IPC in one step
+                const convertedProject = await SettingsToProjectConverter.convertSettingsToProject(settings, null, true);
+
+                projectData = {
+                    ...convertedProject,
+                    projectDirectory: correctProjectDirectory,
+                    settingsFilePath: absoluteSettingsPath,
+                    isReadOnly: false, // Allow editing of imported projects
+                    isImported: true   // Mark as imported from settings (not resumed)
+                };
+
+                this.logger.info('✅ Project import successful:', {
+                    projectName: projectData.projectName,
+                    effectsCount: projectData.effects?.length || 0,
+                    numFrames: projectData.numFrames,
+                    resolution: projectData.targetResolution,
+                    colorScheme: projectData.colorScheme,
+                    artist: projectData.artist
+                });
+
+            } catch (loadError) {
+                this.logger.error('Failed to load or convert settings file:', loadError);
+                throw new Error(`Could not load settings file: ${loadError.message}`);
+            }
 
             return {
                 success: true,
-                metrics: eventBus.getMetrics()
+                projectData: projectData,
+                settingsPath: absoluteSettingsPath,
+                message: `Successfully imported project "${projectData.projectName}" with ${projectData.effects?.length || 0} effects`
             };
+
         } catch (error) {
+            this.logger.error('Failed to import project from settings', error);
             return {
                 success: false,
-                error: error.message
+                error: error.message,
+                settingsPath: settingsPath
             };
         }
     }
@@ -323,7 +395,7 @@ class NftProjectManager {
         const project = new Project({
             artist: projectConfig.artist || 'NFT Studio User',
             projectName: projectConfig.projectName,
-            projectDirectory: projectConfig.outputDirectory || 'src/scratch',
+            projectDirectory: projectConfig.projectDirectory || projectConfig.outputDirectory || 'src/scratch',
             colorScheme: colorSchemeInfo.colorScheme, //my nft gen colorscheme
             neutrals: colorSchemeInfo.neutrals, //array of hex
             backgrounds: colorSchemeInfo.backgrounds, //array of hex
@@ -551,7 +623,7 @@ class NftProjectManager {
     }
 
     /**
-     * Start render loop - continuously generates random loops until stopped
+     * Start render loop - continuously generates NEW random loops until stopped
      * @param {Object|ProjectState} configInput - Project configuration or ProjectState instance
      * @returns {Promise<Object>} Render loop result
      */
@@ -560,18 +632,18 @@ class NftProjectManager {
         const projectState = await this.ensureProjectState(configInput);
         const config = projectState.getState();
 
-        console.log('🔥 NftProjectManager.startRenderLoop() called with config:', config);
-        this.logger.header('Starting Render Loop');
+        console.log('🔥 NftProjectManager.startRenderLoop() called for NEW random loop generation');
+        this.logger.header('Starting New Random Loop Generation');
 
         try {
             // Import event bus for render loop monitoring
             const {UnifiedEventBus} = await import('my-nft-gen/src/core/events/UnifiedEventBus.js');
-            
+
             // Import the new loop terminator
             const { default: loopTerminator } = await import('../../core/events/LoopTerminator.js');
 
-            // Create a new NFT gen project (same as renderFrame)
-            console.log('🎯 Creating project with projectDirectory:', config.projectDirectory);
+            // Create a new NFT gen project
+            console.log('🎯 Creating project for new random loop generation');
             const project = await this.createProject(projectState);
 
             // Configure the project based on UI parameters (including effects!)
@@ -591,11 +663,11 @@ class NftProjectManager {
             // Attach event bus to the project for monitoring
             if (project) {
                 project.eventBus = eventBus;
-                console.log('✅ Event bus attached to render loop project');
+                console.log('✅ Event bus attached to new random loop project');
             }
 
             // Generate unique IDs for tracking
-            const loopId = `render-loop-${Date.now()}`;
+            const loopId = `random-loop-${Date.now()}`;
             const workerId = `worker-${loopId}`;
 
             // Set up loop control with new event-driven system
@@ -612,26 +684,100 @@ class NftProjectManager {
             // Set up event-driven termination listeners
             this.setupWorkerTerminationListeners(workerId, loopId);
 
-            // Start the continuous loop in background
-            this.runRenderLoop(project, eventBus, loopId, workerId);
+            // Start the continuous random loop generation in background
+            this.runRandomLoopGeneration(project, eventBus, loopId, workerId, projectState);
 
-            this.logger.success('Render loop started with event monitoring and termination support');
-            return { success: true, message: 'Render loop started', loopId, workerId };
+            this.logger.success('New random loop generation started');
+            return { success: true, message: 'New random loop generation started', loopId, workerId };
 
         } catch (error) {
-            this.logger.error('Render loop failed', error);
+            this.logger.error('Random loop generation failed', error);
             return { success: false, error: error.message };
         }
     }
 
     /**
-     * Internal method to run the actual render loop
+     * Start resume loop - resumes an existing project from settings
+     * @param {Object|ProjectState} configInput - Project configuration or ProjectState instance
+     * @returns {Promise<Object>} Resume result
+     */
+    async startResumeLoop(configInput) {
+        // Convert input to ProjectState if needed
+        const projectState = await this.ensureProjectState(configInput);
+        const config = projectState.getState();
+
+        // Validate this is actually a resumed project
+        if (!config.isResumed || !config.settingsFilePath) {
+            throw new Error('startResumeLoop called on non-resumed project. Use startRenderLoop for new projects.');
+        }
+
+        console.log('🔄 NftProjectManager.startResumeLoop() called for project resume from:', config.settingsFilePath);
+        this.logger.header('Starting Project Resume');
+
+        try {
+            // Import event bus for render loop monitoring
+            const {UnifiedEventBus} = await import('my-nft-gen/src/core/events/UnifiedEventBus.js');
+
+            // Import the new loop terminator
+            const { default: loopTerminator } = await import('../../core/events/LoopTerminator.js');
+
+            // For resume, we don't create a new project - ResumeProject handles loading existing settings
+            console.log('🎯 Resume will use existing settings file:', config.settingsFilePath);
+            const project = null; // ResumeProject doesn't need a pre-created project instance
+
+            // Create and configure event bus for resume
+            const eventBus = new UnifiedEventBus({
+                enableDebug: true,
+                enableMetrics: true,
+                enableEventHistory: true,
+                maxHistorySize: 1000
+            });
+
+            // Set up event forwarding to renderer (so EventBusMonitor can receive events)
+            this.setupEventForwarding(eventBus);
+
+            // For resume, ResumeProject will handle project creation and event bus attachment
+            console.log('✅ Event bus created for resumed project - ResumeProject will handle attachment');
+
+            // Generate unique IDs for tracking
+            const loopId = `resume-loop-${Date.now()}`;
+            const workerId = `worker-${loopId}`;
+
+            // Set up loop control with new event-driven system
+            this.renderLoopActive = true;
+            this.activeRenderLoop = project;
+            this.activeRenderLoopEventBus = eventBus;
+            this.activeWorkerProcess = null;
+            this.currentLoopId = loopId;
+            this.currentWorkerId = workerId;
+
+            // Register with loop terminator
+            loopTerminator.registerWorker(workerId, loopId);
+
+            // Set up event-driven termination listeners
+            this.setupWorkerTerminationListeners(workerId, loopId);
+
+            // Start the project resume in background
+            this.runProjectResume(project, eventBus, loopId, workerId, projectState);
+
+            this.logger.success('Project resume started');
+            return { success: true, message: 'Project resume started', loopId, workerId };
+
+        } catch (error) {
+            this.logger.error('Project resume failed', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Internal method to run random loop generation
      * @param {Object} project - Configured project instance
      * @param {Object} eventBus - Event bus for monitoring
      * @param {string} loopId - Unique loop identifier
      * @param {string} workerId - Unique worker identifier
+     * @param {Object} projectState - Project state instance
      */
-    async runRenderLoop(project, eventBus, loopId, workerId) {
+    async runRandomLoopGeneration(project, eventBus, loopId, workerId, projectState) {
         try {
             this.logger.info(`Starting generateRandomLoop for loop: ${loopId}, worker: ${workerId}`);
 
@@ -660,7 +806,7 @@ class NftProjectManager {
                 return;
             }
 
-            // Create a custom generateRandomLoop that we can interrupt
+            // Call generateRandomLoop directly for new random loops
             await this.generateRandomLoopWithTermination(project, workerId);
 
             // Only proceed if still active (not terminated)
@@ -722,7 +868,112 @@ class NftProjectManager {
             await this.cleanupWorker(workerId, 'error');
         }
 
-        this.logger.success('Render loop finished');
+        this.logger.success('Random loop generation finished');
+    }
+
+    /**
+     * Internal method to run project resume
+     * @param {Object} project - Configured project instance
+     * @param {Object} eventBus - Event bus for monitoring
+     * @param {string} loopId - Unique loop identifier
+     * @param {string} workerId - Unique worker identifier
+     * @param {Object} projectState - Project state instance
+     */
+    async runProjectResume(project, eventBus, loopId, workerId, projectState) {
+        try {
+            const config = projectState.getState();
+            this.logger.info(`Starting ResumeProject for loop: ${loopId}, worker: ${workerId}, settings: ${config.settingsFilePath}`);
+
+            // Emit project resume start event
+            if (eventBus) {
+                eventBus.emit('project.resume.start', {
+                    timestamp: Date.now(),
+                    projectName: project.projectName,
+                    settingsFilePath: config.settingsFilePath,
+                    loopId,
+                    workerId
+                });
+            }
+
+            // Also emit via IPC for EventBusMonitor
+            this.emitProgressEvent('project.resume.start', {
+                timestamp: Date.now(),
+                projectName: project.projectName,
+                settingsFilePath: config.settingsFilePath,
+                loopId,
+                workerId
+            });
+
+            // Check if loop was terminated before starting
+            if (!this.renderLoopActive) {
+                this.logger.info('Project resume was terminated before starting');
+                await this.cleanupWorker(workerId, 'terminated_before_start');
+                return;
+            }
+
+            // Call ResumeProject directly for resumed projects
+            await this.resumeProjectWithTermination(project, workerId, projectState);
+
+            // Only proceed if still active (not terminated)
+            if (this.renderLoopActive) {
+                this.logger.info('ResumeProject completed');
+
+                // Emit project resume complete event
+                if (eventBus) {
+                    eventBus.emit('project.resume.complete', {
+                        timestamp: Date.now(),
+                        projectName: project.projectName,
+                        loopId,
+                        workerId
+                    });
+                }
+
+                // Also emit via IPC for EventBusMonitor
+                this.emitProgressEvent('project.resume.complete', {
+                    timestamp: Date.now(),
+                    projectName: project.projectName,
+                    loopId,
+                    workerId
+                });
+
+                // Mark render loop as inactive after completion
+                this.renderLoopActive = false;
+
+                // Unregister worker on completion
+                await this.cleanupWorker(workerId, 'completed');
+            }
+
+        } catch (error) {
+            this.logger.error('Project resume failed', error);
+
+            // Emit error event
+            if (eventBus) {
+                eventBus.emit('project.resume.error', {
+                    timestamp: Date.now(),
+                    error: error.message,
+                    projectName: project.projectName,
+                    loopId,
+                    workerId
+                });
+            }
+
+            // Also emit via IPC for EventBusMonitor
+            this.emitProgressEvent('project.resume.error', {
+                timestamp: Date.now(),
+                error: error.message,
+                projectName: project.projectName,
+                loopId,
+                workerId
+            });
+
+            // Mark render loop as inactive after error
+            this.renderLoopActive = false;
+
+            // Unregister worker on error
+            await this.cleanupWorker(workerId, 'error');
+        }
+
+        this.logger.success('Project resume finished');
     }
 
     /**
@@ -735,48 +986,132 @@ class NftProjectManager {
         return new Promise(async (resolve, reject) => {
             let generationPromise = null;
             let terminationListener = null;
-            
+
             // Set up termination listener that can cancel the generation
             const setupTerminationListener = () => {
                 return new Promise((terminationResolve) => {
                     const checkTermination = setInterval(() => {
                         if (!this.renderLoopActive) {
                             clearInterval(checkTermination);
-                            this.logger.info('Render loop termination requested during generation');
+                            this.logger.info('Random loop termination requested during generation');
                             terminationResolve('terminated');
                         }
                     }, 100); // Check every 100ms for faster response
-                    
+
                     // Store the interval so we can clear it later
                     terminationListener = checkTermination;
                 });
             };
-            
+
             try {
-                // Start both the generation and termination listener
+                // Start generateRandomLoop for new random loops only
                 generationPromise = project.generateRandomLoop();
                 const terminationPromise = setupTerminationListener();
-                
+
                 // Race between generation completion and termination request
                 const result = await Promise.race([
                     generationPromise.then(() => 'completed'),
                     terminationPromise
                 ]);
-                
+
                 if (result === 'terminated') {
-                    this.logger.info('Generation was terminated by user request');
-                    
+                    this.logger.info('Random loop generation was terminated by user request');
+
                     // Try to find and kill any child processes
                     await this.killAnyActiveChildProcesses();
-                    
-                    reject(new Error('Render loop terminated by user'));
+
+                    reject(new Error('Random loop generation terminated by user'));
                 } else {
-                    this.logger.info('Generation completed successfully');
+                    this.logger.info('Random loop generation completed successfully');
                     resolve();
                 }
-                
+
             } catch (error) {
-                this.logger.error('Generation failed:', error);
+                this.logger.error('Random loop generation failed:', error);
+                reject(error);
+            } finally {
+                // Clean up the termination listener
+                if (terminationListener) {
+                    clearInterval(terminationListener);
+                }
+            }
+        });
+    }
+
+    /**
+     * Resume project with proper termination support
+     * @param {Object} project - Project instance
+     * @param {string} workerId - Worker ID for tracking
+     * @param {Object} projectState - Project state instance
+     */
+    async resumeProjectWithTermination(project, workerId, projectState) {
+        // Create a race between the resume and termination
+        return new Promise(async (resolve, reject) => {
+            let resumePromise = null;
+            let terminationListener = null;
+
+            // Set up termination listener that can cancel the resume
+            const setupTerminationListener = () => {
+                return new Promise((terminationResolve) => {
+                    const checkTermination = setInterval(() => {
+                        if (!this.renderLoopActive) {
+                            clearInterval(checkTermination);
+                            this.logger.info('Project resume termination requested during execution');
+                            terminationResolve('terminated');
+                        }
+                    }, 100); // Check every 100ms for faster response
+
+                    // Store the interval so we can clear it later
+                    terminationListener = checkTermination;
+                });
+            };
+
+            try {
+                const config = projectState.getState();
+
+                if (!config.settingsFilePath) {
+                    throw new Error('No settings file path provided for project resume');
+                }
+
+                this.logger.info(`Using ResumeProject with settings: ${config.settingsFilePath}`);
+
+                // Import ResumeProject function from my-nft-gen
+                const { ResumeProject } = await import('my-nft-gen/src/app/ResumeProject.js');
+
+                // Use ResumeProject for resumed projects
+                resumePromise = ResumeProject(config.settingsFilePath, {
+                    project,
+                    eventCategories: ['PROGRESS', 'COMPLETION', 'ERROR'],
+                    eventCallback: (data) => {
+                        // Forward events to our event system
+                        if (this.activeRenderLoopEventBus) {
+                            this.activeRenderLoopEventBus.emit(data.eventName, data);
+                        }
+                    }
+                });
+
+                const terminationPromise = setupTerminationListener();
+
+                // Race between resume completion and termination request
+                const result = await Promise.race([
+                    resumePromise.then(() => 'completed'),
+                    terminationPromise
+                ]);
+
+                if (result === 'terminated') {
+                    this.logger.info('Project resume was terminated by user request');
+
+                    // Try to find and kill any child processes
+                    await this.killAnyActiveChildProcesses();
+
+                    reject(new Error('Project resume terminated by user'));
+                } else {
+                    this.logger.info('Project resume completed successfully');
+                    resolve();
+                }
+
+            } catch (error) {
+                this.logger.error('Project resume failed:', error);
                 reject(error);
             } finally {
                 // Clean up the termination listener
@@ -789,60 +1124,69 @@ class NftProjectManager {
     
     /**
      * Kill any active child processes that might be running
-     * This is a fallback method to ensure processes are terminated
+     * This is a fallback method to ensure processes are terminated for both random loops and resumed projects
      */
     async killAnyActiveChildProcesses() {
         try {
             const { execSync } = await import('child_process');
-            
-            // Find any node processes running GenerateLoopWorkerThread.js
-            try {
-                const psOutput = execSync('ps aux | grep GenerateLoopWorkerThread.js | grep -v grep', { encoding: 'utf8' });
-                const lines = psOutput.trim().split('\n');
-                
-                for (const line of lines) {
-                    if (line.trim()) {
-                        const parts = line.trim().split(/\s+/);
-                        const pid = parts[1];
-                        if (pid && !isNaN(pid)) {
-                            this.logger.info(`Killing GenerateLoopWorkerThread process PID: ${pid}`);
-                            try {
-                                process.kill(parseInt(pid), 'SIGTERM');
-                                
-                                // Force kill after 3 seconds if still running
-                                setTimeout(() => {
-                                    try {
-                                        process.kill(parseInt(pid), 'SIGKILL');
-                                    } catch (e) {
-                                        // Process already dead, ignore
-                                    }
-                                }, 3000);
-                            } catch (killError) {
-                                this.logger.warn(`Failed to kill process ${pid}:`, killError.message);
+
+            // Process patterns to search for - covers both random loops and resumed projects
+            const processPatterns = [
+                'GenerateLoopWorkerThread.js',  // Random loop generation worker threads
+                'my-nft-gen',                   // ResumeProject and other my-nft-gen processes
+                'RequestNewWorkerThread',       // General worker threads from my-nft-gen
+                'RequestNewFrameBuilderThread'  // Frame builder threads
+            ];
+
+            for (const pattern of processPatterns) {
+                try {
+                    const psOutput = execSync(`ps aux | grep ${pattern} | grep -v grep`, { encoding: 'utf8' });
+                    const lines = psOutput.trim().split('\n');
+
+                    for (const line of lines) {
+                        if (line.trim()) {
+                            const parts = line.trim().split(/\s+/);
+                            const pid = parts[1];
+                            if (pid && !isNaN(pid)) {
+                                this.logger.info(`Killing ${pattern} process PID: ${pid}`);
+                                try {
+                                    process.kill(parseInt(pid), 'SIGTERM');
+
+                                    // Force kill after 3 seconds if still running
+                                    setTimeout(() => {
+                                        try {
+                                            process.kill(parseInt(pid), 'SIGKILL');
+                                        } catch (e) {
+                                            // Process already dead, ignore
+                                        }
+                                    }, 3000);
+                                } catch (killError) {
+                                    this.logger.warn(`Failed to kill process ${pid}:`, killError.message);
+                                }
                             }
                         }
                     }
+                } catch (psError) {
+                    // ps command failed, probably no matching processes for this pattern
+                    this.logger.info(`No ${pattern} processes found to kill`);
                 }
-            } catch (psError) {
-                // ps command failed, probably no matching processes
-                this.logger.info('No GenerateLoopWorkerThread processes found to kill');
             }
-            
+
         } catch (error) {
             this.logger.warn('Failed to kill child processes:', error.message);
         }
     }
 
     /**
-     * Stop render loop - uses new event-driven worker termination
+     * Stop any active loop (random loop or resumed project) - uses event-driven worker termination
      * @returns {Promise<Object>} Stop result
      */
     async stopRenderLoop() {
-        this.logger.info('Stopping render loop using event-driven termination');
+        this.logger.info('Stopping active loop (random/resume) using event-driven termination');
 
         if (!this.renderLoopActive) {
-            this.logger.info('No render loop active');
-            return { success: true, message: 'No render loop was active' };
+            this.logger.info('No active loop found');
+            return { success: true, message: 'No active loop was running' };
         }
 
         try {
@@ -872,11 +1216,11 @@ class NftProjectManager {
             // But we still need to clean up local references
             await this.cleanupWorker(this.currentWorkerId || 'unknown', 'user_stopped');
 
-            this.logger.success('Render loop stop initiated via event system');
-            return { success: true, message: 'Render loop stopped via event system' };
+            this.logger.success('Active loop stop initiated via event system');
+            return { success: true, message: 'Active loop stopped via event system' };
 
         } catch (error) {
-            this.logger.error('Failed to stop render loop via event system, using fallback', error);
+            this.logger.error('Failed to stop active loop via event system, using fallback', error);
             
             // Fallback to old method
             this.renderLoopActive = false;
@@ -896,7 +1240,7 @@ class NftProjectManager {
             this.currentLoopId = null;
             this.currentWorkerId = null;
             
-            return { success: true, message: 'Render loop stopped (fallback method)' };
+            return { success: true, message: 'Active loop stopped (fallback method)' };
         }
     }
 

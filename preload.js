@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('api', {
     startNewProject: (config) => ipcRenderer.invoke('start-new-project', config),
     createProject: (config) => ipcRenderer.invoke('create-project', config),
     resumeProject: (settingsPath) => ipcRenderer.invoke('resume-project', settingsPath),
+    importFromSettings: (settingsPath) => ipcRenderer.invoke('import-from-settings', settingsPath),
     loadProject: (filePath) => ipcRenderer.invoke('load-project', filePath),
     saveProject: (filePath, config) => ipcRenderer.invoke('save-project', filePath, config),
     renderFrame: (config, frameNumber) => ipcRenderer.invoke('render-frame', config, frameNumber),
@@ -71,5 +72,6 @@ contextBridge.exposeInMainWorld('api', {
 
     // Render loop
     startRenderLoop: (config) => ipcRenderer.invoke('start-render-loop', config),
+    startResumeLoop: (config) => ipcRenderer.invoke('start-resume-loop', config),
     stopRenderLoop: () => ipcRenderer.invoke('stop-render-loop')
 });

@@ -24,6 +24,10 @@ class ProjectHandlers {
             return await this.projectManager.resumeProject(settingsPath);
         });
 
+        ipcMain.handle('import-from-settings', async (event, settingsPath) => {
+            return await this.projectManager.importFromSettings(settingsPath);
+        });
+
         ipcMain.handle('render-frame', async (event, configInput, frameNumber) => {
             // Convert to ProjectState if needed
             const projectState = await this.ensureProjectState(configInput);
@@ -33,7 +37,13 @@ class ProjectHandlers {
         ipcMain.handle('start-render-loop', async (event, configInput) => {
             // Convert to ProjectState if needed
             const projectState = await this.ensureProjectState(configInput);
+            // Always use random loop generation for this handler
             return await this.projectManager.startRenderLoop(projectState);
+        });
+
+        ipcMain.handle('start-resume-loop', async (event, settingsPath) => {
+            // Simple resume - just pass the settings file path
+            return await this.projectManager.resumeProject(settingsPath);
         });
 
         ipcMain.handle('stop-render-loop', async () => {
@@ -67,8 +77,10 @@ class ProjectHandlers {
         const handlers = [
             'start-new-project',
             'resume-project',
+            'import-from-settings',
             'render-frame',
             'start-render-loop',
+            'start-resume-loop',
             'stop-render-loop'
         ];
 

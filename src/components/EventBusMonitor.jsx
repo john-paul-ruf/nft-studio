@@ -74,13 +74,15 @@ const EVENT_CATEGORIES = {
     CUSTOM: { label: 'Custom', color: '#9E9E9E', icon: '📌' }
 };
 
-export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, setIsMinimized }) {
+export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, setIsMinimized, isForResumedProject = false }) {
     const [events, setEvents] = useState([]);
     const [filteredEvents, setFilteredEvents] = useState([]);
     const [isPaused, setIsPaused] = useState(false);
     const [selectedTab, setSelectedTab] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCategories, setSelectedCategories] = useState(['FRAME', 'VIDEO', 'ERROR', 'RENDER_LOOP']);
+    const [selectedCategories, setSelectedCategories] = useState(
+        isForResumedProject ? Object.keys(EVENT_CATEGORIES) : ['FRAME', 'VIDEO', 'ERROR', 'RENDER_LOOP']
+    );
     const [expandedEvents, setExpandedEvents] = useState(new Set());
     const [autoScroll, setAutoScroll] = useState(true);
     const [showTimestamps, setShowTimestamps] = useState(true);
@@ -215,7 +217,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                 const newEvent = {
                     id: Date.now() + Math.random(),
                     type: eventData.eventName || 'unknown',
-                    category: detectCategory(eventData.eventName || 'unknown'),
+                    category: detectCategory(eventData.eventName || 'unknown', eventData.data || eventData),
                     timestamp: new Date().toISOString(),
                     data: eventData.data || eventData,
                     raw: JSON.stringify(eventData, null, 2)
@@ -242,6 +244,19 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
 
             // Subscribe to IPC events
             if (window.api) {
+                // Start event monitoring on the main process
+                window.api.startEventMonitoring({
+                    enableDebug: true,
+                    captureAll: true,
+                    includeFlaggedOff: true
+                }).then(result => {
+                    if (result.success) {
+                        console.log('✅ Event monitoring started on main process');
+                    } else {
+                        console.error('❌ Failed to start event monitoring:', result.error);
+                    }
+                });
+
                 // Subscribe to worker events (from render loop)
                 window.api.onWorkerEvent(handleWorkerEvent);
 
@@ -258,6 +273,10 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                 if (window.api) {
                     window.api.removeWorkerEventListener();
                     window.api.offEventBusMessage(handleEventBusMessage);
+                    // Stop event monitoring on main process
+                    window.api.stopEventMonitoring().then(() => {
+                        console.log('🧹 Event monitoring stopped on main process');
+                    });
                     console.log('🧹 EventBusMonitor unsubscribed from IPC events');
                 }
             };
@@ -363,10 +382,33 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
         }
     }, [open, setIsMinimized]);
 
-    const detectCategory = (eventType) => {
+    const detectCategory = (eventType, eventData) => {
         const lowerType = eventType.toLowerCase();
 
-        // Frame events
+        // First check the eventData for frame information (worker events)
+        if (eventData) {
+            // Check if eventData contains frame-related information
+            if (typeof eventData === 'object') {
+                const dataStr = JSON.stringify(eventData).toLowerCase();
+                if (dataStr.includes('frame') || dataStr.includes('frameNumber') ||
+                    dataStr.includes('framenumber') || eventData.frameNumber !== undefined ||
+                    eventData.currentFrame !== undefined) {
+                    console.log('🎯 DetectCategory: Found frame data in eventData, categorizing as FRAME');
+                    return 'FRAME';
+                }
+                if (dataStr.includes('effect') || eventData.effectName !== undefined) {
+                    return 'EFFECT';
+                }
+                if (dataStr.includes('progress') || eventData.progress !== undefined) {
+                    return 'PROGRESS';
+                }
+                if (dataStr.includes('error') || eventData.error !== undefined) {
+                    return 'ERROR';
+                }
+            }
+        }
+
+        // Frame events by event name
         if (lowerType.includes('frame')) return 'FRAME';
 
         // Effect events
@@ -429,6 +471,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
             if (EVENT_CATEGORIES[category]) return category;
         }
 
+        console.log('🎯 DetectCategory: No match found for eventType:', eventType, 'eventData:', eventData, 'defaulting to CUSTOM');
         return 'CUSTOM';
     };
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ServiceProvider, useServices } from './contexts/ServiceContext.js';
 import { useNavigation } from './hooks/useNavigation.js';
 import Intro from './pages/Intro.jsx';
@@ -14,7 +14,7 @@ import ApplicationFactory from './ApplicationFactory.js';
  */
 function AppRouter() {
     const { currentView, currentParams, navigateToWizard, navigateToCanvas, navigateToIntro } = useNavigation();
-    const { projectStateManager } = useServices();
+    const { projectStateManager, eventBusService } = useServices();
 
     // Debug logging for router state
     console.log('🔍 App Router:', { currentView, currentParams });
@@ -23,6 +23,73 @@ function AppRouter() {
         type: typeof projectStateManager,
         methods: projectStateManager ? Object.getOwnPropertyNames(Object.getPrototypeOf(projectStateManager)) : 'N/A'
     });
+
+    // Global event handler for project:resume - works from any page
+    useEffect(() => {
+        if (!eventBusService) return;
+
+        const unsubscribeProjectResume = eventBusService.subscribe('project:resume', async (payload) => {
+            console.log('🎨 App: Global project:resume event received:', payload);
+            try {
+                if (payload?.settingsPath) {
+                    console.log('🎨 App: Resuming project with settings:', payload.settingsPath);
+
+                    // Navigate to canvas first if not already there
+                    let wasAlreadyOnCanvas = currentView === 'canvas';
+                    if (!wasAlreadyOnCanvas) {
+                        console.log('🎨 App: Navigating to Canvas for resume...');
+                        navigateToCanvas({ isResuming: true, settingsPath: payload.settingsPath });
+                    } else {
+                        console.log('🎨 App: Already on Canvas, emitting resume start event...');
+                        // If already on Canvas, emit the resume start event immediately
+                        eventBusService.emit('project:resume:start', { settingsPath: payload.settingsPath }, {
+                            source: 'App',
+                            component: 'App'
+                        });
+                    }
+
+                    // Call resume project API directly - this will start the render loop automatically
+                    console.log('🎨 App: About to call window.api.resumeProject with:', payload.settingsPath);
+
+                    try {
+                        const resumeResult = await window.api.resumeProject(payload.settingsPath);
+                        console.log('🎨 App: resumeProject API result:', resumeResult);
+
+                        if (resumeResult.success) {
+                            console.log('🎨 App: Project resumed successfully - render loop should be running');
+
+                            // Add a small delay to ensure Canvas is mounted and listening
+                            setTimeout(() => {
+                                console.log('🎨 App: About to emit project:resume:success event');
+                                // Emit success event for Canvas to open EventBusMonitor
+                                eventBusService.emit('project:resume:success', {
+                                    settingsPath: payload.settingsPath,
+                                    resumeResult,
+                                    wasAlreadyOnCanvas
+                                }, {
+                                    source: 'App',
+                                    component: 'App'
+                                });
+                                console.log('🎨 App: project:resume:success event emitted');
+                            }, 100);
+                        } else {
+                            console.error('🎨 App: Failed to resume project:', resumeResult.error);
+                        }
+                    } catch (apiError) {
+                        console.error('🎨 App: Error calling resumeProject API:', apiError);
+                    }
+                } else {
+                    console.warn('🎨 App: No settingsPath provided in project:resume event payload');
+                }
+            } catch (error) {
+                console.error('🎨 App: Error resuming project:', error);
+            }
+        }, { component: 'App' });
+
+        return () => {
+            unsubscribeProjectResume();
+        };
+    }, [eventBusService, currentView, navigateToCanvas]);
 
     const renderCurrentView = () => {
         switch (currentView) {

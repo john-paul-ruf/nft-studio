@@ -12,7 +12,8 @@ export default function EventDrivenEffectsPanel({
     availableEffects,
     effectsLoaded,
     currentTheme,
-    projectState
+    projectState,
+    isReadOnly = false
 }) {
     const { eventBusService } = useServices();
 
@@ -112,6 +113,7 @@ export default function EventDrivenEffectsPanel({
             effectsLoaded={effectsLoaded}
             currentTheme={currentTheme}
             projectState={projectState}
+            isReadOnly={isReadOnly}
         />
     );
 }

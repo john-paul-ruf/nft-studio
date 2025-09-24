@@ -186,16 +186,26 @@ class EffectProcessingService {
         // Always preserve user config as fallback
         const userConfig = effect.config || {};
 
-        // Use ConfigReconstructor for proper config reconstruction from my-nft-gen
-        let deserializedConfig;
+        // For resumed projects, the config might be serialized (plain objects instead of method objects)
+        // We need to re-hydrate it properly using the same approach as SettingsToProjectConverter
+        let hydratedConfig;
         try {
-            const { ConfigReconstructor } = await import('my-nft-gen/src/core/ConfigReconstructor.js');
-            const effectName = effect.registryKey;
-            deserializedConfig = await ConfigReconstructor.reconstruct(effectName, userConfig);
-            console.log(`🔄 Config reconstructed for ${effectName} using ConfigReconstructor`);
-        } catch (reconstructionError) {
-            console.warn(`Failed to reconstruct config for ${effect.registryKey}:`, reconstructionError.message);
-            deserializedConfig = userConfig; // Fallback to original config
+            const { default: SettingsToProjectConverter } = await import('../../utils/SettingsToProjectConverter.js');
+            hydratedConfig = await SettingsToProjectConverter.convertEffectConfig(userConfig, effect.registryKey);
+            console.log(`🔄 Config hydrated for ${effect.registryKey} using SettingsToProjectConverter`);
+        } catch (hydrationError) {
+            console.warn(`Failed to hydrate config for ${effect.registryKey}, trying ConfigReconstructor:`, hydrationError.message);
+
+            // Fallback to ConfigReconstructor for proper config reconstruction from my-nft-gen
+            try {
+                const { ConfigReconstructor } = await import('my-nft-gen/src/core/ConfigReconstructor.js');
+                const effectName = effect.registryKey;
+                hydratedConfig = await ConfigReconstructor.reconstruct(effectName, userConfig);
+                console.log(`🔄 Config reconstructed for ${effectName} using ConfigReconstructor fallback`);
+            } catch (reconstructionError) {
+                console.warn(`Failed to reconstruct config for ${effect.registryKey}:`, reconstructionError.message);
+                hydratedConfig = userConfig; // Final fallback to original config
+            }
         }
 
         try {
@@ -209,13 +219,13 @@ class EffectProcessingService {
             const effectName = effect.registryKey;
 
             if (!effectName) {
-                console.warn('No effect name found, using deserialized config');
-                return deserializedConfig;
+                console.warn('No effect name found, using hydrated config');
+                return hydratedConfig;
             }
 
             // Debug FuzzFlareEffect config
             if (effectName === 'FuzzFlareEffect' || effectName === 'fuzz-flare') {
-                console.log('🔍 FuzzFlareEffect deserialized config received:', JSON.stringify(deserializedConfig, null, 2));
+                console.log('🔍 FuzzFlareEffect hydrated config received:', JSON.stringify(hydratedConfig, null, 2));
             }
 
             // Use the new plugin registry with linked config classes
@@ -230,28 +240,28 @@ class EffectProcessingService {
                     if (pluginByName && pluginByName.configClass) {
                         console.log(`✅ Found config class for ${effectName} via _name_: ${pluginByName.configClass.name}`);
                         // Create proper config instance using the linked config class
-                        return new pluginByName.configClass(deserializedConfig);
+                        return new pluginByName.configClass(hydratedConfig);
                     }
                 }
                 console.warn(`Effect ${effectName} not found in plugin registry, using deserialized config`);
-                return deserializedConfig;
+                return hydratedConfig;
             }
 
             if (!plugin.configClass) {
                 console.warn(`No config class linked for effect ${effectName}, using deserialized config`);
-                return deserializedConfig;
+                return hydratedConfig;
             }
 
             console.log(`✅ Using reconstructed config for ${effectName} from ConfigReconstructor`);
 
             // ConfigReconstructor already returns a properly reconstructed instance
-            return deserializedConfig;
+            return hydratedConfig;
 
         } catch (error) {
             console.error('Error creating config instance:', error);
             console.error('Stack:', error.stack);
             // Return deserialized config as fallback to prevent crashes
-            return deserializedConfig;
+            return hydratedConfig;
         }
     }
 }

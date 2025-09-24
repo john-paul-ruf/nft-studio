@@ -55,7 +55,8 @@ export default function EffectsPanel({
     availableEffects,
     effectsLoaded,
     currentTheme,
-    projectState
+    projectState,
+    isReadOnly = false
 }) {
     const theme = useTheme();
     const { eventBusService } = useServices();
@@ -430,20 +431,22 @@ export default function EffectsPanel({
                                 </Box>
                                 <IconButton
                                     size="small"
+                                    disabled={isReadOnly}
                                     onClick={(e) => {
                                         e.stopPropagation();
+                                        if (isReadOnly) return;
                                         onSecondaryEffectDelete && onSecondaryEffectDelete(parentOriginalIndex, idx);
                                     }}
-                                    title="Delete secondary effect"
+                                    title={isReadOnly ? "Read-only mode" : "Delete secondary effect"}
                                     sx={{
                                         p: 0,
-                                        color: theme.palette.text.secondary,
-                                        opacity: 0.7,
-                                        '&:hover': {
+                                        color: isReadOnly ? theme.palette.text.disabled : theme.palette.text.secondary,
+                                        opacity: isReadOnly ? 0.3 : 0.7,
+                                        '&:hover': !isReadOnly ? {
                                             opacity: 1,
                                             transform: 'scale(1.1)',
                                             color: theme.palette.error.main
-                                        }
+                                        } : {}
                                     }}
                                 >
                                     <Delete sx={{ fontSize: 14 }} />
@@ -454,19 +457,29 @@ export default function EffectsPanel({
                         <ContextMenu.Portal>
                             <ContextMenu.Content style={menuStyles}>
                                 <ContextMenu.Item
-                                    style={itemStyles}
-                                    onSelect={() => onEffectEdit && onEffectEdit(parentOriginalIndex, 'secondary', idx)}
+                                    disabled={isReadOnly}
+                                    style={{
+                                        ...itemStyles,
+                                        color: isReadOnly ? theme.palette.text.disabled : itemStyles.color,
+                                        cursor: isReadOnly ? 'default' : 'pointer'
+                                    }}
+                                    onSelect={() => !isReadOnly && onEffectEdit && onEffectEdit(parentOriginalIndex, 'secondary', idx)}
                                 >
                                     <Edit fontSize="small" />
-                                    Edit Secondary Effect
+                                    {isReadOnly ? 'Edit Secondary Effect (Read-only)' : 'Edit Secondary Effect'}
                                 </ContextMenu.Item>
                                 <ContextMenu.Separator style={separatorStyles} />
                                 <ContextMenu.Item
-                                    style={itemStyles}
-                                    onSelect={() => onSecondaryEffectDelete && onSecondaryEffectDelete(parentOriginalIndex, idx)}
+                                    disabled={isReadOnly}
+                                    style={{
+                                        ...itemStyles,
+                                        color: isReadOnly ? theme.palette.text.disabled : itemStyles.color,
+                                        cursor: isReadOnly ? 'default' : 'pointer'
+                                    }}
+                                    onSelect={() => !isReadOnly && onSecondaryEffectDelete && onSecondaryEffectDelete(parentOriginalIndex, idx)}
                                 >
                                     <Delete fontSize="small" />
-                                    Delete Secondary Effect
+                                    {isReadOnly ? 'Delete Secondary Effect (Read-only)' : 'Delete Secondary Effect'}
                                 </ContextMenu.Item>
                             </ContextMenu.Content>
                         </ContextMenu.Portal>
@@ -563,20 +576,22 @@ export default function EffectsPanel({
                                     </Box>
                                     <IconButton
                                         size="small"
+                                        disabled={isReadOnly}
                                         onClick={(e) => {
                                             e.stopPropagation();
+                                            if (isReadOnly) return;
                                             onKeyframeEffectDelete && onKeyframeEffectDelete(parentOriginalIndex, idx);
                                         }}
-                                        title="Delete keyframe effect"
+                                        title={isReadOnly ? "Read-only mode" : "Delete keyframe effect"}
                                         sx={{
                                             p: 0,
-                                            color: theme.palette.text.secondary,
-                                            opacity: 0.7,
-                                            '&:hover': {
+                                            color: isReadOnly ? theme.palette.text.disabled : theme.palette.text.secondary,
+                                            opacity: isReadOnly ? 0.3 : 0.7,
+                                            '&:hover': !isReadOnly ? {
                                                 opacity: 1,
                                                 transform: 'scale(1.1)',
                                                 color: theme.palette.error.main
-                                            }
+                                            } : {}
                                         }}
                                     >
                                         <Delete sx={{ fontSize: 14 }} />
@@ -587,19 +602,29 @@ export default function EffectsPanel({
                         <ContextMenu.Portal>
                             <ContextMenu.Content style={menuStyles}>
                                 <ContextMenu.Item
-                                    style={itemStyles}
-                                    onSelect={() => onEffectEdit && onEffectEdit(parentOriginalIndex, 'keyframe', idx)}
+                                    disabled={isReadOnly}
+                                    style={{
+                                        ...itemStyles,
+                                        color: isReadOnly ? theme.palette.text.disabled : itemStyles.color,
+                                        cursor: isReadOnly ? 'default' : 'pointer'
+                                    }}
+                                    onSelect={() => !isReadOnly && onEffectEdit && onEffectEdit(parentOriginalIndex, 'keyframe', idx)}
                                 >
                                     <Edit fontSize="small" />
-                                    Edit Keyframe Effect
+                                    {isReadOnly ? 'Edit Keyframe Effect (Read-only)' : 'Edit Keyframe Effect'}
                                 </ContextMenu.Item>
                                 <ContextMenu.Separator style={separatorStyles} />
                                 <ContextMenu.Item
-                                    style={itemStyles}
-                                    onSelect={() => onKeyframeEffectDelete && onKeyframeEffectDelete(parentOriginalIndex, idx)}
+                                    disabled={isReadOnly}
+                                    style={{
+                                        ...itemStyles,
+                                        color: isReadOnly ? theme.palette.text.disabled : itemStyles.color,
+                                        cursor: isReadOnly ? 'default' : 'pointer'
+                                    }}
+                                    onSelect={() => !isReadOnly && onKeyframeEffectDelete && onKeyframeEffectDelete(parentOriginalIndex, idx)}
                                 >
                                     <Delete fontSize="small" />
-                                    Delete Keyframe Effect
+                                    {isReadOnly ? 'Delete Keyframe Effect (Read-only)' : 'Delete Keyframe Effect'}
                                 </ContextMenu.Item>
                             </ContextMenu.Content>
                         </ContextMenu.Portal>
@@ -676,15 +701,20 @@ export default function EffectsPanel({
             <ContextMenu.Portal>
                 <ContextMenu.Content style={menuStyles}>
                     <ContextMenu.Item
-                        style={itemStyles}
-                        onSelect={() => onEffectEdit && onEffectEdit(originalIndex)}
+                        disabled={isReadOnly}
+                        style={{
+                            ...itemStyles,
+                            color: isReadOnly ? theme.palette.text.disabled : itemStyles.color,
+                            cursor: isReadOnly ? 'default' : 'pointer'
+                        }}
+                        onSelect={() => !isReadOnly && onEffectEdit && onEffectEdit(originalIndex)}
                     >
                         <Edit fontSize="small" />
-                        Edit Effect
+                        {isReadOnly ? 'Edit Effect (Read-only)' : 'Edit Effect'}
                     </ContextMenu.Item>
 
-                    {/* Only show secondary and keyframe options for non-final effects */}
-                    {!isEffectFinal && (
+                    {/* Only show secondary and keyframe options for non-final effects and not in read-only mode */}
+                    {!isEffectFinal && !isReadOnly && (
                         <>
                             <ContextMenu.Separator style={separatorStyles} />
 
@@ -927,22 +957,24 @@ export default function EffectsPanel({
                             </Box>
                             <IconButton
                                 size="small"
+                                disabled={isReadOnly}
                                 onClick={(e) => {
                                     e.stopPropagation();
+                                    if (isReadOnly) return;
                                     console.log('🗑️ EffectsPanel: Delete button clicked for originalIndex:', originalIndex);
                                     console.log('🗑️ EffectsPanel: Effect being deleted:', effect.name || effect.className);
                                     onEffectDelete(originalIndex);
                                 }}
-                                title="Delete layer"
+                                title={isReadOnly ? "Read-only mode" : "Delete layer"}
                                 sx={{
                                     p: 0,
-                                    color: theme.palette.text.secondary,
-                                    opacity: 0.7,
-                                    '&:hover': {
+                                    color: isReadOnly ? theme.palette.text.disabled : theme.palette.text.secondary,
+                                    opacity: isReadOnly ? 0.3 : 0.7,
+                                    '&:hover': !isReadOnly ? {
                                         opacity: 1,
                                         transform: 'scale(1.1)',
                                         color: theme.palette.error.main
-                                    }
+                                    } : {}
                                 }}
                             >
                                 <Delete sx={{ fontSize: 16 }} />
@@ -994,8 +1026,8 @@ export default function EffectsPanel({
                 >
                     Layers
                 </Typography>
-                {/* Add Effect Button */}
-                {availableEffects && effectsLoaded && (
+                {/* Add Effect Button - Hidden in read-only mode */}
+                {availableEffects && effectsLoaded && !isReadOnly && (
                     <AddEffectDropdown
                         addEffectMenuOpen={addEffectMenuOpen}
                         setAddEffectMenuOpen={setAddEffectMenuOpen}
@@ -1004,6 +1036,18 @@ export default function EffectsPanel({
                         currentTheme={currentTheme || theme}
                         onAddEffect={handleAddEffectEvent}
                         onOpenSpecialty={() => setSpecialtyModalOpen(true)}
+                    />
+                )}
+                {/* Read-only indicator */}
+                {isReadOnly && (
+                    <Chip
+                        label="Read Only"
+                        size="small"
+                        sx={{
+                            backgroundColor: theme.palette.warning.main,
+                            color: theme.palette.warning.contrastText,
+                            fontSize: '0.75rem'
+                        }}
                     />
                 )}
             </Box>

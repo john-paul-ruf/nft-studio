@@ -55,6 +55,9 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
     const [updateCounter, setUpdateCounter] = useState(0); // Force re-renders
     const config = projectState ? projectState.getState() : {};
 
+    // Check if this Canvas was loaded for a resuming project
+    const isLoadedForResuming = projectData?.isResuming || false;
+
     // Debug config changes
     console.log('🎨 Canvas: Component render - config.effects:', config.effects?.length || 0, config.effects?.map(e => e.name || e.className) || []);
     console.log('🎨 Canvas: Update counter:', updateCounter);
@@ -78,6 +81,16 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
         });
         return unsubscribe;
     }, [projectStateManager, onUpdateConfig]);
+
+    // Handle initial state when Canvas is loaded for a resuming project
+    useEffect(() => {
+        if (isLoadedForResuming) {
+            console.log('🎨 Canvas: Loaded for resuming project - setting initial state and opening monitor');
+            setIsProjectResuming(true);
+            setIsEventMonitorForResumedProject(true);
+            setShowEventMonitor(true);
+        }
+    }, [isLoadedForResuming]);
 
     // Load theme preference on mount
     useEffect(() => {
@@ -104,6 +117,8 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
     const [isRenderLoopActive, setIsRenderLoopActive] = useState(false);
     const [showEventMonitor, setShowEventMonitor] = useState(false);
     const [isEventMonitorMinimized, setIsEventMonitorMinimized] = useState(false);
+    const [isProjectResuming, setIsProjectResuming] = useState(false);
+    const [isEventMonitorForResumedProject, setIsEventMonitorForResumedProject] = useState(false);
 
 
     // UI refs
@@ -235,10 +250,15 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
         const unsubscribeRenderLoopToggle = eventBusService.subscribe('renderloop:toggled', (payload) => {
             console.log('🎨 Canvas: Render loop toggle event received:', payload);
             setIsRenderLoopActive(payload.isActive);
-            setShowEventMonitor(payload.isActive);
+            // Only auto-manage EventBusMonitor visibility for regular render loop toggles
+            // Don't override manual showEventMonitor state for resumed projects
+            if (payload.source !== 'resumed-project') {
+                setShowEventMonitor(payload.isActive);
+            }
             console.log('🎨 Canvas: Updated render loop state and modal visibility:', {
                 isActive: payload.isActive,
-                showModal: payload.isActive
+                showModal: payload.isActive,
+                source: payload.source
             });
         }, { component: 'Canvas' });
 
@@ -250,7 +270,65 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
             console.log('🎨 Canvas: Render loop error - reset states to inactive');
         }, { component: 'Canvas' });
 
+        // Project management events
+        const unsubscribeProjectNew = eventBusService.subscribe('project:new', (payload) => {
+            console.log('🎨 Canvas: New project event received:', payload);
+            // Navigate to project wizard or create new project
+            // This would typically navigate to a different route
+            window.location.href = '/wizard';
+        }, { component: 'Canvas' });
 
+        const unsubscribeProjectOpen = eventBusService.subscribe('project:open', async (payload) => {
+            console.log('🎨 Canvas: Open project event received:', payload);
+            try {
+                // Use the dialog service to open file dialog
+                const result = await window.api.selectFile({
+                    title: 'Open Project',
+                    filters: [
+                        { name: 'JSON Files', extensions: ['json'] }
+                    ],
+                    properties: ['openFile']
+                });
+
+                if (!result.canceled && result.filePaths.length > 0) {
+                    const filePath = result.filePaths[0];
+                    console.log('🎨 Canvas: Loading project from:', filePath);
+                    
+                    // Load the project file
+                    const projectData = await window.api.loadProject(filePath);
+                    if (projectData.success) {
+                        // Update project state with loaded data
+                        if (projectState) {
+                            projectState.loadFromData(projectData.data);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('🎨 Canvas: Error opening project:', error);
+            }
+        }, { component: 'Canvas' });
+
+        // Listen for project resume start to disable toolbar AND open monitor
+        const unsubscribeProjectResume = eventBusService.subscribe('project:resume', async (payload) => {
+            console.log('🎨 Canvas: Project resume event received - disabling toolbar and opening monitor:', payload);
+            setIsProjectResuming(true);
+            setIsEventMonitorForResumedProject(true);
+            setShowEventMonitor(true);
+        }, { component: 'Canvas' });
+
+        // Listen for project resume start (when already on Canvas) to disable toolbar AND open monitor
+        const unsubscribeProjectResumeStart = eventBusService.subscribe('project:resume:start', async (payload) => {
+            console.log('🎨 Canvas: Project resume start event received - disabling toolbar and opening monitor:', payload);
+            setIsProjectResuming(true);
+            setIsEventMonitorForResumedProject(true);
+            setShowEventMonitor(true);
+        }, { component: 'Canvas' });
+
+        // Listen for successful project resume to just re-enable toolbar (monitor already open)
+        const unsubscribeProjectResumeSuccess = eventBusService.subscribe('project:resume:success', async (payload) => {
+            console.log('🎨 Canvas: Project resume success event received - re-enabling toolbar:', payload);
+            setIsProjectResuming(false);
+        }, { component: 'Canvas' });
 
         return () => {
             console.log('🎨 Canvas: Cleaning up UI event listeners');
@@ -260,6 +338,11 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
             unsubscribeOrientation();
             unsubscribeRenderLoopToggle();
             unsubscribeRenderLoopError();
+            unsubscribeProjectNew();
+            unsubscribeProjectOpen();
+            unsubscribeProjectResume();
+            unsubscribeProjectResumeStart();
+            unsubscribeProjectResumeSuccess();
         };
     }, [eventBusService]);
 
@@ -294,6 +377,8 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                     currentTheme={currentTheme}
                     getResolutionDimensions={getResolutionDimensions}
                     isRendering={isRendering}
+                    isReadOnly={projectState ? projectState.getState().isReadOnly || false : false}
+                    isProjectResuming={isProjectResuming}
                 />
 
                 {/* Main content area */}
@@ -305,6 +390,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                         effectsLoaded={effectsLoaded}
                         currentTheme={currentTheme}
                         projectState={projectState}
+                        isReadOnly={projectState ? projectState.getState().isReadOnly || false : false}
                     />
 
                     {/* Canvas viewport */}
@@ -421,10 +507,14 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                 {/* Event Monitor */}
                 <EventBusMonitor
                     open={showEventMonitor}
-                    onClose={() => setShowEventMonitor(false)}
+                    onClose={() => {
+                        setShowEventMonitor(false);
+                        setIsEventMonitorForResumedProject(false);
+                    }}
                     onOpen={() => setShowEventMonitor(true)}
                     isMinimized={isEventMonitorMinimized}
                     setIsMinimized={setIsEventMonitorMinimized}
+                    isForResumedProject={isEventMonitorForResumedProject}
                 />
 
 

@@ -55,8 +55,8 @@ class ResolutionMapper {
         414: { w: 414, h: 736, name: "iPhone Plus", category: "Mobile" },
 
         // Social Media Optimized (using unique keys to avoid conflicts)
+        1080: { w: 1920, h: 1080, name: "1080p", category: "HD" },  // Handle 1080p reference by height
         1081: { w: 1080, h: 1080, name: "Instagram Square", category: "Social" }
-        // Note: Key 1080 is reserved for potential 1080p conflicts, using 1081 for square
     };
 
     /**
@@ -197,10 +197,10 @@ class ResolutionMapper {
         // Common string resolution mappings
         const stringToWidth = {
             'qvga': 320, 'vga': 640, 'svga': 800, 'xga': 1024,
-            'hd720': 1280, 'hd': 1920, 'square_small': 720, 'square': 1080,
+            'hd720': 1280, 'hd': 1920, 'square_small': 720, 'square': 1081,
             'wqhd': 2560, '4k': 3840, '5k': 5120, '8k': 7680,
             // Alternative names
-            'fullhd': 1920, 'fhd': 1920, 'uhd': 3840, '4kuhd': 3840,
+            'fullhd': 1920, 'fhd': 1920, 'full hd': 1920, 'uhd': 3840, '4kuhd': 3840,
             'qhd': 2560, '1440p': 2560, '720p': 1280, '1080p': 1920
         };
 
@@ -208,6 +208,21 @@ class ResolutionMapper {
 
         if (stringToWidth[normalized]) {
             return stringToWidth[normalized];
+        }
+
+        // Handle WxH format (e.g., "1920x1080")
+        if (normalized.includes('x')) {
+            const [width, height] = normalized.split('x').map(n => parseInt(n));
+            if (!isNaN(width) && !isNaN(height) && width > 0 && height > 0) {
+                // For WxH format, always return the larger dimension as width for consistency
+                const maxDimension = Math.max(width, height);
+                // Check if this matches any known resolution
+                if (this.isValidResolution(maxDimension)) {
+                    return maxDimension;
+                }
+                // If width is the larger dimension, use it as the key
+                return width >= height ? width : height;
+            }
         }
 
         // Try to parse as a number

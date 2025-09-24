@@ -15,7 +15,10 @@ export default function EventDrivenCanvasToolbar({
     zoom,
     currentTheme,
     getResolutionDimensions,
-    isRendering
+    isRendering,
+    projectStateManager,
+    isReadOnly = false,
+    isProjectResuming = false
 }) {
     const { eventBusService } = useServices();
 
@@ -115,6 +118,19 @@ export default function EventDrivenCanvasToolbar({
         });
     }, [eventBusService]);
 
+    const handleNewProject = useCallback(() => {
+        eventBusService.emit('project:new', {}, {
+            source: 'EventDrivenCanvasToolbar',
+            component: 'EventDrivenCanvasToolbar'
+        });
+    }, [eventBusService]);
+
+    const handleOpenProject = useCallback(() => {
+        eventBusService.emit('project:open', {}, {
+            source: 'EventDrivenCanvasToolbar',
+            component: 'EventDrivenCanvasToolbar'
+        });
+    }, [eventBusService]);
 
 
     const closeAllDropdowns = useCallback(() => {
@@ -159,6 +175,11 @@ export default function EventDrivenCanvasToolbar({
             setZoomMenuAnchor={setZoomMenuAnchor}
             colorSchemeMenuAnchor={colorSchemeMenuAnchor}
             setColorSchemeMenuAnchor={setColorSchemeMenuAnchor}
+            projectStateManager={projectStateManager}
+            onNewProject={handleNewProject}
+            onOpenProject={handleOpenProject}
+            isReadOnly={isReadOnly}
+            isProjectResuming={isProjectResuming}
         />
     );
 }

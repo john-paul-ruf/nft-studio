@@ -195,7 +195,7 @@ export class CenterUtils {
         // Convert string resolutions to numeric
         const stringToNumericMap = {
             'qvga': 320, 'vga': 640, 'svga': 800, 'xga': 1024,
-            'hd720': 1280, 'hd': 1920, 'square_small': 720, 'square': 1080,
+            'hd720': 1280, 'hd': 1920, 'square_small': 720, 'square': 1081,
             'wqhd': 2560, '4k': 3840, '5k': 5120, '8k': 7680
         };
 

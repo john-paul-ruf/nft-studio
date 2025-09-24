@@ -37,6 +37,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import ResolutionMapper from '../../utils/ResolutionMapper.js';
 import ColorSchemeDropdown from '../ColorSchemeDropdown.jsx';
 import UndoRedoControls from '../UndoRedoControls.jsx';
+import ProjectSelector from '../ProjectSelector.jsx';
 
 export default function CanvasToolbar({
     config,
@@ -69,6 +70,11 @@ export default function CanvasToolbar({
     setZoomMenuAnchor,
     colorSchemeMenuAnchor,
     setColorSchemeMenuAnchor,
+    projectStateManager,
+    onNewProject,
+    onOpenProject,
+    isReadOnly = false,
+    isProjectResuming = false
 
 }) {
     // Use passed resolution value (single source of truth)
@@ -92,17 +98,17 @@ export default function CanvasToolbar({
                     <DropdownMenu.Root>
                         <DropdownMenu.Trigger asChild>
                             <IconButton
-                                disabled={isRendering}
+                                disabled={isRendering || isProjectResuming}
                                 size="small"
                                 sx={{
                                     color: 'primary.main',
-                                    backgroundColor: isRendering ? 'action.disabled' : 'transparent',
+                                    backgroundColor: (isRendering || isProjectResuming) ? 'action.disabled' : 'transparent',
                                     '&:hover': {
                                         backgroundColor: 'primary.main',
                                         color: 'white',
                                     }
                                 }}
-                                title={isRendering ? 'Rendering...' : 'Render'}
+                                title={isProjectResuming ? 'Resuming project...' : isRendering ? 'Rendering...' : 'Render'}
                             >
                                 <PlayArrow />
                             </IconButton>
@@ -157,10 +163,76 @@ export default function CanvasToolbar({
                                     <PlayArrow fontSize="small" style={{ marginRight: '8px' }} />
                                     <span>{isRenderLoopActive ? 'Stop' : 'Start'} Render Loop</span>
                                 </DropdownMenu.Item>
+                                <DropdownMenu.Item
+                                    className="radix-dropdown-item"
+                                    onClick={async () => {
+                                        try {
+                                            // Get current project directory if available
+                                            const currentProjectPath = projectStateManager?.getCurrentProjectPath();
+                                            const defaultPath = currentProjectPath ?
+                                                currentProjectPath.substring(0, currentProjectPath.lastIndexOf('/')) :
+                                                undefined;
+
+                                            // Open file dialog for *-settings.json files
+                                            const result = await window.api.selectFile({
+                                                filters: [
+                                                    { name: 'Settings Files', extensions: ['json'] },
+                                                    { name: 'All Files', extensions: ['*'] }
+                                                ],
+                                                defaultPath: defaultPath,
+                                                properties: ['openFile']
+                                            });
+
+                                            if (!result.canceled && result.filePaths?.[0]) {
+                                                const settingsPath = result.filePaths[0];
+
+                                                // Validate it's a settings file
+                                                if (!settingsPath.includes('-settings.json')) {
+                                                    console.warn('⚠️ Selected file is not a settings file:', settingsPath);
+                                                    // Still proceed - user might have renamed the file
+                                                }
+
+                                                // Use event-driven approach instead of callback
+                                                closeAllDropdowns();
+                                                // Import EventBusService and emit project:resume event
+                                                import('../../services/EventBusService.js').then(({ default: EventBusService }) => {
+                                                    EventBusService.emit('project:resume', { settingsPath }, {
+                                                        source: 'CanvasToolbar',
+                                                        component: 'CanvasToolbar'
+                                                    });
+                                                });
+                                            }
+                                        } catch (error) {
+                                            console.error('❌ Error resuming loop:', error);
+                                        }
+                                    }}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        padding: '8px 12px',
+                                        cursor: 'pointer',
+                                        outline: 'none',
+                                        borderRadius: '2px',
+                                        color: currentTheme.palette.text.primary
+                                    }}
+                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = currentTheme.palette.action.hover}
+                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                >
+                                    <PlayArrow fontSize="small" style={{ marginRight: '8px' }} />
+                                    <span>Resume Loop Run</span>
+                                </DropdownMenu.Item>
                             </DropdownMenu.Content>
                         </DropdownMenu.Portal>
                     </DropdownMenu.Root>
                 </Box>
+
+                {/* Project Selector */}
+                <ProjectSelector
+                    currentTheme={currentTheme}
+                    projectStateManager={projectStateManager}
+                    onNewProject={onNewProject}
+                    onOpenProject={onOpenProject}
+                />
 
                 {/* Undo/Redo Controls */}
                 <UndoRedoControls />
@@ -172,7 +244,15 @@ export default function CanvasToolbar({
                             onChange={onResolutionChange}
                             displayEmpty
                             variant="outlined"
-                            sx={{ fontSize: '13px' }}
+                            disabled={isReadOnly || isProjectResuming}
+                            sx={{ 
+                                fontSize: '13px',
+                                ...(isReadOnly && {
+                                    '& .MuiSelect-select': {
+                                        color: 'text.disabled'
+                                    }
+                                })
+                            }}
                         >
                             {Object.entries(ResolutionMapper.getAllResolutions()).map(([width, resolution]) => (
                                 <MenuItem key={width} value={String(width)}>
@@ -183,20 +263,30 @@ export default function CanvasToolbar({
                     </FormControl>
                 </Box>
 
-                <ToggleButton
-                    value="orientation"
-                    selected={isHorizontal}
-                    onClick={onOrientationToggle}
-                    size="small"
-                    sx={{
-                        borderRadius: 1,
-                        minWidth: '40px',
-                        height: '32px'
-                    }}
-                    title={isHorizontal ? 'Switch to Vertical' : 'Switch to Horizontal'}
-                >
-                    {isHorizontal ? <SwapHoriz /> : <SwapVert />}
-                </ToggleButton>
+                <Tooltip title={isReadOnly ? "Orientation is read-only" : (isHorizontal ? 'Switch to Vertical' : 'Switch to Horizontal')}>
+                    <span>
+                        <ToggleButton
+                            value="orientation"
+                            selected={isHorizontal}
+                            onClick={onOrientationToggle}
+                            disabled={isReadOnly || isProjectResuming}
+                            size="small"
+                            sx={{
+                                borderRadius: 1,
+                                minWidth: '40px',
+                                height: '32px',
+                                ...(isReadOnly && {
+                                    color: 'text.disabled',
+                                    '&.Mui-disabled': {
+                                        color: 'text.disabled'
+                                    }
+                                })
+                            }}
+                        >
+                            {isHorizontal ? <SwapHoriz /> : <SwapVert />}
+                        </ToggleButton>
+                    </span>
+                </Tooltip>
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Typography variant="caption" sx={{ color: 'text.secondary', minWidth: '50px' }}>
@@ -207,8 +297,16 @@ export default function CanvasToolbar({
                         size="small"
                         value={config.numFrames}
                         onChange={onFramesChange}
+                        disabled={isReadOnly}
                         inputProps={{ min: 1, max: 10000 }}
-                        sx={{ width: '80px' }}
+                        sx={{ 
+                            width: '80px',
+                            ...(isReadOnly && {
+                                '& .MuiInputBase-input': {
+                                    color: 'text.disabled'
+                                }
+                            })
+                        }}
                         variant="outlined"
                     />
                 </Box>
@@ -279,23 +377,29 @@ export default function CanvasToolbar({
                 </Box>
 
                 <Box sx={{ position: 'relative' }}>
-                    <IconButton
-                        size="small"
-                        onClick={(event) => {
-                            closeAllDropdowns();
-                            setColorSchemeMenuAnchor(event.currentTarget);
-                        }}
-                        sx={{
-                            color: 'text.primary',
-                            '&:hover': {
-                                backgroundColor: 'primary.main',
-                                color: 'white',
-                            }
-                        }}
-                        title="Color Scheme"
-                    >
-                        <Palette />
-                    </IconButton>
+                    <Tooltip title={isReadOnly ? "Color scheme is read-only" : "Color Scheme"}>
+                        <span>
+                            <IconButton
+                                size="small"
+                                onClick={(event) => {
+                                    if (!isReadOnly) {
+                                        closeAllDropdowns();
+                                        setColorSchemeMenuAnchor(event.currentTarget);
+                                    }
+                                }}
+                                disabled={isReadOnly || isProjectResuming}
+                                sx={{
+                                    color: isReadOnly ? 'text.disabled' : 'text.primary',
+                                    '&:hover': {
+                                        backgroundColor: isReadOnly ? 'transparent' : 'primary.main',
+                                        color: isReadOnly ? 'text.disabled' : 'white',
+                                    }
+                                }}
+                            >
+                                <Palette />
+                            </IconButton>
+                        </span>
+                    </Tooltip>
                     <Menu
                         anchorEl={colorSchemeMenuAnchor}
                         open={Boolean(colorSchemeMenuAnchor)}

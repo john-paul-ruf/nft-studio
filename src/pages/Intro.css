@@ -81,3 +81,20 @@
 .intro-button:disabled .button-icon {
     color: #888;
 }
+
+.intro-button.resume-loop {
+    border-color: #4a90e2;
+}
+
+.intro-button.resume-loop:hover {
+    border-color: #5ba0f2;
+    background: #2a4a6b;
+}
+
+.intro-button.resume-loop .button-icon {
+    color: #4a90e2;
+}
+
+.intro-button.resume-loop:hover .button-icon {
+    color: #5ba0f2;
+}
