@@ -1,7 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import CenterUtils from '../../utils/CenterUtils.js';
 import IdGenerator from '../../utils/IdGenerator.js';
-import { AddEffectCommand, DeleteEffectCommand, ReorderSecondaryEffectsCommand, ReorderKeyframeEffectsCommand, DeleteSecondaryEffectCommand, DeleteKeyframeEffectCommand } from '../../commands/ProjectCommands.js';
+import {
+    AddEffectCommand,
+    DeleteEffectCommand,
+    UpdateEffectCommand,
+    ReorderEffectsCommand,
+    AddSecondaryEffectCommand,
+    AddKeyframeEffectCommand,
+    ReorderSecondaryEffectsCommand,
+    ReorderKeyframeEffectsCommand,
+    DeleteSecondaryEffectCommand,
+    DeleteKeyframeEffectCommand
+} from '../../commands/ProjectCommands.js';
 import { useServices } from '../../contexts/ServiceContext.js';
 import PreferencesService from '../../services/PreferencesService.js';
 
@@ -436,17 +447,19 @@ export default function useEffectManagement(projectState) {
 
     const handleEffectUpdate = useCallback((index, updatedEffect) => {
         const currentEffects = projectState.getState().effects || [];
-        const newEffects = [...currentEffects];
-        newEffects[index] = updatedEffect;
+        const currentEffect = currentEffects[index];
+        const effectName = updatedEffect.name || updatedEffect.className || 'Effect';
 
         console.log('🔧 HANDLE_EFFECT_UPDATE: Updating effect at index', index, {
-            originalEffect: currentEffects[index],
+            originalEffect: currentEffect,
             updatedEffect: updatedEffect,
             secondaryEffectsCount: updatedEffect.secondaryEffects?.length || 0,
             secondaryEffects: updatedEffect.secondaryEffects
         });
 
-        projectState.update({ effects: newEffects });
+        // Use command pattern for undo/redo support
+        const updateCommand = new UpdateEffectCommand(projectState, index, updatedEffect, effectName);
+        commandService.execute(updateCommand);
 
         // Verify what was actually stored
         const verifyEffects = projectState.getState().effects || [];
@@ -456,7 +469,7 @@ export default function useEffectManagement(projectState) {
             storedSecondaryEffects: storedEffect?.secondaryEffects,
             storedSecondaryCount: storedEffect?.secondaryEffects?.length || 0
         });
-    }, [projectState]);
+    }, [projectState, commandService]);
 
     const handleEffectDelete = useCallback((index) => {
         // Get fresh effects from current ProjectState
@@ -471,22 +484,34 @@ export default function useEffectManagement(projectState) {
     }, [projectState, commandService]);
 
     const handleEffectReorder = useCallback((fromIndex, toIndex) => {
-        const currentEffects = projectState.getState().effects || [];
-        const newEffects = [...currentEffects];
-        const [removed] = newEffects.splice(fromIndex, 1);
-        newEffects.splice(toIndex, 0, removed);
-        projectState.update({ effects: newEffects });
-    }, [projectState]);
+        console.log('🔄 handleEffectReorder: Reordering effects', { fromIndex, toIndex });
+
+        // Use command pattern for undo/redo support
+        const reorderCommand = new ReorderEffectsCommand(projectState, fromIndex, toIndex);
+        commandService.execute(reorderCommand);
+    }, [projectState, commandService]);
 
     const handleEffectToggleVisibility = useCallback((index) => {
         const currentEffects = projectState.getState().effects || [];
-        const newEffects = [...currentEffects];
-        newEffects[index] = {
-            ...newEffects[index],
-            visible: newEffects[index].visible === false ? true : false
+        const effect = currentEffects[index];
+        const updatedEffect = {
+            ...effect,
+            visible: effect.visible === false ? true : false
         };
-        projectState.update({ effects: newEffects });
-    }, [projectState]);
+
+        // Use UpdateEffectCommand for visibility toggle (it's an effect property change)
+        const effectName = effect.name || effect.className || 'Effect';
+        const updateCommand = new UpdateEffectCommand(
+            projectState,
+            index,
+            updatedEffect,
+            effectName
+        );
+
+        // Override the description for visibility toggle
+        updateCommand.description = `${updatedEffect.visible ? 'Showed' : 'Hid'} ${effectName}`;
+        commandService.execute(updateCommand);
+    }, [projectState, commandService]);
 
     const handleEffectRightClick = useCallback((effect, index, e) => {
         e.preventDefault();
@@ -700,25 +725,19 @@ export default function useEffectManagement(projectState) {
 
             console.log('🎭 HANDLE_ADD_SECONDARY: Effect to add:', secondaryEffectToAdd);
 
-            const updatedEffect = {
-                ...targetEffect,
-                secondaryEffects: [
-                    ...(targetEffect.secondaryEffects || []),
-                    secondaryEffectToAdd
-                ]
-            };
-
-            console.log('🎭 HANDLE_ADD_SECONDARY: Updated effect with new secondary:', {
-                originalSecondaryCount: targetEffect.secondaryEffects?.length || 0,
-                newSecondaryCount: updatedEffect.secondaryEffects.length,
-                newSecondaryEffect: updatedEffect.secondaryEffects[updatedEffect.secondaryEffects.length - 1]
-            });
-
-            handleEffectUpdate(effectIndex, updatedEffect);
+            // Use command pattern for undo/redo support
+            const secondaryEffectName = newSecondaryEffect.name || newSecondaryEffect.className || 'secondary';
+            const addCommand = new AddSecondaryEffectCommand(
+                projectState,
+                effectIndex,
+                secondaryEffectToAdd,
+                secondaryEffectName
+            );
+            commandService.execute(addCommand);
         } catch (error) {
             console.error('Failed to add secondary effect:', error);
         }
-    }, [handleEffectUpdate]);
+    }, [projectState, commandService]);
 
     const handleAddKeyframeEffect = useCallback((targetEffect, effectIndex, newKeyframeEffect, selectedFrame) => {
         try {
@@ -740,21 +759,20 @@ export default function useEffectManagement(projectState) {
 
             console.log('🎭 handleAddKeyframeEffect: Keyframe effect to add:', keyframeEffectToAdd);
 
-            // Use single source of truth for keyframe effects
-            const currentKeyframeEffects = targetEffect.attachedEffects?.keyFrame || [];
-            const updatedKeyframeEffects = [...currentKeyframeEffects, keyframeEffectToAdd];
-            const updatedEffect = {
-                ...targetEffect,
-                attachedEffects: {
-                    ...targetEffect.attachedEffects,
-                    keyFrame: updatedKeyframeEffects
-                }
-            };
-            handleEffectUpdate(effectIndex, updatedEffect);
+            // Use command pattern for undo/redo support
+            const keyframeEffectName = newKeyframeEffect.name || newKeyframeEffect.className || 'keyframe';
+            const addCommand = new AddKeyframeEffectCommand(
+                projectState,
+                effectIndex,
+                keyframeEffectToAdd,
+                keyframeEffectName,
+                selectedFrame
+            );
+            commandService.execute(addCommand);
         } catch (error) {
             console.error('Failed to add keyframe effect:', error);
         }
-    }, [handleEffectUpdate]);
+    }, [projectState, commandService]);
 
     return {
         availableEffects,

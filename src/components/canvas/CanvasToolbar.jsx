@@ -38,7 +38,7 @@ import {
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import ResolutionMapper from '../../utils/ResolutionMapper.js';
 import ColorSchemeDropdown from '../ColorSchemeDropdown.jsx';
-import UndoRedoControls from '../UndoRedoControls.jsx';
+import EnhancedUndoRedoControls from '../EnhancedUndoRedoControls.jsx';
 import ProjectSelector from '../ProjectSelector.jsx';
 
 export default function CanvasToolbar({
@@ -240,8 +240,8 @@ export default function CanvasToolbar({
                     onImportProject={onImportProject}
                 />
 
-                {/* Undo/Redo Controls */}
-                <UndoRedoControls />
+                {/* Enhanced Undo/Redo Controls with History */}
+                <EnhancedUndoRedoControls />
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <FormControl size="small" sx={{ minWidth: 140 }}>

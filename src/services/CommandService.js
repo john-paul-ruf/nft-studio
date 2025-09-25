@@ -9,7 +9,7 @@ class CommandService {
     constructor() {
         this.undoStack = [];
         this.redoStack = [];
-        this.maxStackSize = 100;
+        this.maxStackSize = 50; // Limit to 50 actions as requested
         this.isExecuting = false;
 
         console.log('⚡ CommandService: Initialized - Single source of truth for user actions');
@@ -17,6 +17,10 @@ class CommandService {
         // Subscribe to undo/redo events
         EventBusService.subscribe('command:undo', () => this.undo(), { component: 'CommandService' });
         EventBusService.subscribe('command:redo', () => this.redo(), { component: 'CommandService' });
+
+        // Subscribe to undo/redo to specific index events
+        EventBusService.subscribe('command:undo-to-index', (payload) => this.undoToIndex(payload.index), { component: 'CommandService' });
+        EventBusService.subscribe('command:redo-to-index', (payload) => this.redoToIndex(payload.index), { component: 'CommandService' });
     }
 
     /**
@@ -37,26 +41,37 @@ class CommandService {
             // Execute the command
             const result = command.execute();
 
-            // Add to undo stack if command is undoable
-            if (command.undo) {
-                this.undoStack.push(command);
+            // Only add to undo stack if command is undoable AND is an effect command
+            if (command.undo && command.isEffectCommand !== false) {
+                // Check if this is an effect-related command
+                if (command.isEffectCommand === true) {
+                    console.log(`⚡ CommandService: Adding effect command to undo stack: ${command.type}`);
+                    this.undoStack.push(command);
 
-                // Clear redo stack when new command is executed
-                this.redoStack = [];
+                    // Clear redo stack when new command is executed
+                    this.redoStack = [];
 
-                // Maintain stack size
-                if (this.undoStack.length > this.maxStackSize) {
-                    this.undoStack = this.undoStack.slice(-this.maxStackSize);
+                    // Maintain stack size
+                    if (this.undoStack.length > this.maxStackSize) {
+                        this.undoStack = this.undoStack.slice(-this.maxStackSize);
+                    }
+                } else {
+                    console.log(`⚡ CommandService: Skipping non-effect command for undo/redo: ${command.type}`);
                 }
             }
 
-            // Emit command executed event
-            EventBusService.emit('command:executed', {
-                command: command.type,
-                canUndo: this.canUndo(),
-                canRedo: this.canRedo(),
-                stackSize: this.undoStack.length
-            }, { source: 'CommandService' });
+            // Only emit undo/redo state changes for effect commands
+            if (command.isEffectCommand !== false) {
+                EventBusService.emit('command:executed', {
+                    command: command.type,
+                    description: command.description,
+                    canUndo: this.canUndo(),
+                    canRedo: this.canRedo(),
+                    stackSize: this.undoStack.length,
+                    undoStack: this.getUndoHistory(),
+                    redoStack: this.getRedoHistory()
+                }, { source: 'CommandService' });
+            }
 
             return result;
 
@@ -87,8 +102,11 @@ class CommandService {
 
             EventBusService.emit('command:undone', {
                 command: command.type,
+                description: command.description,
                 canUndo: this.canUndo(),
-                canRedo: this.canRedo()
+                canRedo: this.canRedo(),
+                undoStack: this.getUndoHistory(),
+                redoStack: this.getRedoHistory()
             }, { source: 'CommandService' });
 
         } catch (error) {
@@ -96,6 +114,23 @@ class CommandService {
             // Put command back on undo stack if undo failed
             this.undoStack.push(command);
             throw error;
+        }
+    }
+
+    /**
+     * Undo multiple commands to a specific index
+     */
+    undoToIndex(targetIndex) {
+        if (targetIndex < 0 || targetIndex >= this.undoStack.length) {
+            console.warn('⚡ CommandService: Invalid undo index:', targetIndex);
+            return;
+        }
+
+        const commandsToUndo = this.undoStack.length - targetIndex;
+        console.log(`⚡ CommandService: Undoing ${commandsToUndo} commands to reach index ${targetIndex}`);
+
+        for (let i = 0; i < commandsToUndo; i++) {
+            this.undo();
         }
     }
 
@@ -117,8 +152,11 @@ class CommandService {
 
             EventBusService.emit('command:redone', {
                 command: command.type,
+                description: command.description,
                 canUndo: this.canUndo(),
-                canRedo: this.canRedo()
+                canRedo: this.canRedo(),
+                undoStack: this.getUndoHistory(),
+                redoStack: this.getRedoHistory()
             }, { source: 'CommandService' });
 
         } catch (error) {
@@ -126,6 +164,23 @@ class CommandService {
             // Put command back on redo stack if redo failed
             this.redoStack.push(command);
             throw error;
+        }
+    }
+
+    /**
+     * Redo multiple commands to a specific index
+     */
+    redoToIndex(targetIndex) {
+        if (targetIndex < 0 || targetIndex >= this.redoStack.length) {
+            console.warn('⚡ CommandService: Invalid redo index:', targetIndex);
+            return;
+        }
+
+        const commandsToRedo = this.redoStack.length - targetIndex;
+        console.log(`⚡ CommandService: Redoing ${commandsToRedo} commands to reach index ${targetIndex}`);
+
+        for (let i = 0; i < commandsToRedo; i++) {
+            this.redo();
         }
     }
 
@@ -155,8 +210,37 @@ class CommandService {
             canRedo: this.canRedo(),
             undoStackSize: this.undoStack.length,
             redoStackSize: this.redoStack.length,
-            lastCommand: this.undoStack.length > 0 ? this.undoStack[this.undoStack.length - 1].type : null
+            lastCommand: this.undoStack.length > 0 ? this.undoStack[this.undoStack.length - 1].type : null,
+            lastCommandDescription: this.undoStack.length > 0 ? this.undoStack[this.undoStack.length - 1].description : null,
+            undoStack: this.getUndoHistory(),
+            redoStack: this.getRedoHistory()
         };
+    }
+
+    /**
+     * Get undo history with descriptions
+     * @returns {Array} Undo history
+     */
+    getUndoHistory() {
+        return this.undoStack.map((cmd, index) => ({
+            index,
+            type: cmd.type,
+            description: cmd.description || cmd.type,
+            timestamp: cmd.timestamp
+        })).reverse(); // Most recent first
+    }
+
+    /**
+     * Get redo history with descriptions
+     * @returns {Array} Redo history
+     */
+    getRedoHistory() {
+        return this.redoStack.map((cmd, index) => ({
+            index,
+            type: cmd.type,
+            description: cmd.description || cmd.type,
+            timestamp: cmd.timestamp
+        })).reverse(); // Most recent first
     }
 
     /**
@@ -190,8 +274,9 @@ class CommandService {
  * All commands should extend this class
  */
 export class Command {
-    constructor(type, executeAction, undoAction = null) {
+    constructor(type, executeAction, undoAction = null, description = null) {
         this.type = type;
+        this.description = description || type; // Human-readable description
         this.timestamp = Date.now();
         this.executeAction = executeAction;
         this.undoAction = undoAction;

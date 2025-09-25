@@ -5,7 +5,87 @@
 
 import { Command } from '../services/CommandService.js';
 import EventBusService from '../services/EventBusService.js';
+import CommandDescriptionHelper from '../utils/CommandDescriptionHelper.js';
 
+// Mark effect-related commands
+const EFFECT_COMMAND_TYPES = [
+    'effect.add',
+    'effect.delete',
+    'effect.update',
+    'effect.reorder',
+    'effect.toggle-visibility',
+    'secondary.add',
+    'secondary.delete',
+    'secondary.reorder',
+    'keyframe.add',
+    'keyframe.delete',
+    'keyframe.reorder'
+];
+
+
+/**
+ * Command to update effect properties/configuration
+ */
+export class UpdateEffectCommand extends Command {
+    constructor(projectState, effectIndex, updatedEffect, effectName) {
+        let previousEffect = null;
+
+        const executeAction = () => {
+            const currentEffects = projectState.getState().effects || [];
+
+            if (effectIndex < 0 || effectIndex >= currentEffects.length) {
+                throw new Error(`Invalid effect index: ${effectIndex}`);
+            }
+
+            previousEffect = currentEffects[effectIndex];
+            const newEffects = [...currentEffects];
+            newEffects[effectIndex] = updatedEffect;
+
+            console.log('✏️ UpdateEffectCommand: Updating effect at index:', effectIndex);
+            projectState.update({ effects: newEffects });
+
+            // Emit event for UI updates
+            EventBusService.emit('effect:updated', {
+                effect: updatedEffect,
+                previousEffect,
+                index: effectIndex
+            }, { source: 'UpdateEffectCommand' });
+
+            return { success: true, effect: updatedEffect, index: effectIndex };
+        };
+
+        const undoAction = () => {
+            if (!previousEffect) {
+                throw new Error('No previous effect state to restore');
+            }
+
+            const currentEffects = projectState.getState().effects || [];
+            const newEffects = [...currentEffects];
+            newEffects[effectIndex] = previousEffect;
+
+            projectState.update({ effects: newEffects });
+
+            // Emit event for UI updates
+            EventBusService.emit('effect:updated', {
+                effect: previousEffect,
+                previousEffect: updatedEffect,
+                index: effectIndex
+            }, { source: 'UpdateEffectCommand' });
+
+            return { success: true };
+        };
+
+        // Generate detailed description based on what changed
+        const currentEffect = projectState.getState().effects?.[effectIndex];
+        const description = currentEffect
+            ? CommandDescriptionHelper.describePropertyChanges(currentEffect, updatedEffect, effectName || 'effect')
+            : `Updated ${effectName || 'effect'} properties`;
+
+        super('effect.update', executeAction, undoAction, description);
+        this.effectIndex = effectIndex;
+        this.isEffectCommand = true;
+    }
+}
 
 /**
  * Command to add an effect to the project
@@ -52,10 +132,17 @@ export class AddEffectCommand extends Command {
             return { success: true };
         };
 
-        super(`Add Effect: ${effectName}`, executeAction, undoAction);
+        const currentEffects = projectState.getState().effects || [];
+        const description = CommandDescriptionHelper.describeAdd(
+            effectData,
+            currentEffects.length,
+            null
+        );
+        super('effect.add', executeAction, undoAction, description);
         this.effectData = effectData;
         this.effectName = effectName;
         this.effectType = effectType;
+        this.isEffectCommand = true;
     }
 }
 
@@ -117,8 +204,16 @@ export class DeleteEffectCommand extends Command {
             return { success: true };
         };
 
-        super(`Delete Effect #${effectIndex}`, executeAction, undoAction);
+        // Get effect for detailed description
+        const currentEffects = projectState.getState().effects || [];
+        const effectToDelete = currentEffects[effectIndex];
+        const description = effectToDelete
+            ? CommandDescriptionHelper.describeDelete(effectToDelete, effectIndex)
+            : 'Deleted effect';
+
+        super('effect.delete', executeAction, undoAction, description);
         this.effectIndex = effectIndex;
+        this.isEffectCommand = true;
     }
 }
 
@@ -164,8 +259,10 @@ export class ChangeResolutionCommand extends Command {
             return { success: true };
         };
 
-        super(`Change Resolution: ${oldResolution} → ${newResolution}`, executeAction, undoAction);
+        const description = `Changed resolution to ${newResolution}`;
+        super('project.resolution', executeAction, undoAction, description);
         this.newResolution = newResolution;
+        this.isEffectCommand = false; // Not an effect command
     }
 }
 
@@ -195,7 +292,10 @@ export class ToggleOrientationCommand extends Command {
             return executeAction();
         };
 
-        super('Toggle Orientation', executeAction, undoAction);
+        const currentState = projectState.getState();
+        const description = currentState.isHorizontal ? 'Changed to vertical orientation' : 'Changed to horizontal orientation';
+        super('project.orientation', executeAction, undoAction, description);
+        this.isEffectCommand = false; // Not an effect command
     }
 }
 
@@ -239,8 +339,242 @@ export class ChangeFramesCommand extends Command {
             return { success: true };
         };
 
-        super(`Change Frames: ${oldFrameCount} → ${newFrameCount}`, executeAction, undoAction);
+        const description = `Changed frame count to ${newFrameCount}`;
+        super('project.frames', executeAction, undoAction, description);
         this.newFrameCount = newFrameCount;
+        this.isEffectCommand = false; // Not an effect command
+    }
+}
+
+/**
+ * Command to reorder effects in the main effects list
+ */
+export class ReorderEffectsCommand extends Command {
+    constructor(projectState, fromIndex, toIndex) {
+        let movedEffect = null;
+
+        const executeAction = () => {
+            const currentEffects = projectState.getState().effects || [];
+
+            if (fromIndex < 0 || fromIndex >= currentEffects.length ||
+                toIndex < 0 || toIndex >= currentEffects.length) {
+                throw new Error(`Invalid indices for reorder: from ${fromIndex} to ${toIndex}`);
+            }
+
+            movedEffect = currentEffects[fromIndex];
+            const newEffects = [...currentEffects];
+            const [removed] = newEffects.splice(fromIndex, 1);
+            newEffects.splice(toIndex, 0, removed);
+
+            console.log('🔄 ReorderEffectsCommand: Reordering effects', {
+                fromIndex,
+                toIndex,
+                movedEffect: movedEffect.name || movedEffect.className
+            });
+
+            projectState.update({ effects: newEffects });
+
+            // Emit event for UI updates
+            EventBusService.emit('effects:reordered', {
+                fromIndex,
+                toIndex,
+                effect: movedEffect,
+                total: newEffects.length
+            }, { source: 'ReorderEffectsCommand' });
+
+            return { success: true, fromIndex, toIndex };
+        };
+
+        const undoAction = () => {
+            const currentEffects = projectState.getState().effects || [];
+            const newEffects = [...currentEffects];
+
+            // Move back: remove from toIndex and insert at fromIndex
+            const [removed] = newEffects.splice(toIndex, 1);
+            newEffects.splice(fromIndex, 0, removed);
+
+            projectState.update({ effects: newEffects });
+
+            // Emit event for UI updates
+            EventBusService.emit('effects:reordered', {
+                fromIndex: toIndex,
+                toIndex: fromIndex,
+                effect: movedEffect,
+                total: newEffects.length
+            }, { source: 'ReorderEffectsCommand' });
+
+            return { success: true };
+        };
+
+        const currentEffects = projectState.getState().effects || [];
+        const effect = currentEffects[fromIndex];
+        const description = effect
+            ? CommandDescriptionHelper.describeReorder(effect, fromIndex, toIndex)
+            : `Moved effect from position ${fromIndex + 1} to ${toIndex + 1}`;
+
+        super('effect.reorder', executeAction, undoAction, description);
+        this.fromIndex = fromIndex;
+        this.toIndex = toIndex;
+        this.isEffectCommand = true;
+    }
+}
+
+/**
+ * Command to add a secondary effect to a parent effect
+ */
+export class AddSecondaryEffectCommand extends Command {
+    constructor(projectState, parentIndex, secondaryEffect, secondaryEffectName) {
+        const executeAction = () => {
+            const currentEffects = projectState.getState().effects || [];
+            const parentEffect = currentEffects[parentIndex];
+
+            if (!parentEffect) {
+                throw new Error(`Cannot add secondary effect - parent effect at index ${parentIndex} not found`);
+            }
+
+            console.log('➕ AddSecondaryEffectCommand: Adding secondary effect to parent at index:', parentIndex);
+
+            const updatedParentEffect = {
+                ...parentEffect,
+                secondaryEffects: [
+                    ...(parentEffect.secondaryEffects || []),
+                    secondaryEffect
+                ]
+            };
+
+            const newEffects = [...currentEffects];
+            newEffects[parentIndex] = updatedParentEffect;
+            projectState.update({ effects: newEffects });
+
+            // Emit event for UI updates
+            EventBusService.emit('secondary:added', {
+                parentIndex,
+                effect: secondaryEffect,
+                total: updatedParentEffect.secondaryEffects.length
+            }, { source: 'AddSecondaryEffectCommand' });
+
+            return { success: true, effect: secondaryEffect };
+        };
+
+        const undoAction = () => {
+            const currentEffects = projectState.getState().effects || [];
+            const parentEffect = currentEffects[parentIndex];
+
+            if (!parentEffect || !parentEffect.secondaryEffects) {
+                throw new Error('Cannot undo - parent effect or secondary effects not found');
+            }
+
+            const updatedParentEffect = {
+                ...parentEffect,
+                secondaryEffects: parentEffect.secondaryEffects.slice(0, -1)
+            };
+
+            const newEffects = [...currentEffects];
+            newEffects[parentIndex] = updatedParentEffect;
+            projectState.update({ effects: newEffects });
+
+            // Emit event for UI updates
+            EventBusService.emit('secondary:removed', {
+                parentIndex,
+                index: parentEffect.secondaryEffects.length - 1,
+                total: updatedParentEffect.secondaryEffects.length
+            }, { source: 'AddSecondaryEffectCommand' });
+
+            return { success: true };
+        };
+
+        const parentEffect = projectState.getState().effects?.[parentIndex];
+        const description = CommandDescriptionHelper.describeAdd(
+            secondaryEffect,
+            parentEffect?.secondaryEffects?.length || 0,
+            parentEffect
+        );
+
+        super('secondary.add', executeAction, undoAction, description);
+        this.parentIndex = parentIndex;
+        this.isEffectCommand = true;
+    }
+}
+
+/**
+ * Command to add a keyframe effect to a parent effect
+ */
+export class AddKeyframeEffectCommand extends Command {
+    constructor(projectState, parentIndex, keyframeEffect, keyframeEffectName, frame) {
+        const executeAction = () => {
+            const currentEffects = projectState.getState().effects || [];
+            const parentEffect = currentEffects[parentIndex];
+
+            if (!parentEffect) {
+                throw new Error(`Cannot add keyframe effect - parent effect at index ${parentIndex} not found`);
+            }
+
+            console.log('➕ AddKeyframeEffectCommand: Adding keyframe effect to parent at index:', parentIndex);
+
+            const currentKeyframeEffects = parentEffect.attachedEffects?.keyFrame || [];
+            const updatedParentEffect = {
+                ...parentEffect,
+                attachedEffects: {
+                    ...parentEffect.attachedEffects,
+                    keyFrame: [...currentKeyframeEffects, keyframeEffect]
+                }
+            };
+
+            const newEffects = [...currentEffects];
+            newEffects[parentIndex] = updatedParentEffect;
+            projectState.update({ effects: newEffects });
+
+            // Emit event for UI updates
+            EventBusService.emit('keyframe:added', {
+                parentIndex,
+                effect: keyframeEffect,
+                frame,
+                total: updatedParentEffect.attachedEffects.keyFrame.length
+            }, { source: 'AddKeyframeEffectCommand' });
+
+            return { success: true, effect: keyframeEffect };
+        };
+
+        const undoAction = () => {
+            const currentEffects = projectState.getState().effects || [];
+            const parentEffect = currentEffects[parentIndex];
+
+            if (!parentEffect || !parentEffect.attachedEffects?.keyFrame) {
+                throw new Error('Cannot undo - parent effect or keyframe effects not found');
+            }
+
+            const keyframeEffects = parentEffect.attachedEffects.keyFrame;
+            const updatedParentEffect = {
+                ...parentEffect,
+                attachedEffects: {
+                    ...parentEffect.attachedEffects,
+                    keyFrame: keyframeEffects.slice(0, -1)
+                }
+            };
+
+            const newEffects = [...currentEffects];
+            newEffects[parentIndex] = updatedParentEffect;
+            projectState.update({ effects: newEffects });
+
+            // Emit event for UI updates
+            EventBusService.emit('keyframe:removed', {
+                parentIndex,
+                index: keyframeEffects.length - 1,
+                total: updatedParentEffect.attachedEffects.keyFrame.length
+            }, { source: 'AddKeyframeEffectCommand' });
+
+            return { success: true };
+        };
+
+        const parentEffect = projectState.getState().effects?.[parentIndex];
+        const effectName = CommandDescriptionHelper.getEffectName(keyframeEffect);
+        const parentName = CommandDescriptionHelper.getEffectName(parentEffect);
+        const description = `Added ${effectName} keyframe at frame ${frame} to ${parentName}`;
+
+        super('keyframe.add', executeAction, undoAction, description);
+        this.parentIndex = parentIndex;
+        this.frame = frame;
+        this.isEffectCommand = true;
     }
 }
 
@@ -291,10 +625,20 @@ export class ReorderSecondaryEffectsCommand extends Command {
             return { success: true };
         };
 
-        super(`Reorder Secondary Effects`, executeAction, undoAction);
+        const currentEffects = projectState.getState().effects || [];
+        const parentEffect = currentEffects[parentIndex];
+        const secondaryEffect = parentEffect?.secondaryEffects?.[sourceIndex];
+        const parentName = CommandDescriptionHelper.getEffectName(parentEffect);
+        const effectName = CommandDescriptionHelper.getEffectName(secondaryEffect);
+        const description = sourceIndex < destinationIndex
+            ? `Moved ${effectName} down in ${parentName}`
+            : `Moved ${effectName} up in ${parentName}`;
+
+        super('secondary.reorder', executeAction, undoAction, description);
         this.parentIndex = parentIndex;
         this.sourceIndex = sourceIndex;
         this.destinationIndex = destinationIndex;
+        this.isEffectCommand = true;
     }
 }
 
@@ -357,10 +701,17 @@ export class ReorderKeyframeEffectsCommand extends Command {
             return { success: true };
         };
 
-        super(`Reorder Keyframe Effects`, executeAction, undoAction);
+        const currentEffects = projectState.getState().effects || [];
+        const parentEffect = currentEffects[parentIndex];
+        const keyframeEffect = parentEffect?.attachedEffects?.keyFrame?.[sourceIndex];
+        const parentName = CommandDescriptionHelper.getEffectName(parentEffect);
+        const description = `Reordered keyframes in ${parentName}`;
+
+        super('keyframe.reorder', executeAction, undoAction, description);
         this.parentIndex = parentIndex;
         this.sourceIndex = sourceIndex;
         this.destinationIndex = destinationIndex;
+        this.isEffectCommand = true;
     }
 }
 
@@ -445,9 +796,20 @@ export class DeleteSecondaryEffectCommand extends Command {
             return { success: true };
         };
 
-        super(`Delete Secondary Effect #${secondaryIndex}`, executeAction, undoAction);
+        // Get parent and secondary effect for description
+        const currentEffects = projectState.getState().effects || [];
+        const parentEffect = currentEffects[parentIndex];
+        const secondaryEffect = parentEffect?.secondaryEffects?.[secondaryIndex];
+        const description = CommandDescriptionHelper.describeDelete(
+            secondaryEffect,
+            secondaryIndex,
+            parentEffect
+        );
+
+        super('secondary.delete', executeAction, undoAction, description);
         this.parentIndex = parentIndex;
         this.secondaryIndex = secondaryIndex;
+        this.isEffectCommand = true;
     }
 }
 
@@ -553,8 +915,19 @@ export class DeleteKeyframeEffectCommand extends Command {
             return { success: true };
         };
 
-        super(`Delete Keyframe Effect #${keyframeIndex}`, executeAction, undoAction);
+        // Get parent and keyframe effect for description
+        const currentEffects = projectState.getState().effects || [];
+        const parentEffect = currentEffects[parentIndex];
+        const keyframeEffect = parentEffect?.attachedEffects?.keyFrame?.[keyframeIndex];
+        const description = CommandDescriptionHelper.describeDelete(
+            keyframeEffect,
+            keyframeIndex,
+            parentEffect
+        );
+
+        super('keyframe.delete', executeAction, undoAction, description);
         this.parentIndex = parentIndex;
         this.keyframeIndex = keyframeIndex;
+        this.isEffectCommand = true;
     }
 }
