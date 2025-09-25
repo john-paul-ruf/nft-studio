@@ -32,7 +32,8 @@ import {
     Save,
     Undo,
     Redo,
-    FileUpload
+    FileUpload,
+    BugReport
 } from '@mui/icons-material';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import ResolutionMapper from '../../utils/ResolutionMapper.js';
@@ -75,6 +76,8 @@ export default function CanvasToolbar({
     onNewProject,
     onOpenProject,
     onImportProject,
+    onProjectSettings,
+    onEventBusMonitor,
     isReadOnly = false,
     isProjectResuming = false
 
@@ -480,6 +483,61 @@ export default function CanvasToolbar({
                 )}
 
                 <Box className="toolbar-group">
+                    <Tooltip title="Project Settings">
+                        <span>
+                            <IconButton
+                                onClick={onProjectSettings}
+                                color="inherit"
+                                size="small"
+                                disabled={isReadOnly || isProjectResuming}
+                                sx={{
+                                    borderRadius: 1,
+                                    padding: '8px',
+                                    transition: 'all 0.2s ease',
+                                    '&:hover': {
+                                        backgroundColor: 'primary.main',
+                                        color: 'white',
+                                    },
+                                    ...(isReadOnly && {
+                                        color: 'text.disabled',
+                                        '&.Mui-disabled': {
+                                            color: 'text.disabled'
+                                        }
+                                    })
+                                }}
+                            >
+                                <Settings />
+                            </IconButton>
+                        </span>
+                    </Tooltip>
+
+                    <Tooltip title="Event Bus Monitor">
+                        <span>
+                            <IconButton
+                                onClick={onEventBusMonitor}
+                                color="inherit"
+                                size="small"
+                                disabled={isReadOnly || isProjectResuming}
+                                sx={{
+                                    borderRadius: 1,
+                                    padding: '8px',
+                                    transition: 'all 0.2s ease',
+                                    '&:hover': {
+                                        backgroundColor: 'primary.main',
+                                        color: 'white',
+                                    },
+                                    ...(isReadOnly && {
+                                        color: 'text.disabled',
+                                        '&.Mui-disabled': {
+                                            color: 'text.disabled'
+                                        }
+                                    })
+                                }}
+                            >
+                                <BugReport />
+                            </IconButton>
+                        </span>
+                    </Tooltip>
 
                     <Tooltip title={`Current theme: ${availableThemes[currentThemeKey]?.name || currentThemeKey} (click to cycle)`}>
                         <IconButton

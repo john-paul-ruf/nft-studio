@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "timestamp": 1758756420944,
+  "timestamp": 1758823320253,
   "state": {
     "projectName": "crash-override",
     "artist": "John Ruf",
@@ -5578,7 +5578,7 @@
       "info": "**Color Strategy**:keter-crown\n",
       "source": "settings-conversion"
     },
-    "outputDirectory": "src/scratch/",
+    "outputDirectory": "/Users/the.phoenix/WebstormProjects/nft-studio/example-projects/src/scratch",
     "renderStartFrame": 0,
     "renderJumpFrames": 1,
     "settingsResolution": {

@@ -4,6 +4,7 @@ import EventDrivenEffectsPanel from '../components/EventDrivenEffectsPanel.jsx';
 import EffectConfigurer from '../components/effects/EffectConfigurer.jsx';
 import EventBusMonitor from '../components/EventBusMonitor.jsx';
 import ImportProjectWizard from '../components/ImportProjectWizard.jsx';
+import ProjectSettingsDialog from '../components/ProjectSettingsDialog.jsx';
 
 // Canvas components and hooks
 import { createAppTheme, appThemes } from '../components/canvas/theme.js';
@@ -121,6 +122,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
     const [isProjectResuming, setIsProjectResuming] = useState(false);
     const [isEventMonitorForResumedProject, setIsEventMonitorForResumedProject] = useState(false);
     const [showImportWizard, setShowImportWizard] = useState(false);
+    const [showProjectSettings, setShowProjectSettings] = useState(false);
 
 
     // UI refs
@@ -365,6 +367,18 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
             setShowImportWizard(true);
         }, { component: 'Canvas' });
 
+        // Listen for project settings dialog show request
+        const unsubscribeShowProjectSettings = eventBusService.subscribe('project:settings:open', (payload) => {
+            console.log('🎨 Canvas: Show project settings event received:', payload);
+            setShowProjectSettings(true);
+        }, { component: 'Canvas' });
+
+        // Listen for event bus monitor show request
+        const unsubscribeShowEventBusMonitor = eventBusService.subscribe('eventbus:monitor:open', (payload) => {
+            console.log('🎨 Canvas: Show event bus monitor event received:', payload);
+            setShowEventMonitor(true);
+        }, { component: 'Canvas' });
+
         return () => {
             console.log('🎨 Canvas: Cleaning up UI event listeners');
             unsubscribeTheme();
@@ -379,6 +393,8 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
             unsubscribeProjectResumeStart();
             unsubscribeProjectResumeSuccess();
             unsubscribeShowImportWizard();
+            unsubscribeShowProjectSettings();
+            unsubscribeShowEventBusMonitor();
         };
     }, [eventBusService]);
 
@@ -579,6 +595,14 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                     />
                 )}
 
+                {/* Project Settings Dialog */}
+                {showProjectSettings && (
+                    <ProjectSettingsDialog
+                        open={showProjectSettings}
+                        onClose={() => setShowProjectSettings(false)}
+                        projectState={projectState}
+                    />
+                )}
 
             </Box>
         </ThemeProvider>

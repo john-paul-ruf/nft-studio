@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "timestamp": 1758746847098,
+  "timestamp": 1758827923545,
   "state": {
     "projectName": "the-operator",
     "artist": "John Ruf",
@@ -59922,7 +59922,7 @@
       ],
       "metadata": {}
     },
-    "outputDirectory": "src/scratch/",
+    "outputDirectory": "/Users/the.phoenix/WebstormProjects/nft-scratch/src/scratch",
     "renderStartFrame": 0,
     "renderJumpFrames": 1,
     "settingsResolution": {

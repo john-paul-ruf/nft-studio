@@ -74,6 +74,9 @@ export default function EffectsPanel({
     const [secondaryEffects, setSecondaryEffects] = useState([]);
     const [keyframeEffects, setKeyframeEffects] = useState([]);
 
+    // Check if all effects are visible
+    const areAllEffectsVisible = effects.every(effect => effect.visible !== false);
+
     useEffect(() => {
         loadEffects();
     }, []);
@@ -102,6 +105,16 @@ export default function EffectsPanel({
         });
         setAddEffectMenuOpen(false);
     }, [eventBusService]);
+
+    // Toggle all effects visibility
+    const handleToggleAllVisibility = useCallback(() => {
+        const shouldHide = areAllEffectsVisible;
+        effects.forEach((_, index) => {
+            if ((effects[index].visible !== false) === shouldHide) {
+                onEffectToggleVisibility(index);
+            }
+        });
+    }, [effects, areAllEffectsVisible, onEffectToggleVisibility]);
 
     // Specialty effects creation handler
     const handleCreateSpecialty = useCallback(async (specialtyData) => {
@@ -1026,30 +1039,48 @@ export default function EffectsPanel({
                 >
                     Layers
                 </Typography>
-                {/* Add Effect Button - Hidden in read-only mode */}
-                {availableEffects && effectsLoaded && !isReadOnly && (
-                    <AddEffectDropdown
-                        addEffectMenuOpen={addEffectMenuOpen}
-                        setAddEffectMenuOpen={setAddEffectMenuOpen}
-                        availableEffects={availableEffects}
-                        effectsLoaded={effectsLoaded}
-                        currentTheme={currentTheme || theme}
-                        onAddEffect={handleAddEffectEvent}
-                        onOpenSpecialty={() => setSpecialtyModalOpen(true)}
-                    />
-                )}
-                {/* Read-only indicator */}
-                {isReadOnly && (
-                    <Chip
-                        label="Read Only"
-                        size="small"
-                        sx={{
-                            backgroundColor: theme.palette.warning.main,
-                            color: theme.palette.warning.contrastText,
-                            fontSize: '0.75rem'
-                        }}
-                    />
-                )}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {/* Toggle All Visibility Button */}
+                    {effects.length > 0 && !isReadOnly && (
+                        <IconButton
+                            size="small"
+                            onClick={handleToggleAllVisibility}
+                            title={areAllEffectsVisible ? 'Hide all layers' : 'Show all layers'}
+                            sx={{
+                                color: theme.palette.text.primary,
+                                '&:hover': {
+                                    backgroundColor: theme.palette.action.hover,
+                                }
+                            }}
+                        >
+                            {areAllEffectsVisible ? <Visibility /> : <VisibilityOff />}
+                        </IconButton>
+                    )}
+                    {/* Add Effect Button - Hidden in read-only mode */}
+                    {availableEffects && effectsLoaded && !isReadOnly && (
+                        <AddEffectDropdown
+                            addEffectMenuOpen={addEffectMenuOpen}
+                            setAddEffectMenuOpen={setAddEffectMenuOpen}
+                            availableEffects={availableEffects}
+                            effectsLoaded={effectsLoaded}
+                            currentTheme={currentTheme || theme}
+                            onAddEffect={handleAddEffectEvent}
+                            onOpenSpecialty={() => setSpecialtyModalOpen(true)}
+                        />
+                    )}
+                    {/* Read-only indicator */}
+                    {isReadOnly && (
+                        <Chip
+                            label="Read Only"
+                            size="small"
+                            sx={{
+                                backgroundColor: theme.palette.warning.main,
+                                color: theme.palette.warning.contrastText,
+                                fontSize: '0.75rem'
+                            }}
+                        />
+                    )}
+                </Box>
             </Box>
             <Box
                 sx={{

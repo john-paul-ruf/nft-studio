@@ -139,6 +139,20 @@ export default function EventDrivenCanvasToolbar({
         });
     }, [eventBusService]);
 
+    const handleProjectSettings = useCallback(() => {
+        eventBusService.emit('project:settings:open', {}, {
+            source: 'EventDrivenCanvasToolbar',
+            component: 'EventDrivenCanvasToolbar'
+        });
+    }, [eventBusService]);
+
+    const handleEventBusMonitor = useCallback(() => {
+        eventBusService.emit('eventbus:monitor:open', {}, {
+            source: 'EventDrivenCanvasToolbar',
+            component: 'EventDrivenCanvasToolbar'
+        });
+    }, [eventBusService]);
+
 
     const closeAllDropdowns = useCallback(() => {
         setZoomMenuAnchor(null);
@@ -186,6 +200,8 @@ export default function EventDrivenCanvasToolbar({
             onNewProject={handleNewProject}
             onOpenProject={handleOpenProject}
             onImportProject={handleImportProject}
+            onProjectSettings={handleProjectSettings}
+            onEventBusMonitor={handleEventBusMonitor}
             isReadOnly={isReadOnly}
             isProjectResuming={isProjectResuming}
         />

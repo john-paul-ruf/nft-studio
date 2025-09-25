@@ -279,6 +279,18 @@ class NftProjectManager {
             return;
         }
 
+        // Filter visible effects - consistent with RenderPipelineService
+        const visibleEffects = config.effects.filter(effect => effect.visible !== false);
+        if (visibleEffects.length === 0) {
+            console.log('⚠️  No visible effects configured for project');
+            return;
+        }
+
+        const hiddenCount = config.effects.length - visibleEffects.length;
+        if (hiddenCount > 0) {
+            console.log(`🎭 Filtered out ${hiddenCount} hidden effects, processing ${visibleEffects.length} visible effects`);
+        }
+
         const myNftGenPath = path.resolve(process.cwd(), '../my-nft-gen');
         const { default: effectProcessor } = await import('../services/EffectProcessingService.js');
 
@@ -289,7 +301,7 @@ class NftProjectManager {
         const finalEffects = [];
 
         // Categorize effects while preserving their order
-        for (const effect of config.effects) {
+        for (const effect of visibleEffects) {
             const effectType = effect.type || 'primary';
             switch (effectType) {
                 case 'secondary':
