@@ -82,9 +82,19 @@
       "preload.js",
       "icons/**/*",
       "package.json",
-      "!src/**/*",
-      "!scripts/**/*",
-      "!tests/**/*",
+      "src/commands/**/*",
+      "!src/components/**/*",
+      "src/container/**/*",
+      "src/context/**/*",
+      "src/core/**/*",
+      "src/data/**/*",
+      "!src/hooks/**/*",
+      "src/interfaces",
+      "src/main/**/*",
+      "src/models/**/*",
+      "!src/pages/**/*",
+      "src/services/**/*",
+      "src/utils/**/*",
       "!*.md"
     ],
     "extraResources": [
@@ -138,3 +148,4 @@
     ]
   }
 }
+
