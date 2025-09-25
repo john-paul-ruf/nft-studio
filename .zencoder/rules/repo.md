@@ -88,3 +88,102 @@ npm run test:verify
 **IPC Bridge**: Secure contextBridge with exposed API methods
 **Service Layer**: Dependency injection via ApplicationFactory
 **UI Framework**: React with Material UI components
+
+## Single Source of Truth Patterns
+
+### ProjectState (Core State Management)
+**Location**: `src/models/ProjectState.js`
+**Purpose**: Central authority for all project data and state
+**Key Responsibilities**:
+- Maintains the complete project configuration
+- Handles automatic resolution scaling when dimensions change
+- Manages effects list with all properties and sub-effects
+- Provides save/load functionality for .nftproject files
+- Emits update events for UI synchronization
+
+**Important Methods**:
+- `setTargetResolution()` - Auto-scales all effects when resolution changes
+- `setIsHorizontal()` - Auto-scales when orientation changes
+- `getResolutionDimensions()` - Returns calculated width/height based on resolution and orientation
+- `reorderEffects()` - Maintains effect order
+- `update()` - Generic update method that triggers callbacks
+
+### Resolution & Scaling System
+**Single Source**: ProjectState manages all resolution/dimension calculations
+**Auto-Scaling**: When resolution or orientation changes, ProjectState automatically:
+1. Calculates new dimensions
+2. Scales all effect properties proportionally
+3. Updates nested effects (secondary, keyframe)
+4. Notifies all subscribers of changes
+
+**Key Files**:
+- `src/models/ProjectState.js` - Core scaling logic
+- `src/utils/ResolutionMapper.js` - Resolution presets and mappings
+- `src/utils/ScalingUtilities.js` - Scaling calculation utilities
+
+### Command Pattern & Undo/Redo
+**Single Source**: `src/services/CommandService.js`
+**Features**:
+- Tracks up to 50 effect-related actions
+- Filters out non-effect commands (resolution, orientation, frames)
+- Provides detailed human-readable descriptions with effect IDs
+- Supports undo/redo to any point in history
+
+**Effect Commands** (tracked for undo/redo):
+- `AddEffectCommand` - Add primary effects
+- `DeleteEffectCommand` - Remove effects
+- `UpdateEffectCommand` - Modify effect properties
+- `ReorderEffectsCommand` - Drag & drop reordering
+- `AddSecondaryEffectCommand` - Add secondary effects
+- `AddKeyframeEffectCommand` - Add keyframe effects
+- `DeleteSecondaryEffectCommand` - Remove secondary effects
+- `DeleteKeyframeEffectCommand` - Remove keyframe effects
+- `ReorderSecondaryEffectsCommand` - Reorder within parent
+- `ReorderKeyframeEffectsCommand` - Reorder keyframes
+
+### Color Scheme Management
+**Single Source**: `src/services/PreferencesService.js`
+**Storage**: User preferences file in app data directory
+**Key Features**:
+- Favorite color schemes
+- Default color scheme selection
+- Persistent storage across sessions
+- Integration with ColorPicker components
+
+### Event Bus Architecture
+**Single Source**: `src/services/EventBusService.js`
+**Purpose**: Decoupled communication between components
+**Key Events**:
+- `effect:*` - Effect-related actions
+- `project:*` - Project management
+- `resolution:*` - Resolution changes
+- `orientation:*` - Orientation changes
+- `command:*` - Undo/redo actions
+- `renderloop:*` - Render control
+
+### Effect Registry
+**Single Source**: `src/main/services/EffectRegistryService.js`
+**Purpose**: Central registry of all available effects
+**Features**:
+- Dynamic effect discovery
+- Config class introspection
+- Effect validation
+- Preview generation
+
+### Project Persistence
+**Single Source**: ProjectState save/load methods
+**File Format**: `.nftproject` (JSON-based)
+**Key Data**:
+- Complete project configuration
+- All effects with properties
+- Resolution and orientation settings
+- Project metadata (name, artist, etc.)
+
+## Important Patterns to Follow
+
+1. **Never Directly Modify State** - Always use ProjectState methods
+2. **Use Commands for User Actions** - All effect modifications should use Command pattern
+3. **Event-Driven UI Updates** - Components subscribe to events, not direct callbacks
+4. **Resolution Changes Auto-Scale** - Never manually scale effects; ProjectState handles it
+5. **Effect IDs for Uniqueness** - All effects have unique IDs for tracking
+6. **Single Update Flow**: User Action → Command → ProjectState → Event → UI Update
