@@ -125,33 +125,53 @@ export default class SettingsToProjectConverter {
      * Extract output directory from settings
      */
     static extractOutputDirectory(settings) {
+        // First check if there's an explicit outputDirectory field (from newer exports)
+        if (settings.outputDirectory) {
+            console.log('📁 Using explicit outputDirectory from settings:', settings.outputDirectory);
+            return settings.outputDirectory;
+        }
+
         // Try to extract from fileOut path in config
         if (settings.config?.fileOut) {
-            // Remove the filename part to get directory
             const fileOut = settings.config.fileOut;
-            const lastSlashIndex = fileOut.lastIndexOf('/');
-            if (lastSlashIndex !== -1) {
-                const directoryPath = fileOut.substring(0, lastSlashIndex);
-                // Go up one more level by finding the second-to-last slash
-                const secondLastSlashIndex = directoryPath.lastIndexOf('/');
-                if (secondLastSlashIndex !== -1) {
-                    return directoryPath.substring(0, secondLastSlashIndex + 1); // Keep the trailing slash
+            // Check if this is an absolute path
+            if (fileOut.startsWith('/') || fileOut.match(/^[A-Za-z]:\\/)) {
+                // This is an absolute path - extract the directory part
+                const lastSlashIndex = Math.max(fileOut.lastIndexOf('/'), fileOut.lastIndexOf('\\'));
+                if (lastSlashIndex !== -1) {
+                    const directory = fileOut.substring(0, lastSlashIndex + 1);
+                    console.log('📁 Extracted absolute directory from fileOut:', directory);
+                    return directory;
                 }
-                return directoryPath; // Fallback if there's no parent directory
+            } else {
+                // This is a relative path - try to combine with workingDirectory if available
+                if (settings.workingDirectory) {
+                    const lastSlashIndex = Math.max(fileOut.lastIndexOf('/'), fileOut.lastIndexOf('\\'));
+                    if (lastSlashIndex !== -1) {
+                        const relativeDir = fileOut.substring(0, lastSlashIndex);
+                        const fullPath = settings.workingDirectory + '/' + relativeDir;
+                        console.log('📁 Combined workingDirectory with relative path:', fullPath);
+                        return fullPath;
+                    }
+                }
+                // Just use the relative path as-is
+                const lastSlashIndex = Math.max(fileOut.lastIndexOf('/'), fileOut.lastIndexOf('\\'));
+                if (lastSlashIndex !== -1) {
+                    const directory = fileOut.substring(0, lastSlashIndex + 1);
+                    console.log('📁 Using relative directory from fileOut:', directory);
+                    return directory;
+                }
             }
         }
 
-        // Fallback to workingDirectory (go up one level)
+        // Fallback to workingDirectory if available
         if (settings.workingDirectory) {
-            const cleanPath = settings.workingDirectory.replace(/\/$/, ''); // Remove trailing slash
-            const lastSlashIndex = cleanPath.lastIndexOf('/');
-            if (lastSlashIndex !== -1) {
-                return cleanPath.substring(0, lastSlashIndex + 1); // Keep the trailing slash
-            }
-            return cleanPath; // Fallback if there's no parent directory
+            console.log('📁 Using workingDirectory as output directory:', settings.workingDirectory);
+            return settings.workingDirectory;
         }
 
         // Final fallback
+        console.log('📁 No output directory found in settings, defaulting to null');
         return null;
     }
 

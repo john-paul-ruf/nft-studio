@@ -117,6 +117,11 @@ export default function ImportProjectWizard({ onComplete, onCancel }) {
                 true    // skipPositionScaling - important for imports!
             );
 
+            // Override the output directory to match the selected project location
+            // This ensures renders go to the user's chosen directory, not the original settings location
+            projectData.outputDirectory = projectLocation;
+            console.log('📁 Set output directory to project location:', projectLocation);
+
             // Create project state
             const projectState = new ProjectState(projectData);
 

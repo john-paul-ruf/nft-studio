@@ -414,10 +414,20 @@ class NftProjectManager {
         // Build colorSchemeInfo from projectConfig.colorScheme
         const colorSchemeInfo = await this.buildColorSchemeInfo(projectConfig);
 
+        // Ensure projectDirectory is always an absolute path
+        let projectDirectory = projectConfig.projectDirectory || projectConfig.outputDirectory;
+        if (!projectDirectory) {
+            // Default to a subdirectory in the current working directory
+            projectDirectory = path.resolve(process.cwd(), 'src/scratch');
+        } else if (!path.isAbsolute(projectDirectory)) {
+            // Convert relative paths to absolute paths relative to current working directory
+            projectDirectory = path.resolve(process.cwd(), projectDirectory);
+        }
+
         const project = new Project({
             artist: projectConfig.artist || 'NFT Studio User',
             projectName: projectConfig.projectName,
-            projectDirectory: projectConfig.projectDirectory || projectConfig.outputDirectory || 'src/scratch',
+            projectDirectory: projectDirectory,
             colorScheme: colorSchemeInfo.colorScheme, //my nft gen colorscheme
             neutrals: colorSchemeInfo.neutrals, //array of hex
             backgrounds: colorSchemeInfo.backgrounds, //array of hex

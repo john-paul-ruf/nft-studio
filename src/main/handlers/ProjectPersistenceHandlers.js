@@ -41,6 +41,17 @@ export default class ProjectPersistenceHandlers {
                 const fileContent = await fs.readFile(filePath, 'utf8');
                 const projectData = JSON.parse(fileContent);
 
+                // Ensure outputDirectory is absolute if it exists
+                if (projectData.state && projectData.state.outputDirectory) {
+                    const outputDir = projectData.state.outputDirectory;
+                    if (!path.isAbsolute(outputDir)) {
+                        // Convert relative paths to absolute paths relative to the project file's directory
+                        const projectFileDir = path.dirname(filePath);
+                        projectData.state.outputDirectory = path.resolve(projectFileDir, outputDir);
+                        console.log('📁 Resolved relative outputDirectory:', outputDir, '->', projectData.state.outputDirectory);
+                    }
+                }
+
                 return {
                     success: true,
                     projectData: projectData,
