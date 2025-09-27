@@ -23,7 +23,7 @@ import {
     Stack,
     useTheme
 } from '@mui/material';
-import { Add, Close } from '@mui/icons-material';
+import { Add, Close, RestartAlt } from '@mui/icons-material';
 
 
 function EffectConfigurer({
@@ -78,6 +78,9 @@ function EffectConfigurer({
 
     // Track if we're currently in live editing mode to prevent config reversion
     const [isLiveEditing, setIsLiveEditing] = useState(false);
+
+    // Track if this effect has saved defaults
+    const [hasDefaults, setHasDefaults] = useState(false);
 
     // Event-based handlers for config changes
     const handleConfigChangeEvent = useCallback((newConfig) => {
@@ -181,12 +184,15 @@ function EffectConfigurer({
             loadConfigSchema(selectedEffect);
             // Only set percentChance here, let loadConfigSchema handle effectConfig
             setPercentChance(initialPercentChance || 100);
+            // Check if this effect has saved defaults
+            checkForDefaults(selectedEffect.registryKey);
         } else {
             console.log('❌ EffectConfigurer: No selectedEffect, clearing config');
             setConfigSchema(null);
             setEffectConfig({});
+            setHasDefaults(false);
         }
-    }, [selectedEffect?.registryKey, initialPercentChance]); // Use registryKey only for consistency
+    }, [selectedEffect?.registryKey, initialPercentChance, checkForDefaults]); // Use registryKey only for consistency
 
     // Listen for resolution changes and refresh config if dialog is open
     useEffect(() => {
@@ -323,6 +329,52 @@ function EffectConfigurer({
         });
     };
 
+    // Check if effect has saved defaults
+    const checkForDefaults = useCallback(async (registryKey) => {
+        if (registryKey) {
+            const hasDefaultsResult = await PreferencesService.hasEffectDefaults(registryKey);
+            setHasDefaults(hasDefaultsResult);
+        } else {
+            setHasDefaults(false);
+        }
+    }, []);
+
+    // Handle resetting effect defaults
+    const handleResetDefaults = async () => {
+        const registryKey = selectedEffect?.registryKey;
+        if (registryKey) {
+            const success = await PreferencesService.removeEffectDefaults(registryKey);
+            if (success) {
+                console.log(`✅ Reset default config for ${registryKey}`);
+                setHasDefaults(false);
+                
+                // Get the original default configuration and update the current config
+                if (selectedEffect && configSchema?.defaultInstance) {
+                    console.log('🔄 EffectConfigurer: Restoring original defaults after reset');
+                    
+                    // Apply center defaults to the original configuration
+                    const originalDefaults = applyCenterDefaults(configSchema.defaultInstance, projectState);
+                    
+                    console.log('🔄 EffectConfigurer: Original defaults restored:', {
+                        originalDefaults,
+                        previousConfig: effectConfig
+                    });
+                    
+                    // Update the configuration to use original defaults
+                    handleConfigChangeEvent(originalDefaults);
+                } else {
+                    // Fallback: reload the schema to get fresh defaults
+                    console.log('🔄 EffectConfigurer: Reloading schema as fallback');
+                    if (selectedEffect) {
+                        loadConfigSchema(selectedEffect);
+                    }
+                }
+            } else {
+                console.error(`❌ Failed to reset default config for ${registryKey}`);
+            }
+        }
+    };
+
     const handleOpenAttachmentModal = (attachmentType) => {
         setModalState({
             isOpen: true,
@@ -408,6 +460,7 @@ function EffectConfigurer({
                             const success = await PreferencesService.setEffectDefaults(registryKey, effectConfig);
                             if (success) {
                                 console.log(`✅ Saved default config for ${registryKey}`);
+                                setHasDefaults(true);
                             } else {
                                 console.error(`❌ Failed to save default config for ${registryKey}`);
                             }
@@ -425,6 +478,26 @@ function EffectConfigurer({
                 >
                     Set as Default
                 </Button>
+                {hasDefaults && (
+                    <Button
+                        onClick={handleResetDefaults}
+                        variant="outlined"
+                        size="small"
+                        startIcon={<RestartAlt />}
+                        sx={{
+                            borderColor: '#dc3545',
+                            color: '#dc3545',
+                            '&:hover': {
+                                borderColor: '#c82333',
+                                color: '#c82333',
+                                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                                transform: 'translateY(-1px)',
+                            }
+                        }}
+                    >
+                        Reset Default
+                    </Button>
+                )}
             </Box>
 
             <Box mt={3}>

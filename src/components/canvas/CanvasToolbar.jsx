@@ -33,7 +33,8 @@ import {
     Undo,
     Redo,
     FileUpload,
-    BugReport
+    BugReport,
+    Extension
 } from '@mui/icons-material';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import ResolutionMapper from '../../utils/ResolutionMapper.js';
@@ -78,6 +79,7 @@ export default function CanvasToolbar({
     onImportProject,
     onProjectSettings,
     onEventBusMonitor,
+    onPluginManager,
     isReadOnly = false,
     isProjectResuming = false
 
@@ -535,6 +537,33 @@ export default function CanvasToolbar({
                                 }}
                             >
                                 <BugReport />
+                            </IconButton>
+                        </span>
+                    </Tooltip>
+                    <Tooltip title="Plugin Manager">
+                        <span>
+                            <IconButton
+                                onClick={onPluginManager}
+                                color="inherit"
+                                size="small"
+                                disabled={isReadOnly || isProjectResuming}
+                                sx={{
+                                    borderRadius: 1,
+                                    padding: '8px',
+                                    transition: 'all 0.2s ease',
+                                    '&:hover': {
+                                        backgroundColor: 'primary.main',
+                                        color: 'white',
+                                    },
+                                    ...(isReadOnly && {
+                                        color: 'text.disabled',
+                                        '&.Mui-disabled': {
+                                            color: 'text.disabled'
+                                        }
+                                    })
+                                }}
+                            >
+                                <Extension />
                             </IconButton>
                         </span>
                     </Tooltip>

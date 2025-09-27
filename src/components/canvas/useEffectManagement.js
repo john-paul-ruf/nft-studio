@@ -52,6 +52,25 @@ export default function useEffectManagement(projectState) {
         }
     }, []);
 
+    // Refresh available effects (useful after loading plugins)
+    const refreshAvailableEffects = useCallback(async () => {
+        try {
+            console.log('🔄 Refreshing available effects...');
+            const result = await window.api.refreshEffectRegistry();
+            console.log('🎭 Refresh effects result:', result);
+            if (result.success) {
+                setAvailableEffects({
+                    primary: result.effects.primary || [],
+                    secondary: result.effects.secondary || [],
+                    finalImage: result.effects.finalImage || []
+                });
+                console.log('✅ Available effects refreshed successfully');
+            }
+        } catch (error) {
+            console.error('Failed to refresh available effects:', error);
+        }
+    }, []);
+
     // Load effects on mount
     useEffect(() => {
         loadAvailableEffects();
@@ -287,6 +306,13 @@ export default function useEffectManagement(projectState) {
             }
         }, { component: 'useEffectManagement' });
 
+        // Listen for effects refreshed event (emitted when registry is refreshed)
+        const unsubscribeEffectsRefreshed = eventBusService.subscribe('effects:refreshed', async (payload) => {
+            console.log('📊 useEffectManagement: Effects refreshed event received:', payload);
+            // Reload the available effects from the refreshed registry
+            await loadAvailableEffects();
+        }, { component: 'useEffectManagement' });
+
         return () => {
             unsubscribeEffectAdd();
             unsubscribeEffectDelete();
@@ -301,8 +327,9 @@ export default function useEffectManagement(projectState) {
             unsubscribeKeyframeReorder();
             unsubscribeSecondaryDelete();
             unsubscribeKeyframeDelete();
+            unsubscribeEffectsRefreshed();
         };
-    }, [eventBusService, handleAddEffectDirect, handleEffectDelete, handleEffectReorder, handleEditEffect, handleEffectToggleVisibility, handleAddSecondaryEffect, handleAddKeyframeEffect, handleSubEffectUpdate, handleConfigUpdateWithContext, projectState, availableEffects]);
+    }, [eventBusService, handleAddEffectDirect, handleEffectDelete, handleEffectReorder, handleEditEffect, handleEffectToggleVisibility, handleAddSecondaryEffect, handleAddKeyframeEffect, handleSubEffectUpdate, handleConfigUpdateWithContext, projectState, availableEffects, loadAvailableEffects]);
 
     const handleAddEffect = useCallback((effect) => {
         const currentEffects = projectState.getState().effects || [];
@@ -792,6 +819,7 @@ export default function useEffectManagement(projectState) {
         handleSubEffectUpdate,
         handleAddSecondaryEffect,
         handleAddKeyframeEffect,
-        setEditingEffect
+        setEditingEffect,
+        refreshAvailableEffects
     };
 }

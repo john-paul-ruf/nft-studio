@@ -12,6 +12,7 @@ import FindValueAlgorithmInput from './FindValueAlgorithmInput.jsx';
 import MultiSelectInput from './MultiSelectInput.jsx';
 import MultiStepInput from './MultiStepInput.jsx';
 import SparsityFactorInput from './SparsityFactorInput.jsx';
+import ArrayInput from './ArrayInput.jsx';
 
 function ConfigInputFactory({ field, value, onChange, projectState }) {
     const commonProps = { field, value, onChange, projectState };
@@ -44,6 +45,8 @@ function ConfigInputFactory({ field, value, onChange, projectState }) {
             return <MultiStepInput {...commonProps} />;
         case 'sparsityfactor':
             return <SparsityFactorInput {...commonProps} />;
+        case 'array':
+            return <ArrayInput {...commonProps} />;
         case 'readonly':
             return (
                 <div className="readonly-input">

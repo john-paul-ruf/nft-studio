@@ -90,6 +90,50 @@ class EffectsHandlers {
                 };
             }
         });
+
+        ipcMain.handle('refresh-effect-registry', async (event, skipPluginReload = true) => {
+            try {
+                // Refresh the effect registry (useful after loading plugins)
+                const EffectRegistryService = await import('../services/EffectRegistryService.js');
+                const registryService = new EffectRegistryService.default();
+                // Pass skipPluginReload=true by default when called from UI to prevent infinite loops
+                // The UI typically calls this after plugin:loaded events, so we don't need to reload plugins again
+                await registryService.refreshRegistry(skipPluginReload);
+
+                // Return updated effects list
+                const effects = await this.effectsManager.getAvailableEffects();
+                return {
+                    success: true,
+                    effects: effects,
+                    message: 'Effect registry refreshed successfully'
+                };
+            } catch (error) {
+                console.error('Error refreshing effect registry via IPC:', error);
+                return {
+                    success: false,
+                    error: error.message
+                };
+            }
+        });
+
+        ipcMain.handle('debug-effect-registry', async (event) => {
+            try {
+                const EffectRegistryService = await import('../services/EffectRegistryService.js');
+                const registryService = new EffectRegistryService.default();
+                const debugInfo = await registryService.debugRegistry();
+                
+                return {
+                    success: true,
+                    debug: debugInfo
+                };
+            } catch (error) {
+                console.error('Error debugging effect registry via IPC:', error);
+                return {
+                    success: false,
+                    error: error.message
+                };
+            }
+        });
     }
 
     /**
@@ -101,9 +145,12 @@ class EffectsHandlers {
             'get-effect-metadata',
             'get-effect-defaults',
             'get-effect-schema',
+            'get-findvalue-algorithms',
             'validate-effect',
             'introspect-config',
-            'get-available-effects'
+            'get-available-effects',
+            'refresh-effect-registry',
+            'debug-effect-registry'
         ];
 
         handlers.forEach(handler => {

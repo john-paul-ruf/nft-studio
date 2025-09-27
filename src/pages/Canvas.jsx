@@ -5,6 +5,7 @@ import EffectConfigurer from '../components/effects/EffectConfigurer.jsx';
 import EventBusMonitor from '../components/EventBusMonitor.jsx';
 import ImportProjectWizard from '../components/ImportProjectWizard.jsx';
 import ProjectSettingsDialog from '../components/ProjectSettingsDialog.jsx';
+import PluginManagerDialog from '../components/PluginManagerDialog.jsx';
 
 // Canvas components and hooks
 import { createAppTheme, appThemes } from '../components/canvas/theme.js';
@@ -120,6 +121,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
     const [showEventMonitor, setShowEventMonitor] = useState(false);
     const [isEventMonitorMinimized, setIsEventMonitorMinimized] = useState(false);
     const [isProjectResuming, setIsProjectResuming] = useState(false);
+    const [showPluginManager, setShowPluginManager] = useState(false);
     const [isEventMonitorForResumedProject, setIsEventMonitorForResumedProject] = useState(false);
     const [showImportWizard, setShowImportWizard] = useState(false);
     const [showProjectSettings, setShowProjectSettings] = useState(false);
@@ -163,7 +165,8 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
         handleAddKeyframeEffect,
         contextMenuEffect,
         contextMenuPos,
-        setEditingEffect
+        setEditingEffect,
+        refreshAvailableEffects
     } = useEffectManagement(projectState);
 
     // SINGLE SOURCE: Get dimensions directly from ProjectState
@@ -379,6 +382,12 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
             setShowEventMonitor(true);
         }, { component: 'Canvas' });
 
+        // Listen for plugin manager show request
+        const unsubscribeShowPluginManager = eventBusService.subscribe('plugins:manager:open', (payload) => {
+            console.log('🎨 Canvas: Show plugin manager event received:', payload);
+            setShowPluginManager(true);
+        }, { component: 'Canvas' });
+
         return () => {
             console.log('🎨 Canvas: Cleaning up UI event listeners');
             unsubscribeTheme();
@@ -395,6 +404,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
             unsubscribeShowImportWizard();
             unsubscribeShowProjectSettings();
             unsubscribeShowEventBusMonitor();
+            unsubscribeShowPluginManager();
         };
     }, [eventBusService]);
 
@@ -443,6 +453,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                         currentTheme={currentTheme}
                         projectState={projectState}
                         isReadOnly={projectState ? projectState.getState().isReadOnly || false : false}
+                        refreshAvailableEffects={refreshAvailableEffects}
                     />
 
                     {/* Canvas viewport */}
@@ -567,6 +578,12 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                     isMinimized={isEventMonitorMinimized}
                     setIsMinimized={setIsEventMonitorMinimized}
                     isForResumedProject={isEventMonitorForResumedProject}
+                />
+
+                {/* Plugin Manager */}
+                <PluginManagerDialog
+                    open={showPluginManager}
+                    onClose={() => setShowPluginManager(false)}
                 />
 
                 {/* Import Project Wizard */}

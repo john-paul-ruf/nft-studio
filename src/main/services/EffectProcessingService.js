@@ -3,6 +3,7 @@
  * Follows Single Responsibility Principle
  */
 
+import SafeConsole from '../utils/SafeConsole.js'
 
 class EffectProcessingService {
     /**
@@ -27,7 +28,7 @@ class EffectProcessingService {
                 throw new Error('LayerConfig not found in module export');
             }
         } catch (error) {
-            console.error('Failed to import LayerConfig:', error);
+            SafeConsole.error('Failed to import LayerConfig:', error);
             throw new Error(`LayerConfig import failed: ${error.message}`);
         }
 
@@ -54,7 +55,7 @@ class EffectProcessingService {
                 // If not found, try with lowercase name (case sensitivity fallback)
                 if (!EffectClass && effectName) {
                     const lowerEffectName = effectName.toLowerCase();
-                    console.log(`🔍 Effect class ${effectName} not found, trying lowercase: ${lowerEffectName}`);
+                    SafeConsole.log(`🔍 Effect class ${effectName} not found, trying lowercase: ${lowerEffectName}`);
                     registryData = EffectRegistry.getGlobal(lowerEffectName);
                     EffectClass = registryData;
 
@@ -67,13 +68,13 @@ class EffectProcessingService {
                 }
 
                 if (!EffectClass) {
-                    console.warn(`Effect class ${effectName} not found in registry (tried both '${effectName}' and '${effectName?.toLowerCase()}')`);
-                    console.warn(`Registry data:`, registryData);
+                    SafeConsole.warn(`Effect class ${effectName} not found in registry (tried both '${effectName}' and '${effectName?.toLowerCase()}')`);
+                    SafeConsole.warn(`Registry data:`, registryData);
                     continue;
                 }
 
                 // Verify this is the correct derived class
-                console.log(`✓ Found Effect class for ${effectName}:`, EffectClass.name || EffectClass.constructor?.name || 'unnamed');
+                SafeConsole.log(`✓ Found Effect class for ${effectName}:`, EffectClass.name || EffectClass.constructor?.name || 'unnamed');
 
                 const configInstance = await this.createConfigInstance(effect, myNftGenPath);
 
@@ -118,7 +119,7 @@ class EffectProcessingService {
                             async invoke(layer, currentFrame, totalFrames) {
                                 // Only apply keyframe effect on its designated frame
                                 if (currentFrame === this.keyframeFrame) {
-                                    console.log(`🎬 Applying keyframe effect ${this.originalName} on frame ${currentFrame}`);
+                                    SafeConsole.log(`🎬 Applying keyframe effect ${this.originalName} on frame ${currentFrame}`);
                                     return await super.invoke(layer, currentFrame, totalFrames);
                                 }
                                 // Skip keyframe effect on other frames
@@ -135,12 +136,12 @@ class EffectProcessingService {
                         
                         // Add keyframe effects to secondary effects so they get processed
                         possibleSecondaryEffects.push(keyframeLayerConfig);
-                        console.log(`🎬 Processed keyframe effect: ${keyframeEffectName} for frame ${keyframeEffect.frame || 0} (added as secondary effect)`);
+                        SafeConsole.log(`🎬 Processed keyframe effect: ${keyframeEffectName} for frame ${keyframeEffect.frame || 0} (added as secondary effect)`);
                     }
                 }
 
                 // Debug the Effect class before creating LayerConfig
-                console.log(`🔍 Creating LayerConfig with Effect:`, {
+                SafeConsole.log(`🔍 Creating LayerConfig with Effect:`, {
                     effectName,
                     EffectClassName: EffectClass.name,
                     EffectConstructorName: EffectClass.constructor?.name,
@@ -157,7 +158,7 @@ class EffectProcessingService {
                 });
 
                 // Debug the LayerConfig after creation
-                console.log(`🎯 LayerConfig created:`, {
+                SafeConsole.log(`🎯 LayerConfig created:`, {
                     name: layerConfig.name,
                     effectClassName: layerConfig.Effect?.name || layerConfig.Effect?.constructor?.name || 'no effect class name',
                     hasEffect: !!layerConfig.Effect,
@@ -169,7 +170,7 @@ class EffectProcessingService {
                 allPrimaryEffects.push(layerConfig);
 
             } catch (error) {
-                console.error(`Error processing effect ${migratedEffect.effectClass?.name}:`, error);
+                SafeConsole.error(`Error processing effect ${effect.registryKey}:`, error);
             }
         }
 
@@ -187,25 +188,53 @@ class EffectProcessingService {
         const userConfig = effect.config || {};
 
         // For resumed projects, the config might be serialized (plain objects instead of method objects)
-        // We need to re-hydrate it properly using the same approach as SettingsToProjectConverter
+        // We need to re-hydrate it properly, but since we're in backend context,
+        // we should use ConfigReconstructor directly instead of SettingsToProjectConverter
+        // which requires window.api (frontend IPC)
         let hydratedConfig;
         try {
-            const { default: SettingsToProjectConverter } = await import('../../utils/SettingsToProjectConverter.js');
-            hydratedConfig = await SettingsToProjectConverter.convertEffectConfig(userConfig, effect.registryKey);
-            console.log(`🔄 Config hydrated for ${effect.registryKey} using SettingsToProjectConverter`);
-        } catch (hydrationError) {
-            console.warn(`Failed to hydrate config for ${effect.registryKey}, trying ConfigReconstructor:`, hydrationError.message);
+            // Try ConfigReconstructor first for proper config reconstruction from my-nft-gen
+            const { ConfigReconstructor } = await import('my-nft-gen/src/core/ConfigReconstructor.js');
+            const effectName = effect.registryKey;
+            hydratedConfig = await ConfigReconstructor.reconstruct(effectName, userConfig);
+            SafeConsole.log(`🔄 Config reconstructed for ${effectName} using ConfigReconstructor`);
 
-            // Fallback to ConfigReconstructor for proper config reconstruction from my-nft-gen
-            try {
-                const { ConfigReconstructor } = await import('my-nft-gen/src/core/ConfigReconstructor.js');
-                const effectName = effect.registryKey;
-                hydratedConfig = await ConfigReconstructor.reconstruct(effectName, userConfig);
-                console.log(`🔄 Config reconstructed for ${effectName} using ConfigReconstructor fallback`);
-            } catch (reconstructionError) {
-                console.warn(`Failed to reconstruct config for ${effect.registryKey}:`, reconstructionError.message);
-                hydratedConfig = userConfig; // Final fallback to original config
+            // Check if ConfigReconstructor properly handled ColorPicker objects
+            // If not, we need to manually reconstruct them
+            hydratedConfig = await this.reconstructColorPickers(hydratedConfig, userConfig);
+
+            // Log innerColor reconstruction for debugging viewport issues
+            if (hydratedConfig.innerColor) {
+                SafeConsole.log(`✅ innerColor reconstruction succeeded for ${effectName}`);
+                SafeConsole.log(`   innerColor type: ${hydratedConfig.innerColor.constructor?.name || 'unknown'}`);
+                SafeConsole.log(`   innerColor getColor type: ${typeof hydratedConfig.innerColor.getColor}`);
+                if (typeof hydratedConfig.innerColor.getColor === 'function') {
+                    try {
+                        // Test with mock settings that has getColorFromBucket method
+                        const mockSettings = {
+                            getColorFromBucket: () => '#000000',
+                            getNeutralFromBucket: () => '#808080'
+                        };
+                        const colorValue = hydratedConfig.innerColor.getColor(mockSettings);
+                        SafeConsole.log(`   innerColor value test: ${colorValue}`);
+                    } catch (e) {
+                        SafeConsole.log(`   innerColor getColor() test error: ${e.message}`);
+                    }
+                }
             }
+        } catch (reconstructionError) {
+            SafeConsole.warn(`Failed to reconstruct config for ${effect.registryKey}:`, reconstructionError.message);
+
+            // Log the failure details for debugging
+            if (userConfig.innerColor) {
+                SafeConsole.error(`❌ innerColor reconstruction failed for ${effect.registryKey}`);
+                SafeConsole.error(`innerColor type: ${typeof userConfig.innerColor}`);
+                SafeConsole.error(`innerColor getColor type: ${typeof userConfig.innerColor?.getColor}`);
+                SafeConsole.error(`innerColor:`, JSON.stringify(userConfig.innerColor, null, 2));
+            }
+
+            // Try to manually reconstruct ColorPicker objects as fallback
+            hydratedConfig = await this.reconstructColorPickers(userConfig, userConfig);
         }
 
         try {
@@ -219,13 +248,13 @@ class EffectProcessingService {
             const effectName = effect.registryKey;
 
             if (!effectName) {
-                console.warn('No effect name found, using hydrated config');
+                SafeConsole.warn('No effect name found, using hydrated config');
                 return hydratedConfig;
             }
 
             // Debug FuzzFlareEffect config
             if (effectName === 'FuzzFlareEffect' || effectName === 'fuzz-flare') {
-                console.log('🔍 FuzzFlareEffect hydrated config received:', JSON.stringify(hydratedConfig, null, 2));
+                SafeConsole.log('🔍 FuzzFlareEffect hydrated config received:', JSON.stringify(hydratedConfig, null, 2));
             }
 
             // Use the new plugin registry with linked config classes
@@ -238,31 +267,84 @@ class EffectProcessingService {
                 if (EffectClass && EffectClass._name_) {
                     const pluginByName = await registryService.getEffectWithConfig(EffectClass._name_);
                     if (pluginByName && pluginByName.configClass) {
-                        console.log(`✅ Found config class for ${effectName} via _name_: ${pluginByName.configClass.name}`);
+                        SafeConsole.log(`✅ Found config class for ${effectName} via _name_: ${pluginByName.configClass.name}`);
                         // Create proper config instance using the linked config class
                         return new pluginByName.configClass(hydratedConfig);
                     }
                 }
-                console.warn(`Effect ${effectName} not found in plugin registry, using deserialized config`);
+                SafeConsole.warn(`Effect ${effectName} not found in plugin registry, using deserialized config`);
                 return hydratedConfig;
             }
 
             if (!plugin.configClass) {
-                console.warn(`No config class linked for effect ${effectName}, using deserialized config`);
+                SafeConsole.warn(`No config class linked for effect ${effectName}, using deserialized config`);
                 return hydratedConfig;
             }
 
-            console.log(`✅ Using reconstructed config for ${effectName} from ConfigReconstructor`);
+            SafeConsole.log(`✅ Using reconstructed config for ${effectName} from ConfigReconstructor`);
 
             // ConfigReconstructor already returns a properly reconstructed instance
             return hydratedConfig;
 
         } catch (error) {
-            console.error('Error creating config instance:', error);
-            console.error('Stack:', error.stack);
+            SafeConsole.error('Error creating config instance:', error);
+            SafeConsole.error('Stack:', error.stack);
             // Return deserialized config as fallback to prevent crashes
             return hydratedConfig;
         }
+    }
+
+    /**
+     * Manually reconstruct ColorPicker objects in config
+     * @param {Object} config - Config object that may have ColorPicker properties
+     * @param {Object} originalConfig - Original config with serialized ColorPicker data
+     * @returns {Promise<Object>} Config with reconstructed ColorPicker objects
+     */
+    static async reconstructColorPickers(config, originalConfig) {
+        try {
+            const { ColorPicker } = await import('my-nft-gen/src/core/layer/configType/ColorPicker.js');
+
+            // Helper function to check if an object looks like serialized ColorPicker data
+            const isColorPickerData = (obj) => {
+                return obj && typeof obj === 'object' &&
+                       (obj.selectionType !== undefined || obj.colorValue !== undefined) &&
+                       typeof obj.getColor !== 'function'; // Not already a ColorPicker instance
+            };
+
+            // Iterate through config properties
+            for (const [key, value] of Object.entries(config)) {
+                // Check if this property looks like ColorPicker data
+                if (isColorPickerData(value)) {
+                    // Get the original data to ensure we have the right values
+                    const originalValue = originalConfig[key] || value;
+
+                    // Reconstruct the ColorPicker instance
+                    const selectionType = originalValue.selectionType || ColorPicker.SelectionType.colorBucket;
+                    const colorValue = originalValue.colorValue || null;
+
+                    config[key] = new ColorPicker(selectionType, colorValue);
+                    SafeConsole.log(`🎨 Reconstructed ColorPicker for ${key}: ${selectionType} = ${colorValue || 'default'}`);
+                }
+                // Check nested objects (like color ranges)
+                else if (value && typeof value === 'object' && !Array.isArray(value) && typeof value.getColor !== 'function') {
+                    // Recursively check nested objects
+                    for (const [nestedKey, nestedValue] of Object.entries(value)) {
+                        if (isColorPickerData(nestedValue)) {
+                            const originalNestedValue = originalConfig[key]?.[nestedKey] || nestedValue;
+                            const selectionType = originalNestedValue.selectionType || ColorPicker.SelectionType.colorBucket;
+                            const colorValue = originalNestedValue.colorValue || null;
+
+                            value[nestedKey] = new ColorPicker(selectionType, colorValue);
+                            SafeConsole.log(`🎨 Reconstructed nested ColorPicker for ${key}.${nestedKey}: ${selectionType} = ${colorValue || 'default'}`);
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            SafeConsole.warn('Failed to reconstruct ColorPicker objects:', error.message);
+        }
+
+        return config;
     }
 }
 

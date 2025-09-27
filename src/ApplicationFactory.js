@@ -51,6 +51,9 @@ class ApplicationFactory {
         this.renderPipelineService.initialize(this.projectStateManager);
         console.log('✅ RenderPipelineService initialized');
 
+        // Set up IPC bridge for EventBusService
+        this.setupEventBusBridge();
+
         this.initialized = true;
         console.log('✅ Application factory initialized');
     }
@@ -63,6 +66,35 @@ class ApplicationFactory {
         const fileService = this.frontendServiceFactory.getFileService();
         const colorSchemeRepository = new FileColorSchemeRepository(fileService);
         this.repositories.set('colorScheme', colorSchemeRepository);
+    }
+
+    /**
+     * Set up IPC bridge to forward main process events to EventBusService
+     */
+    setupEventBusBridge() {
+        if (typeof window !== 'undefined' && window.api && window.api.onEventBusMessage) {
+            console.log('🌉 Setting up EventBus IPC bridge...');
+            
+            window.api.onEventBusMessage((event, data) => {
+                try {
+                    // Forward the event to EventBusService
+                    if (data && data.type) {
+                        console.log('🌉 IPC Bridge: Forwarding event to EventBusService:', data.type, data.data);
+                        this.eventBusService.emit(data.type, data.data, {
+                            source: data.source || 'MainProcess',
+                            timestamp: data.timestamp,
+                            ipcBridge: true
+                        });
+                    }
+                } catch (error) {
+                    console.error('🌉 IPC Bridge: Error forwarding event:', error);
+                }
+            });
+            
+            console.log('✅ EventBus IPC bridge established');
+        } else {
+            console.warn('⚠️ EventBus IPC bridge not available - window.api.onEventBusMessage not found');
+        }
     }
 
     /**

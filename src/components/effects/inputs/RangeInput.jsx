@@ -1,7 +1,60 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import NumberFormatter from '../../../utils/NumberFormatter.js';
 
 function RangeInput({ field, value, onChange }) {
     const currentValue = value || field.default || { lower: 0, upper: 0 };
+    
+    // State for display values
+    const [displayLower, setDisplayLower] = useState(NumberFormatter.formatForDisplay(currentValue.lower || 0));
+    const [displayUpper, setDisplayUpper] = useState(NumberFormatter.formatForDisplay(currentValue.upper || 0));
+
+    // Update display values when currentValue changes
+    useEffect(() => {
+        setDisplayLower(NumberFormatter.formatForDisplay(currentValue.lower || 0));
+        setDisplayUpper(NumberFormatter.formatForDisplay(currentValue.upper || 0));
+    }, [currentValue.lower, currentValue.upper]);
+
+    const handleLowerChange = (e) => {
+        const inputValue = e.target.value;
+        setDisplayLower(inputValue);
+        
+        const parsedValue = NumberFormatter.parseFromString(inputValue);
+        onChange(field.name, {
+            ...currentValue,
+            lower: parsedValue
+        });
+    };
+
+    const handleLowerBlur = (e) => {
+        const parsedValue = NumberFormatter.parseFromString(e.target.value);
+        const formattedValue = NumberFormatter.formatForDisplay(parsedValue);
+        setDisplayLower(formattedValue);
+        onChange(field.name, {
+            ...currentValue,
+            lower: parsedValue
+        });
+    };
+
+    const handleUpperChange = (e) => {
+        const inputValue = e.target.value;
+        setDisplayUpper(inputValue);
+        
+        const parsedValue = NumberFormatter.parseFromString(inputValue);
+        onChange(field.name, {
+            ...currentValue,
+            upper: parsedValue
+        });
+    };
+
+    const handleUpperBlur = (e) => {
+        const parsedValue = NumberFormatter.parseFromString(e.target.value);
+        const formattedValue = NumberFormatter.formatForDisplay(parsedValue);
+        setDisplayUpper(formattedValue);
+        onChange(field.name, {
+            ...currentValue,
+            upper: parsedValue
+        });
+    };
 
     return (
         <div className="range-input" style={{ marginBottom: '1rem' }}>
@@ -18,12 +71,10 @@ function RangeInput({ field, value, onChange }) {
                     <label style={{ fontSize: '0.8rem', color: '#cccccc', display: 'block', marginBottom: '0.25rem' }}>Lower</label>
                     <input
                         type="number"
-                        step={field.step || 0.01}
-                        value={currentValue.lower || 0}
-                        onChange={(e) => onChange(field.name, {
-                            ...currentValue,
-                            lower: parseFloat(e.target.value) || 0
-                        })}
+                        step={NumberFormatter.getStepForValue(currentValue.lower || 0)}
+                        value={displayLower}
+                        onChange={handleLowerChange}
+                        onBlur={handleLowerBlur}
                         style={{
                             width: '100%',
                             background: 'rgba(255,255,255,0.1)',
@@ -41,12 +92,10 @@ function RangeInput({ field, value, onChange }) {
                     <label style={{ fontSize: '0.8rem', color: '#cccccc', display: 'block', marginBottom: '0.25rem' }}>Upper</label>
                     <input
                         type="number"
-                        step={field.step || 0.01}
-                        value={currentValue.upper || 0}
-                        onChange={(e) => onChange(field.name, {
-                            ...currentValue,
-                            upper: parseFloat(e.target.value) || 0
-                        })}
+                        step={NumberFormatter.getStepForValue(currentValue.upper || 0)}
+                        value={displayUpper}
+                        onChange={handleUpperChange}
+                        onBlur={handleUpperBlur}
                         style={{
                             width: '100%',
                             background: 'rgba(255,255,255,0.1)',

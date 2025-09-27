@@ -35,7 +35,8 @@ import {
     Schedule,
     ChevronRight,
     KeyboardArrowRight,
-    PlaylistAdd
+    PlaylistAdd,
+    Refresh
 } from '@mui/icons-material';
 
 export default function EffectsPanel({
@@ -56,7 +57,8 @@ export default function EffectsPanel({
     effectsLoaded,
     currentTheme,
     projectState,
-    isReadOnly = false
+    isReadOnly = false,
+    refreshAvailableEffects
 }) {
     const theme = useTheme();
     const { eventBusService } = useServices();
@@ -1040,6 +1042,22 @@ export default function EffectsPanel({
                     Layers
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {/* Refresh Effects Button */}
+                    {refreshAvailableEffects && !isReadOnly && (
+                        <IconButton
+                            size="small"
+                            onClick={refreshAvailableEffects}
+                            title="Refresh available effects"
+                            sx={{
+                                color: theme.palette.text.primary,
+                                '&:hover': {
+                                    backgroundColor: theme.palette.action.hover,
+                                }
+                            }}
+                        >
+                            <Refresh />
+                        </IconButton>
+                    )}
                     {/* Toggle All Visibility Button */}
                     {effects.length > 0 && !isReadOnly && (
                         <IconButton

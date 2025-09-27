@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { app } from 'electron';
+import SafeConsole from '../utils/SafeConsole.js';
 
 /**
  * Service responsible for file system operations only
@@ -17,13 +18,13 @@ class FileSystemService {
             // If it's just a filename (like user-preferences.json), use app data directory
             if (!path.isAbsolute(filePath) && !filePath.includes(path.sep)) {
                 filePath = path.join(app.getPath('userData'), filePath);
-                console.log('📁 Reading file from userData:', filePath);
+                SafeConsole.log('📁 Reading file from userData:', filePath);
             }
 
             const content = await fs.readFile(filePath, 'utf8');
             return { success: true, content };
         } catch (error) {
-            console.log('📁 File read failed:', error.message);
+            SafeConsole.log('📁 File read failed:', error.message);
             return { success: false, error: error.message };
         }
     }
@@ -39,13 +40,13 @@ class FileSystemService {
             // If it's just a filename (like user-preferences.json), use app data directory
             if (!path.isAbsolute(filePath) && !filePath.includes(path.sep)) {
                 filePath = path.join(app.getPath('userData'), filePath);
-                console.log('📁 Writing file to userData:', filePath);
+                SafeConsole.log('📁 Writing file to userData:', filePath);
             }
 
             await fs.writeFile(filePath, content, 'utf8');
             return { success: true };
         } catch (error) {
-            console.log('📁 File write failed:', error.message);
+            SafeConsole.log('📁 File write failed:', error.message);
             return { success: false, error: error.message };
         }
     }
@@ -75,7 +76,7 @@ class FileSystemService {
             const files = await fs.readdir(directoryPath);
             return filter ? files.filter(file => filter.test(file)) : files;
         } catch (error) {
-            console.error('Error listing files:', error);
+            SafeConsole.error('Error listing files:', error);
             return [];
         }
     }
@@ -90,7 +91,7 @@ class FileSystemService {
             await fs.mkdir(directoryPath, { recursive: true });
             return true;
         } catch (error) {
-            console.error('Error creating directory:', error);
+            SafeConsole.error('Error creating directory:', error);
             return false;
         }
     }

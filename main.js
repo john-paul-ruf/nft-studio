@@ -3,8 +3,24 @@ const { app, BrowserWindow } = electron
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import SolidIpcHandlers from './src/main/modules/SolidIpcHandlers.js'
+import SafeConsole from './src/main/utils/SafeConsole.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+// Handle EPIPE errors globally to prevent crashes
+process.on('uncaughtException', (error) => {
+  if (error.code === 'EPIPE') {
+    // EPIPE errors occur when writing to a closed pipe/socket
+    // This commonly happens with console output - silently ignore
+    return
+  }
+  // For other uncaught exceptions, log them safely
+  SafeConsole.error('Uncaught Exception:', error)
+})
+
+process.on('unhandledRejection', (reason, promise) => {
+  SafeConsole.error('Unhandled Rejection at:', promise, 'reason:', reason)
+})
 
 // Set the app name
 app.name = 'NFT Studio'

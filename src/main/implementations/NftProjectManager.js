@@ -1,11 +1,12 @@
 import electron from 'electron';
-const { BrowserWindow } = electron;
+const { BrowserWindow, app } = electron;
 import path from 'path';
 import FileSystemRenderer from './FileSystemRenderer.js';
 import defaultLogger from '../utils/logger.js';
 import ProjectState from '../../models/ProjectState.js';
 import SettingsToProjectConverter from '../../utils/SettingsToProjectConverter.js';
 import ResolutionMapper from '../../utils/ResolutionMapper.js';
+import { PluginManagerService } from '../../services/PluginManagerService.js';
 
 /**
  * NFT-specific implementation of project management
@@ -18,6 +19,52 @@ class NftProjectManager {
         this.activeProjects = new Map();
         this.fileSystemRenderer = new FileSystemRenderer();
         this.renderMethod = process.env.RENDER_METHOD || 'hybrid'; // 'base64', 'filesystem', or 'hybrid'
+
+        // Initialize plugin manager
+        const appDataPath = app.getPath('userData');
+        this.pluginManager = new PluginManagerService(appDataPath);
+        this.pluginManagerInitialized = false;
+    }
+
+    async ensurePluginsLoaded() {
+        if (!this.pluginManagerInitialized) {
+            await this.pluginManager.initialize();
+            this.pluginManagerInitialized = true;
+        }
+
+        const pluginPaths = await this.pluginManager.loadPluginsForGeneration();
+        if (pluginPaths.length > 0) {
+            this.logger.info('Loading plugins for project:', pluginPaths);
+
+            // Dynamically load PluginLoader from my-nft-gen
+            try {
+                const { PluginLoader } = await import('my-nft-gen/src/core/plugins/PluginLoader.js');
+
+                let loadedAnyPlugin = false;
+                for (const pluginInfo of pluginPaths) {
+                    if (pluginInfo.success) {
+                        try {
+                            await PluginLoader.loadPlugin(pluginInfo.path);
+                            this.logger.info(`✅ Plugin loaded: ${pluginInfo.name}`);
+                            loadedAnyPlugin = true;
+                        } catch (error) {
+                            this.logger.error(`Failed to load plugin ${pluginInfo.name}:`, error);
+                        }
+                    }
+                }
+
+                // If we loaded any plugins, refresh the effect registry to include them
+                if (loadedAnyPlugin) {
+                    const EffectRegistryService = await import('../services/EffectRegistryService.js');
+                    const registryService = new EffectRegistryService.default();
+                    // Pass false to ensure plugins are reloaded since we just loaded new ones
+                    await registryService.refreshRegistry(false);
+                    this.logger.info('✅ Effect registry refreshed with loaded plugins');
+                }
+            } catch (error) {
+                this.logger.error('Failed to load PluginLoader:', error);
+            }
+        }
     }
 
     /**
@@ -27,6 +74,9 @@ class NftProjectManager {
      */
     async startNewProject(projectInput) {
         this.logger.header('Starting New NFT Project');
+
+        // Load plugins before starting the project
+        await this.ensurePluginsLoaded();
 
         // Convert input to ProjectState if needed
         const projectState = await this.ensureProjectState(projectInput);
@@ -75,6 +125,9 @@ class NftProjectManager {
      */
     async resumeProject(settingsPath) {
         this.logger.header('Resuming Project Using ResumeProject');
+
+        // Load plugins before resuming the project
+        await this.ensurePluginsLoaded();
 
         try {
             // Import the new ProjectResumer
@@ -181,6 +234,9 @@ class NftProjectManager {
      * @returns {Promise<Object>} Render result with buffer
      */
     async renderFrame(configInput, frameNumber) {
+        // Load plugins before rendering
+        await this.ensurePluginsLoaded();
+
         // Convert input to ProjectState if needed
         const projectState = await this.ensureProjectState(configInput);
         const config = projectState.getState();
@@ -436,11 +492,18 @@ class NftProjectManager {
             projectDirectory = path.resolve(process.cwd(), projectDirectory);
         }
 
+        // Get plugin paths to pass to the project
+        const pluginPaths = await this.pluginManager.loadPluginsForGeneration();
+        const enabledPluginPaths = pluginPaths
+            .filter(p => p.success)
+            .map(p => p.path);
+
         const project = new Project({
             artist: projectConfig.artist || 'NFT Studio User',
             projectName: projectConfig.projectName,
             projectDirectory: projectDirectory,
             colorScheme: colorSchemeInfo.colorScheme, //my nft gen colorscheme
+            pluginPaths: enabledPluginPaths, // Pass plugin paths to project
             neutrals: colorSchemeInfo.neutrals, //array of hex
             backgrounds: colorSchemeInfo.backgrounds, //array of hex
             lights: colorSchemeInfo.lights, //array of hex

@@ -1,22 +1,45 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Typography, TextField, Slider, FormControl, FormHelperText } from '@mui/material';
+import NumberFormatter from '../../../utils/NumberFormatter.js';
 
 function NumberInput({ field, value, onChange }) {
     const currentValue = value !== undefined ? value : field.default || 0;
-    const step = field.step || 1;
-    const isDecimal = step < 1;
     const maxValue = field.max || 100;
+    
+    // Use our custom formatting logic
+    const dynamicStep = NumberFormatter.getStepForValue(currentValue);
+    const step = field.step || dynamicStep;
+    const isDecimal = NumberFormatter.shouldUseDecimalFormatting(currentValue);
 
     // Use direct input for small ranges (single digit inputs)
     const useDirectInput = maxValue <= 10;
 
+    // State for display value to handle formatting
+    const [displayValue, setDisplayValue] = useState(NumberFormatter.formatForDisplay(currentValue));
+
+    // Update display value when currentValue changes
+    useEffect(() => {
+        setDisplayValue(NumberFormatter.formatForDisplay(currentValue));
+    }, [currentValue]);
+
     const handleNumberChange = (e) => {
-        const val = isDecimal ? parseFloat(e.target.value) || 0 : parseInt(e.target.value) || 0;
-        onChange(field.name, val);
+        const inputValue = e.target.value;
+        setDisplayValue(inputValue); // Allow user to type freely
+        
+        const parsedValue = NumberFormatter.parseFromString(inputValue);
+        onChange(field.name, parsedValue);
     };
 
-    const handleSliderChange = (e) => {
-        const val = isDecimal ? parseFloat(e.target.value) : parseInt(e.target.value);
+    const handleNumberBlur = (e) => {
+        // Format the value when user finishes editing
+        const parsedValue = NumberFormatter.parseFromString(e.target.value);
+        const formattedValue = NumberFormatter.formatForDisplay(parsedValue);
+        setDisplayValue(formattedValue);
+        onChange(field.name, parsedValue);
+    };
+
+    const handleSliderChange = (e, sliderValue) => {
+        const val = isDecimal ? parseFloat(sliderValue) : parseInt(sliderValue);
         onChange(field.name, val);
     };
 
@@ -30,8 +53,9 @@ function NumberInput({ field, value, onChange }) {
                 <TextField
                     type="number"
                     size="small"
-                    value={currentValue}
+                    value={displayValue}
                     onChange={handleNumberChange}
+                    onBlur={handleNumberBlur}
                     inputProps={{
                         min: field.min || 0,
                         max: maxValue,
@@ -56,7 +80,7 @@ function NumberInput({ field, value, onChange }) {
             <Box display="flex" alignItems="center" gap={2}>
                 <Slider
                     value={currentValue}
-                    onChange={(e, value) => onChange(field.name, value)}
+                    onChange={handleSliderChange}
                     min={field.min || 0}
                     max={maxValue}
                     step={step}
@@ -65,8 +89,9 @@ function NumberInput({ field, value, onChange }) {
                 <TextField
                     type="number"
                     size="small"
-                    value={currentValue}
+                    value={displayValue}
                     onChange={handleNumberChange}
+                    onBlur={handleNumberBlur}
                     inputProps={{
                         min: field.min || 0,
                         max: maxValue,

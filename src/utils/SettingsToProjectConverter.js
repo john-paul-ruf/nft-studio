@@ -476,23 +476,16 @@ export default class SettingsToProjectConverter {
         }
 
         try {
-            // Get the effect with its linked config class using EffectRegistryService
-            const EffectRegistryService = (await import('../main/services/EffectRegistryService.js')).default;
-            const registryService = new EffectRegistryService();
-
-            // Find matching config from the config registry using the same key
-            const effectWithConfig = await registryService.getEffectWithConfig(effectName);
-
-            if (!effectWithConfig || !effectWithConfig.configClass) {
+            // Get the effect defaults using IPC to avoid importing main process services
+            const result = await window.api.getEffectDefaults(effectName);
+            
+            if (!result.success || !result.defaults) {
                 console.warn(`⚠️ No config class found for effect: ${effectName}, using raw settings`);
                 return {...settingsConfig};
             }
 
-            const ConfigClass = effectWithConfig.configClass;
-
-            // Create the default config by calling new ConfigClass({})
-            const defaultConfig = new ConfigClass({});
-            console.log(`🔧 Created default config for ${effectName}`);
+            const defaultConfig = result.defaults;
+            console.log(`🔧 Retrieved default config for ${effectName} via IPC`);
 
             // Compare property names from settings config and default config instance
             // Set the properties of matched objects without overwriting top-level properties

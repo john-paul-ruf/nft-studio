@@ -40,6 +40,8 @@ contextBridge.exposeInMainWorld('api', {
     previewEffect: (previewConfig) => ipcRenderer.invoke('preview-effect', previewConfig),
     previewEffectThumbnail: (thumbnailConfig) => ipcRenderer.invoke('preview-effect-thumbnail', thumbnailConfig),
     generateThumbnail: (effectConfig) => ipcRenderer.invoke('generate-thumbnail', effectConfig),
+    refreshEffectRegistry: (skipPluginReload = true) => ipcRenderer.invoke('refresh-effect-registry', skipPluginReload),
+    debugEffectRegistry: () => ipcRenderer.invoke('debug-effect-registry'),
 
     // Config introspection
     introspectConfig: (params) => ipcRenderer.invoke('introspect-config', params),
@@ -73,5 +75,18 @@ contextBridge.exposeInMainWorld('api', {
     // Render loop
     startRenderLoop: (config) => ipcRenderer.invoke('start-render-loop', config),
     startResumeLoop: (config) => ipcRenderer.invoke('start-resume-loop', config),
-    stopRenderLoop: () => ipcRenderer.invoke('stop-render-loop')
+    stopRenderLoop: () => ipcRenderer.invoke('stop-render-loop'),
+
+    // Plugin management
+    plugins: {
+        getAll: () => ipcRenderer.invoke('plugins:get-all'),
+        getEnabled: () => ipcRenderer.invoke('plugins:get-enabled'),
+        add: (pluginData) => ipcRenderer.invoke('plugins:add', pluginData),
+        remove: (pluginName) => ipcRenderer.invoke('plugins:remove', pluginName),
+        toggle: (pluginName) => ipcRenderer.invoke('plugins:toggle', pluginName),
+        validate: (pluginPath) => ipcRenderer.invoke('plugins:validate', pluginPath),
+        installFromNpm: (packageName) => ipcRenderer.invoke('plugins:install-npm', packageName),
+        selectLocal: () => ipcRenderer.invoke('plugins:select-local'),
+        getForGeneration: () => ipcRenderer.invoke('plugins:get-for-generation')
+    }
 });

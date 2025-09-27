@@ -1,9 +1,132 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import NumberFormatter from '../../../utils/NumberFormatter.js';
 
 function DynamicRangeInput({ field, value, onChange }) {
     const currentValue = value || field.default || {
         bottom: { lower: 0, upper: 5 },
         top: { lower: 5, upper: 10 }
+    };
+
+    // State for display values
+    const [displayBottomLower, setDisplayBottomLower] = useState(NumberFormatter.formatForDisplay(currentValue.bottom?.lower || 0));
+    const [displayBottomUpper, setDisplayBottomUpper] = useState(NumberFormatter.formatForDisplay(currentValue.bottom?.upper || 5));
+    const [displayTopLower, setDisplayTopLower] = useState(NumberFormatter.formatForDisplay(currentValue.top?.lower || 5));
+    const [displayTopUpper, setDisplayTopUpper] = useState(NumberFormatter.formatForDisplay(currentValue.top?.upper || 10));
+
+    // Update display values when currentValue changes
+    useEffect(() => {
+        setDisplayBottomLower(NumberFormatter.formatForDisplay(currentValue.bottom?.lower || 0));
+        setDisplayBottomUpper(NumberFormatter.formatForDisplay(currentValue.bottom?.upper || 5));
+        setDisplayTopLower(NumberFormatter.formatForDisplay(currentValue.top?.lower || 5));
+        setDisplayTopUpper(NumberFormatter.formatForDisplay(currentValue.top?.upper || 10));
+    }, [currentValue.bottom?.lower, currentValue.bottom?.upper, currentValue.top?.lower, currentValue.top?.upper]);
+
+    const handleBottomLowerChange = (e) => {
+        const inputValue = e.target.value;
+        setDisplayBottomLower(inputValue);
+        
+        const parsedValue = NumberFormatter.parseFromString(inputValue);
+        onChange(field.name, {
+            ...currentValue,
+            bottom: {
+                ...currentValue.bottom,
+                lower: parsedValue
+            }
+        });
+    };
+
+    const handleBottomLowerBlur = (e) => {
+        const parsedValue = NumberFormatter.parseFromString(e.target.value);
+        const formattedValue = NumberFormatter.formatForDisplay(parsedValue);
+        setDisplayBottomLower(formattedValue);
+        onChange(field.name, {
+            ...currentValue,
+            bottom: {
+                ...currentValue.bottom,
+                lower: parsedValue
+            }
+        });
+    };
+
+    const handleBottomUpperChange = (e) => {
+        const inputValue = e.target.value;
+        setDisplayBottomUpper(inputValue);
+        
+        const parsedValue = NumberFormatter.parseFromString(inputValue);
+        onChange(field.name, {
+            ...currentValue,
+            bottom: {
+                ...currentValue.bottom,
+                upper: parsedValue
+            }
+        });
+    };
+
+    const handleBottomUpperBlur = (e) => {
+        const parsedValue = NumberFormatter.parseFromString(e.target.value);
+        const formattedValue = NumberFormatter.formatForDisplay(parsedValue);
+        setDisplayBottomUpper(formattedValue);
+        onChange(field.name, {
+            ...currentValue,
+            bottom: {
+                ...currentValue.bottom,
+                upper: parsedValue
+            }
+        });
+    };
+
+    const handleTopLowerChange = (e) => {
+        const inputValue = e.target.value;
+        setDisplayTopLower(inputValue);
+        
+        const parsedValue = NumberFormatter.parseFromString(inputValue);
+        onChange(field.name, {
+            ...currentValue,
+            top: {
+                ...currentValue.top,
+                lower: parsedValue
+            }
+        });
+    };
+
+    const handleTopLowerBlur = (e) => {
+        const parsedValue = NumberFormatter.parseFromString(e.target.value);
+        const formattedValue = NumberFormatter.formatForDisplay(parsedValue);
+        setDisplayTopLower(formattedValue);
+        onChange(field.name, {
+            ...currentValue,
+            top: {
+                ...currentValue.top,
+                lower: parsedValue
+            }
+        });
+    };
+
+    const handleTopUpperChange = (e) => {
+        const inputValue = e.target.value;
+        setDisplayTopUpper(inputValue);
+        
+        const parsedValue = NumberFormatter.parseFromString(inputValue);
+        onChange(field.name, {
+            ...currentValue,
+            top: {
+                ...currentValue.top,
+                upper: parsedValue
+            }
+        });
+    };
+
+    const handleTopUpperBlur = (e) => {
+        const parsedValue = NumberFormatter.parseFromString(e.target.value);
+        const formattedValue = NumberFormatter.formatForDisplay(parsedValue);
+        setDisplayTopUpper(formattedValue);
+        onChange(field.name, {
+            ...currentValue,
+            top: {
+                ...currentValue.top,
+                upper: parsedValue
+            }
+        });
     };
 
     return (
@@ -31,15 +154,10 @@ function DynamicRangeInput({ field, value, onChange }) {
                             <label style={{ fontSize: '0.7rem', color: '#ccc' }}>Lower</label>
                             <input
                                 type="number"
-                                step="0.1"
-                                value={currentValue.bottom?.lower || 0}
-                                onChange={(e) => onChange(field.name, {
-                                    ...currentValue,
-                                    bottom: {
-                                        ...currentValue.bottom,
-                                        lower: parseFloat(e.target.value) || 0
-                                    }
-                                })}
+                                step={NumberFormatter.getStepForValue(currentValue.bottom?.lower || 0)}
+                                value={displayBottomLower}
+                                onChange={handleBottomLowerChange}
+                                onBlur={handleBottomLowerBlur}
                                 style={{
                                     width: '100%',
                                     background: 'rgba(255,255,255,0.1)',
@@ -54,15 +172,10 @@ function DynamicRangeInput({ field, value, onChange }) {
                             <label style={{ fontSize: '0.7rem', color: '#ccc' }}>Upper</label>
                             <input
                                 type="number"
-                                step="0.1"
-                                value={currentValue.bottom?.upper || 0}
-                                onChange={(e) => onChange(field.name, {
-                                    ...currentValue,
-                                    bottom: {
-                                        ...currentValue.bottom,
-                                        upper: parseFloat(e.target.value) || 0
-                                    }
-                                })}
+                                step={NumberFormatter.getStepForValue(currentValue.bottom?.upper || 0)}
+                                value={displayBottomUpper}
+                                onChange={handleBottomUpperChange}
+                                onBlur={handleBottomUpperBlur}
                                 style={{
                                     width: '100%',
                                     background: 'rgba(255,255,255,0.1)',
@@ -84,15 +197,10 @@ function DynamicRangeInput({ field, value, onChange }) {
                             <label style={{ fontSize: '0.7rem', color: '#ccc' }}>Lower</label>
                             <input
                                 type="number"
-                                step="0.1"
-                                value={currentValue.top?.lower || 0}
-                                onChange={(e) => onChange(field.name, {
-                                    ...currentValue,
-                                    top: {
-                                        ...currentValue.top,
-                                        lower: parseFloat(e.target.value) || 0
-                                    }
-                                })}
+                                step={NumberFormatter.getStepForValue(currentValue.top?.lower || 0)}
+                                value={displayTopLower}
+                                onChange={handleTopLowerChange}
+                                onBlur={handleTopLowerBlur}
                                 style={{
                                     width: '100%',
                                     background: 'rgba(255,255,255,0.1)',
@@ -107,15 +215,10 @@ function DynamicRangeInput({ field, value, onChange }) {
                             <label style={{ fontSize: '0.7rem', color: '#ccc' }}>Upper</label>
                             <input
                                 type="number"
-                                step="0.1"
-                                value={currentValue.top?.upper || 0}
-                                onChange={(e) => onChange(field.name, {
-                                    ...currentValue,
-                                    top: {
-                                        ...currentValue.top,
-                                        upper: parseFloat(e.target.value) || 0
-                                    }
-                                })}
+                                step={NumberFormatter.getStepForValue(currentValue.top?.upper || 0)}
+                                value={displayTopUpper}
+                                onChange={handleTopUpperChange}
+                                onBlur={handleTopUpperBlur}
                                 style={{
                                     width: '100%',
                                     background: 'rgba(255,255,255,0.1)',

@@ -33,7 +33,16 @@ class ServiceFactory {
         this.container.registerSingleton('dialogService', () => new DialogService());
         this.container.registerSingleton('fileSystemService', () => new FileSystemService());
         this.container.registerSingleton('imageService', () => new ImageService());
-        this.container.registerSingleton('effectRegistryService', () => new EffectRegistryService());
+        this.container.registerSingleton('effectRegistryService', () => {
+            const service = new EffectRegistryService();
+            // Ensure core effects and plugins are loaded immediately
+            service.ensureCoreEffectsRegistered().then(() => {
+                console.log('✅ Effect registry initialized with plugins');
+            }).catch(error => {
+                console.error('⚠️ Failed to initialize effect registry:', error);
+            });
+            return service;
+        });
         this.container.registerSingleton('configProcessingService', () => new ConfigProcessingService());
         this.container.registerSingleton('logger', () => new ConsoleLogger());
 
