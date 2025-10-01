@@ -202,6 +202,12 @@ class EffectProcessingService {
             // Check if ConfigReconstructor properly handled ColorPicker objects
             // If not, we need to manually reconstruct them
             hydratedConfig = await this.reconstructColorPickers(hydratedConfig, userConfig);
+            
+            // Check if ConfigReconstructor properly handled PercentageRange objects
+            // If not, we need to manually reconstruct them (especially sequencePixelConstant)
+            SafeConsole.log(`🔧 About to reconstruct PercentageRange objects for ${effectName}`);
+            hydratedConfig = await this.reconstructPercentageRanges(hydratedConfig, userConfig, effectName);
+            SafeConsole.log(`✅ PercentageRange reconstruction completed for ${effectName}`);
 
             // Log innerColor reconstruction for debugging viewport issues
             if (hydratedConfig.innerColor) {
@@ -345,6 +351,278 @@ class EffectProcessingService {
         }
 
         return config;
+    }
+
+    /**
+     * Manually reconstruct PercentageRange objects in config
+     * @param {Object} config - Config object that may have PercentageRange properties
+     * @param {Object} originalConfig - Original config with serialized PercentageRange data
+     * @param {string} effectName - Name of the effect for logging
+     * @returns {Promise<Object>} Config with reconstructed PercentageRange objects
+     */
+    static async reconstructPercentageRanges(config, originalConfig, effectName) {
+        try {
+            const { PercentageRange } = await import('my-nft-gen/src/core/layer/configType/PercentageRange.js');
+            const { PercentageShortestSide } = await import('my-nft-gen/src/core/layer/configType/PercentageShortestSide.js');
+            const { PercentageLongestSide } = await import('my-nft-gen/src/core/layer/configType/PercentageLongestSide.js');
+
+            // Helper function to check if an object looks like it should be a PercentageRange
+            const needsPercentageRangeReconstruction = (obj, key) => {
+                // Skip if it's already a proper PercentageRange with function properties
+                if (obj && obj.constructor?.name === 'PercentageRange' && 
+                    typeof obj.lower === 'function' && typeof obj.upper === 'function') {
+                    return false;
+                }
+                
+                // Check if it's an empty object for known PercentageRange fields (serialized as {})
+                if (obj && typeof obj === 'object' && Object.keys(obj).length === 0) {
+                    return this.isKnownPercentageRangeField(key);
+                }
+                
+                // Check if it has lower/upper but they're not functions (partially serialized PercentageRange)
+                if (obj && typeof obj === 'object' && 
+                    obj.hasOwnProperty('lower') && obj.hasOwnProperty('upper') &&
+                    typeof obj.lower !== 'function' && typeof obj.upper !== 'function') {
+                    return true;
+                }
+                
+                // Check if it's a plain Object that should be a PercentageRange based on field name
+                if (obj && obj.constructor?.name === 'Object' && this.isKnownPercentageRangeField(key)) {
+                    return true;
+                }
+                
+                return false;
+            };
+
+            // Iterate through config properties
+            for (const [key, value] of Object.entries(config)) {
+                if (needsPercentageRangeReconstruction(value, key)) {
+                    SafeConsole.log(`🔧 Reconstructing PercentageRange for ${effectName}.${key}`);
+                    
+                    // Get default values for this field
+                    const defaults = await this.getPercentageRangeDefaults(key, effectName);
+                    
+                    // Use defaults for empty objects, or try to extract from serialized data
+                    let lowerPercent = defaults.lowerPercent;
+                    let upperPercent = defaults.upperPercent;
+                    let lowerSide = defaults.lowerSide;
+                    let upperSide = defaults.upperSide;
+                    
+                    // If the object has lower/upper properties, try to extract values
+                    if (value.lower && typeof value.lower === 'object' && value.lower.percent !== undefined) {
+                        lowerPercent = value.lower.percent;
+                        lowerSide = value.lower.side || 'shortest';
+                    }
+                    
+                    if (value.upper && typeof value.upper === 'object' && value.upper.percent !== undefined) {
+                        upperPercent = value.upper.percent;
+                        upperSide = value.upper.side || 'longest';
+                    }
+                    
+                    // Create proper PercentageShortestSide or PercentageLongestSide instances
+                    const lowerSideClass = lowerSide === 'shortest' ? PercentageShortestSide : PercentageLongestSide;
+                    const upperSideClass = upperSide === 'shortest' ? PercentageShortestSide : PercentageLongestSide;
+                    
+                    config[key] = new PercentageRange(
+                        new lowerSideClass(lowerPercent),
+                        new upperSideClass(upperPercent)
+                    );
+                    
+                    SafeConsole.log(`✅ Reconstructed PercentageRange for ${key}: ${lowerPercent} (${lowerSide}) - ${upperPercent} (${upperSide})`);
+                }
+            }
+        } catch (error) {
+            SafeConsole.warn(`Failed to reconstruct PercentageRange objects for ${effectName}:`, error.message);
+        }
+
+        return config;
+    }
+
+    /**
+     * Check if a field name is known to be a PercentageRange field
+     * @param {string} fieldName - Field name to check
+     * @returns {boolean} True if field is known to be PercentageRange
+     */
+    static isKnownPercentageRangeField(fieldName) {
+        const percentageRangeFields = [
+            'flareRingsSizeRange',
+            'flareRaysSizeRange',
+            'flareOffset',
+            'spiralRange',
+            'circleRange',
+            'hexRange',
+            'sizeRange',
+            'offsetRange',
+            'sequencePixelConstant'  // Add the missing field that's causing the issue
+        ];
+        return percentageRangeFields.includes(fieldName);
+    }
+
+    /**
+     * Get default values for specific PercentageRange fields
+     * @param {string} fieldName - Field name
+     * @param {string} effectName - Effect name for preferences lookup
+     * @returns {Promise<Object>} Default values for the field
+     */
+    static async getPercentageRangeDefaults(fieldName, effectName) {
+        try {
+            // First priority: Check user preferences for saved defaults
+            if (typeof window !== 'undefined' && window.api) {
+                const { default: PreferencesService } = await import('../../services/PreferencesService.js');
+                const userDefaults = await PreferencesService.getEffectDefaults(effectName);
+                
+                if (userDefaults && userDefaults[fieldName]) {
+                    const userField = userDefaults[fieldName];
+                    // Extract values from user's saved PercentageRange
+                    if (userField.lower && userField.upper) {
+                        return this.extractPercentageRangeDefaults(userField);
+                    }
+                }
+            }
+        } catch (error) {
+            SafeConsole.warn(`Could not load user preferences for ${effectName}.${fieldName}:`, error.message);
+        }
+
+        try {
+            // Second priority: Try to get defaults from the original config class
+            const configDefaults = await this.getConfigClassDefaults(effectName, fieldName);
+            if (configDefaults) {
+                return configDefaults;
+            }
+        } catch (error) {
+            SafeConsole.warn(`Could not load config class defaults for ${effectName}.${fieldName}:`, error.message);
+        }
+
+        // Third priority: Hardcoded fallback defaults
+        return this.getHardcodedPercentageRangeDefaults(fieldName);
+    }
+
+    /**
+     * Extract PercentageRange default values from a PercentageRange object
+     * @param {Object} percentageRange - PercentageRange object or serialized data
+     * @returns {Object} Extracted default values
+     */
+    static extractPercentageRangeDefaults(percentageRange) {
+        // If it's a proper PercentageRange with functions
+        if (typeof percentageRange.lower === 'function' && typeof percentageRange.upper === 'function') {
+            // We can't easily extract the original percent values from functions
+            // Fall back to hardcoded defaults
+            return null;
+        }
+
+        // If it has serialized lower/upper data
+        if (percentageRange.lower && percentageRange.upper) {
+            return {
+                lowerPercent: percentageRange.lower.percent || 0.1,
+                upperPercent: percentageRange.upper.percent || 1.0,
+                lowerSide: percentageRange.lower.side || 'shortest',
+                upperSide: percentageRange.upper.side || 'longest'
+            };
+        }
+
+        return null;
+    }
+
+    /**
+     * Try to get defaults by instantiating the original config class
+     * @param {string} effectName - Effect name
+     * @param {string} fieldName - Field name
+     * @returns {Promise<Object|null>} Default values or null
+     */
+    static async getConfigClassDefaults(effectName, fieldName) {
+        try {
+            const { default: EffectRegistryService } = await import('./EffectRegistryService.js');
+            const registryService = new EffectRegistryService();
+            const ConfigRegistry = await registryService.getConfigRegistry();
+            
+            const ConfigClass = ConfigRegistry.getGlobal(effectName);
+            if (ConfigClass) {
+                // Create a default instance
+                const defaultConfig = new ConfigClass({});
+                const fieldValue = defaultConfig[fieldName];
+                
+                if (fieldValue && fieldValue.constructor?.name === 'PercentageRange') {
+                    // We have a proper PercentageRange, but we can't easily extract the values
+                    // This is a limitation of the current architecture
+                    SafeConsole.log(`Found PercentageRange for ${effectName}.${fieldName} but cannot extract values`);
+                }
+            }
+        } catch (error) {
+            SafeConsole.warn(`Could not instantiate config class for ${effectName}:`, error.message);
+        }
+        
+        return null;
+    }
+
+    /**
+     * Get hardcoded fallback defaults for PercentageRange fields
+     * @param {string} fieldName - Field name
+     * @returns {Object} Default values for the field
+     */
+    static getHardcodedPercentageRangeDefaults(fieldName) {
+        const defaults = {
+            'sequencePixelConstant': {
+                lowerPercent: 0.001,
+                upperPercent: 0.001,
+                lowerSide: 'shortest',
+                upperSide: 'shortest'
+            },
+            'flareRingsSizeRange': {
+                lowerPercent: 0.05,
+                upperPercent: 1.0,
+                lowerSide: 'shortest',
+                upperSide: 'longest'
+            },
+            'flareRaysSizeRange': {
+                lowerPercent: 0.7,
+                upperPercent: 1.0,
+                lowerSide: 'longest',
+                upperSide: 'longest'
+            },
+            'flareOffset': {
+                lowerPercent: 0.1,
+                upperPercent: 0.3,
+                lowerSide: 'shortest',
+                upperSide: 'shortest'
+            },
+            'spiralRange': {
+                lowerPercent: 0.1,
+                upperPercent: 0.8,
+                lowerSide: 'shortest',
+                upperSide: 'longest'
+            },
+            'circleRange': {
+                lowerPercent: 0.1,
+                upperPercent: 0.8,
+                lowerSide: 'shortest',
+                upperSide: 'longest'
+            },
+            'hexRange': {
+                lowerPercent: 0.1,
+                upperPercent: 0.8,
+                lowerSide: 'shortest',
+                upperSide: 'longest'
+            },
+            'sizeRange': {
+                lowerPercent: 0.1,
+                upperPercent: 1.0,
+                lowerSide: 'shortest',
+                upperSide: 'longest'
+            },
+            'offsetRange': {
+                lowerPercent: 0.0,
+                upperPercent: 0.5,
+                lowerSide: 'shortest',
+                upperSide: 'shortest'
+            }
+        };
+
+        return defaults[fieldName] || {
+            lowerPercent: 0.1,
+            upperPercent: 1.0,
+            lowerSide: 'shortest',
+            upperSide: 'longest'
+        };
     }
 }
 
