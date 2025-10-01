@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "timestamp": 1758745346140,
+  "timestamp": 1759350392804,
   "state": {
     "projectName": "cosmic-jewel",
     "artist": "nft studio example project",
@@ -5530,7 +5530,7 @@
       ],
       "metadata": {}
     },
-    "outputDirectory": "src/scratch/",
+    "outputDirectory": "/Users/the.phoenix/WebstormProjects/nft-studio/example-projects/src/scratch",
     "renderStartFrame": 0,
     "renderJumpFrames": 1,
     "settingsResolution": {
