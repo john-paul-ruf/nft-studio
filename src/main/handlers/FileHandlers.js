@@ -26,9 +26,7 @@ class FileHandlers {
         });
 
         ipcMain.handle('read-file', async (event, filePath) => {
-            console.log('📁 IPC read-file called with:', filePath);
             const result = await this.fileOperations.readFile(filePath);
-            console.log('📁 IPC read-file result:', result);
             return result;
         });
 

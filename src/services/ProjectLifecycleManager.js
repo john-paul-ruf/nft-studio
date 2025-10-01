@@ -4,6 +4,10 @@ import SettingsToProjectConverter from '../utils/SettingsToProjectConverter.js';
 import ResolutionMapper from '../utils/ResolutionMapper.js';
 import defaultLogger from '../main/utils/logger.js';
 
+import { Project } from 'my-nft-gen/src/app/Project.js';
+import { ColorScheme } from 'my-nft-gen/src/core/color/ColorScheme.js';
+import { Settings } from 'my-nft-gen/src/core/Settings.js';
+
 /**
  * ProjectLifecycleManager - Handles project creation, loading, and saving operations
  * Extracted from NftProjectManager as part of god object decomposition
@@ -408,8 +412,6 @@ export class ProjectLifecycleManager {
      */
     async createProjectInstance(projectState) {
         const projectConfig = projectState.getState();
-        const { Project } = await import('my-nft-gen/src/app/Project.js');
-        const { ColorScheme } = await import('my-nft-gen/src/core/color/ColorScheme.js');
 
         // Calculate dimensions - single source of truth
         let longestSide, shortestSide;
@@ -476,7 +478,6 @@ export class ProjectLifecycleManager {
     async createProjectSettings(project, projectState) {
         const projectConfig = projectState.getState();
         const myNftGenPath = path.resolve(process.cwd(), '../my-nft-gen');
-        const { Settings } = await import('my-nft-gen/src/app/Settings.js');
 
         // Process effects into LayerConfig instances
         const { default: effectProcessor } = await import('./EffectProcessingService.js');

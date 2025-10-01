@@ -1,0 +1,582 @@
+/**
+ * ProjectState Tests
+ * Tests for the ProjectState class before decomposition
+ * 
+ * Test Categories:
+ * - Constructor and initialization
+ * - Basic state operations
+ * - Effect operations
+ * - Resolution and scaling
+ * - Persistence operations
+ * - Validation operations
+ * - Legacy compatibility
+ * - Performance baselines
+ */
+
+import ProjectState from '../../src/models/ProjectState.js';
+
+// Test helper functions
+function createTestProjectState(initialConfig = null, onUpdate = null) {
+    return new ProjectState(initialConfig, onUpdate);
+}
+
+function createTestEffect(name = 'TestEffect', className = 'TestEffectClass') {
+    return {
+        id: `effect_${Date.now()}_${Math.random()}`,
+        name,
+        className,
+        config: {
+            position: { x: 100, y: 100 }
+        }
+    };
+}
+
+function createTestConfig() {
+    return {
+        projectName: 'Test Project',
+        artist: 'Test Artist',
+        targetResolution: 1080,
+        isHorizontal: false,
+        numFrames: 50,
+        effects: [createTestEffect()],
+        colorScheme: 'test-scheme',
+        colorSchemeData: { primary: '#ff0000' }
+    };
+}
+
+// Test Suite
+console.log('🧪 Starting ProjectState Tests...');
+
+// Test 1: Constructor and Initialization
+function testConstructorAndInitialization() {
+    console.log('📝 Test 1: Constructor and Initialization');
+    
+    try {
+        // Test default initialization
+        const projectState1 = createTestProjectState();
+        const state1 = projectState1.getState();
+        
+        if (!state1.projectName === '') throw new Error('Default projectName should be empty string');
+        if (!state1.artist === '') throw new Error('Default artist should be empty string');
+        if (!state1.numFrames === 100) throw new Error('Default numFrames should be 100');
+        if (!Array.isArray(state1.effects)) throw new Error('Default effects should be array');
+        if (state1.effects.length !== 0) throw new Error('Default effects should be empty');
+        
+        // Test initialization with config
+        const testConfig = createTestConfig();
+        const projectState2 = createTestProjectState(testConfig);
+        const state2 = projectState2.getState();
+        
+        if (state2.projectName !== testConfig.projectName) throw new Error('ProjectName not initialized correctly');
+        if (state2.artist !== testConfig.artist) throw new Error('Artist not initialized correctly');
+        if (state2.numFrames !== testConfig.numFrames) throw new Error('NumFrames not initialized correctly');
+        
+        // Test onUpdate callback
+        let updateCalled = false;
+        const projectState3 = createTestProjectState(null, () => { updateCalled = true; });
+        projectState3.setProjectName('Test Update');
+        
+        if (!updateCalled) throw new Error('onUpdate callback should be called');
+        
+        console.log('✅ Constructor and initialization test passed');
+        return true;
+    } catch (error) {
+        console.error('❌ Constructor and initialization test failed:', error.message);
+        return false;
+    }
+}
+
+// Test 2: Basic State Operations
+function testBasicStateOperations() {
+    console.log('📝 Test 2: Basic State Operations');
+    
+    try {
+        const projectState = createTestProjectState();
+        
+        // Test project name operations
+        projectState.setProjectName('New Project Name');
+        if (projectState.getProjectName() !== 'New Project Name') {
+            throw new Error('Project name getter/setter failed');
+        }
+        
+        // Test artist operations
+        projectState.setArtist('New Artist');
+        if (projectState.getArtist() !== 'New Artist') {
+            throw new Error('Artist getter/setter failed');
+        }
+        
+        // Test frames operations
+        projectState.setNumFrames(200);
+        if (projectState.getNumFrames() !== 200) {
+            throw new Error('NumFrames getter/setter failed');
+        }
+        
+        // Test color scheme operations
+        projectState.setColorScheme('new-scheme');
+        if (projectState.getColorScheme() !== 'new-scheme') {
+            throw new Error('ColorScheme getter/setter failed');
+        }
+        
+        // Test color scheme data operations
+        const colorData = { primary: '#00ff00' };
+        projectState.setColorSchemeData(colorData);
+        const retrievedColorData = projectState.getColorSchemeData();
+        if (retrievedColorData.primary !== colorData.primary) {
+            throw new Error('ColorSchemeData getter/setter failed');
+        }
+        
+        // Test output directory operations
+        projectState.setOutputDirectory('/test/path');
+        if (projectState.getOutputDirectory() !== '/test/path') {
+            throw new Error('OutputDirectory getter/setter failed');
+        }
+        
+        // Test render settings
+        projectState.setRenderStartFrame(10);
+        projectState.setRenderJumpFrames(2);
+        if (projectState.getRenderStartFrame() !== 10) {
+            throw new Error('RenderStartFrame getter/setter failed');
+        }
+        if (projectState.getRenderJumpFrames() !== 2) {
+            throw new Error('RenderJumpFrames getter/setter failed');
+        }
+        
+        console.log('✅ Basic state operations test passed');
+        return true;
+    } catch (error) {
+        console.error('❌ Basic state operations test failed:', error.message);
+        return false;
+    }
+}
+
+// Test 3: Effect Operations
+function testEffectOperations() {
+    console.log('📝 Test 3: Effect Operations');
+    
+    try {
+        const projectState = createTestProjectState();
+        
+        // Test initial empty effects
+        if (projectState.hasEffects()) {
+            throw new Error('Should not have effects initially');
+        }
+        
+        // Test adding effects
+        const effect1 = createTestEffect('Effect1');
+        const effect2 = createTestEffect('Effect2');
+        
+        projectState.addEffect(effect1);
+        if (!projectState.hasEffects()) {
+            throw new Error('Should have effects after adding');
+        }
+        
+        const effects = projectState.getEffects();
+        if (effects.length !== 1) {
+            throw new Error('Should have 1 effect after adding one');
+        }
+        if (effects[0].name !== 'Effect1') {
+            throw new Error('Added effect should match');
+        }
+        
+        // Test setting effects array
+        projectState.setEffects([effect1, effect2]);
+        const effects2 = projectState.getEffects();
+        if (effects2.length !== 2) {
+            throw new Error('Should have 2 effects after setting array');
+        }
+        
+        // Test updating effect
+        projectState.updateEffect(0, { name: 'Updated Effect1' });
+        const effects3 = projectState.getEffects();
+        if (effects3[0].name !== 'Updated Effect1') {
+            throw new Error('Effect should be updated');
+        }
+        
+        // Test removing effect
+        projectState.removeEffect(0);
+        const effects4 = projectState.getEffects();
+        if (effects4.length !== 1) {
+            throw new Error('Should have 1 effect after removing one');
+        }
+        if (effects4[0].name !== 'Effect2') {
+            throw new Error('Remaining effect should be Effect2');
+        }
+        
+        // Test reordering effects
+        const effect3 = createTestEffect('Effect3');
+        projectState.setEffects([effect1, effect2, effect3]);
+        projectState.reorderEffects(0, 2); // Move first to last
+        const effects5 = projectState.getEffects();
+        if (effects5[2].name !== 'Effect1') {
+            throw new Error('Effect reordering failed');
+        }
+        
+        console.log('✅ Effect operations test passed');
+        return true;
+    } catch (error) {
+        console.error('❌ Effect operations test failed:', error.message);
+        return false;
+    }
+}
+
+// Test 4: Resolution and Scaling Operations
+function testResolutionAndScaling() {
+    console.log('📝 Test 4: Resolution and Scaling Operations');
+    
+    try {
+        const projectState = createTestProjectState();
+        
+        // Test resolution operations
+        projectState.setTargetResolution(1080);
+        if (projectState.getTargetResolution() !== 1080) {
+            throw new Error('Target resolution getter/setter failed');
+        }
+        
+        // Test orientation operations
+        projectState.setIsHorizontal(true);
+        if (!projectState.getIsHorizontal()) {
+            throw new Error('IsHorizontal getter/setter failed');
+        }
+        
+        // Test resolution dimensions
+        const dimensions = projectState.getResolutionDimensions();
+        if (!dimensions.w || !dimensions.h) {
+            throw new Error('Resolution dimensions should have width and height');
+        }
+        
+        // Test scaling with effects (basic test - detailed scaling tested elsewhere)
+        const effectWithPosition = {
+            id: 'test_effect',
+            name: 'TestEffect',
+            config: {
+                position: { x: 100, y: 100 }
+            }
+        };
+        
+        projectState.addEffect(effectWithPosition);
+        const oldDimensions = projectState.getResolutionDimensions();
+        
+        // Change resolution to trigger scaling
+        projectState.setTargetResolution(720);
+        const newDimensions = projectState.getResolutionDimensions();
+        
+        // Verify dimensions changed
+        if (oldDimensions.w === newDimensions.w && oldDimensions.h === newDimensions.h) {
+            console.log('⚠️ Warning: Resolution change did not affect dimensions (may be expected)');
+        }
+        
+        console.log('✅ Resolution and scaling operations test passed');
+        return true;
+    } catch (error) {
+        console.error('❌ Resolution and scaling operations test failed:', error.message);
+        return false;
+    }
+}
+
+// Test 5: Validation Operations
+function testValidationOperations() {
+    console.log('📝 Test 5: Validation Operations');
+    
+    try {
+        const projectState = createTestProjectState();
+        
+        // Test validation with empty state
+        const validation1 = projectState.validate();
+        if (validation1.isValid) {
+            throw new Error('Empty project should not be valid');
+        }
+        if (!Array.isArray(validation1.errors)) {
+            throw new Error('Validation should return errors array');
+        }
+        if (validation1.errors.length === 0) {
+            throw new Error('Empty project should have validation errors');
+        }
+        
+        // Test validation with complete state
+        projectState.setProjectName('Valid Project');
+        projectState.setTargetResolution(1080);
+        projectState.setColorSchemeData({ primary: '#ff0000' });
+        projectState.setNumFrames(100);
+        
+        const validation2 = projectState.validate();
+        if (!validation2.isValid) {
+            throw new Error('Complete project should be valid');
+        }
+        if (validation2.errors.length > 0) {
+            throw new Error('Valid project should have no errors');
+        }
+        
+        // Test isReadyForRender
+        if (!projectState.isReadyForRender()) {
+            throw new Error('Complete project should be ready for render');
+        }
+        
+        // Test with invalid frames
+        projectState.setNumFrames(0);
+        const validation3 = projectState.validate();
+        if (validation3.isValid) {
+            throw new Error('Project with 0 frames should not be valid');
+        }
+        
+        console.log('✅ Validation operations test passed');
+        return true;
+    } catch (error) {
+        console.error('❌ Validation operations test failed:', error.message);
+        return false;
+    }
+}
+
+// Test 6: Serialization and Persistence
+async function testSerializationAndPersistence() {
+    console.log('📝 Test 6: Serialization and Persistence');
+    
+    try {
+        const testConfig = createTestConfig();
+        const projectState = createTestProjectState(testConfig);
+        
+        // Test serialization
+        const serialized = projectState.serialize();
+        if (typeof serialized !== 'string') {
+            throw new Error('Serialization should return string');
+        }
+        
+        const parsed = JSON.parse(serialized);
+        if (!parsed.version) {
+            throw new Error('Serialized data should have version');
+        }
+        if (!parsed.timestamp) {
+            throw new Error('Serialized data should have timestamp');
+        }
+        if (!parsed.state) {
+            throw new Error('Serialized data should have state');
+        }
+        
+        // Test toJSON
+        const jsonObj = projectState.toJSON();
+        if (typeof jsonObj !== 'object') {
+            throw new Error('toJSON should return object');
+        }
+        if (jsonObj.state.projectName !== testConfig.projectName) {
+            throw new Error('toJSON should preserve project data');
+        }
+        
+        // Test fromJSON
+        const restored = await ProjectState.fromJSON(serialized);
+        if (restored.getProjectName() !== testConfig.projectName) {
+            throw new Error('fromJSON should restore project name');
+        }
+        if (restored.getArtist() !== testConfig.artist) {
+            throw new Error('fromJSON should restore artist');
+        }
+        
+        // Test fromObject
+        const restored2 = await ProjectState.fromObject(jsonObj);
+        if (restored2.getNumFrames() !== testConfig.numFrames) {
+            throw new Error('fromObject should restore numFrames');
+        }
+        
+        // Test clone
+        const cloned = projectState.clone();
+        if (cloned.getProjectName() !== projectState.getProjectName()) {
+            throw new Error('Clone should preserve project name');
+        }
+        
+        // Verify clone is independent
+        cloned.setProjectName('Modified Clone');
+        if (projectState.getProjectName() === 'Modified Clone') {
+            throw new Error('Clone should be independent of original');
+        }
+        
+        console.log('✅ Serialization and persistence test passed');
+        return true;
+    } catch (error) {
+        console.error('❌ Serialization and persistence test failed:', error.message);
+        return false;
+    }
+}
+
+// Test 7: Legacy Compatibility
+function testLegacyCompatibility() {
+    console.log('📝 Test 7: Legacy Compatibility');
+    
+    try {
+        // Test legacy config conversion
+        const legacyConfig = {
+            projectName: 'Legacy Project',
+            artist: 'Legacy Artist',
+            resolution: 720, // Old property name
+            numberOfFrames: 150, // Old property name
+            effects: [createTestEffect('Legacy Effect')]
+        };
+        
+        const projectState = ProjectState.fromLegacyConfig(legacyConfig);
+        
+        if (projectState.getProjectName() !== 'Legacy Project') {
+            throw new Error('Legacy project name not converted');
+        }
+        if (projectState.getArtist() !== 'Legacy Artist') {
+            throw new Error('Legacy artist not converted');
+        }
+        if (projectState.getTargetResolution() !== 720) {
+            throw new Error('Legacy resolution not converted');
+        }
+        if (projectState.getNumFrames() !== 150) {
+            throw new Error('Legacy numberOfFrames not converted');
+        }
+        
+        // Test version compatibility
+        if (!ProjectState.isVersionCompatible('1.0.0')) {
+            throw new Error('Should support version 1.0.0');
+        }
+        if (ProjectState.isVersionCompatible('2.0.0')) {
+            throw new Error('Should not support version 2.0.0');
+        }
+        
+        // Test environment detection
+        const isBrowser = ProjectState.isBrowser();
+        const isNode = ProjectState.isNode();
+        
+        if (typeof isBrowser !== 'boolean') {
+            throw new Error('isBrowser should return boolean');
+        }
+        if (typeof isNode !== 'boolean') {
+            throw new Error('isNode should return boolean');
+        }
+        
+        console.log('✅ Legacy compatibility test passed');
+        return true;
+    } catch (error) {
+        console.error('❌ Legacy compatibility test failed:', error.message);
+        return false;
+    }
+}
+
+// Test 8: Performance and Utility Operations
+function testPerformanceAndUtilities() {
+    console.log('📝 Test 8: Performance and Utility Operations');
+    
+    try {
+        const startTime = Date.now();
+        
+        // Test constructor performance
+        const projectState = createTestProjectState();
+        const constructorTime = Date.now() - startTime;
+        
+        if (constructorTime > 100) {
+            console.log(`⚠️ Warning: Constructor took ${constructorTime}ms (target: <100ms)`);
+        }
+        
+        // Test method performance
+        const methodStartTime = Date.now();
+        
+        for (let i = 0; i < 100; i++) {
+            projectState.setProjectName(`Test Project ${i}`);
+            projectState.getProjectName();
+        }
+        
+        const methodTime = Date.now() - methodStartTime;
+        const avgMethodTime = methodTime / 200; // 200 operations
+        
+        if (avgMethodTime > 1) {
+            console.log(`⚠️ Warning: Average method time ${avgMethodTime}ms (target: <1ms)`);
+        }
+        
+        // Test utility methods
+        const testConfig = createTestConfig();
+        projectState.update(testConfig);
+        
+        // Test exportForBackend
+        const backendData = projectState.exportForBackend();
+        if (!backendData.resolution) {
+            throw new Error('exportForBackend should include resolution');
+        }
+        if (!backendData.numberOfFrames) {
+            throw new Error('exportForBackend should include numberOfFrames');
+        }
+        
+        // Test reset
+        projectState.reset();
+        if (projectState.getProjectName() !== '') {
+            throw new Error('Reset should clear project name');
+        }
+        
+        // Test getEffectsByType
+        const effect1 = { ...createTestEffect(), type: 'typeA' };
+        const effect2 = { ...createTestEffect(), type: 'typeB' };
+        const effect3 = { ...createTestEffect(), type: 'typeA' };
+        
+        projectState.setEffects([effect1, effect2, effect3]);
+        const typeAEffects = projectState.getEffectsByType('typeA');
+        
+        if (typeAEffects.length !== 2) {
+            throw new Error('getEffectsByType should return correct count');
+        }
+        
+        console.log('✅ Performance and utility operations test passed');
+        console.log(`📊 Performance Metrics:`);
+        console.log(`   Constructor: ${constructorTime}ms (target: <100ms)`);
+        console.log(`   Average method: ${avgMethodTime.toFixed(2)}ms (target: <1ms)`);
+        
+        return true;
+    } catch (error) {
+        console.error('❌ Performance and utility operations test failed:', error.message);
+        return false;
+    }
+}
+
+// Run all tests
+async function runAllTests() {
+    console.log('🚀 Running ProjectState Test Suite...\n');
+    
+    const tests = [
+        testConstructorAndInitialization,
+        testBasicStateOperations,
+        testEffectOperations,
+        testResolutionAndScaling,
+        testValidationOperations,
+        testSerializationAndPersistence,
+        testLegacyCompatibility,
+        testPerformanceAndUtilities
+    ];
+    
+    let passed = 0;
+    let failed = 0;
+    
+    for (const test of tests) {
+        try {
+            const result = await test();
+            if (result) {
+                passed++;
+            } else {
+                failed++;
+            }
+        } catch (error) {
+            console.error('❌ Test execution error:', error.message);
+            failed++;
+        }
+        console.log(''); // Add spacing between tests
+    }
+    
+    console.log('📊 Test Results Summary:');
+    console.log(`✅ Passed: ${passed}`);
+    console.log(`❌ Failed: ${failed}`);
+    console.log(`📈 Success Rate: ${((passed / (passed + failed)) * 100).toFixed(1)}%`);
+    
+    if (failed === 0) {
+        console.log('🎉 All ProjectState tests passed! Ready for decomposition.');
+    } else {
+        console.log('🚨 Some tests failed. Fix issues before proceeding with decomposition.');
+    }
+    
+    return failed === 0;
+}
+
+// Export for use in test runner
+export { runAllTests };
+
+// Run tests if called directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+    runAllTests().then(success => {
+        process.exit(success ? 0 : 1);
+    });
+}
