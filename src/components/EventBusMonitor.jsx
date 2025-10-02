@@ -53,26 +53,10 @@ import {
     Maximize
 } from '@mui/icons-material';
 import RenderProgressWidget from './RenderProgressWidget';
-
-
-const EVENT_CATEGORIES = {
-    FRAME: { label: 'Frame', color: '#4CAF50', icon: '🖼️' },
-    EFFECT: { label: 'Effects', color: '#2196F3', icon: '✨' },
-    VIDEO: { label: 'Video', color: '#E91E63', icon: '🎬' },
-    FILE_IO: { label: 'File I/O', color: '#FF9800', icon: '📁' },
-    PERFORMANCE: { label: 'Performance', color: '#9C27B0', icon: '⚡' },
-    RESOURCE: { label: 'Resources', color: '#00BCD4', icon: '💾' },
-    ERROR: { label: 'Errors', color: '#F44336', icon: '❌' },
-    LIFECYCLE: { label: 'Lifecycle', color: '#607D8B', icon: '♻️' },
-    WORKER: { label: 'Worker', color: '#3F51B5', icon: '⚙️' },
-    PROGRESS: { label: 'Progress', color: '#8BC34A', icon: '📊' },
-    RENDER_LOOP: { label: 'Render Loop', color: '#FF5722', icon: '🔄' },
-    CONSOLE: { label: 'Console', color: '#FFC107', icon: '💬' },
-    DEBUG: { label: 'Debug', color: '#795548', icon: '🐛' },
-    TIMING: { label: 'Timing', color: '#009688', icon: '⏱️' },
-    MEMORY: { label: 'Memory', color: '#673AB7', icon: '🧠' },
-    CUSTOM: { label: 'Custom', color: '#9E9E9E', icon: '📌' }
-};
+import EventCaptureService from '../services/EventCaptureService';
+import EventFilterService from '../services/EventFilterService';
+import EventExportService from '../services/EventExportService';
+import RenderProgressTracker from '../services/RenderProgressTracker';
 
 export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, setIsMinimized, isForResumedProject = false }) {
     const [events, setEvents] = useState([]);
@@ -81,7 +65,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
     const [selectedTab, setSelectedTab] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategories, setSelectedCategories] = useState(
-        isForResumedProject ? Object.keys(EVENT_CATEGORIES) : ['FRAME', 'VIDEO', 'ERROR', 'RENDER_LOOP']
+        isForResumedProject ? EventFilterService.getDefaultCategories(true) : EventFilterService.getDefaultCategories(false)
     );
     const [expandedEvents, setExpandedEvents] = useState(new Set());
     const [autoScroll, setAutoScroll] = useState(true);
@@ -89,7 +73,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
     const [eventStats, setEventStats] = useState({});
     const [isStoppingRenderLoop, setIsStoppingRenderLoop] = useState(false);
     const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(true);
-    // Progress tracking state
+    // Progress tracking state - now managed by RenderProgressTracker
     const [renderProgress, setRenderProgress] = useState({
         isRendering: false,
         currentFrame: 0,
@@ -107,119 +91,47 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
 
     useEffect(() => {
         if (open && !isPaused) {
-            // Subscribe to all events via IPC
+            // Event handler that processes incoming events
             const handleEvent = (eventData) => {
                 console.log('📨 EventBusMonitor received IPC event:', eventData);
 
-                // Track render session lifecycle events
-                if (eventData.eventName === 'render.loop.start') {
-                    // Start of render session - show progress component
-                    setRenderProgress(prev => ({
-                        ...prev,
-                        isRendering: true,
-                        progress: 0,
-                        currentFrame: 0,
-                        fps: 0,
-                        eta: '',
-                        startTime: Date.now(),
-                        projectName: eventData.data?.projectName || prev.projectName,
-                        totalFrames: prev.totalFrames || 100
-                    }));
-                } else if (eventData.eventName === 'render.loop.complete' || eventData.eventName === 'render.loop.error') {
-                    // End of render session - hide progress component
-                    setRenderProgress(prev => ({
-                        ...prev,
-                        isRendering: false,
-                        progress: eventData.eventName === 'render.loop.complete' ? 100 : prev.progress
-                    }));
-                } else if (eventData.eventName === 'frameCompleted') {
-                    // Track progress events - calculate progress directly from frame events
-                    const { frameNumber, totalFrames, renderTime, projectName } = eventData.data || {};
-                    const now = Date.now();
+                // Track render progress using RenderProgressTracker
+                const eventName = eventData.eventName || 'unknown';
+                const data = eventData.data || eventData;
 
-                    setRenderProgress(prev => {
-                        // If we receive frameCompleted but aren't tracking rendering yet, start tracking
-                        // This handles cases where frameCompleted arrives before render.loop.start
-                        const shouldStartRendering = !prev.isRendering && (frameNumber !== undefined || totalFrames !== undefined);
-                        
-                        if (!prev.isRendering && !shouldStartRendering) {
-                            return prev;
-                        }
-
-                        // Calculate progress from frame completion
-                        const currentFrameNumber = frameNumber !== undefined ? frameNumber : prev.currentFrame;
-                        const currentTotalFrames = totalFrames || prev.totalFrames || 100;
-
-                        // Convert 0-indexed frameNumber to completed frames count
-                        const framesCompleted = currentFrameNumber + 1;
-
-                        // Calculate progress percentage (1-100)
-                        const calculatedProgress = Math.min(100, Math.max(1, Math.round((framesCompleted / currentTotalFrames) * 100)));
-
-                        // Initialize start time on first frame
-                        const startTime = prev.startTime || (framesCompleted === 1 ? now : now);
-                        const elapsedTime = (now - startTime) / 1000;
-
-                        // Calculate FPS and ETA
-                        const fps = framesCompleted > 0 ? framesCompleted / elapsedTime : 0;
-                        const remainingFrames = currentTotalFrames - framesCompleted;
-                        const etaSeconds = fps > 0 ? remainingFrames / fps : 0;
-
-                        // Format ETA
-                        let etaFormatted = '';
-                        if (etaSeconds > 0) {
-                            const hours = Math.floor(etaSeconds / 3600);
-                            const minutes = Math.floor((etaSeconds % 3600) / 60);
-                            const seconds = Math.floor(etaSeconds % 60);
-
-                            if (hours > 0) {
-                                etaFormatted = `${hours}h ${minutes}m ${seconds}s`;
-                            } else if (minutes > 0) {
-                                etaFormatted = `${minutes}m ${seconds}s`;
-                            } else {
-                                etaFormatted = `${seconds}s`;
-                            }
-                        }
-
-                        console.log(`🎯 Progress calculated: Frame ${framesCompleted}/${currentTotalFrames} = ${calculatedProgress}%`);
-
-                        return {
-                            ...prev,
-                            isRendering: shouldStartRendering || prev.isRendering,
-                            currentFrame: currentFrameNumber,
-                            totalFrames: currentTotalFrames,
-                            progress: calculatedProgress,
-                            projectName: projectName || prev.projectName,
-                            fps: Math.round(fps * 10) / 10,
-                            eta: etaFormatted,
-                            lastFrameTime: renderTime || 0,
-                            avgRenderTime: framesCompleted > 0 ? Math.round(elapsedTime * 1000 / framesCompleted) : 0,
-                            startTime: shouldStartRendering ? now : startTime
-                        };
-                    });
-                } else if (eventData.eventName === 'frameStarted') {
-                    // Handle frame start events - start rendering tracking if not already started
-                    const { frameNumber, totalFrames, projectName } = eventData.data || {};
-                    setRenderProgress(prev => {
-                        // If this is the first frame and we're not already rendering, start tracking
-                        const shouldStartRendering = !prev.isRendering && (frameNumber === 0 || frameNumber === undefined);
-                        
-                        return {
-                            ...prev,
-                            isRendering: shouldStartRendering || prev.isRendering,
-                            totalFrames: totalFrames || prev.totalFrames,
-                            projectName: projectName || prev.projectName,
-                            startTime: shouldStartRendering ? Date.now() : prev.startTime
-                        };
-                    });
+                if (eventName === 'render.loop.start') {
+                    RenderProgressTracker.handleRenderLoopStart(data);
+                } else if (eventName === 'render.loop.complete') {
+                    RenderProgressTracker.handleRenderLoopComplete();
+                } else if (eventName === 'render.loop.error') {
+                    RenderProgressTracker.handleRenderLoopError();
+                } else if (eventName === 'frameCompleted') {
+                    RenderProgressTracker.handleFrameCompleted(data);
+                } else if (eventName === 'frameStarted') {
+                    RenderProgressTracker.handleFrameStarted(data);
                 }
 
+                // Update render progress state from tracker
+                setRenderProgress({
+                    isRendering: RenderProgressTracker.isRendering(),
+                    currentFrame: RenderProgressTracker.getCurrentFrame(),
+                    totalFrames: RenderProgressTracker.getTotalFrames(),
+                    progress: RenderProgressTracker.getProgress(),
+                    projectName: RenderProgressTracker.getProjectName(),
+                    fps: RenderProgressTracker.getFPS(),
+                    eta: RenderProgressTracker.getETA(),
+                    startTime: RenderProgressTracker.getStartTime(),
+                    avgRenderTime: RenderProgressTracker.getAvgRenderTime(),
+                    lastFrameTime: 0
+                });
+
+                // Create event object using EventFilterService for categorization
                 const newEvent = {
                     id: Date.now() + Math.random(),
-                    type: eventData.eventName || 'unknown',
-                    category: detectCategory(eventData.eventName || 'unknown', eventData.data || eventData),
+                    type: eventName,
+                    category: EventFilterService.detectCategory(eventName, data),
                     timestamp: new Date().toISOString(),
-                    data: eventData.data || eventData,
+                    data: data,
                     raw: JSON.stringify(eventData, null, 2)
                 };
 
@@ -230,55 +142,17 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                 });
             };
 
-            // Listen to worker events from IPC (render loop events)
-            const handleWorkerEvent = (data) => {
-                console.log('🎯 Worker event received:', data);
-                handleEvent(data);
-            };
-
-            // Listen to eventbus messages from IPC
-            const handleEventBusMessage = (event, data) => {
-                console.log('🎯 EventBus message received:', data);
-                handleEvent(data);
-            };
-
-            // Subscribe to IPC events
-            if (window.api) {
-                // Start event monitoring on the main process
-                window.api.startEventMonitoring({
-                    enableDebug: true,
-                    captureAll: true,
-                    includeFlaggedOff: true
-                }).then(result => {
-                    if (result.success) {
-                        console.log('✅ Event monitoring started on main process');
-                    } else {
-                        console.error('❌ Failed to start event monitoring:', result.error);
-                    }
-                });
-
-                // Subscribe to worker events (from render loop)
-                window.api.onWorkerEvent(handleWorkerEvent);
-
-                // Subscribe to eventbus messages
-                window.api.onEventBusMessage(handleEventBusMessage);
-
-                console.log('✅ EventBusMonitor subscribed to IPC events');
-            } else {
-                console.error('❌ window.api not available for event monitoring');
-            }
+            // Start event capture using EventCaptureService
+            EventCaptureService.startMonitoring({
+                onEvent: handleEvent,
+                enableDebug: true,
+                captureAll: true,
+                includeFlaggedOff: true
+            });
 
             return () => {
-                // Cleanup IPC listeners
-                if (window.api) {
-                    window.api.removeWorkerEventListener();
-                    window.api.offEventBusMessage(handleEventBusMessage);
-                    // Stop event monitoring on main process
-                    window.api.stopEventMonitoring().then(() => {
-                        console.log('🧹 Event monitoring stopped on main process');
-                    });
-                    console.log('🧹 EventBusMonitor unsubscribed from IPC events');
-                }
+                // Cleanup using EventCaptureService
+                EventCaptureService.stopMonitoring();
             };
         }
     }, [open, isPaused]);
@@ -354,17 +228,8 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
     }, [open]);
 
     useEffect(() => {
-        // Filter events based on search and categories
-        const filtered = events.filter(event => {
-            const matchesSearch = !searchTerm ||
-                event.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                JSON.stringify(event.data).toLowerCase().includes(searchTerm.toLowerCase());
-
-            const matchesCategory = selectedCategories.includes(event.category);
-
-            return matchesSearch && matchesCategory;
-        });
-
+        // Filter events using EventFilterService
+        const filtered = EventFilterService.applyFilters(events, searchTerm, selectedCategories);
         setFilteredEvents(filtered);
     }, [events, searchTerm, selectedCategories]);
 
@@ -381,99 +246,6 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
             setIsMinimized(false);
         }
     }, [open, setIsMinimized]);
-
-    const detectCategory = (eventType, eventData) => {
-        const lowerType = eventType.toLowerCase();
-
-        // First check the eventData for frame information (worker events)
-        if (eventData) {
-            // Check if eventData contains frame-related information
-            if (typeof eventData === 'object') {
-                const dataStr = JSON.stringify(eventData).toLowerCase();
-                if (dataStr.includes('frame') || dataStr.includes('frameNumber') ||
-                    dataStr.includes('framenumber') || eventData.frameNumber !== undefined ||
-                    eventData.currentFrame !== undefined) {
-                    console.log('🎯 DetectCategory: Found frame data in eventData, categorizing as FRAME');
-                    return 'FRAME';
-                }
-                if (dataStr.includes('effect') || eventData.effectName !== undefined) {
-                    return 'EFFECT';
-                }
-                if (dataStr.includes('progress') || eventData.progress !== undefined) {
-                    return 'PROGRESS';
-                }
-                if (dataStr.includes('error') || eventData.error !== undefined) {
-                    return 'ERROR';
-                }
-            }
-        }
-
-        // Frame events by event name
-        if (lowerType.includes('frame')) return 'FRAME';
-
-        // Effect events
-        if (lowerType.includes('effect')) return 'EFFECT';
-
-        // Video events
-        if (lowerType.includes('video') || lowerType.includes('mp4') ||
-            lowerType.includes('encode') || lowerType.includes('ffmpeg') ||
-            lowerType.includes('codec')) return 'VIDEO';
-
-        // File I/O events
-        if (lowerType.includes('file') || lowerType.includes('write') ||
-            lowerType.includes('read') || lowerType.includes('save') ||
-            lowerType.includes('load')) return 'FILE_IO';
-
-        // Memory-specific events
-        if (lowerType.includes('memory') || lowerType.includes('heap') ||
-            lowerType.includes('allocation')) return 'MEMORY';
-
-        // Timing-specific events
-        if (lowerType.includes('timing') || lowerType.includes('duration') ||
-            lowerType.includes('elapsed')) return 'TIMING';
-
-        // Performance events (general)
-        if (lowerType.includes('performance') || lowerType.includes('perf')) return 'PERFORMANCE';
-
-        // Resource events
-        if (lowerType.includes('buffer') || lowerType.includes('canvas') ||
-            lowerType.includes('resource') || lowerType.includes('cache')) return 'RESOURCE';
-
-        // Error events
-        if (lowerType.includes('error') || lowerType.includes('fail') ||
-            lowerType.includes('exception') || lowerType.includes('crash')) return 'ERROR';
-
-        // Worker-specific events
-        if (lowerType.includes('worker')) return 'WORKER';
-
-        // Lifecycle events
-        if (lowerType.includes('start') || lowerType.includes('complete') ||
-            lowerType.includes('init') || lowerType.includes('terminate') ||
-            lowerType.includes('destroy')) return 'LIFECYCLE';
-
-        // Progress events
-        if (lowerType.includes('progress')) return 'PROGRESS';
-
-        // Render loop events
-        if (lowerType.includes('render') && lowerType.includes('loop')) return 'RENDER_LOOP';
-        if (lowerType.includes('render.loop')) return 'RENDER_LOOP';
-
-        // Console events
-        if (lowerType.includes('console') || lowerType.startsWith('console.')) return 'CONSOLE';
-
-        // Debug events
-        if (lowerType.includes('debug') || lowerType.includes('log') ||
-            lowerType.includes('trace')) return 'DEBUG';
-
-        // Category-specific events (e.g., "category.frame")
-        if (lowerType.startsWith('category.')) {
-            const category = lowerType.substring(9).toUpperCase();
-            if (EVENT_CATEGORIES[category]) return category;
-        }
-
-        console.log('🎯 DetectCategory: No match found for eventType:', eventType, 'eventData:', eventData, 'defaulting to CUSTOM');
-        return 'CUSTOM';
-    };
 
     const updateStats = (eventList) => {
         const stats = {};
@@ -510,14 +282,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
     };
 
     const exportEvents = () => {
-        const dataStr = JSON.stringify(events, null, 2);
-        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-        const exportFileDefaultName = `event-bus-log-${new Date().toISOString()}.json`;
-
-        const linkElement = document.createElement('a');
-        linkElement.setAttribute('href', dataUri);
-        linkElement.setAttribute('download', exportFileDefaultName);
-        linkElement.click();
+        EventExportService.exportJSON(events);
     };
 
     const stopRenderLoop = async () => {
@@ -543,16 +308,20 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                 console.log('✅ EventBusMonitor: Render loop stopped via fallback:', result);
             }
             
-            // Reset render progress state
-            setRenderProgress(prev => ({
-                ...prev,
+            // Reset render progress using RenderProgressTracker
+            RenderProgressTracker.stopRendering();
+            setRenderProgress({
                 isRendering: false,
-                progress: 0,
                 currentFrame: 0,
+                totalFrames: 100,
+                progress: 0,
+                projectName: '',
                 fps: 0,
                 eta: '',
-                startTime: null
-            }));
+                startTime: null,
+                avgRenderTime: 0,
+                lastFrameTime: 0
+            });
         } catch (error) {
             console.error('❌ EventBusMonitor: Failed to stop render loop:', error);
         } finally {
@@ -611,8 +380,8 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
     };
 
     const getCategoryIcon = (category) => {
-        const cat = EVENT_CATEGORIES[category];
-        return cat ? cat.icon : '📝';
+        const metadata = EventFilterService.getCategoryMetadata(category);
+        return metadata ? metadata.icon : '📝';
     };
 
     const renderEventList = () => (
@@ -648,8 +417,8 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                                 label={event.category}
                                 size="small"
                                 sx={{
-                                    bgcolor: EVENT_CATEGORIES[event.category]?.color + '33',
-                                    color: EVENT_CATEGORIES[event.category]?.color,
+                                    bgcolor: EventFilterService.getCategoryMetadata(event.category)?.color + '33',
+                                    color: EventFilterService.getCategoryMetadata(event.category)?.color,
                                     minWidth: 90
                                 }}
                             />
@@ -710,7 +479,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                             {getCategoryIcon(category)}
                         </Typography>
                         <Typography variant="subtitle1">
-                            {EVENT_CATEGORIES[category]?.label || category}
+                            {EventFilterService.getCategoryMetadata(category)?.label || category}
                         </Typography>
                         <Chip label={stats.count} size="small" color="primary" />
                     </Box>
@@ -906,7 +675,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                                         <Button
                                             size="small"
                                             variant="text"
-                                            onClick={() => setSelectedCategories(Object.keys(EVENT_CATEGORIES))}
+                                            onClick={() => setSelectedCategories(EventFilterService.getAllCategoryKeys())}
                                             sx={{ textTransform: 'none', fontSize: '0.75rem' }}
                                         >
                                             Select All
@@ -986,7 +755,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                                             Categories ({selectedCategories.length} selected)
                                         </Typography>
                                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                            {Object.entries(EVENT_CATEGORIES).map(([key, config]) => (
+                                            {EventFilterService.getAllCategories().map(([key, config]) => (
                                                 <Chip
                                                     key={key}
                                                     label={`${config.icon} ${config.label}`}
