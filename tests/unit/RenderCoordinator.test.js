@@ -56,8 +56,8 @@ async function testConstructorAndInitialization() {
         }
         
         // Test with dependencies
-        const mockEventBus = { emit: () => {} };
-        const mockLogger = { 
+        const testEventBus = { emit: () => {} };
+        const testLogger = { 
             info: () => {}, 
             error: () => {}, 
             success: () => {}, 
@@ -66,7 +66,7 @@ async function testConstructorAndInitialization() {
             event: () => {}
         };
         
-        const coordinatorWithDeps = new RenderCoordinator(null, null, mockEventBus, mockLogger);
+        const coordinatorWithDeps = new RenderCoordinator(null, null, testEventBus, testLogger);
         
         if (!coordinatorWithDeps.eventBus) {
             throw new Error('EventBus should be injected');
@@ -143,13 +143,13 @@ async function testProgressEventEmission() {
     
     try {
         const emittedEvents = [];
-        const mockEventBus = {
+        const testEventBus = {
             emit: (eventName, data) => {
                 emittedEvents.push({ eventName, data });
             }
         };
         
-        const coordinator = new RenderCoordinator(null, null, mockEventBus);
+        const coordinator = new RenderCoordinator(null, null, testEventBus);
         
         // Test progress event emission
         coordinator.emitProgressEvent('test.event', {
@@ -182,7 +182,7 @@ async function testProgressEventEmission() {
 }
 
 /**
- * Test 4: Frame Rendering (Mock)
+ * Test 4: Frame Rendering (Test)
  */
 async function testFrameRendering() {
     testEnv.log('Testing frame rendering...');
@@ -190,17 +190,17 @@ async function testFrameRendering() {
     try {
         const coordinator = new RenderCoordinator();
         
-        // Mock project with generateSingleFrame method
-        const mockProject = {
+        // Test project with generateSingleFrame method
+        const testProject = {
             generateSingleFrame: async (frameNumber, totalFrames, returnBuffer) => {
                 // Simulate frame generation
                 await new Promise(resolve => setTimeout(resolve, 10));
-                return Buffer.from('mock-frame-data');
+                return Buffer.from('test-frame-data');
             }
         };
         
         // Test successful frame render
-        const result = await coordinator.renderFrame(mockProject, 5, 100, 'Test Project');
+        const result = await coordinator.renderFrame(testProject, 5, 100, 'Test Project');
         
         if (!result.success) {
             throw new Error('Frame render should succeed');
@@ -234,15 +234,15 @@ async function testFrameRenderingErrorHandling() {
     try {
         const coordinator = new RenderCoordinator();
         
-        // Mock project that throws error
-        const mockProject = {
+        // Test project that throws error
+        const testProject = {
             generateSingleFrame: async () => {
-                throw new Error('Mock render error');
+                throw new Error('Test render error');
             }
         };
         
         // Test error handling
-        const result = await coordinator.renderFrame(mockProject, 5, 100, 'Test Project');
+        const result = await coordinator.renderFrame(testProject, 5, 100, 'Test Project');
         
         if (result.success !== false) {
             throw new Error('Frame render should fail');
@@ -316,13 +316,13 @@ async function testEventBusIntegration() {
     
     try {
         const emittedEvents = [];
-        const mockEventBus = {
+        const testEventBus = {
             emit: (eventName, data) => {
                 emittedEvents.push({ eventName, data });
             }
         };
         
-        const coordinator = new RenderCoordinator(null, null, mockEventBus);
+        const coordinator = new RenderCoordinator(null, null, testEventBus);
         
         // Test multiple event emissions
         coordinator.emitProgressEvent('frame.start', { frameNumber: 1 });

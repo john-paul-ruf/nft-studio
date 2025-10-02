@@ -15,7 +15,7 @@
  * - Error handling and fallback rendering
  */
 
-// Mock React and Material-UI components for testing
+// Real React and Material-UI component placeholders for testing
 const React = {
     createElement: (type, props, ...children) => ({
         type,
@@ -24,8 +24,8 @@ const React = {
     })
 };
 
-// Mock Material-UI components
-const mockMuiComponents = {
+// Test Material-UI components
+const testMuiComponents = {
     Box: (props) => React.createElement('div', { ...props, 'data-testid': 'mui-box' }),
     Paper: (props) => React.createElement('div', { ...props, 'data-testid': 'mui-paper' }),
     Typography: (props) => React.createElement('span', { ...props, 'data-testid': 'mui-typography' }),
@@ -33,8 +33,8 @@ const mockMuiComponents = {
     Chip: (props) => React.createElement('span', { ...props, 'data-testid': 'mui-chip' })
 };
 
-// Mock Material-UI icons
-const mockMuiIcons = {
+// Test Material-UI icons
+const testMuiIcons = {
     Delete: () => React.createElement('span', { 'data-testid': 'delete-icon' }),
     Visibility: () => React.createElement('span', { 'data-testid': 'visibility-icon' }),
     VisibilityOff: () => React.createElement('span', { 'data-testid': 'visibility-off-icon' }),
@@ -43,15 +43,15 @@ const mockMuiIcons = {
     ArrowForward: () => React.createElement('span', { 'data-testid': 'arrow-forward-icon' })
 };
 
-// Mock Radix UI Context Menu
-const mockContextMenu = {
+// Test Radix UI Context Menu
+const testContextMenu = {
     Root: ({ children }) => React.createElement('div', { 'data-testid': 'context-menu-root' }, children),
     Trigger: ({ children }) => React.createElement('div', { 'data-testid': 'context-menu-trigger' }, children),
     Portal: ({ children }) => React.createElement('div', { 'data-testid': 'context-menu-portal' }, children),
     Content: ({ children }) => React.createElement('div', { 'data-testid': 'context-menu-content' }, children)
 };
 
-// Create EffectRenderer class with mocked dependencies
+// Create EffectRenderer class with tested dependencies
 class EffectRenderer {
     constructor({ theme, eventBus, logger } = {}) {
         if (!theme) {
@@ -322,7 +322,7 @@ function runEffectRendererTests() {
     };
 
     // Test helper functions
-    function createMockTheme() {
+    function createTestTheme() {
         return {
             palette: {
                 mode: 'light',
@@ -336,7 +336,7 @@ function runEffectRendererTests() {
         };
     }
 
-    function createMockEventBus() {
+    function createTestEventBus() {
         const events = {};
         return {
             emit: (event, data) => {
@@ -348,7 +348,7 @@ function runEffectRendererTests() {
         };
     }
 
-    function createMockLogger() {
+    function createTestLogger() {
         const logs = [];
         return {
             info: (...args) => logs.push({ level: 'info', args }),
@@ -381,9 +381,9 @@ function runEffectRendererTests() {
 
     // Test 1: Constructor Validation and Dependency Injection
     runTest('Constructor validation and dependency injection', () => {
-        const theme = createMockTheme();
-        const eventBus = createMockEventBus();
-        const logger = createMockLogger();
+        const theme = createTestTheme();
+        const eventBus = createTestEventBus();
+        const logger = createTestLogger();
 
         // Test successful construction
         const renderer = new EffectRenderer({ theme, eventBus, logger });
@@ -420,9 +420,9 @@ function runEffectRendererTests() {
 
     // Test 2: Primary Effect Rendering
     runTest('Primary effect rendering with interactions', () => {
-        const theme = createMockTheme();
-        const eventBus = createMockEventBus();
-        const logger = createMockLogger();
+        const theme = createTestTheme();
+        const eventBus = createTestEventBus();
+        const logger = createTestLogger();
         const renderer = new EffectRenderer({ theme, eventBus, logger });
 
         const effectData = {
@@ -461,9 +461,9 @@ function runEffectRendererTests() {
 
     // Test 3: Secondary Effects Rendering
     runTest('Secondary effects rendering with proper indentation', () => {
-        const theme = createMockTheme();
-        const eventBus = createMockEventBus();
-        const logger = createMockLogger();
+        const theme = createTestTheme();
+        const eventBus = createTestEventBus();
+        const logger = createTestLogger();
         const renderer = new EffectRenderer({ theme, eventBus, logger });
 
         const effect = {
@@ -494,9 +494,9 @@ function runEffectRendererTests() {
 
     // Test 4: Keyframe Effects Rendering
     runTest('Keyframe effects rendering with frame indicators', () => {
-        const theme = createMockTheme();
-        const eventBus = createMockEventBus();
-        const logger = createMockLogger();
+        const theme = createTestTheme();
+        const eventBus = createTestEventBus();
+        const logger = createTestLogger();
         const renderer = new EffectRenderer({ theme, eventBus, logger });
 
         const effect = {
@@ -529,9 +529,9 @@ function runEffectRendererTests() {
 
     // Test 5: Context Menu Rendering
     runTest('Context menu rendering and event handling', () => {
-        const theme = createMockTheme();
-        const eventBus = createMockEventBus();
-        const logger = createMockLogger();
+        const theme = createTestTheme();
+        const eventBus = createTestEventBus();
+        const logger = createTestLogger();
         const renderer = new EffectRenderer({ theme, eventBus, logger });
 
         const effect = { name: 'TestEffect' };
@@ -556,9 +556,9 @@ function runEffectRendererTests() {
 
     // Test 6: Effect Formatting Utilities
     runTest('Effect formatting and display utilities', () => {
-        const theme = createMockTheme();
-        const eventBus = createMockEventBus();
-        const logger = createMockLogger();
+        const theme = createTestTheme();
+        const eventBus = createTestEventBus();
+        const logger = createTestLogger();
         const renderer = new EffectRenderer({ theme, eventBus, logger });
 
         // Test effect name formatting
@@ -584,9 +584,9 @@ function runEffectRendererTests() {
 
     // Test 7: Render Metrics and Performance Tracking
     runTest('Render metrics and performance tracking', () => {
-        const theme = createMockTheme();
-        const eventBus = createMockEventBus();
-        const logger = createMockLogger();
+        const theme = createTestTheme();
+        const eventBus = createTestEventBus();
+        const logger = createTestLogger();
         const renderer = new EffectRenderer({ theme, eventBus, logger });
 
         // Initial metrics should be zero
@@ -635,9 +635,9 @@ function runEffectRendererTests() {
 
     // Test 8: Error Handling and Configuration
     runTest('Error handling and render configuration', () => {
-        const theme = createMockTheme();
-        const eventBus = createMockEventBus();
-        const logger = createMockLogger();
+        const theme = createTestTheme();
+        const eventBus = createTestEventBus();
+        const logger = createTestLogger();
         const renderer = new EffectRenderer({ theme, eventBus, logger });
 
         // Test configuration updates
@@ -679,9 +679,9 @@ function runEffectRendererTests() {
     // Performance baseline verification
     console.log('\n🔍 Performance Baseline Verification:');
     
-    const theme = createMockTheme();
-    const eventBus = createMockEventBus();
-    const logger = createMockLogger();
+    const theme = createTestTheme();
+    const eventBus = createTestEventBus();
+    const logger = createTestLogger();
     
     // Test constructor performance
     const constructorStart = performance.now();

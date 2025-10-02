@@ -13,6 +13,7 @@
  */
 
 import TestEnvironment from '../setup/TestEnvironment.js';
+import EventBusService from '../../src/services/EventBusService.js';
 
 /**
  * Test 1: Constructor Validation and Dependency Injection
@@ -38,15 +39,17 @@ export async function testEffectEventCoordinatorConstructor(testEnv) {
     }
     
     // Test constructor with dependencies
-    const mockEventBus = { emit: () => {}, subscribe: () => {} };
+    const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+    const eventBus = eventBusInstance;
+    eventBus.isLoggingEnabled = false;
     const customLogger = { log: () => {}, error: () => {} };
-    
-    const coordinator2 = new EffectEventCoordinator({ 
-        eventBus: mockEventBus, 
-        logger: customLogger 
+
+    const coordinator2 = new EffectEventCoordinator({
+        eventBus: eventBus,
+        logger: customLogger
     });
-    
-    if (coordinator2.eventBus !== mockEventBus) {
+
+    if (coordinator2.eventBus !== eventBus) {
         throw new Error('Event bus not set correctly');
     }
     
@@ -71,19 +74,20 @@ export async function testEffectEventCoordinatorAddition(testEnv) {
     
     const { EffectEventCoordinator } = await import('../../src/services/EffectEventCoordinator.js');
     
+    const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+    const eventBus = eventBusInstance;
+    eventBus.isLoggingEnabled = false;
+
     let eventEmitted = false;
     let emittedData = null;
+
+    // Subscribe to track event
+    eventBus.subscribe('effectconfigurer:effect:add', (data) => {
+        eventEmitted = true;
+        emittedData = data;
+    });
     
-    const mockEventBus = {
-        emit: (eventName, data, metadata) => {
-            if (eventName === 'effectconfigurer:effect:add') {
-                eventEmitted = true;
-                emittedData = data;
-            }
-        }
-    };
-    
-    const coordinator = new EffectEventCoordinator({ eventBus: mockEventBus });
+    const coordinator = new EffectEventCoordinator({ eventBus: eventBus });
     
     const testEffect = { name: 'TestEffect', registryKey: 'test-effect' };
     const testConfig = { opacity: 0.8 };
@@ -149,19 +153,20 @@ export async function testEffectEventCoordinatorAttachment(testEnv) {
     
     const { EffectEventCoordinator } = await import('../../src/services/EffectEventCoordinator.js');
     
+    const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+    const eventBus = eventBusInstance;
+    eventBus.isLoggingEnabled = false;
+
     let eventEmitted = false;
     let emittedData = null;
+
+    // Subscribe to track event
+    eventBus.subscribe('effectconfigurer:effect:attach', (data) => {
+        eventEmitted = true;
+        emittedData = data;
+    });
     
-    const mockEventBus = {
-        emit: (eventName, data, metadata) => {
-            if (eventName === 'effectconfigurer:effect:attach') {
-                eventEmitted = true;
-                emittedData = data;
-            }
-        }
-    };
-    
-    const coordinator = new EffectEventCoordinator({ eventBus: mockEventBus });
+    const coordinator = new EffectEventCoordinator({ eventBus: eventBus });
     
     const testEffect = { name: 'TestEffect', registryKey: 'test-effect' };
     const testConfig = { position: { x: 100, y: 200 } };
@@ -237,19 +242,20 @@ export async function testEffectEventCoordinatorConfigChange(testEnv) {
     
     const { EffectEventCoordinator } = await import('../../src/services/EffectEventCoordinator.js');
     
+    const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+    const eventBus = eventBusInstance;
+    eventBus.isLoggingEnabled = false;
+
     let eventEmitted = false;
     let emittedData = null;
+
+    // Subscribe to track event
+    eventBus.subscribe('effectconfigurer:config:change', (data) => {
+        eventEmitted = true;
+        emittedData = data;
+    });
     
-    const mockEventBus = {
-        emit: (eventName, data, metadata) => {
-            if (eventName === 'effectconfigurer:config:change') {
-                eventEmitted = true;
-                emittedData = data;
-            }
-        }
-    };
-    
-    const coordinator = new EffectEventCoordinator({ eventBus: mockEventBus });
+    const coordinator = new EffectEventCoordinator({ eventBus: eventBus });
     
     const testConfig = { opacity: 0.5, size: { width: 100, height: 100 } };
     const testEffect = { name: 'TestEffect', registryKey: 'test-effect' };
@@ -316,19 +322,20 @@ export async function testEffectEventCoordinatorResolutionChange(testEnv) {
     
     const { EffectEventCoordinator } = await import('../../src/services/EffectEventCoordinator.js');
     
+    const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+    const eventBus = eventBusInstance;
+    eventBus.isLoggingEnabled = false;
+
     let eventEmitted = false;
     let emittedData = null;
+
+    // Subscribe to track event
+    eventBus.subscribe('effectconfigurer:resolution:change', (data) => {
+        eventEmitted = true;
+        emittedData = data;
+    });
     
-    const mockEventBus = {
-        emit: (eventName, data, metadata) => {
-            if (eventName === 'effectconfigurer:resolution:change') {
-                eventEmitted = true;
-                emittedData = data;
-            }
-        }
-    };
-    
-    const coordinator = new EffectEventCoordinator({ eventBus: mockEventBus });
+    const coordinator = new EffectEventCoordinator({ eventBus: eventBus });
     
     const oldResolution = 1080;
     const newResolution = 1920;

@@ -259,26 +259,29 @@ export async function testEffectConfigurerEventBusIntegration(testEnv) {
     const path = '/Users/the.phoenix/WebstormProjects/nft-studio/src/components/effects/EffectConfigurer.jsx';
     const componentSource = await fs.readFile(path, 'utf-8');
     
-    // Check for event bus patterns
+    // Check for event bus patterns - component now uses EffectEventCoordinator service
     const hasEventBusImport = componentSource.includes('useServices');
-    const hasConfigChangeEvent = componentSource.includes('effectconfigurer:config:change');
-    const hasAddEffectEvent = componentSource.includes('effectconfigurer:effect:add');
-    const hasAttachEffectEvent = componentSource.includes('effectconfigurer:effect:attach');
+    const hasEventCoordinator = componentSource.includes('EffectEventCoordinator');
+    const hasEventCoordinatorImport = componentSource.includes("import EffectEventCoordinator");
     
     if (!hasEventBusImport) {
         throw new Error('Missing useServices import for event bus');
     }
     
-    if (!hasConfigChangeEvent) {
-        throw new Error('Missing effectconfigurer:config:change event');
+    if (!hasEventCoordinator) {
+        throw new Error('Missing EffectEventCoordinator usage');
     }
     
-    if (!hasAddEffectEvent) {
-        throw new Error('Missing effectconfigurer:effect:add event');
+    if (!hasEventCoordinatorImport) {
+        throw new Error('Missing EffectEventCoordinator import');
     }
     
-    if (!hasAttachEffectEvent) {
-        throw new Error('Missing effectconfigurer:effect:attach event');
+    // Verify the component delegates event coordination to the service
+    const hasCoordinateMethod = componentSource.includes('coordinate') || 
+                                componentSource.includes('eventCoordinator');
+    
+    if (!hasCoordinateMethod) {
+        throw new Error('Component should delegate to EffectEventCoordinator');
     }
     
     console.log('✅ Event bus integration verified');

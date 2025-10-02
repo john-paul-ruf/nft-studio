@@ -15,15 +15,13 @@ export async function testContextMenuProviderConstructor(testEnv) {
     try {
         const ContextMenuProvider = (await import('../../src/services/ContextMenuProvider.js')).default;
         
-        // Create mock event bus
-        const mockEventBus = {
-            emit: (event, data, metadata) => {
-                console.log(`Event emitted: ${event}`, data, metadata);
-            }
-        };
-        
+        // Use real EventBusService
+        const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+        const eventBus = eventBusInstance;
+        eventBus.isLoggingEnabled = false;
+
         // Test constructor
-        const provider = new ContextMenuProvider(mockEventBus);
+        const provider = new ContextMenuProvider(eventBus);
         
         // Verify initialization
         if (!provider) {
@@ -66,14 +64,19 @@ export async function testPrimaryEffectMenuCreation(testEnv) {
     try {
         const ContextMenuProvider = (await import('../../src/services/ContextMenuProvider.js')).default;
         
+        const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+        const eventBus = eventBusInstance;
+        eventBus.isLoggingEnabled = false;
+
         let emittedEvents = [];
-        const mockEventBus = {
-            emit: (event, data, metadata) => {
-                emittedEvents.push({ event, data, metadata });
-            }
+        // Track emitted events
+        const originalEmit = eventBus.emit.bind(eventBus);
+        eventBus.emit = (event, data, metadata) => {
+            emittedEvents.push({ event, data, metadata });
+            return originalEmit(event, data, metadata);
         };
         
-        const provider = new ContextMenuProvider(mockEventBus);
+        const provider = new ContextMenuProvider(eventBus);
         
         // Test primary menu creation
         const menuConfig = provider.createPrimaryEffectMenu({
@@ -151,8 +154,10 @@ export async function testSecondaryEffectMenuCreation(testEnv) {
     try {
         const ContextMenuProvider = (await import('../../src/services/ContextMenuProvider.js')).default;
         
-        const mockEventBus = { emit: () => {} };
-        const provider = new ContextMenuProvider(mockEventBus);
+        const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+        const eventBus = eventBusInstance;
+        eventBus.isLoggingEnabled = false;
+        const provider = new ContextMenuProvider(eventBus);
         
         // Test secondary menu creation
         const menuConfig = provider.createSecondaryEffectMenu({
@@ -220,8 +225,10 @@ export async function testKeyframeEffectMenuCreation(testEnv) {
     try {
         const ContextMenuProvider = (await import('../../src/services/ContextMenuProvider.js')).default;
         
-        const mockEventBus = { emit: () => {} };
-        const provider = new ContextMenuProvider(mockEventBus);
+        const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+        const eventBus = eventBusInstance;
+        eventBus.isLoggingEnabled = false;
+        const provider = new ContextMenuProvider(eventBus);
         
         // Test keyframe menu creation
         const menuConfig = provider.createKeyframeEffectMenu({
@@ -280,14 +287,19 @@ export async function testMenuActionHandling(testEnv) {
     try {
         const ContextMenuProvider = (await import('../../src/services/ContextMenuProvider.js')).default;
         
+        const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+        const eventBus = eventBusInstance;
+        eventBus.isLoggingEnabled = false;
+
         let emittedEvents = [];
-        const mockEventBus = {
-            emit: (event, data, metadata) => {
-                emittedEvents.push({ event, data, metadata });
-            }
+        // Track emitted events
+        const originalEmit = eventBus.emit.bind(eventBus);
+        eventBus.emit = (event, data, metadata) => {
+            emittedEvents.push({ event, data, metadata });
+            return originalEmit(event, data, metadata);
         };
         
-        const provider = new ContextMenuProvider(mockEventBus);
+        const provider = new ContextMenuProvider(eventBus);
         
         // Create a menu
         const menuConfig = provider.createPrimaryEffectMenu({
@@ -353,8 +365,10 @@ export async function testMenuStateManagement(testEnv) {
     try {
         const ContextMenuProvider = (await import('../../src/services/ContextMenuProvider.js')).default;
         
-        const mockEventBus = { emit: () => {} };
-        const provider = new ContextMenuProvider(mockEventBus);
+        const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+        const eventBus = eventBusInstance;
+        eventBus.isLoggingEnabled = false;
+        const provider = new ContextMenuProvider(eventBus);
         
         // Test initial state
         if (provider.hasActiveMenus()) {
@@ -419,8 +433,10 @@ export async function testMenuConfigValidation(testEnv) {
     try {
         const ContextMenuProvider = (await import('../../src/services/ContextMenuProvider.js')).default;
         
-        const mockEventBus = { emit: () => {} };
-        const provider = new ContextMenuProvider(mockEventBus);
+        const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+        const eventBus = eventBusInstance;
+        eventBus.isLoggingEnabled = false;
+        const provider = new ContextMenuProvider(eventBus);
         
         // Test valid configuration
         const validConfig = {
@@ -477,11 +493,13 @@ export async function testContextMenuProviderPerformance(testEnv) {
     try {
         const ContextMenuProvider = (await import('../../src/services/ContextMenuProvider.js')).default;
         
-        const mockEventBus = { emit: () => {} };
+        const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+        const eventBus = eventBusInstance;
+        eventBus.isLoggingEnabled = false;
         
         // Test instantiation performance
         const startTime = Date.now();
-        const provider = new ContextMenuProvider(mockEventBus);
+        const provider = new ContextMenuProvider(eventBus);
         const instantiationTime = Date.now() - startTime;
         
         // Test menu creation performance

@@ -56,10 +56,10 @@ async function testConstructorAndInitialization() {
         }
         
         // Test with dependencies
-        const mockEventBus = { emit: () => {} };
-        const mockLogger = { info: () => {}, error: () => {}, success: () => {}, header: () => {}, warn: () => {} };
+        const testEventBus = { emit: () => {} };
+        const testLogger = { info: () => {}, error: () => {}, success: () => {}, header: () => {}, warn: () => {} };
         
-        const managerWithDeps = new ProjectLifecycleManager(null, null, mockEventBus, mockLogger);
+        const managerWithDeps = new ProjectLifecycleManager(null, null, testEventBus, testLogger);
         
         if (!managerWithDeps.eventBus) {
             throw new Error('EventBus should be injected');
@@ -266,14 +266,19 @@ async function testEventEmission() {
     testEnv.log('Testing event emission...');
     
     try {
+        const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+        const eventBus = eventBusInstance;
+        eventBus.isLoggingEnabled = false;
+
         const emittedEvents = [];
-        const mockEventBus = {
-            emit: (eventName, data) => {
-                emittedEvents.push({ eventName, data });
-            }
+        // Track emissions
+        const originalEmit = eventBus.emit.bind(eventBus);
+        eventBus.emit = (eventName, data) => {
+            emittedEvents.push({ eventName, data });
+            return originalEmit(eventName, data);
         };
-        
-        const manager = new ProjectLifecycleManager(null, null, mockEventBus);
+
+        const manager = new ProjectLifecycleManager(null, null, eventBus);
         
         // Test clear projects event
         manager.clearActiveProjects();

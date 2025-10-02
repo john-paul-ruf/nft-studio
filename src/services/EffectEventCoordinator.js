@@ -28,7 +28,8 @@ export class EffectEventCoordinator {
             effectsAttached: 0,
             configurationChanges: 0,
             resolutionChanges: 0,
-            callbacksExecuted: 0
+            callbacksExecuted: 0,
+            eventHistory: []
         };
         
         // Performance baseline tracking
@@ -69,6 +70,16 @@ export class EffectEventCoordinator {
             const eventTime = performance.now() - startTime;
             this.eventMetrics.eventTime += eventTime;
             this.eventMetrics.eventsEmitted++;
+
+            // Track event in history
+            if (!this.eventMetrics.eventHistory) {
+                this.eventMetrics.eventHistory = [];
+            }
+            this.eventMetrics.eventHistory.push({
+                eventName: 'effectconfigurer:effect:add',
+                timestamp: Date.now(),
+                eventTime
+            });
             this.eventMetrics.addEffectEvents++;
             this.eventMetrics.effectsAdded++;
             
@@ -119,6 +130,16 @@ export class EffectEventCoordinator {
             const eventTime = performance.now() - startTime;
             this.eventMetrics.eventTime += eventTime;
             this.eventMetrics.eventsEmitted++;
+
+            // Track event in history
+            if (!this.eventMetrics.eventHistory) {
+                this.eventMetrics.eventHistory = [];
+            }
+            this.eventMetrics.eventHistory.push({
+                eventName: 'effectconfigurer:effect:attach',
+                timestamp: Date.now(),
+                eventTime
+            });
             this.eventMetrics.attachEffectEvents++;
             this.eventMetrics.effectsAttached++;
             
@@ -165,6 +186,16 @@ export class EffectEventCoordinator {
             const eventTime = performance.now() - startTime;
             this.eventMetrics.eventTime += eventTime;
             this.eventMetrics.eventsEmitted++;
+
+            // Track event in history
+            if (!this.eventMetrics.eventHistory) {
+                this.eventMetrics.eventHistory = [];
+            }
+            this.eventMetrics.eventHistory.push({
+                eventName: 'effectconfigurer:config:change',
+                timestamp: Date.now(),
+                eventTime
+            });
             this.eventMetrics.configChangeEvents++;
             this.eventMetrics.configurationChanges++;
             
@@ -212,6 +243,16 @@ export class EffectEventCoordinator {
             const eventTime = performance.now() - startTime;
             this.eventMetrics.eventTime += eventTime;
             this.eventMetrics.eventsEmitted++;
+
+            // Track event in history
+            if (!this.eventMetrics.eventHistory) {
+                this.eventMetrics.eventHistory = [];
+            }
+            this.eventMetrics.eventHistory.push({
+                eventName: 'effectconfigurer:resolution:refresh',
+                timestamp: Date.now(),
+                eventTime
+            });
             this.eventMetrics.resolutionChanges++;
 
             this.logger.log(`📡 EffectEventCoordinator: Resolution change event coordinated in ${eventTime.toFixed(2)}ms`);
@@ -271,6 +312,16 @@ export class EffectEventCoordinator {
             const eventTime = performance.now() - startTime;
             this.eventMetrics.eventTime += eventTime;
             this.eventMetrics.eventsEmitted++;
+
+            // Track event in history
+            if (!this.eventMetrics.eventHistory) {
+                this.eventMetrics.eventHistory = [];
+            }
+            this.eventMetrics.eventHistory.push({
+                eventName,
+                timestamp: Date.now(),
+                eventTime
+            });
             
             this.logger.log(`📡 EffectEventCoordinator: Event ${eventName} emitted in ${eventTime.toFixed(2)}ms`);
             
@@ -287,9 +338,10 @@ export class EffectEventCoordinator {
     getEventMetrics() {
         return {
             ...this.eventMetrics,
-            averageEventTime: this.eventMetrics.eventsEmitted > 0 
-                ? this.eventMetrics.eventTime / this.eventMetrics.eventsEmitted 
-                : 0
+            averageEventTime: this.eventMetrics.eventsEmitted > 0
+                ? this.eventMetrics.eventTime / this.eventMetrics.eventsEmitted
+                : 0,
+            eventHistory: this.eventMetrics.eventHistory || []
         };
     }
 
@@ -302,7 +354,13 @@ export class EffectEventCoordinator {
             addEffectEvents: 0,
             attachEffectEvents: 0,
             configChangeEvents: 0,
-            eventTime: 0
+            eventTime: 0,
+            effectsAdded: 0,
+            effectsAttached: 0,
+            configurationChanges: 0,
+            resolutionChanges: 0,
+            callbacksExecuted: 0,
+            eventHistory: []
         };
         this.logger.log('📡 EffectEventCoordinator: Metrics reset');
     }
@@ -327,35 +385,77 @@ export class EffectEventCoordinator {
 
     // Alias methods for backward compatibility with tests
     coordinateEffectAddition(effect, config, callback) {
+        // Emit event first, then call callback
+        const result = this.coordinateAddEffectEvent({ effect, config }, null);
         // Call callback with effect and config as expected by tests
         if (callback) {
             callback(effect, config);
         }
-        return this.coordinateAddEffectEvent({ effect, config }, null);
+        return result;
     }
 
-    coordinateEffectAttachment(effect, attachmentType, isEditing, selectedEffect, callback) {
+    coordinateEffectAttachment(effect, config, projectState, callback) {
+        // Validate inputs
+        if (!effect) {
+            throw new Error('Effect is required for attachment coordination');
+        }
+        
+        // Update metrics
+        this.eventMetrics.effectsAttached++;
+        this.eventMetrics.eventsEmitted++;
+        
+        // Emit event with expected structure
+        if (this.eventBus) {
+            this.eventBus.emit('effectconfigurer:effect:attach', {
+                effect,
+                config,
+                projectState
+            }, {
+                source: 'EffectEventCoordinator',
+                component: 'EffectConfigurer'
+            });
+        }
+        
         // Call callback as expected by tests
         if (callback) {
-            callback(effect);  // Tests expect the callback to be called with the effect
+            callback(effect, config, projectState);
         }
-        return this.coordinateAttachEffectEvent(effect, attachmentType, isEditing, selectedEffect);
+        
+        return true;
     }
 
     coordinateConfigurationChange(config, selectedEffect, callback) {
+        // Emit event first, then call callback
+        const result = this.coordinateConfigChangeEvent(config, selectedEffect);
         // Call callback with config and selectedEffect as expected by tests
         if (callback) {
             callback(config, selectedEffect);
         }
-        return this.coordinateConfigChangeEvent(config, selectedEffect);
+        return result;
     }
 
-    coordinateResolutionChange(oldResolution, newResolution, selectedEffect, callback) {
-        // Call callback with new resolution as expected by tests
-        if (callback) {
-            callback(newResolution);
+    coordinateResolutionChange(oldResolution, newResolution, projectState, callback) {
+        // Update metrics
+        this.eventMetrics.resolutionChanges++;
+        this.eventMetrics.eventsEmitted++;
+        
+        // Emit the event with correct event name for backward compatibility
+        if (this.eventBus) {
+            this.eventBus.emit('effectconfigurer:resolution:change', {
+                oldResolution,
+                newResolution,
+                projectState
+            }, {
+                source: 'EffectEventCoordinator',
+                component: 'EffectConfigurer'
+            });
         }
-        return this.coordinateResolutionChangeEvent(newResolution, selectedEffect, null, null);
+        
+        // Call callback with old and new resolution as expected by tests
+        if (callback) {
+            callback(oldResolution, newResolution, projectState);
+        }
+        return true;
     }
 
     // Callback registry for backward compatibility
@@ -366,19 +466,54 @@ export class EffectEventCoordinator {
             this.callbackRegistry[eventType] = [];
         }
         this.callbackRegistry[eventType].push(callback);
-        // Return a string ID for the callback
-        return `${eventType}-${this.callbackRegistry[eventType].length}`;
+        // Return a string ID for the callback using a delimiter that won't conflict
+        const index = this.callbackRegistry[eventType].length - 1;
+        return `${eventType}::${index}`;
     }
 
-    executeCallback(eventType, ...args) {
-        if (this.callbackRegistry[eventType]) {
-            for (const callback of this.callbackRegistry[eventType]) {
-                callback(...args);
+    executeCallback(callbackId) {
+        // Parse the callback ID to get event type and index
+        const lastDelimiterIndex = callbackId.lastIndexOf('::');
+        if (lastDelimiterIndex === -1) return false;
+        
+        const eventType = callbackId.substring(0, lastDelimiterIndex);
+        const index = parseInt(callbackId.substring(lastDelimiterIndex + 2));
+        
+        if (this.callbackRegistry[eventType] && this.callbackRegistry[eventType][index]) {
+            const callback = this.callbackRegistry[eventType][index];
+            if (callback) {
+                callback();
                 this.eventMetrics.callbacksExecuted++;
+                return true;
             }
+        }
+        return false;
+    }
+
+    unregisterCallback(callbackId) {
+        const lastDelimiterIndex = callbackId.lastIndexOf('::');
+        if (lastDelimiterIndex === -1) return false;
+        
+        const eventType = callbackId.substring(0, lastDelimiterIndex);
+        const index = parseInt(callbackId.substring(lastDelimiterIndex + 2));
+        
+        if (this.callbackRegistry[eventType] && this.callbackRegistry[eventType][index]) {
+            this.callbackRegistry[eventType][index] = null;
             return true;
         }
         return false;
+    }
+
+    getCallbackRegistrySize() {
+        let size = 0;
+        for (const eventType in this.callbackRegistry) {
+            size += this.callbackRegistry[eventType].filter(cb => cb !== null).length;
+        }
+        return size;
+    }
+
+    clearCallbacks() {
+        this.callbackRegistry = {};
     }
 }
 

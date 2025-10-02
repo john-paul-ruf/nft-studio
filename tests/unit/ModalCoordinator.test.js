@@ -4,15 +4,23 @@
  */
 
 import ModalCoordinator from '../../src/services/ModalCoordinator.js';
+import eventBusSingleton from '../../src/services/EventBusService.js';
 
-// Test utilities
-class MockEventBus {
+// Test utilities - Wrapper for real EventBusService with tracking
+class TestEventBus {
     constructor() {
         this.events = [];
+        this.actualEventBus = eventBusSingleton;
+        this.actualEventBus.isLoggingEnabled = false; // Disable logging for tests
     }
 
     emit(eventName, data, metadata) {
         this.events.push({ eventName, data, metadata, timestamp: Date.now() });
+        return this.actualEventBus.emit(eventName, data, metadata);
+    }
+
+    subscribe(eventName, handler, options) {
+        return this.actualEventBus.subscribe(eventName, handler, options);
     }
 
     getEvents() {
@@ -24,9 +32,13 @@ class MockEventBus {
     }
 }
 
-class MockLogger {
+class TestLogger {
     constructor() {
         this.logs = [];
+    }
+
+    log(message, data) {
+        this.logs.push({ level: 'log', message, data, timestamp: Date.now() });
     }
 
     info(message, data) {
@@ -60,7 +72,7 @@ function testConstructorValidation() {
     try {
         // Test missing eventBus
         try {
-            new ModalCoordinator(null, new MockLogger());
+            new ModalCoordinator(null, new TestLogger());
             console.log('❌ Should throw error for missing eventBus');
         } catch (error) {
             if (error.message.includes('eventBus')) {
@@ -71,7 +83,7 @@ function testConstructorValidation() {
 
         // Test missing logger
         try {
-            new ModalCoordinator(new MockEventBus(), null);
+            new ModalCoordinator(new TestEventBus(), null);
             console.log('❌ Should throw error for missing logger');
         } catch (error) {
             if (error.message.includes('logger')) {
@@ -81,8 +93,8 @@ function testConstructorValidation() {
         }
 
         // Test successful construction
-        const eventBus = new MockEventBus();
-        const logger = new MockLogger();
+        const eventBus = new TestEventBus();
+        const logger = new TestLogger();
         const coordinator = new ModalCoordinator(eventBus, logger);
         
         if (coordinator.eventBus === eventBus && coordinator.logger === logger) {
@@ -105,8 +117,8 @@ function testSpecialtyModalOperations() {
     let totalTests = 6;
 
     try {
-        const eventBus = new MockEventBus();
-        const logger = new MockLogger();
+        const eventBus = new TestEventBus();
+        const logger = new TestLogger();
         const coordinator = new ModalCoordinator(eventBus, logger);
 
         // Test opening specialty modal
@@ -166,8 +178,8 @@ function testBulkAddModalOperations() {
     let totalTests = 7;
 
     try {
-        const eventBus = new MockEventBus();
-        const logger = new MockLogger();
+        const eventBus = new TestEventBus();
+        const logger = new TestLogger();
         const coordinator = new ModalCoordinator(eventBus, logger);
 
         // Test opening bulk add modal with valid target index
@@ -238,8 +250,8 @@ function testSpecialtyCreationHandling() {
     let totalTests = 5;
 
     try {
-        const eventBus = new MockEventBus();
-        const logger = new MockLogger();
+        const eventBus = new TestEventBus();
+        const logger = new TestLogger();
         const coordinator = new ModalCoordinator(eventBus, logger);
 
         // Test valid specialty creation
@@ -303,8 +315,8 @@ function testBulkAddHandling() {
     let totalTests = 5;
 
     try {
-        const eventBus = new MockEventBus();
-        const logger = new MockLogger();
+        const eventBus = new TestEventBus();
+        const logger = new TestLogger();
         const coordinator = new ModalCoordinator(eventBus, logger);
 
         // Test valid bulk add
@@ -369,8 +381,8 @@ function testStateManagement() {
     let totalTests = 4;
 
     try {
-        const eventBus = new MockEventBus();
-        const logger = new MockLogger();
+        const eventBus = new TestEventBus();
+        const logger = new TestLogger();
         const coordinator = new ModalCoordinator(eventBus, logger);
 
         // Test initial state
@@ -422,8 +434,8 @@ function testValidationAndMetrics() {
     let totalTests = 6;
 
     try {
-        const eventBus = new MockEventBus();
-        const logger = new MockLogger();
+        const eventBus = new TestEventBus();
+        const logger = new TestLogger();
         const coordinator = new ModalCoordinator(eventBus, logger);
 
         // Test specialty effect validation
@@ -487,8 +499,8 @@ function testPerformanceBaselines() {
     let totalTests = 3;
 
     try {
-        const eventBus = new MockEventBus();
-        const logger = new MockLogger();
+        const eventBus = new TestEventBus();
+        const logger = new TestLogger();
 
         // Test constructor performance
         const constructorStart = performance.now();

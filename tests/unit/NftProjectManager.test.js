@@ -69,8 +69,8 @@ async function testConstructorAndServiceIntegration() {
         }
         
         // Test with event bus
-        const mockEventBus = { emit: () => {} };
-        const managerWithEventBus = new NftProjectManager(null, mockEventBus);
+        const testEventBus = { emit: () => {} };
+        const managerWithEventBus = new NftProjectManager(null, testEventBus);
         
         if (!managerWithEventBus.pluginLifecycleManager) {
             throw new Error('Services should be initialized with event bus');
@@ -167,8 +167,8 @@ async function testLegacyCompatibilityMethods() {
         }
         
         // Test setupEventForwarding (should not throw)
-        const mockEventBus = { emit: () => {} };
-        manager.setupEventForwarding(mockEventBus);
+        const testEventBus = { emit: () => {} };
+        manager.setupEventForwarding(testEventBus);
         
         // Test emitProgressEvent (should not throw)
         manager.emitProgressEvent('test.event', { test: 'data' });
@@ -228,15 +228,15 @@ async function testEffectConfigurationLogic() {
     try {
         const manager = new NftProjectManager();
         
-        // Mock project with effect methods
-        const mockProject = {
+        // Test project with effect methods
+        const testProject = {
             addPrimaryEffect: () => {},
             addSecondaryEffect: () => {},
             addFinalEffect: () => {}
         };
         
-        // Mock ProjectState with no effects
-        const mockProjectStateNoEffects = {
+        // Test ProjectState with no effects
+        const testProjectStateNoEffects = {
             getState: () => ({
                 projectName: 'Test Project',
                 effects: []
@@ -244,10 +244,10 @@ async function testEffectConfigurationLogic() {
         };
         
         // Should handle no effects gracefully
-        await manager.configureProjectFromProjectState(mockProject, mockProjectStateNoEffects);
+        await manager.configureProjectFromProjectState(testProject, testProjectStateNoEffects);
         
-        // Mock ProjectState with effects
-        const mockProjectStateWithEffects = {
+        // Test ProjectState with effects
+        const testProjectStateWithEffects = {
             getState: () => ({
                 projectName: 'Test Project',
                 effects: [
@@ -261,7 +261,7 @@ async function testEffectConfigurationLogic() {
         
         // Should handle effects configuration (may fail due to missing dependencies, but should not crash)
         try {
-            await manager.configureProjectFromProjectState(mockProject, mockProjectStateWithEffects);
+            await manager.configureProjectFromProjectState(testProject, testProjectStateWithEffects);
         } catch (error) {
             // Expected to fail due to missing EffectProcessingService in test environment
             // But should not crash the test

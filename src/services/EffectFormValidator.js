@@ -43,6 +43,7 @@ export class EffectFormValidator {
         try {
             const result = {
                 isValid: true,
+                isComplete: false,
                 errors: [],
                 warnings: [],
                 missingFields: [],
@@ -52,6 +53,13 @@ export class EffectFormValidator {
             if (!configSchema) {
                 result.isValid = false;
                 result.errors.push('Config schema is required');
+                return result;
+            }
+
+            // Check for malformed schema
+            if (configSchema.properties === null || (configSchema.properties && typeof configSchema.properties !== 'object')) {
+                result.isValid = false;
+                result.errors.push('Config schema properties must be a valid object');
                 return result;
             }
 
@@ -72,7 +80,7 @@ export class EffectFormValidator {
             }
 
             // Validate field types and constraints
-            if (configSchema.properties) {
+            if (configSchema.properties && typeof configSchema.properties === 'object') {
                 for (const [fieldName, fieldSchema] of Object.entries(configSchema.properties)) {
                     if (fieldName in effectConfig) {
                         const fieldValidation = this.validateField(fieldName, effectConfig[fieldName], fieldSchema);
@@ -86,11 +94,15 @@ export class EffectFormValidator {
 
             result.isValid = result.errors.length === 0;
             
+            // Check completeness - configuration is complete if all required fields are present
+            result.isComplete = result.missingFields.length === 0 && Object.keys(effectConfig).length > 0;
+            
             const validationTime = performance.now() - startTime;
             this.validationMetrics.validationTime += validationTime;
             
             this.logger.log(`🔍 EffectFormValidator: Schema validation completed in ${validationTime.toFixed(2)}ms`, {
                 isValid: result.isValid,
+                isComplete: result.isComplete,
                 errorCount: result.errors.length,
                 warningCount: result.warnings.length
             });

@@ -225,11 +225,12 @@ export class EffectConfigurationManager {
      * @returns {Promise<boolean>} Success status
      */
     async saveAsDefault(registryKey, config) {
-        try {
-            if (!registryKey || !config) {
-                throw new Error('Registry key and config are required');
-            }
+        // Validate inputs first (throw immediately, don't catch)
+        if (!registryKey || !config) {
+            throw new Error('Registry key and config are required');
+        }
 
+        try {
             this.logger.log(`⚙️ EffectConfigurationManager: Saving default config for ${registryKey}`);
             
             const success = await PreferencesService.setEffectDefaults(registryKey, config);
@@ -274,7 +275,7 @@ export class EffectConfigurationManager {
 
             this.logger.log(`⚙️ EffectConfigurationManager: Resetting defaults for ${registryKey}`);
             
-            const success = await PreferencesService.clearEffectDefaults(registryKey);
+            const success = await PreferencesService.removeEffectDefaults(registryKey);
             
             if (success) {
                 // Clear from cache

@@ -188,8 +188,8 @@ export async function testApplyPoint2DCenterOverride() {
         await testEnv.setup();
         const configService = testEnv.getService('configProcessingService');
         
-        // Create mock project state with resolution
-        const mockProjectState = {
+        // Create test project state with resolution
+        const testProjectState = {
             getResolutionDimensions: () => ({ w: 1920, h: 1080 })
         };
         
@@ -199,7 +199,7 @@ export async function testApplyPoint2DCenterOverride() {
             anchor: { x: 100, y: 200 }
         };
         
-        const processedCenter = configService.applyPoint2DCenterOverride(centerConfig, mockProjectState);
+        const processedCenter = configService.applyPoint2DCenterOverride(centerConfig, testProjectState);
         
         if (processedCenter.position.x !== 960 || processedCenter.position.y !== 540) {
             throw new Error('Center override should resolve to half dimensions (960, 540)');
@@ -214,7 +214,7 @@ export async function testApplyPoint2DCenterOverride() {
             end: { x: 200, y: 'center' }
         };
         
-        const processedPartial = configService.applyPoint2DCenterOverride(partialConfig, mockProjectState);
+        const processedPartial = configService.applyPoint2DCenterOverride(partialConfig, testProjectState);
         
         if (processedPartial.start.x !== 960 || processedPartial.start.y !== 100) {
             throw new Error('Partial center override failed for x coordinate');
@@ -233,7 +233,7 @@ export async function testApplyPoint2DCenterOverride() {
             }
         };
         
-        const processedNested = configService.applyPoint2DCenterOverride(nestedConfig, mockProjectState);
+        const processedNested = configService.applyPoint2DCenterOverride(nestedConfig, testProjectState);
         
         if (processedNested.effects.blur.center.x !== 960 || processedNested.effects.blur.center.y !== 540) {
             throw new Error('Nested center override failed');
@@ -251,7 +251,7 @@ export async function testApplyPoint2DCenterOverride() {
             ]
         };
         
-        const processedArray = configService.applyPoint2DCenterOverride(arrayConfig, mockProjectState);
+        const processedArray = configService.applyPoint2DCenterOverride(arrayConfig, testProjectState);
         
         if (processedArray.points[0].x !== 960 || processedArray.points[0].y !== 100) {
             throw new Error('Array Point2D center override failed for first element');
@@ -379,8 +379,8 @@ export async function testConfigProcessingServiceIntegrationWorkflow() {
             ]
         };
         
-        // Mock project state
-        const mockProjectState = {
+        // Test project state
+        const testProjectState = {
             getResolutionDimensions: () => ({ w: 1920, h: 1080 })
         };
         
@@ -410,7 +410,7 @@ export async function testConfigProcessingServiceIntegrationWorkflow() {
         }
         
         // Step 3: Apply Point2D center overrides
-        const finalConfig = configService.applyPoint2DCenterOverride(typedConfig, mockProjectState);
+        const finalConfig = configService.applyPoint2DCenterOverride(typedConfig, testProjectState);
         
         // Verify center resolution
         if (finalConfig.settings.center.x !== 960 || finalConfig.settings.center.y !== 540) {

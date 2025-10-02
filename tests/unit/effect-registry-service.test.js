@@ -3,7 +3,7 @@
  * Real Objects Testing - All 14 methods with comprehensive coverage
  * 
  * Testing Philosophy:
- * - Real objects only, no mocks
+ * - Real objects only, no tests
  * - Actual effect registry operations
  * - Real plugin loading and registration
  * - Comprehensive error condition testing

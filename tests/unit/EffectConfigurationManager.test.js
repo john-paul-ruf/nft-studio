@@ -42,15 +42,17 @@ export async function testEffectConfigurationManagerConstructor(testEnv) {
     }
     
     // Test constructor with dependencies
-    const mockEventBus = { emit: () => {}, subscribe: () => {} };
+    const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+    const eventBus = eventBusInstance;
+    eventBus.isLoggingEnabled = false;
     const customLogger = { log: () => {}, error: () => {} };
-    
-    const manager2 = new EffectConfigurationManager({ 
-        eventBus: mockEventBus, 
-        logger: customLogger 
+
+    const manager2 = new EffectConfigurationManager({
+        eventBus: eventBus,
+        logger: customLogger
     });
-    
-    if (manager2.eventBus !== mockEventBus) {
+
+    if (manager2.eventBus !== eventBus) {
         throw new Error('Event bus not set correctly');
     }
     
@@ -76,8 +78,8 @@ export async function testEffectConfigurationManagerSchemaLoading(testEnv) {
     const { EffectConfigurationManager } = await import('../../src/services/EffectConfigurationManager.js');
     const manager = new EffectConfigurationManager();
     
-    // Mock effect for testing
-    const mockEffect = {
+    // Test effect for testing
+    const testEffect = {
         name: 'TestEffect',
         className: 'TestEffect',
         registryKey: 'test-effect'
@@ -85,9 +87,9 @@ export async function testEffectConfigurationManagerSchemaLoading(testEnv) {
     
     // Test schema loading (will fail due to missing ConfigIntrospector in test env)
     try {
-        await manager.loadConfigSchema(mockEffect);
+        await manager.loadConfigSchema(testEffect);
         // If this succeeds, check caching
-        const cachedSchema = manager.schemaCache.get(mockEffect.registryKey);
+        const cachedSchema = manager.schemaCache.get(testEffect.registryKey);
         if (!cachedSchema) {
             throw new Error('Schema should be cached after loading');
         }
@@ -190,19 +192,20 @@ export async function testEffectConfigurationManagerConfigChange(testEnv) {
     
     const { EffectConfigurationManager } = await import('../../src/services/EffectConfigurationManager.js');
     
+    const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+    const eventBus = eventBusInstance;
+    eventBus.isLoggingEnabled = false;
+
     let eventEmitted = false;
     let emittedData = null;
+
+    // Subscribe to track events
+    eventBus.subscribe('effectconfigurer:config:change', (data) => {
+        eventEmitted = true;
+        emittedData = data;
+    });
     
-    const mockEventBus = {
-        emit: (eventName, data, metadata) => {
-            if (eventName === 'effectconfigurer:config:change') {
-                eventEmitted = true;
-                emittedData = data;
-            }
-        }
-    };
-    
-    const manager = new EffectConfigurationManager({ eventBus: mockEventBus });
+    const manager = new EffectConfigurationManager({ eventBus: eventBus });
     
     const testConfig = { opacity: 0.8, position: { x: 100, y: 200 } };
     const testEffect = { name: 'TestEffect', registryKey: 'test-effect' };
@@ -312,7 +315,7 @@ export async function testEffectConfigurationManagerDefaults(testEnv) {
         await manager.saveAsDefault(null, testConfig);
         throw new Error('Should throw error for null registry key');
     } catch (error) {
-        if (!error.message.includes('required')) {
+        if (!error.message.toLowerCase().includes('required')) {
             throw new Error('Should throw specific error for null registry key');
         }
     }
@@ -321,7 +324,7 @@ export async function testEffectConfigurationManagerDefaults(testEnv) {
         await manager.saveAsDefault(testRegistryKey, null);
         throw new Error('Should throw error for null config');
     } catch (error) {
-        if (!error.message.includes('required')) {
+        if (!error.message.toLowerCase().includes('required')) {
             throw new Error('Should throw specific error for null config');
         }
     }

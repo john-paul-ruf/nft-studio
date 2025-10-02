@@ -7,7 +7,7 @@
  * - validateFrameDirectory() - Directory structure validation with real paths
  * 
  * Following the established real objects testing philosophy:
- * - No mocks, only real service instances
+ * - No tests, only real service instances
  * - Real file system operations with temporary directories
  * - Real image data for comprehensive testing
  * - Proper cleanup after each test

@@ -5,6 +5,7 @@
  */
 
 import TestEnvironment from '../setup/TestEnvironment.js';
+import EventBusService from '../../src/services/EventBusService.js';
 
 /**
  * Test: DragDropHandler Constructor and Initialization
@@ -14,16 +15,14 @@ export async function testDragDropHandlerConstructor(testEnv) {
     
     try {
         const DragDropHandler = (await import('../../src/services/DragDropHandler.js')).default;
-        
-        // Create mock event bus
-        const mockEventBus = {
-            emit: (event, data, metadata) => {
-                console.log(`Event emitted: ${event}`, data, metadata);
-            }
-        };
-        
+        const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+
+        // Use the singleton EventBusService instance
+        const eventBus = eventBusInstance;
+        eventBus.isLoggingEnabled = false; // Reduce noise in tests
+
         // Test constructor
-        const handler = new DragDropHandler(mockEventBus);
+        const handler = new DragDropHandler(eventBus);
         
         // Verify initialization
         if (!handler) {
@@ -85,24 +84,36 @@ export async function testPrimaryDragOperations(testEnv) {
     try {
         const DragDropHandler = (await import('../../src/services/DragDropHandler.js')).default;
         
+        const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+
+        const eventBus = eventBusInstance;
+        eventBus.isLoggingEnabled = false;
+
         let emittedEvents = [];
-        const mockEventBus = {
-            emit: (event, data, metadata) => {
-                emittedEvents.push({ event, data, metadata });
-            }
+        // Subscribe to track emissions
+        const unsubscribers = [];
+        const trackEvent = (eventName) => {
+            const unsubscribe = eventBus.subscribe(eventName, (data, metadata) => {
+                emittedEvents.push({ event: eventName, data, metadata });
+            });
+            unsubscribers.push(unsubscribe);
         };
+
+        // Track relevant events
+        trackEvent('dragdrop:primary:start');
+        trackEvent('dragdrop:primary:drop');
+
+        const handler = new DragDropHandler(eventBus);
         
-        const handler = new DragDropHandler(mockEventBus);
-        
-        // Mock drag event
-        const mockDragEvent = {
+        // Create real drag event object
+        const dragEvent = {
             dataTransfer: { effectAllowed: null, dropEffect: null },
             preventDefault: () => {},
             stopPropagation: () => {}
         };
         
         // Test drag start
-        handler.handleDragStart(mockDragEvent, 0, 'primary');
+        handler.handleDragStart(dragEvent, 0, 'primary');
         
         let dragState = handler.getDragState();
         if (!dragState.isDragging) {
@@ -118,20 +129,20 @@ export async function testPrimaryDragOperations(testEnv) {
         }
         
         // Test drag over
-        handler.handleDragOver(mockDragEvent);
-        if (mockDragEvent.dataTransfer.dropEffect !== 'move') {
+        handler.handleDragOver(dragEvent);
+        if (dragEvent.dataTransfer.dropEffect !== 'move') {
             throw new Error('Drop effect should be set to move');
         }
         
         // Test drop with reorder callback
         let reorderCalled = false;
         let reorderParams = null;
-        const mockReorder = (from, to) => {
+        const reorderCallback = (from, to) => {
             reorderCalled = true;
             reorderParams = { from, to };
         };
         
-        handler.handleDrop(mockDragEvent, 2, 'primary', mockReorder);
+        handler.handleDrop(dragEvent, 2, 'primary', reorderCallback);
         
         if (!reorderCalled) {
             throw new Error('Reorder callback should be called');
@@ -182,24 +193,36 @@ export async function testSecondaryDragOperations(testEnv) {
     try {
         const DragDropHandler = (await import('../../src/services/DragDropHandler.js')).default;
         
+        const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+
+        const eventBus = eventBusInstance;
+        eventBus.isLoggingEnabled = false;
+
         let emittedEvents = [];
-        const mockEventBus = {
-            emit: (event, data, metadata) => {
-                emittedEvents.push({ event, data, metadata });
-            }
+        // Subscribe to track emissions
+        const unsubscribers = [];
+        const trackEvent = (eventName) => {
+            const unsubscribe = eventBus.subscribe(eventName, (data, metadata) => {
+                emittedEvents.push({ event: eventName, data, metadata });
+            });
+            unsubscribers.push(unsubscribe);
         };
-        
-        const handler = new DragDropHandler(mockEventBus);
-        
-        // Mock drag event with stopPropagation
-        const mockDragEvent = {
+
+        // Track relevant events
+        trackEvent('dragdrop:secondary:start');
+        trackEvent('dragdrop:secondary:drop');
+
+        const handler = new DragDropHandler(eventBus);
+
+        // Create real drag event object with stopPropagation
+        const dragEvent = {
             dataTransfer: { effectAllowed: null, dropEffect: null },
             preventDefault: () => {},
             stopPropagation: () => {}
         };
         
         // Test secondary drag start
-        handler.handleSecondaryDragStart(mockDragEvent, 1, 0);
+        handler.handleSecondaryDragStart(dragEvent, 1, 0);
         
         let dragState = handler.getDragState();
         if (!dragState.isDragging) {
@@ -215,20 +238,20 @@ export async function testSecondaryDragOperations(testEnv) {
         }
         
         // Test secondary drag over
-        handler.handleSecondaryDragOver(mockDragEvent);
-        if (mockDragEvent.dataTransfer.dropEffect !== 'move') {
+        handler.handleSecondaryDragOver(dragEvent);
+        if (dragEvent.dataTransfer.dropEffect !== 'move') {
             throw new Error('Drop effect should be set to move');
         }
         
         // Test secondary drop with reorder callback
         let reorderCalled = false;
         let reorderParams = null;
-        const mockReorder = (parentIndex, from, to) => {
+        const reorderCallback = (parentIndex, from, to) => {
             reorderCalled = true;
             reorderParams = { parentIndex, from, to };
         };
         
-        handler.handleSecondaryDrop(mockDragEvent, 1, 2, mockReorder);
+        handler.handleSecondaryDrop(dragEvent, 1, 2, reorderCallback);
         
         if (!reorderCalled) {
             throw new Error('Secondary reorder callback should be called');
@@ -275,24 +298,36 @@ export async function testKeyframeDragOperations(testEnv) {
     try {
         const DragDropHandler = (await import('../../src/services/DragDropHandler.js')).default;
         
+        const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+
+        const eventBus = eventBusInstance;
+        eventBus.isLoggingEnabled = false;
+
         let emittedEvents = [];
-        const mockEventBus = {
-            emit: (event, data, metadata) => {
-                emittedEvents.push({ event, data, metadata });
-            }
+        // Subscribe to track emissions
+        const unsubscribers = [];
+        const trackEvent = (eventName) => {
+            const unsubscribe = eventBus.subscribe(eventName, (data, metadata) => {
+                emittedEvents.push({ event: eventName, data, metadata });
+            });
+            unsubscribers.push(unsubscribe);
         };
-        
-        const handler = new DragDropHandler(mockEventBus);
-        
-        // Mock drag event
-        const mockDragEvent = {
+
+        // Track relevant events
+        trackEvent('dragdrop:keyframe:start');
+        trackEvent('dragdrop:keyframe:drop');
+
+        const handler = new DragDropHandler(eventBus);
+
+        // Create real drag event object
+        const dragEvent = {
             dataTransfer: { effectAllowed: null, dropEffect: null },
             preventDefault: () => {},
             stopPropagation: () => {}
         };
-        
+
         // Test keyframe drag start
-        handler.handleKeyframeDragStart(mockDragEvent, 2, 1);
+        handler.handleKeyframeDragStart(dragEvent, 2, 1);
         
         let dragState = handler.getDragState();
         if (!dragState.isDragging) {
@@ -308,20 +343,20 @@ export async function testKeyframeDragOperations(testEnv) {
         }
         
         // Test keyframe drag over
-        handler.handleKeyframeDragOver(mockDragEvent);
-        if (mockDragEvent.dataTransfer.dropEffect !== 'move') {
+        handler.handleKeyframeDragOver(dragEvent);
+        if (dragEvent.dataTransfer.dropEffect !== 'move') {
             throw new Error('Drop effect should be set to move');
         }
         
         // Test keyframe drop with reorder callback
         let reorderCalled = false;
         let reorderParams = null;
-        const mockReorder = (parentIndex, from, to) => {
+        const reorderCallback = (parentIndex, from, to) => {
             reorderCalled = true;
             reorderParams = { parentIndex, from, to };
         };
         
-        handler.handleKeyframeDrop(mockDragEvent, 2, 3, mockReorder);
+        handler.handleKeyframeDrop(dragEvent, 2, 3, reorderCallback);
         
         if (!reorderCalled) {
             throw new Error('Keyframe reorder callback should be called');
@@ -368,8 +403,11 @@ export async function testDragStateManagement(testEnv) {
     try {
         const DragDropHandler = (await import('../../src/services/DragDropHandler.js')).default;
         
-        const mockEventBus = { emit: () => {} };
-        const handler = new DragDropHandler(mockEventBus);
+        const EventBusService = (await import('../../src/services/EventBusService.js')).default;
+        const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+        const eventBus = eventBusInstance;
+        eventBus.isLoggingEnabled = false;
+        const handler = new DragDropHandler(eventBus);
         
         // Test initial state
         let dragState = handler.getDragState();
@@ -432,8 +470,11 @@ export async function testDragOperationValidation(testEnv) {
     try {
         const DragDropHandler = (await import('../../src/services/DragDropHandler.js')).default;
         
-        const mockEventBus = { emit: () => {} };
-        const handler = new DragDropHandler(mockEventBus);
+        const EventBusService = (await import('../../src/services/EventBusService.js')).default;
+        const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+        const eventBus = eventBusInstance;
+        eventBus.isLoggingEnabled = false;
+        const handler = new DragDropHandler(eventBus);
         
         // Test primary validation
         if (!handler.validateDragOperation('primary', { index: 0, section: 'primary' })) {
@@ -489,8 +530,11 @@ export async function testDragMetricsAndCleanup(testEnv) {
     try {
         const DragDropHandler = (await import('../../src/services/DragDropHandler.js')).default;
         
-        const mockEventBus = { emit: () => {} };
-        const handler = new DragDropHandler(mockEventBus);
+        const EventBusService = (await import('../../src/services/EventBusService.js')).default;
+        const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+        const eventBus = eventBusInstance;
+        eventBus.isLoggingEnabled = false;
+        const handler = new DragDropHandler(eventBus);
         
         // Test initial metrics
         let metrics = handler.getDragMetrics();
@@ -555,27 +599,30 @@ export async function testDragDropHandlerPerformance(testEnv) {
     try {
         const DragDropHandler = (await import('../../src/services/DragDropHandler.js')).default;
         
-        const mockEventBus = { emit: () => {} };
+        const EventBusService = (await import('../../src/services/EventBusService.js')).default;
+        const eventBusInstance = (await import('../../src/services/EventBusService.js')).default;
+        const eventBus = eventBusInstance;
+        eventBus.isLoggingEnabled = false;
         
         // Test instantiation performance
         const startTime = Date.now();
-        const handler = new DragDropHandler(mockEventBus);
+        const handler = new DragDropHandler(eventBus);
         const instantiationTime = Date.now() - startTime;
         
         // Test method execution performance
         const methodStartTime = Date.now();
         
         // Simulate multiple drag operations
-        const mockEvent = {
+        const dragEvent = {
             dataTransfer: { effectAllowed: null, dropEffect: null },
             preventDefault: () => {},
             stopPropagation: () => {}
         };
         
         for (let i = 0; i < 10; i++) {
-            handler.handleDragStart(mockEvent, i, 'primary');
-            handler.handleDragOver(mockEvent);
-            handler.handleDrop(mockEvent, i + 1, 'primary', () => {});
+            handler.handleDragStart(dragEvent, i, 'primary');
+            handler.handleDragOver(dragEvent);
+            handler.handleDrop(dragEvent, i + 1, 'primary', () => {});
         }
         
         const methodExecutionTime = Date.now() - methodStartTime;
