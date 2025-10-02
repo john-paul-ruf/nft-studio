@@ -490,11 +490,25 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                     </DialogTitle>
                     <DialogContent>
                         <EffectPicker
-                            availableEffects={availableEffects}
-                            onAddEffect={(effect) => {
-                                handleAddEffectDirect(effect.name, effect.type);
-                                setShowEffectPicker(false);
+                            onSelect={(effect) => {
+                                console.log('🎯 Canvas: EffectPicker onSelect called with:', effect);
+                                try {
+                                    // Use the AddEffectCommand through the event system instead
+                                    console.log('🎯 Canvas: Emitting effect:add event with:', {
+                                        effectName: effect.className,
+                                        effectType: effect.type
+                                    });
+                                    eventBusService.emit('effect:add', {
+                                        effectName: effect.className,
+                                        effectType: effect.type
+                                    });
+                                    console.log('🎯 Canvas: Event emitted, closing picker');
+                                    setShowEffectPicker(false);
+                                } catch (error) {
+                                    console.error('🎯 Canvas: Error in onSelect handler:', error);
+                                }
                             }}
+                            onClose={() => setShowEffectPicker(false)}
                         />
                     </DialogContent>
                 </Dialog>

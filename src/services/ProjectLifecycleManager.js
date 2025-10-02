@@ -63,8 +63,8 @@ export class ProjectLifecycleManager {
             if (this.eventBus) {
                 this.eventBus.emit('project:created', {
                     projectName: config.projectName,
-                    projectPath: settings.getProjectDirectory(),
-                    settingsFile: settings.getSettingsFilePath(),
+                    projectPath: config.outputDirectory,
+                    settingsFile: JSON.stringify(settings),
                     timestamp: Date.now()
                 });
             }
@@ -75,8 +75,8 @@ export class ProjectLifecycleManager {
                 success: true,
                 project,
                 settings,
-                projectPath: settings.getProjectDirectory(),
-                settingsFile: settings.getSettingsFilePath()
+                projectPath: config.outputDirectory,
+                settingsFile: JSON.stringify(settings),
             };
 
         } catch (error) {
@@ -287,14 +287,12 @@ export class ProjectLifecycleManager {
                 settings = await this.createProjectSettings(project, projectState);
             }
 
-            // Save the settings
-            await settings.save();
 
             // Emit project saved event
             if (this.eventBus) {
                 this.eventBus.emit('project:saved', {
                     projectName: config.projectName,
-                    settingsFile: settings.getSettingsFilePath(),
+                    settingsFile: JSON.stringify(settings),
                     timestamp: Date.now()
                 });
             }
@@ -303,8 +301,8 @@ export class ProjectLifecycleManager {
 
             return {
                 success: true,
-                settingsFile: settings.getSettingsFilePath(),
-                projectPath: settings.getProjectDirectory()
+                settingsFile: JSON.stringify(settings),
+                projectPath: JSON.stringify(settings)
             };
 
         } catch (error) {
@@ -480,7 +478,7 @@ export class ProjectLifecycleManager {
         const myNftGenPath = path.resolve(process.cwd(), '../my-nft-gen');
 
         // Process effects into LayerConfig instances
-        const { default: effectProcessor } = await import('./EffectProcessingService.js');
+        const { default: effectProcessor } = await import('../main/services/EffectProcessingService.js');
 
         // Extract primary effects from the effects array
         let primaryEffects = [];
@@ -499,8 +497,6 @@ export class ProjectLifecycleManager {
         );
 
         const settings = new Settings(project, allPrimaryEffects);
-        await settings.save();
-
         return settings;
     }
 

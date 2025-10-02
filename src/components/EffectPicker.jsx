@@ -52,24 +52,35 @@ export default function EffectPicker({ onSelect, onClose }) {
                                         key={index}
                                         className="effect-item"
                                         onClick={async () => {
-                                            const response = await window.api.getEffectDefaults(effect.name || effect.className);
+                                            try {
+                                                console.log('🎯 EffectPicker: Clicked on effect:', effect.name || effect.className);
+                                                const response = await window.api.getEffectDefaults(effect.name || effect.className);
+                                                console.log('🎯 EffectPicker: Got effect defaults response:', response);
 
-                                            if (!response.success) {
-                                                throw new Error(`Effect ${effect.name || effect.className} has no config: ${response.error}`);
+                                                if (!response.success) {
+                                                    console.error('🎯 EffectPicker: Effect defaults failed:', response.error);
+                                                    throw new Error(`Effect ${effect.name || effect.className} has no config: ${response.error}`);
+                                                }
+
+                                                if (!response.defaults) {
+                                                    console.error('🎯 EffectPicker: No defaults returned:', response);
+                                                    throw new Error(`Effect ${effect.name || effect.className} returned no config data`);
+                                                }
+
+                                                const newEffect = {
+                                                    className: effect.name || effect.className,
+                                                    config: response.defaults,
+                                                    type: effect.category || 'primary',
+                                                    secondaryEffects: [],
+                                                    keyframeEffects: []
+                                                };
+                                                console.log('🎯 EffectPicker: Created new effect object:', newEffect);
+                                                console.log('🎯 EffectPicker: Calling onSelect with effect');
+                                                onSelect(newEffect);
+                                            } catch (error) {
+                                                console.error('🎯 EffectPicker: Error in onClick handler:', error);
+                                                alert(`Failed to add effect: ${error.message}`);
                                             }
-
-                                            if (!response.defaults) {
-                                                throw new Error(`Effect ${effect.name || effect.className} returned no config data`);
-                                            }
-
-                                            const newEffect = {
-                                                className: effect.name || effect.className,
-                                                config: response.defaults,
-                                                type: effect.category || 'primary',
-                                                secondaryEffects: [],
-                                                keyframeEffects: []
-                                            };
-                                            onSelect(newEffect);
                                         }}
                                     >
                                         <div className="effect-icon">

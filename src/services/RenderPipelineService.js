@@ -150,6 +150,30 @@ export class RenderPipelineService {
         // Filter visible effects
         const visibleEffects = (config.effects || []).filter(effect => effect.visible !== false);
 
+        // DEBUG: Log effect filtering details
+        console.log('🔍 RenderPipelineService: Effect filtering debug:');
+        console.log('🔍 Total effects in config:', config.effects?.length || 0);
+        console.log('🔍 Effects before filtering:', config.effects?.map(e => ({
+            name: e.name || e.className || e.registryKey,
+            registryKey: e.registryKey,
+            visible: e.visible,
+            visibleCheck: e.visible !== false
+        })) || []);
+        console.log('🔍 Visible effects after filtering:', visibleEffects.length);
+        console.log('🔍 Visible effects details:', visibleEffects.map(e => ({
+            name: e.name || e.className || e.registryKey,
+            registryKey: e.registryKey,
+            visible: e.visible,
+            hasConfig: !!e.config
+        })));
+
+        if (visibleEffects.length === 0) {
+            console.warn('⚠️ RenderPipelineService: No visible effects to render!');
+            if (config.effects && config.effects.length > 0) {
+                console.warn('⚠️ All effects were filtered out. Check effect visibility settings.');
+            }
+        }
+
         // Get orientation from ProjectState
         const isHorizontal = projectState.getIsHorizontal();
 
@@ -164,6 +188,13 @@ export class RenderPipelineService {
             renderJumpFrames: config.numFrames + 1,
             colorSchemeData: colorSchemeData
         };
+
+        // DEBUG: Log final render config
+        console.log('🚀 RenderPipelineService: Final render config:');
+        console.log('🚀 Dimensions:', { width: dimensions.w, height: dimensions.h });
+        console.log('🚀 Frame:', selectedFrame);
+        console.log('🚀 Effects count:', renderConfig.effects.length);
+        console.log('🚀 Effects to render:', renderConfig.effects.map(e => e.registryKey || e.name || e.className));
 
         // Execute render via IPC
         const result = await window.api.renderFrame(renderConfig, selectedFrame);

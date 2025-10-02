@@ -68,8 +68,13 @@ class EffectProcessingService {
                 }
 
                 if (!EffectClass) {
-                    SafeConsole.warn(`Effect class ${effectName} not found in registry (tried both '${effectName}' and '${effectName?.toLowerCase()}')`);
-                    SafeConsole.warn(`Registry data:`, registryData);
+                    SafeConsole.warn(`❌ Effect class ${effectName} not found in registry (tried both '${effectName}' and '${effectName?.toLowerCase()}')`);
+                    SafeConsole.warn(`❌ Registry data for ${effectName}:`, registryData);
+                    
+                    // DEBUG: List all available effects in registry
+                    const allEffects = EffectRegistry.getAllGlobal();
+                    SafeConsole.warn(`❌ Available effects in registry:`, Object.keys(allEffects || {}));
+                    
                     continue;
                 }
 
@@ -208,26 +213,6 @@ class EffectProcessingService {
             SafeConsole.log(`🔧 About to reconstruct PercentageRange objects for ${effectName}`);
             hydratedConfig = await this.reconstructPercentageRanges(hydratedConfig, userConfig, effectName);
             SafeConsole.log(`✅ PercentageRange reconstruction completed for ${effectName}`);
-
-            // Log innerColor reconstruction for debugging viewport issues
-            if (hydratedConfig.innerColor) {
-                SafeConsole.log(`✅ innerColor reconstruction succeeded for ${effectName}`);
-                SafeConsole.log(`   innerColor type: ${hydratedConfig.innerColor.constructor?.name || 'unknown'}`);
-                SafeConsole.log(`   innerColor getColor type: ${typeof hydratedConfig.innerColor.getColor}`);
-                if (typeof hydratedConfig.innerColor.getColor === 'function') {
-                    try {
-                        // Test with mock settings that has getColorFromBucket method
-                        const mockSettings = {
-                            getColorFromBucket: () => '#000000',
-                            getNeutralFromBucket: () => '#808080'
-                        };
-                        const colorValue = hydratedConfig.innerColor.getColor(mockSettings);
-                        SafeConsole.log(`   innerColor value test: ${colorValue}`);
-                    } catch (e) {
-                        SafeConsole.log(`   innerColor getColor() test error: ${e.message}`);
-                    }
-                }
-            }
         } catch (reconstructionError) {
             SafeConsole.warn(`Failed to reconstruct config for ${effect.registryKey}:`, reconstructionError.message);
 
@@ -379,10 +364,11 @@ class EffectProcessingService {
                     return this.isKnownPercentageRangeField(key);
                 }
                 
-                // Check if it has lower/upper but they're not functions (partially serialized PercentageRange)
+                // Check if it has lower/upper but they're not functions AND it's a known PercentageRange field
                 if (obj && typeof obj === 'object' && 
                     obj.hasOwnProperty('lower') && obj.hasOwnProperty('upper') &&
-                    typeof obj.lower !== 'function' && typeof obj.upper !== 'function') {
+                    typeof obj.lower !== 'function' && typeof obj.upper !== 'function' &&
+                    this.isKnownPercentageRangeField(key)) {
                     return true;
                 }
                 

@@ -4,6 +4,7 @@ import ProjectStateManager from './services/ProjectStateManager.js';
 import RenderPipelineService from './services/RenderPipelineService.js';
 import EventBusService from './services/EventBusService.js';
 import CommandService from './services/CommandService.js';
+import LoggerService from './services/LoggerService.js';
 
 // Utils
 import { utilsFactory } from './utils/UtilsFactory.js';
@@ -25,6 +26,7 @@ class ApplicationFactory {
         this.renderPipelineService = null;
         this.eventBusService = EventBusService; // Singleton
         this.commandService = CommandService; // Singleton
+        this.loggerService = LoggerService; // Singleton
         this.initialized = false;
     }
 
@@ -261,6 +263,7 @@ class ApplicationFactory {
             // Event-Driven Architecture - Single Source of Truth
             eventBusService: this.eventBusService,
             commandService: this.commandService,
+            loggerService: this.loggerService,
 
             // Utils
             schemaGenerator: this.getSchemaGenerator(),

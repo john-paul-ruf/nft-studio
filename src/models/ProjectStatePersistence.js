@@ -134,7 +134,7 @@ export default class ProjectStatePersistence {
      */
     async saveToFile(filePath) {
         try {
-            if (!this.isBrowser()) {
+            if (!ProjectStatePersistence.isBrowser()) {
                 throw new Error('File operations are only available in browser environment');
             }
 

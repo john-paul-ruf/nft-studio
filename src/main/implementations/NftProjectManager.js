@@ -341,6 +341,19 @@ class NftProjectManager {
 
         // Filter visible effects - consistent with RenderPipelineService
         const visibleEffects = config.effects.filter(effect => effect.visible !== false);
+        
+        // DEBUG: Enhanced logging for effect processing
+        console.log('🔍 NftProjectManager: Effect processing debug:');
+        console.log('🔍 Total effects in config:', config.effects.length);
+        console.log('🔍 Effects details:', config.effects.map(e => ({
+            name: e.name || e.className || e.registryKey,
+            registryKey: e.registryKey,
+            visible: e.visible,
+            visibleCheck: e.visible !== false,
+            hasConfig: !!e.config,
+            configKeys: e.config ? Object.keys(e.config) : []
+        })));
+        
         if (visibleEffects.length === 0) {
             console.log('⚠️  No visible effects configured for project');
             return;
@@ -350,6 +363,12 @@ class NftProjectManager {
         if (hiddenCount > 0) {
             console.log(`🎭 Filtered out ${hiddenCount} hidden effects, processing ${visibleEffects.length} visible effects`);
         }
+        
+        console.log('🔍 Visible effects to process:', visibleEffects.map(e => ({
+            name: e.name || e.className || e.registryKey,
+            registryKey: e.registryKey,
+            type: e.type || 'primary'
+        })));
 
         const myNftGenPath = path.resolve(process.cwd(), '../my-nft-gen');
         const { default: effectProcessor } = await import('../services/EffectProcessingService.js');
@@ -410,19 +429,13 @@ class NftProjectManager {
             );
 
             for (const layerConfig of processedEffects) {
+                console.log('🎯 Adding primary effect to project:', {
+                    name: layerConfig.name,
+                    effectClass: layerConfig.Effect?.name || 'unknown',
+                    hasConfig: !!layerConfig.currentEffectConfig,
+                    secondaryEffectsCount: layerConfig.possibleSecondaryEffects?.length || 0
+                });
                 project.addPrimaryEffect({layerConfig});
-            }
-        }
-
-        // Process and add secondary effects if the project supports them
-        if (secondaryEffects.length > 0 && project.addSecondaryEffect) {
-            const processedEffects = await effectProcessor.processEffects(
-                secondaryEffects,
-                myNftGenPath
-            );
-
-            for (const layerConfig of processedEffects) {
-                project.addSecondaryEffect({layerConfig});
             }
         }
 
