@@ -79,6 +79,7 @@ function EffectConfigurer({
     // Refs for performance optimization
     const configRef = useRef(effectConfig);
     const schemaRef = useRef(null);
+    const previousResolution = useRef(projectState?.targetResolution);
     
     // Debug logging for props
     console.log('🔧 EffectConfigurer: Props received:', {
@@ -113,7 +114,7 @@ function EffectConfigurer({
                 console.log('🔄 Loading schema for effect:', selectedEffect.registryKey);
                 
                 // Use EffectConfigurationManager to load schema
-                const schema = await services.configManager.loadConfigSchema(selectedEffect);
+                const schema = await services.configManager.loadConfigSchema(selectedEffect, projectState);
                 
                 if (schema) {
                     console.log('✅ Schema loaded successfully:', schema);
@@ -137,7 +138,7 @@ function EffectConfigurer({
         };
 
         loadSchema();
-    }, [selectedEffect, services.configManager, services.validator, effectConfig]);
+    }, [selectedEffect, projectState, services.configManager, services.validator, effectConfig]);
 
     // Check for saved defaults when effect changes
     useEffect(() => {
@@ -248,14 +249,13 @@ function EffectConfigurer({
 
         // Listen for resolution changes (if project state changes)
         const currentResolution = projectState?.targetResolution;
-        const previousResolution = useRef(currentResolution);
-        
+
         if (currentResolution && previousResolution.current && currentResolution !== previousResolution.current) {
             handleResolutionChange(previousResolution.current, currentResolution);
         }
-        
+
         previousResolution.current = currentResolution;
-    }, [projectState?.targetResolution, services.eventCoordinator]);
+    }, [projectState?.targetResolution, services.eventCoordinator, services.validator]);
 
     // Save as default handler
     const handleSaveAsDefault = useCallback(async () => {
@@ -374,9 +374,10 @@ function EffectConfigurer({
             {configSchema && (
                 <Box sx={{ mb: 3 }}>
                     <EffectFormRenderer
-                        schema={configSchema}
-                        config={effectConfig}
+                        configSchema={configSchema}
+                        effectConfig={effectConfig}
                         onConfigChange={handleConfigurationChange}
+                        projectState={projectState}
                         validationErrors={validationErrors}
                     />
                 </Box>

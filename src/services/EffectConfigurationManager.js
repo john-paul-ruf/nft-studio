@@ -46,9 +46,10 @@ export class EffectConfigurationManager {
     /**
      * Load configuration schema for an effect
      * @param {Object} selectedEffect - The effect to load schema for
+     * @param {Object} projectState - The project state for context
      * @returns {Promise<Object>} Configuration schema
      */
-    async loadConfigSchema(selectedEffect) {
+    async loadConfigSchema(selectedEffect, projectState = null) {
         const startTime = performance.now();
         
         try {
@@ -67,7 +68,7 @@ export class EffectConfigurationManager {
             this.logger.log(`⚙️ EffectConfigurationManager: Loading schema for ${selectedEffect.name || selectedEffect.className}`);
 
             // Load schema using ConfigIntrospector
-            const configSchema = await ConfigIntrospector.getConfigSchema(selectedEffect);
+            const configSchema = await ConfigIntrospector.analyzeConfigClass(selectedEffect, projectState);
             
             if (!configSchema) {
                 throw new Error(`Failed to load config schema for ${selectedEffect.name}`);
@@ -82,7 +83,7 @@ export class EffectConfigurationManager {
             
             this.logger.log(`⚙️ EffectConfigurationManager: Schema loaded successfully in ${configurationTime.toFixed(2)}ms`, {
                 effectName: selectedEffect.name,
-                schemaProperties: Object.keys(configSchema.properties || {}).length
+                schemaFields: configSchema.fields ? configSchema.fields.length : 0
             });
 
             return configSchema;
