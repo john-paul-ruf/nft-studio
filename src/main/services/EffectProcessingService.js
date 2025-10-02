@@ -206,7 +206,7 @@ class EffectProcessingService {
 
             // Check if ConfigReconstructor properly handled ColorPicker objects
             // If not, we need to manually reconstruct them
-            hydratedConfig = await this.reconstructColorPickers(hydratedConfig, userConfig);
+            hydratedConfig = await this.reconstructColorPickers(hydratedConfig, userConfig, effectName);
             
             // Check if ConfigReconstructor properly handled PercentageRange objects
             // If not, we need to manually reconstruct them (especially sequencePixelConstant)
@@ -225,7 +225,7 @@ class EffectProcessingService {
             }
 
             // Try to manually reconstruct ColorPicker objects as fallback
-            hydratedConfig = await this.reconstructColorPickers(userConfig, userConfig);
+            hydratedConfig = await this.reconstructColorPickers(userConfig, userConfig, effect.registryKey);
         }
 
         try {
@@ -286,26 +286,71 @@ class EffectProcessingService {
     }
 
     /**
-     * Manually reconstruct ColorPicker objects in config
+     * Manually reconstruct ColorPicker objects in config using introspection
      * @param {Object} config - Config object that may have ColorPicker properties
      * @param {Object} originalConfig - Original config with serialized ColorPicker data
+     * @param {string} effectName - Name of the effect for logging and introspection
      * @returns {Promise<Object>} Config with reconstructed ColorPicker objects
      */
-    static async reconstructColorPickers(config, originalConfig) {
+    static async reconstructColorPickers(config, originalConfig, effectName) {
         try {
             const { ColorPicker } = await import('my-nft-gen/src/core/layer/configType/ColorPicker.js');
 
-            // Helper function to check if an object looks like serialized ColorPicker data
-            const isColorPickerData = (obj) => {
-                return obj && typeof obj === 'object' &&
-                       (obj.selectionType !== undefined || obj.colorValue !== undefined) &&
-                       typeof obj.getColor !== 'function'; // Not already a ColorPicker instance
+            // Get the config class to introspect property types
+            const { default: EffectRegistryService } = await import('./EffectRegistryService.js');
+            const registryService = new EffectRegistryService();
+            const plugin = await registryService.getEffectWithConfig(effectName);
+            
+            // Create a type map from the default config instance
+            const typeMap = new Map();
+            if (plugin && plugin.configClass) {
+                try {
+                    // Create a default instance to inspect property types
+                    const defaultInstance = new plugin.configClass();
+                    
+                    // Build type map by inspecting the default instance
+                    for (const [key, value] of Object.entries(defaultInstance)) {
+                        if (value && value.constructor) {
+                            typeMap.set(key, value.constructor.name);
+                            
+                            // Also check nested objects for ColorPicker types
+                            if (typeof value === 'object' && !Array.isArray(value)) {
+                                for (const [nestedKey, nestedValue] of Object.entries(value)) {
+                                    if (nestedValue && nestedValue.constructor) {
+                                        typeMap.set(`${key}.${nestedKey}`, nestedValue.constructor.name);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (error) {
+                    SafeConsole.warn(`Could not create default config instance for ${effectName}:`, error.message);
+                }
+            }
+
+            // Helper function to check if an object needs ColorPicker reconstruction
+            const needsColorPickerReconstruction = (obj, key) => {
+                // Skip if it's already a proper ColorPicker instance
+                if (obj && obj.constructor?.name === 'ColorPicker' && typeof obj.getColor === 'function') {
+                    return false;
+                }
+                
+                // Use type map to determine if this field should be a ColorPicker
+                const expectedType = typeMap.get(key);
+                if (expectedType === 'ColorPicker') {
+                    // Check if current value is NOT a proper ColorPicker
+                    if (!obj || obj.constructor?.name !== 'ColorPicker' || typeof obj.getColor !== 'function') {
+                        return true;
+                    }
+                }
+                
+                return false;
             };
 
             // Iterate through config properties
             for (const [key, value] of Object.entries(config)) {
-                // Check if this property looks like ColorPicker data
-                if (isColorPickerData(value)) {
+                // Check if this property needs ColorPicker reconstruction
+                if (needsColorPickerReconstruction(value, key)) {
                     // Get the original data to ensure we have the right values
                     const originalValue = originalConfig[key] || value;
 
@@ -314,32 +359,33 @@ class EffectProcessingService {
                     const colorValue = originalValue.colorValue || null;
 
                     config[key] = new ColorPicker(selectionType, colorValue);
-                    SafeConsole.log(`🎨 Reconstructed ColorPicker for ${key}: ${selectionType} = ${colorValue || 'default'}`);
+                    SafeConsole.log(`🎨 Reconstructed ColorPicker for ${key}: ${selectionType} = ${colorValue || 'default'} (detected via introspection)`);
                 }
                 // Check nested objects (like color ranges)
-                else if (value && typeof value === 'object' && !Array.isArray(value) && typeof value.getColor !== 'function') {
+                else if (value && typeof value === 'object' && !Array.isArray(value)) {
                     // Recursively check nested objects
                     for (const [nestedKey, nestedValue] of Object.entries(value)) {
-                        if (isColorPickerData(nestedValue)) {
+                        const nestedPath = `${key}.${nestedKey}`;
+                        if (needsColorPickerReconstruction(nestedValue, nestedPath)) {
                             const originalNestedValue = originalConfig[key]?.[nestedKey] || nestedValue;
                             const selectionType = originalNestedValue.selectionType || ColorPicker.SelectionType.colorBucket;
                             const colorValue = originalNestedValue.colorValue || null;
 
                             value[nestedKey] = new ColorPicker(selectionType, colorValue);
-                            SafeConsole.log(`🎨 Reconstructed nested ColorPicker for ${key}.${nestedKey}: ${selectionType} = ${colorValue || 'default'}`);
+                            SafeConsole.log(`🎨 Reconstructed nested ColorPicker for ${nestedPath}: ${selectionType} = ${colorValue || 'default'} (detected via introspection)`);
                         }
                     }
                 }
             }
         } catch (error) {
-            SafeConsole.warn('Failed to reconstruct ColorPicker objects:', error.message);
+            SafeConsole.warn(`Failed to reconstruct ColorPicker objects for ${effectName}:`, error.message);
         }
 
         return config;
     }
 
     /**
-     * Manually reconstruct PercentageRange objects in config
+     * Manually reconstruct PercentageRange objects in config using introspection
      * @param {Object} config - Config object that may have PercentageRange properties
      * @param {Object} originalConfig - Original config with serialized PercentageRange data
      * @param {string} effectName - Name of the effect for logging
@@ -351,7 +397,31 @@ class EffectProcessingService {
             const { PercentageShortestSide } = await import('my-nft-gen/src/core/layer/configType/PercentageShortestSide.js');
             const { PercentageLongestSide } = await import('my-nft-gen/src/core/layer/configType/PercentageLongestSide.js');
 
-            // Helper function to check if an object looks like it should be a PercentageRange
+            // Get the config class to introspect property types
+            const { default: EffectRegistryService } = await import('./EffectRegistryService.js');
+            const registryService = new EffectRegistryService();
+            const plugin = await registryService.getEffectWithConfig(effectName);
+            
+            // Create a type map from the default config instance
+            const typeMap = new Map();
+            if (plugin && plugin.configClass) {
+                try {
+                    // Create a default instance to inspect property types
+                    const defaultInstance = new plugin.configClass();
+                    
+                    // Build type map by inspecting the default instance
+                    for (const [key, value] of Object.entries(defaultInstance)) {
+                        if (value && value.constructor) {
+                            typeMap.set(key, value.constructor.name);
+                            SafeConsole.log(`📋 Type map for ${effectName}.${key}: ${value.constructor.name}`);
+                        }
+                    }
+                } catch (error) {
+                    SafeConsole.warn(`Could not create default config instance for ${effectName}:`, error.message);
+                }
+            }
+
+            // Helper function to check if an object needs PercentageRange reconstruction
             const needsPercentageRangeReconstruction = (obj, key) => {
                 // Skip if it's already a proper PercentageRange with function properties
                 if (obj && obj.constructor?.name === 'PercentageRange' && 
@@ -359,22 +429,14 @@ class EffectProcessingService {
                     return false;
                 }
                 
-                // Check if it's an empty object for known PercentageRange fields (serialized as {})
-                if (obj && typeof obj === 'object' && Object.keys(obj).length === 0) {
-                    return this.isKnownPercentageRangeField(key);
-                }
-                
-                // Check if it has lower/upper but they're not functions AND it's a known PercentageRange field
-                if (obj && typeof obj === 'object' && 
-                    obj.hasOwnProperty('lower') && obj.hasOwnProperty('upper') &&
-                    typeof obj.lower !== 'function' && typeof obj.upper !== 'function' &&
-                    this.isKnownPercentageRangeField(key)) {
-                    return true;
-                }
-                
-                // Check if it's a plain Object that should be a PercentageRange based on field name
-                if (obj && obj.constructor?.name === 'Object' && this.isKnownPercentageRangeField(key)) {
-                    return true;
+                // Use type map to determine if this field should be a PercentageRange
+                const expectedType = typeMap.get(key);
+                if (expectedType === 'PercentageRange') {
+                    // Check if current value is NOT a proper PercentageRange
+                    if (!obj || obj.constructor?.name !== 'PercentageRange' || 
+                        typeof obj.lower !== 'function' || typeof obj.upper !== 'function') {
+                        return true;
+                    }
                 }
                 
                 return false;
@@ -383,7 +445,7 @@ class EffectProcessingService {
             // Iterate through config properties
             for (const [key, value] of Object.entries(config)) {
                 if (needsPercentageRangeReconstruction(value, key)) {
-                    SafeConsole.log(`🔧 Reconstructing PercentageRange for ${effectName}.${key}`);
+                    SafeConsole.log(`🔧 Reconstructing PercentageRange for ${effectName}.${key} (detected via introspection)`);
                     
                     // Get default values for this field
                     const defaults = await this.getPercentageRangeDefaults(key, effectName);
@@ -395,12 +457,12 @@ class EffectProcessingService {
                     let upperSide = defaults.upperSide;
                     
                     // If the object has lower/upper properties, try to extract values
-                    if (value.lower && typeof value.lower === 'object' && value.lower.percent !== undefined) {
+                    if (value && value.lower && typeof value.lower === 'object' && value.lower.percent !== undefined) {
                         lowerPercent = value.lower.percent;
                         lowerSide = value.lower.side || 'shortest';
                     }
                     
-                    if (value.upper && typeof value.upper === 'object' && value.upper.percent !== undefined) {
+                    if (value && value.upper && typeof value.upper === 'object' && value.upper.percent !== undefined) {
                         upperPercent = value.upper.percent;
                         upperSide = value.upper.side || 'longest';
                     }
@@ -422,26 +484,6 @@ class EffectProcessingService {
         }
 
         return config;
-    }
-
-    /**
-     * Check if a field name is known to be a PercentageRange field
-     * @param {string} fieldName - Field name to check
-     * @returns {boolean} True if field is known to be PercentageRange
-     */
-    static isKnownPercentageRangeField(fieldName) {
-        const percentageRangeFields = [
-            'flareRingsSizeRange',
-            'flareRaysSizeRange',
-            'flareOffset',
-            'spiralRange',
-            'circleRange',
-            'hexRange',
-            'sizeRange',
-            'offsetRange',
-            'sequencePixelConstant'  // Add the missing field that's causing the issue
-        ];
-        return percentageRangeFields.includes(fieldName);
     }
 
     /**
