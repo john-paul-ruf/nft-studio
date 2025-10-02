@@ -1,21 +1,29 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import ConfigInputFactory from './inputs/ConfigInputFactory.jsx';
 import { ConfigIntrospector } from '../../utils/configIntrospector.js';
 import EffectAttachmentModal from './EffectAttachmentModal.jsx';
-import EffectFormRenderer from '../forms/EffectFormRenderer.jsx';
-import AttachedEffectsDisplay from '../forms/AttachedEffectsDisplay.jsx';
-import PercentChanceControl from '../forms/PercentChanceControl.jsx';
-import { serializeFieldValue } from '../forms/EffectFormSubmitter.js';
+import PositionSerializer from '../../utils/PositionSerializer.js';
 import CenterUtils from '../../utils/CenterUtils.js';
 import { useServices } from '../../contexts/ServiceContext.js';
 import PreferencesService from '../../services/PreferencesService.js';
 import {
     Box,
     Typography,
+    Grid,
     Paper,
     Button,
+    Card,
+    CardContent,
+    Chip,
+    Alert,
+    Slider,
+    TextField,
+    CircularProgress,
+    Divider,
+    Stack,
     useTheme
 } from '@mui/material';
-import { RestartAlt } from '@mui/icons-material';
+import { Add, Close, RestartAlt } from '@mui/icons-material';
 
 
 function EffectConfigurer({
@@ -301,8 +309,12 @@ function EffectConfigurer({
 
 
     const handleConfigChange = (fieldName, value) => {
-        // Use extracted serialization logic
-        const serializedValue = serializeFieldValue(value);
+        // Serialize position objects before storing
+        let serializedValue = value;
+        if (value && typeof value === 'object' && value.name &&
+            (value.name === 'position' || value.name === 'arc-path')) {
+            serializedValue = PositionSerializer.serialize(value);
+        }
 
         // Single source of truth: create new config and emit directly to ProjectState
         const newConfig = { ...effectConfig, [fieldName]: serializedValue };
@@ -489,29 +501,266 @@ function EffectConfigurer({
             </Box>
 
             <Box mt={3}>
-                <EffectFormRenderer
-                    configSchema={configSchema}
-                    effectConfig={effectConfig}
-                    onConfigChange={handleConfigChange}
-                    projectState={projectState}
-                />
+                {configSchema?.fields?.length > 0 ? (
+                    <Stack spacing={2}>
+                        {configSchema.fields.map(field => (
+                            <ConfigInputFactory
+                                key={field.name}
+                                field={field}
+                                value={effectConfig[field.name]}
+                                onChange={handleConfigChange}
+                                projectState={projectState}
+                            />
+                        ))}
+                    </Stack>
+                ) : (
+                    <Paper
+                        elevation={3}
+                        sx={{
+                            p: 4,
+                            textAlign: 'center',
+                            backgroundColor: theme.palette.action.hover,
+                            border: `1px dashed ${theme.palette.divider}`,
+                            borderRadius: 2,
+                            minHeight: '200px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center'
+                        }}
+                    >
+                        <CircularProgress
+                            size={48}
+                            sx={{
+                                mb: 3,
+                                color: theme.palette.primary.main
+                            }}
+                        />
+                        <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                            Loading Configuration
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            Analyzing effect properties...
+                        </Typography>
+                    </Paper>
+                )}
             </Box>
 
             {/* Attached Effects Display (for primary effects) */}
             {effectType === 'primary' && (
-                <AttachedEffectsDisplay
-                    attachedEffects={attachedEffects}
-                    onOpenAttachmentModal={handleOpenAttachmentModal}
-                    onEditAttachedEffect={handleEditAttachedEffect}
-                    onRemoveAttachedEffect={onRemoveAttachedEffect}
-                />
+                <Paper
+                    elevation={2}
+                    sx={{
+                        mt: 3,
+                        p: 3,
+                        background: 'rgba(255, 193, 7, 0.1)',
+                        borderRadius: 2,
+                        border: '1px solid rgba(255, 193, 7, 0.3)'
+                    }}
+                >
+                    <Typography variant="h6" sx={{ color: '#ffc107', mb: 2 }}>
+                        Attached Effects
+                    </Typography>
+
+                    {/* Secondary Effects */}
+                    <Box sx={{ mb: 2 }}>
+                        <Box
+                            display="flex"
+                            justifyContent="space-between"
+                            alignItems="center"
+                            sx={{ mb: 1 }}
+                        >
+                            <Typography variant="subtitle2" sx={{ color: '#28a745', fontWeight: 600 }}>
+                                ✨ Secondary Effects ({(attachedEffects?.secondary || []).length})
+                            </Typography>
+                            <Button
+                                onClick={() => handleOpenAttachmentModal('secondary')}
+                                variant="contained"
+                                size="small"
+                                sx={{
+                                    background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+                                    fontSize: '0.75rem',
+                                    py: 0.5,
+                                    px: 1.5,
+                                    '&:hover': {
+                                        background: 'linear-gradient(135deg, #20c997 0%, #28a745 100%)',
+                                    }
+                                }}
+                            >
+                                + Attach Secondary
+                            </Button>
+                        </Box>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, minHeight: '2rem' }}>
+                            {(attachedEffects?.secondary || []).map(effect => (
+                                <Chip
+                                    key={effect.id}
+                                    label={`${effect.effectClass.registryKey} (${effect.percentChance}%)`}
+                                    onClick={() => handleEditAttachedEffect('secondary', effect)}
+                                    onDelete={() => onRemoveAttachedEffect && onRemoveAttachedEffect('secondary', effect.id)}
+                                    clickable
+                                    sx={{
+                                        backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                                        color: '#28a745',
+                                        fontSize: '0.75rem',
+                                        '&:hover': {
+                                            backgroundColor: 'rgba(40, 167, 69, 0.3)',
+                                            transform: 'scale(1.05)',
+                                        },
+                                        '& .MuiChip-deleteIcon': {
+                                            color: '#dc3545',
+                                            '&:hover': {
+                                                color: '#c82333',
+                                            }
+                                        }
+                                    }}
+                                />
+                            ))}
+                            {(attachedEffects?.secondary || []).length === 0 && (
+                                <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic', py: 1 }}>
+                                    No secondary effects attached
+                                </Typography>
+                            )}
+                        </Box>
+                    </Box>
+
+                    {/* Key Frame Effects */}
+                    <Box>
+                        <Box
+                            display="flex"
+                            justifyContent="space-between"
+                            alignItems="center"
+                            sx={{ mb: 1 }}
+                        >
+                            <Typography variant="subtitle2" sx={{ color: '#007bff', fontWeight: 600 }}>
+                                🔑 Key Frame Effects ({(attachedEffects?.keyFrame || []).length})
+                            </Typography>
+                            <Button
+                                onClick={() => handleOpenAttachmentModal('keyFrame')}
+                                variant="contained"
+                                size="small"
+                                sx={{
+                                    background: 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)',
+                                    fontSize: '0.75rem',
+                                    py: 0.5,
+                                    px: 1.5,
+                                    '&:hover': {
+                                        background: 'linear-gradient(135deg, #0056b3 0%, #007bff 100%)',
+                                    }
+                                }}
+                            >
+                                + Attach Key Frame
+                            </Button>
+                        </Box>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, minHeight: '2rem' }}>
+                            {(attachedEffects?.keyFrame || []).map(effect => (
+                                <Chip
+                                    key={effect.id}
+                                    label={`${effect.effectClass.registryKey} (${effect.percentChance}%)`}
+                                    onClick={() => handleEditAttachedEffect('keyFrame', effect)}
+                                    onDelete={() => onRemoveAttachedEffect && onRemoveAttachedEffect('keyFrame', effect.id)}
+                                    clickable
+                                    sx={{
+                                        backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                                        color: '#007bff',
+                                        fontSize: '0.75rem',
+                                        '&:hover': {
+                                            backgroundColor: 'rgba(0, 123, 255, 0.3)',
+                                            transform: 'scale(1.05)',
+                                        },
+                                        '& .MuiChip-deleteIcon': {
+                                            color: '#dc3545',
+                                            '&:hover': {
+                                                color: '#c82333',
+                                            }
+                                        }
+                                    }}
+                                />
+                            ))}
+                            {(attachedEffects?.keyFrame || []).length === 0 && (
+                                <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic', py: 1 }}>
+                                    No key frame effects attached
+                                </Typography>
+                            )}
+                        </Box>
+                    </Box>
+
+                </Paper>
             )}
 
             {/* Percent Chance Section */}
-            <PercentChanceControl
-                value={percentChance}
-                onChange={setPercentChance}
-            />
+            <Paper
+                elevation={2}
+                sx={{
+                    mt: 3,
+                    p: 3,
+                    background: 'rgba(102, 126, 234, 0.1)',
+                    borderRadius: 2,
+                    border: '1px solid rgba(102, 126, 234, 0.3)'
+                }}
+            >
+                <Typography variant="h6" sx={{ color: '#ffffff', mb: 2 }}>
+                    Effect Probability
+                </Typography>
+                <Box display="flex" alignItems="center" gap={2}>
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            color: '#cccccc',
+                            minWidth: '120px'
+                        }}
+                    >
+                        Chance to occur:
+                    </Typography>
+                    <Slider
+                        value={percentChance}
+                        onChange={(e, value) => setPercentChance(value)}
+                        min={0}
+                        max={100}
+                        step={1}
+                        sx={{
+                            flex: 1,
+                            color: 'rgba(102, 126, 234, 0.8)',
+                            '& .MuiSlider-track': {
+                                backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                            },
+                            '& .MuiSlider-rail': {
+                                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                            }
+                        }}
+                    />
+                    <TextField
+                        type="number"
+                        size="small"
+                        value={percentChance}
+                        onChange={(e) => setPercentChance(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
+                        inputProps={{
+                            min: 0,
+                            max: 100,
+                            style: { textAlign: 'center' }
+                        }}
+                        sx={{
+                            width: '80px',
+                            '& .MuiInputBase-root': {
+                                backgroundColor: 'rgba(255,255,255,0.1)',
+                                color: '#ffffff'
+                            }
+                        }}
+                    />
+                    <Typography variant="body2" sx={{ color: '#cccccc' }}>%</Typography>
+                </Box>
+                <Typography
+                    variant="body2"
+                    sx={{
+                        mt: 1,
+                        color: '#aaaaaa',
+                        fontStyle: 'italic'
+                    }}
+                >
+                    {percentChance === 0 ? 'Effect will never occur' :
+                     percentChance === 100 ? 'Effect will always occur' :
+                     `Effect will occur ${percentChance}% of the time`}
+                </Typography>
+            </Paper>
 
 
             {/* Attachment Modal */}
