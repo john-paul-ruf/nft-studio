@@ -272,7 +272,7 @@ export class EffectFormValidator {
     checkPerformanceBaseline() {
         const metrics = this.getValidationMetrics();
         const instanceProperties = Object.keys(this).length;
-        
+
         return {
             meetsBaseline: metrics.averageValidationTime <= this.performanceBaseline.maxValidationTime &&
                           instanceProperties <= this.performanceBaseline.maxInstanceProperties,
@@ -281,6 +281,13 @@ export class EffectFormValidator {
             instanceProperties,
             maxInstanceProperties: this.performanceBaseline.maxInstanceProperties
         };
+    }
+
+    /**
+     * Alias method for backward compatibility with tests
+     */
+    validateConfiguration(config, schema) {
+        return this.validateConfigSchema(schema, config);
     }
 }
 

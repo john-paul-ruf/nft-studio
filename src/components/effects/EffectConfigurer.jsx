@@ -8,6 +8,9 @@ import { serializeFieldValue } from '../forms/EffectFormSubmitter.js';
 import CenterUtils from '../../utils/CenterUtils.js';
 import { useServices } from '../../contexts/ServiceContext.js';
 import PreferencesService from '../../services/PreferencesService.js';
+import EffectFormValidator from '../../services/EffectFormValidator.js';
+import EffectConfigurationManager from '../../services/EffectConfigurationManager.js';
+import EffectEventCoordinator from '../../services/EffectEventCoordinator.js';
 import {
     Box,
     Typography,
@@ -17,7 +20,22 @@ import {
 } from '@mui/material';
 import { RestartAlt } from '@mui/icons-material';
 
-
+/**
+ * EffectConfigurer - Refactored Service Orchestrator
+ * 
+ * This component has been refactored from a 532-line god object into a service orchestrator
+ * that coordinates three focused services:
+ * 
+ * 1. EffectFormValidator - Handles all form validation logic
+ * 2. EffectConfigurationManager - Manages configuration schemas and defaults
+ * 3. EffectEventCoordinator - Coordinates all event emission and handling
+ * 
+ * The component now focuses on:
+ * - UI rendering and user interaction
+ * - Service coordination and orchestration
+ * - React state management and lifecycle
+ * - Backward compatibility with existing props and callbacks
+ */
 function EffectConfigurer({
     selectedEffect,
     projectState,
@@ -36,496 +54,398 @@ function EffectConfigurer({
 }) {
     const theme = useTheme();
     const { eventBusService } = useServices();
+    
+    // Initialize services with dependency injection
+    const [services] = useState(() => {
+        const eventBus = eventBusService || { emit: () => {}, subscribe: () => {} };
+        const logger = { log: console.log, error: console.error };
+        
+        return {
+            validator: new EffectFormValidator({ eventBus, logger }),
+            configManager: new EffectConfigurationManager({ eventBus, logger }),
+            eventCoordinator: new EffectEventCoordinator({ eventBus, logger })
+        };
+    });
+    
+    // React state management
     const [configSchema, setConfigSchema] = useState(null);
     const [percentChance, setPercentChance] = useState(100);
-
+    const [validationErrors, setValidationErrors] = useState({});
+    const [isConfigComplete, setIsConfigComplete] = useState(false);
+    
     // Single source of truth: use initialConfig directly, no local state
     const effectConfig = initialConfig || {};
-
+    
+    // Refs for performance optimization
+    const configRef = useRef(effectConfig);
+    const schemaRef = useRef(null);
+    
     // Debug logging for props
     console.log('🔧 EffectConfigurer: Props received:', {
         selectedEffect,
         selectedEffectRegistryKey: selectedEffect?.registryKey,
         selectedEffectName: selectedEffect?.name,
         effectType: selectedEffect?.effectType,
-        subIndex: selectedEffect?.subEffectIndex,
+        projectState,
         initialConfig,
-        effectConfig,
-        hasConfig: !!initialConfig,
-        configKeys: initialConfig ? Object.keys(initialConfig) : 'none'
-    });
-    const [modalState, setModalState] = useState({
-        isOpen: false,
-        attachmentType: null,
-        editingEffect: null,
-        isEditing: false
+        initialPercentChance,
+        isModal,
+        useWideLayout
     });
 
-
-    // Cache to prevent repeated introspection calls for the same effect
-    const introspectionCache = useRef(new Map());
-
-    // Track when config has been updated by resolution changes
-    const [configUpdateCounter, setConfigUpdateCounter] = useState(0);
-
-    // Track if we're currently in live editing mode to prevent config reversion
-    const [isLiveEditing, setIsLiveEditing] = useState(false);
-
-    // Track if this effect has saved defaults
-    const [hasDefaults, setHasDefaults] = useState(false);
-
-    // Event-based handlers for config changes
-    const handleConfigChangeEvent = useCallback((newConfig) => {
-        console.log('🔧 EffectConfigurer: Emitting config change event:', { selectedEffect, newConfig });
-        console.log('🔧 EffectConfigurer: selectedEffect details:', {
-            effectIndex: selectedEffect?.effectIndex,
-            effectType: selectedEffect?.effectType,
-            subEffectIndex: selectedEffect?.subEffectIndex,
-            registryKey: selectedEffect?.registryKey
-        });
-
-        // Extract effect identification from selectedEffect
-        const effectContext = {
-            effectIndex: selectedEffect?.effectIndex,
-            effectType: selectedEffect?.effectType || 'primary',
-            subEffectIndex: selectedEffect?.subEffectIndex,
-            config: newConfig
-        };
-
-        console.log('🔧 EffectConfigurer: Emitting effectContext:', effectContext);
-
-        eventBusService.emit('effectconfigurer:config:change', effectContext, {
-            source: 'EffectConfigurer',
-            component: 'EffectConfigurer'
-        });
-
-        // Also call the callback if provided (backward compatibility)
-        if (onConfigChange) {
-            onConfigChange(newConfig);
-        }
-    }, [eventBusService, selectedEffect, onConfigChange]);
-
-    const handleAddEffectEvent = useCallback((effectData) => {
-        console.log('🔧 EffectConfigurer: Emitting add effect event:', effectData);
-
-        eventBusService.emit('effectconfigurer:effect:add', effectData, {
-            source: 'EffectConfigurer',
-            component: 'EffectConfigurer'
-        });
-
-        // Also call the callback if provided (backward compatibility)
-        if (onAddEffect) {
-            onAddEffect(effectData);
-        }
-    }, [eventBusService, onAddEffect]);
-
-    const handleAttachEffectEvent = useCallback((effectData, attachmentType, isEditing = false) => {
-        console.log('🔧 EffectConfigurer: Emitting attach effect event:', { effectData, attachmentType, isEditing });
-
-        eventBusService.emit('effectconfigurer:effect:attach', {
-            effectData,
-            attachmentType,
-            isEditing,
-            parentEffect: selectedEffect
-        }, {
-            source: 'EffectConfigurer',
-            component: 'EffectConfigurer'
-        });
-
-        // Also call the callback if provided (backward compatibility)
-        if (onAttachEffect) {
-            onAttachEffect(effectData, attachmentType, isEditing);
-        }
-    }, [eventBusService, selectedEffect, onAttachEffect]);
-
-    /**
-     * Apply center position defaults using unified CenterUtils
-     * @param {Object} config - Default configuration instance
-     * @param {Object} projectState - Project data with resolution info
-     * @returns {Object} Configuration with center positions updated
-     */
-    const applyCenterDefaults = (config, projectState) => {
-        console.log('🎯 EffectConfigurer: applyCenterDefaults called with:', {
-            config: config,
-            projectState: projectState,
-            hasTargetResolution: !!projectState?.targetResolution,
-            hasResolution: !!projectState?.resolution
-        });
-
-        const result = CenterUtils.detectAndApplyCenter(config, projectState);
-
-        console.log('🎯 EffectConfigurer: applyCenterDefaults result:', {
-            original: config,
-            processed: result,
-            changed: JSON.stringify(config) !== JSON.stringify(result)
-        });
-
-        return result;
-    };
-
+    // Initialize percent chance from props
     useEffect(() => {
-        console.log('🔧 EffectConfigurer: useEffect triggered with selectedEffect:', selectedEffect);
-        console.log('🔧 EffectConfigurer: selectedEffect details:', {
-            hasSelectedEffect: !!selectedEffect,
-            name: selectedEffect?.name,
-            className: selectedEffect?.className,
-            config: selectedEffect?.config
-        });
-
-        if (selectedEffect) {
-            loadConfigSchema(selectedEffect);
-            // Only set percentChance here, let loadConfigSchema handle effectConfig
-            setPercentChance(initialPercentChance || 100);
-            // Check if this effect has saved defaults
-            checkForDefaults(selectedEffect.registryKey);
-        } else {
-            console.log('❌ EffectConfigurer: No selectedEffect, clearing config');
-            setConfigSchema(null);
-            setEffectConfig({});
-            setHasDefaults(false);
+        if (initialPercentChance !== null && initialPercentChance !== undefined) {
+            setPercentChance(initialPercentChance);
         }
-    }, [selectedEffect?.registryKey, initialPercentChance, checkForDefaults]); // Use registryKey only for consistency
+    }, [initialPercentChance]);
 
-    // Listen for resolution changes and refresh config if dialog is open
+    // Load configuration schema when effect changes
     useEffect(() => {
-        if (!eventBusService) return;
-
-        console.log('🔧 EffectConfigurer: Setting up resolution change listener');
-
-        const unsubscribeResolution = eventBusService.subscribe('resolution:changed', (payload) => {
-            console.log('🎯 EffectConfigurer: Resolution change detected while dialog open:', payload);
-
-            if (selectedEffect && effectConfig && Object.keys(effectConfig).length > 0) {
-                console.log('🔄 EffectConfigurer: Refreshing config for new resolution');
-
-                // Re-apply center defaults to current config for new resolution
-                const updatedConfig = applyCenterDefaults(effectConfig, projectState);
-                console.log('🎯 EffectConfigurer: Updated config for resolution change:', {
-                    original: effectConfig,
-                    updated: updatedConfig,
-                    changed: JSON.stringify(effectConfig) !== JSON.stringify(updatedConfig)
-                });
-
-                // Single source of truth: only notify parent, no local state
-                handleConfigChangeEvent(updatedConfig);
-                setConfigUpdateCounter(prev => prev + 1);
-            }
-        }, { component: 'EffectConfigurer' });
-
-        const unsubscribeOrientation = eventBusService.subscribe('orientation:changed', (payload) => {
-            console.log('🎯 EffectConfigurer: Orientation change detected while dialog open:', payload);
-
-            if (selectedEffect && effectConfig && Object.keys(effectConfig).length > 0) {
-                console.log('🔄 EffectConfigurer: Refreshing config for new orientation');
-
-                // Re-apply center defaults to current config for new orientation
-                const updatedConfig = applyCenterDefaults(effectConfig, projectState);
-                console.log('🎯 EffectConfigurer: Updated config for orientation change:', {
-                    original: effectConfig,
-                    updated: updatedConfig,
-                    changed: JSON.stringify(effectConfig) !== JSON.stringify(updatedConfig)
-                });
-
-                // Single source of truth: only notify parent, no local state
-                handleConfigChangeEvent(updatedConfig);
-                setConfigUpdateCounter(prev => prev + 1);
-            }
-        }, { component: 'EffectConfigurer' });
-
-        return () => {
-            console.log('🧹 EffectConfigurer: Cleaning up resolution change listeners');
-            unsubscribeResolution();
-            unsubscribeOrientation();
-        };
-    }, [eventBusService, selectedEffect, effectConfig, projectState, applyCenterDefaults, onConfigChange]);
-
-    // No local state syncing needed - initialConfig IS the source of truth
-
-    const loadConfigSchema = async (effect) => {
-        try {
-            console.log(`🔍 Loading config schema for effect:`, effect);
-            console.log(`🔍 Effect registryKey:`, effect?.registryKey);
-            console.log(`🔍 Effect name:`, effect?.name);
-            console.log(`🔍 Effect keys:`, Object.keys(effect || {}));
-
-            // CRITICAL: Fail fast if effect has no registryKey
-            if (!effect || !effect.registryKey) {
-                console.error('❌ loadConfigSchema: Effect missing registryKey, cannot proceed:', {
-                    effect,
-                    hasEffect: !!effect,
-                    registryKey: effect?.registryKey,
-                    name: effect?.name
-                });
-                setConfigSchema({ fields: [] });
+        const loadSchema = async () => {
+            if (!selectedEffect) {
+                setConfigSchema(null);
+                schemaRef.current = null;
                 return;
             }
 
-            // Create cache key based on effect registryKey only
-            const cacheKey = effect.registryKey || 'unknown';
-
-            // Check if we already have this schema cached
-            if (introspectionCache.current.has(cacheKey)) {
-                console.log(`🚀 Using cached schema for ${cacheKey}`);
-                const schema = introspectionCache.current.get(cacheKey);
-                setConfigSchema(schema);
-            } else {
-                console.log(`🔍 Loading new schema for ${cacheKey}`);
-                console.log('🔍 Effect object being sent to analyzeConfigClass:', effect);
-                const schema = await ConfigIntrospector.analyzeConfigClass(effect, projectState);
-
-                // Cache the result
-                introspectionCache.current.set(cacheKey, schema);
-                setConfigSchema(schema);
-            }
-
-            // Get the current schema (from cache or fresh)
-            const currentSchema = introspectionCache.current.get(cacheKey);
-
-            // Use initial config if provided (editing mode), otherwise use defaults
-            console.log('🔍 EffectConfigurer: Config decision branch:', {
-                hasInitialConfig: !!(initialConfig && Object.keys(initialConfig).length > 0),
-                hasDefaultInstance: !!currentSchema?.defaultInstance,
-                initialConfig,
-                currentSchema,
-                defaultInstance: currentSchema?.defaultInstance
-            });
-
-            // Single source of truth: We no longer set local config here
-            // The effectConfig is directly derived from initialConfig prop
-            console.log('📝 EffectConfigurer: Schema loaded - relying on single source of truth (initialConfig prop)');
-        } catch (error) {
-            console.error('Error loading config schema:', error);
-            setConfigSchema({ fields: [] });
-        }
-    };
-
-
-    const handleConfigChange = (fieldName, value) => {
-        // Use extracted serialization logic
-        const serializedValue = serializeFieldValue(value);
-
-        // Single source of truth: create new config and emit directly to ProjectState
-        const newConfig = { ...effectConfig, [fieldName]: serializedValue };
-        handleConfigChangeEvent(newConfig);
-    };
-
-    const handleAddEffect = () => {
-        handleAddEffectEvent({
-            effectClass: selectedEffect,
-            config: effectConfig,
-            percentChance: percentChance
-        });
-    };
-
-    // Check if effect has saved defaults
-    const checkForDefaults = useCallback(async (registryKey) => {
-        if (registryKey) {
-            const hasDefaultsResult = await PreferencesService.hasEffectDefaults(registryKey);
-            setHasDefaults(hasDefaultsResult);
-        } else {
-            setHasDefaults(false);
-        }
-    }, []);
-
-    // Handle resetting effect defaults
-    const handleResetDefaults = async () => {
-        const registryKey = selectedEffect?.registryKey;
-        if (registryKey) {
-            const success = await PreferencesService.removeEffectDefaults(registryKey);
-            if (success) {
-                console.log(`✅ Reset default config for ${registryKey}`);
-                setHasDefaults(false);
+            try {
+                console.log('🔄 Loading schema for effect:', selectedEffect.registryKey);
                 
-                // Get the original default configuration and update the current config
-                if (selectedEffect && configSchema?.defaultInstance) {
-                    console.log('🔄 EffectConfigurer: Restoring original defaults after reset');
+                // Use EffectConfigurationManager to load schema
+                const schema = await services.configManager.loadConfigSchema(selectedEffect);
+                
+                if (schema) {
+                    console.log('✅ Schema loaded successfully:', schema);
+                    setConfigSchema(schema);
+                    schemaRef.current = schema;
                     
-                    // Apply center defaults to the original configuration
-                    const originalDefaults = applyCenterDefaults(configSchema.defaultInstance, projectState);
-                    
-                    console.log('🔄 EffectConfigurer: Original defaults restored:', {
-                        originalDefaults,
-                        previousConfig: effectConfig
-                    });
-                    
-                    // Update the configuration to use original defaults
-                    handleConfigChangeEvent(originalDefaults);
+                    // Validate current configuration against new schema
+                    const validation = services.validator.validateConfiguration(effectConfig, schema);
+                    setValidationErrors(validation.errors);
+                    setIsConfigComplete(validation.isComplete);
                 } else {
-                    // Fallback: reload the schema to get fresh defaults
-                    console.log('🔄 EffectConfigurer: Reloading schema as fallback');
-                    if (selectedEffect) {
-                        loadConfigSchema(selectedEffect);
+                    console.warn('⚠️ No schema found for effect:', selectedEffect.registryKey);
+                    setConfigSchema(null);
+                    schemaRef.current = null;
+                }
+            } catch (error) {
+                console.error('❌ Error loading schema:', error);
+                setConfigSchema(null);
+                schemaRef.current = null;
+            }
+        };
+
+        loadSchema();
+    }, [selectedEffect, services.configManager, services.validator, effectConfig]);
+
+    // Check for saved defaults when effect changes
+    useEffect(() => {
+        const checkDefaults = async () => {
+            if (!selectedEffect?.registryKey) return;
+
+            try {
+                const defaults = await services.configManager.checkForDefaults(selectedEffect.registryKey);
+                if (defaults) {
+                    console.log('📋 Found saved defaults for effect:', selectedEffect.registryKey, defaults);
+                    // Apply defaults through configuration change
+                    handleConfigurationChange(defaults);
+                }
+            } catch (error) {
+                console.error('❌ Error checking defaults:', error);
+            }
+        };
+
+        checkDefaults();
+    }, [selectedEffect?.registryKey, services.configManager]);
+
+    // Configuration change handler with service coordination
+    const handleConfigurationChange = useCallback((newConfig, metadata = {}) => {
+        console.log('🔄 Configuration change:', newConfig);
+        
+        // Update refs
+        configRef.current = newConfig;
+        
+        // Validate configuration using EffectFormValidator
+        if (schemaRef.current) {
+            const validation = services.validator.validateConfiguration(newConfig, schemaRef.current);
+            setValidationErrors(validation.errors);
+            setIsConfigComplete(validation.isComplete);
+        }
+        
+        // Apply center defaults using EffectConfigurationManager
+        const configWithDefaults = services.configManager.applyCenterDefaults(newConfig, projectState);
+        
+        // Process configuration change using EffectConfigurationManager
+        services.configManager.processConfigurationChange(configWithDefaults, selectedEffect, onConfigChange);
+        
+        // Coordinate event emission using EffectEventCoordinator
+        services.eventCoordinator.coordinateConfigurationChange(
+            configWithDefaults, 
+            selectedEffect, 
+            onConfigChange,
+            { ...metadata, source: 'user-input', timestamp: Date.now() }
+        );
+        
+    }, [selectedEffect, projectState, onConfigChange, services]);
+
+    // Effect addition handler with service coordination
+    const handleAddEffect = useCallback(() => {
+        if (!selectedEffect || !isConfigComplete) {
+            console.warn('⚠️ Cannot add effect: missing effect or incomplete config');
+            return;
+        }
+
+        const finalConfig = configRef.current;
+        
+        // Coordinate effect addition using EffectEventCoordinator
+        services.eventCoordinator.coordinateEffectAddition(
+            selectedEffect,
+            finalConfig,
+            onAddEffect
+        );
+        
+        console.log('✅ Effect added:', selectedEffect.name, finalConfig);
+    }, [selectedEffect, isConfigComplete, onAddEffect, services.eventCoordinator]);
+
+    // Effect attachment handler with service coordination
+    const handleAttachEffect = useCallback((effect, config) => {
+        if (!effect || !config) {
+            console.warn('⚠️ Cannot attach effect: missing effect or config');
+            return;
+        }
+
+        // Coordinate effect attachment using EffectEventCoordinator
+        services.eventCoordinator.coordinateEffectAttachment(
+            effect,
+            config,
+            projectState,
+            onAttachEffect
+        );
+        
+        console.log('✅ Effect attached:', effect.name, config);
+    }, [projectState, onAttachEffect, services.eventCoordinator]);
+
+    // Resolution change handler with service coordination
+    useEffect(() => {
+        const handleResolutionChange = (oldResolution, newResolution) => {
+            // Coordinate resolution change using EffectEventCoordinator
+            services.eventCoordinator.coordinateResolutionChange(
+                oldResolution,
+                newResolution,
+                projectState,
+                (oldRes, newRes, state) => {
+                    console.log('🔄 Resolution changed:', oldRes, '->', newRes);
+                    // Re-validate configuration with new resolution
+                    if (schemaRef.current) {
+                        const validation = services.validator.validateConfiguration(configRef.current, schemaRef.current);
+                        setValidationErrors(validation.errors);
+                        setIsConfigComplete(validation.isComplete);
                     }
                 }
-            } else {
-                console.error(`❌ Failed to reset default config for ${registryKey}`);
-            }
-        }
-    };
-
-    const handleOpenAttachmentModal = (attachmentType) => {
-        setModalState({
-            isOpen: true,
-            attachmentType
-        });
-    };
-
-    const handleCloseAttachmentModal = () => {
-        setModalState({
-            isOpen: false,
-            attachmentType: null,
-            editingEffect: null,
-            isEditing: false
-        });
-    };
-
-    const handleEditAttachedEffect = (attachmentType, effect) => {
-        setModalState({
-            isOpen: true,
-            attachmentType,
-            editingEffect: effect,
-            isEditing: true
-        });
-    };
-
-    const handleAttachEffect = (effectData, attachmentType) => {
-        handleAttachEffectEvent(effectData, attachmentType);
-    };
-
-    const handleEditComplete = (effectData, attachmentType) => {
-        // For editing mode, we need to handle the update differently
-        // Pass along the original effect ID to identify which effect to update
-        const updatedEffectData = {
-            ...effectData,
-            id: modalState.editingEffect?.id // Preserve the original ID
+            );
         };
-        handleAttachEffectEvent(updatedEffectData, attachmentType, true); // true indicates editing mode
+
+        // Listen for resolution changes (if project state changes)
+        const currentResolution = projectState?.targetResolution;
+        const previousResolution = useRef(currentResolution);
+        
+        if (currentResolution && previousResolution.current && currentResolution !== previousResolution.current) {
+            handleResolutionChange(previousResolution.current, currentResolution);
+        }
+        
+        previousResolution.current = currentResolution;
+    }, [projectState?.targetResolution, services.eventCoordinator]);
+
+    // Save as default handler
+    const handleSaveAsDefault = useCallback(async () => {
+        if (!selectedEffect?.registryKey || !configRef.current) {
+            console.warn('⚠️ Cannot save defaults: missing effect or config');
+            return;
+        }
+
+        try {
+            await services.configManager.saveAsDefault(selectedEffect.registryKey, configRef.current);
+            console.log('✅ Configuration saved as default for:', selectedEffect.registryKey);
+        } catch (error) {
+            console.error('❌ Error saving defaults:', error);
+        }
+    }, [selectedEffect?.registryKey, services.configManager]);
+
+    // Reset defaults handler
+    const handleResetDefaults = useCallback(async () => {
+        if (!selectedEffect?.registryKey) {
+            console.warn('⚠️ Cannot reset defaults: missing effect');
+            return;
+        }
+
+        try {
+            await services.configManager.resetDefaults(selectedEffect.registryKey);
+            console.log('✅ Defaults reset for:', selectedEffect.registryKey);
+            
+            // Clear current configuration
+            handleConfigurationChange({});
+        } catch (error) {
+            console.error('❌ Error resetting defaults:', error);
+        }
+    }, [selectedEffect?.registryKey, services.configManager, handleConfigurationChange]);
+
+    // Get validation metrics for debugging
+    const getValidationMetrics = useCallback(() => {
+        return services.validator.getValidationMetrics();
+    }, [services.validator]);
+
+    // Get configuration metrics for debugging
+    const getConfigurationMetrics = useCallback(() => {
+        return services.configManager.getConfigurationMetrics();
+    }, [services.configManager]);
+
+    // Get event metrics for debugging
+    const getEventMetrics = useCallback(() => {
+        return services.eventCoordinator.getEventMetrics();
+    }, [services.eventCoordinator]);
+
+    // Render validation errors
+    const renderValidationErrors = () => {
+        if (Object.keys(validationErrors).length === 0) return null;
+
+        return (
+            <Box sx={{ mb: 2, p: 2, bgcolor: 'error.light', borderRadius: 1 }}>
+                <Typography variant="subtitle2" color="error.contrastText">
+                    Configuration Errors:
+                </Typography>
+                {Object.entries(validationErrors).map(([field, error]) => (
+                    <Typography key={field} variant="body2" color="error.contrastText">
+                        • {field}: {error}
+                    </Typography>
+                ))}
+            </Box>
+        );
     };
 
+    // Render configuration status
+    const renderConfigurationStatus = () => {
+        const validationMetrics = getValidationMetrics();
+        const configMetrics = getConfigurationMetrics();
+        const eventMetrics = getEventMetrics();
 
+        return (
+            <Box sx={{ mb: 2, p: 1, bgcolor: 'info.light', borderRadius: 1 }}>
+                <Typography variant="caption" color="info.contrastText">
+                    Status: {isConfigComplete ? '✅ Complete' : '⚠️ Incomplete'} | 
+                    Validations: {validationMetrics.validationsPerformed} | 
+                    Configs: {configMetrics.configurationsProcessed} | 
+                    Events: {eventMetrics.eventsEmitted}
+                </Typography>
+            </Box>
+        );
+    };
+
+    // Early return if no effect selected
     if (!selectedEffect) {
         return (
-            <div style={{
-                textAlign: 'center',
-                padding: '3rem',
-                color: '#cccccc',
-                background: 'rgba(255,255,255,0.05)',
-                borderRadius: '8px',
-                border: '1px dashed rgba(255,255,255,0.2)'
-            }}>
-                <h3 style={{ marginBottom: '1rem', color: '#ffffff' }}>No Effect Selected</h3>
-                <p>Select an effect to configure its properties</p>
-            </div>
+            <Box sx={{ p: 2, textAlign: 'center' }}>
+                <Typography variant="body1" color="text.secondary">
+                    Select an effect to configure
+                </Typography>
+            </Box>
         );
     }
 
     return (
-        <Box sx={{ px: 3, py: 2 }}>
-            <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-                sx={{
-                    position: 'sticky',
-                    top: 0,
-                    backgroundColor: theme.palette.background.default,
-                    zIndex: 10,
-                    py: 3,
-                    px: 2,
-                    mb: 3,
-                    borderBottom: `1px solid ${theme.palette.divider}`,
-                    boxShadow: `0 2px 4px ${theme.palette.action.hover}`,
-                    borderRadius: '8px 8px 0 0'
-                }}
-            >
-                <Typography variant="h5" component="h3">
-                    Configure {selectedEffect.registryKey}
+        <Box sx={{ p: 2 }}>
+            {/* Effect Header */}
+            <Box sx={{ mb: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                    Configure {selectedEffect.name}
                 </Typography>
-                <Button
-                    onClick={async () => {
-                        const registryKey = selectedEffect.registryKey;
-                        if (registryKey && effectConfig) {
-                            const success = await PreferencesService.setEffectDefaults(registryKey, effectConfig);
-                            if (success) {
-                                console.log(`✅ Saved default config for ${registryKey}`);
-                                setHasDefaults(true);
-                            } else {
-                                console.error(`❌ Failed to save default config for ${registryKey}`);
-                            }
-                        }
-                    }}
-                    variant="contained"
-                    size="small"
-                    sx={{
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        '&:hover': {
-                            background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
-                            transform: 'translateY(-1px)',
-                        }
-                    }}
-                >
-                    Set as Default
-                </Button>
-                {hasDefaults && (
-                    <Button
-                        onClick={handleResetDefaults}
-                        variant="outlined"
-                        size="small"
-                        startIcon={<RestartAlt />}
-                        sx={{
-                            borderColor: '#dc3545',
-                            color: '#dc3545',
-                            '&:hover': {
-                                borderColor: '#c82333',
-                                color: '#c82333',
-                                backgroundColor: 'rgba(220, 53, 69, 0.1)',
-                                transform: 'translateY(-1px)',
-                            }
-                        }}
-                    >
-                        Reset Default
-                    </Button>
-                )}
+                <Typography variant="body2" color="text.secondary">
+                    Effect Type: {selectedEffect.effectType || 'Unknown'}
+                </Typography>
             </Box>
 
-            <Box mt={3}>
-                <EffectFormRenderer
-                    configSchema={configSchema}
-                    effectConfig={effectConfig}
-                    onConfigChange={handleConfigChange}
-                    projectState={projectState}
-                />
-            </Box>
+            {/* Configuration Status */}
+            {renderConfigurationStatus()}
 
-            {/* Attached Effects Display (for primary effects) */}
-            {effectType === 'primary' && (
-                <AttachedEffectsDisplay
-                    attachedEffects={attachedEffects}
-                    onOpenAttachmentModal={handleOpenAttachmentModal}
-                    onEditAttachedEffect={handleEditAttachedEffect}
-                    onRemoveAttachedEffect={onRemoveAttachedEffect}
-                />
+            {/* Validation Errors */}
+            {renderValidationErrors()}
+
+            {/* Configuration Form */}
+            {configSchema && (
+                <Box sx={{ mb: 3 }}>
+                    <EffectFormRenderer
+                        schema={configSchema}
+                        config={effectConfig}
+                        onConfigChange={handleConfigurationChange}
+                        validationErrors={validationErrors}
+                    />
+                </Box>
             )}
 
-            {/* Percent Chance Section */}
-            <PercentChanceControl
-                value={percentChance}
-                onChange={setPercentChance}
-            />
+            {/* Percent Chance Control */}
+            {!isModal && (
+                <Box sx={{ mb: 3 }}>
+                    <PercentChanceControl
+                        value={percentChance}
+                        onChange={setPercentChance}
+                    />
+                </Box>
+            )}
 
+            {/* Attached Effects Display */}
+            {attachedEffects && attachedEffects.length > 0 && (
+                <Box sx={{ mb: 3 }}>
+                    <AttachedEffectsDisplay
+                        effects={attachedEffects}
+                        onRemove={onRemoveAttachedEffect}
+                    />
+                </Box>
+            )}
 
-            {/* Attachment Modal */}
-            <EffectAttachmentModal
-                isOpen={modalState.isOpen}
-                onClose={handleCloseAttachmentModal}
-                attachmentType={modalState.attachmentType}
-                availableEffects={availableEffects || {}}
-                onAttachEffect={modalState.isEditing ? handleEditComplete : handleAttachEffect}
-                projectState={projectState}
-                editingEffect={modalState.editingEffect}
-                isEditing={modalState.isEditing}
-            />
+            {/* Action Buttons */}
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                {/* Add Effect Button */}
+                {onAddEffect && (
+                    <Button
+                        variant="contained"
+                        onClick={handleAddEffect}
+                        disabled={!isConfigComplete}
+                        sx={{ minWidth: 120 }}
+                    >
+                        Add Effect
+                    </Button>
+                )}
 
+                {/* Save as Default Button */}
+                <Button
+                    variant="outlined"
+                    onClick={handleSaveAsDefault}
+                    disabled={!isConfigComplete}
+                    sx={{ minWidth: 120 }}
+                >
+                    Save as Default
+                </Button>
+
+                {/* Reset Defaults Button */}
+                <Button
+                    variant="outlined"
+                    startIcon={<RestartAlt />}
+                    onClick={handleResetDefaults}
+                    sx={{ minWidth: 120 }}
+                >
+                    Reset Defaults
+                </Button>
+            </Box>
+
+            {/* Effect Attachment Modal */}
+            {availableEffects && (
+                <EffectAttachmentModal
+                    open={isModal}
+                    effects={availableEffects}
+                    onAttach={handleAttachEffect}
+                    onClose={() => {}}
+                />
+            )}
         </Box>
     );
 }

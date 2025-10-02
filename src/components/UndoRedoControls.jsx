@@ -1,11 +1,28 @@
 /**
- * UndoRedoControls - Event-Driven Undo/Redo Component
- * Subscribes to CommandService events for state updates
+ * UndoRedoControls - Improved Undo/Redo with Action History Dropdown
+ * Shows up to 50 actions with human-readable descriptions
  */
 
-import React, { useState, useEffect } from 'react';
-import { Box, IconButton, Tooltip } from '@mui/material';
-import { Undo, Redo } from '@mui/icons-material';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+    Box,
+    IconButton,
+    Tooltip,
+    Menu,
+    MenuItem,
+    Divider,
+    Typography,
+    ListItemIcon,
+    ListItemText,
+    Paper
+} from '@mui/material';
+import {
+    Undo,
+    Redo,
+    ArrowDropDown,
+    History,
+    CheckCircleOutline
+} from '@mui/icons-material';
 import { useServices } from '../contexts/ServiceContext.js';
 
 export default function UndoRedoControls() {
@@ -13,13 +30,20 @@ export default function UndoRedoControls() {
     const [undoState, setUndoState] = useState({
         canUndo: false,
         canRedo: false,
-        lastCommand: null
+        lastCommand: null,
+        lastCommandDescription: null,
+        undoStack: [],
+        redoStack: []
     });
+
+    const [undoMenuAnchor, setUndoMenuAnchor] = useState(null);
+    const [redoMenuAnchor, setRedoMenuAnchor] = useState(null);
 
     // Subscribe to command state changes
     useEffect(() => {
         // Get initial state
-        setUndoState(commandService.getState());
+        const initialState = commandService.getState();
+        setUndoState(initialState);
 
         // Subscribe to command events
         const unsubscribeExecuted = eventBusService.subscribe(
@@ -28,7 +52,10 @@ export default function UndoRedoControls() {
                 setUndoState({
                     canUndo: payload.canUndo,
                     canRedo: payload.canRedo,
-                    lastCommand: payload.command
+                    lastCommand: payload.command,
+                    lastCommandDescription: payload.description,
+                    undoStack: payload.undoStack || [],
+                    redoStack: payload.redoStack || []
                 });
             },
             { component: 'UndoRedoControls' }
@@ -40,7 +67,10 @@ export default function UndoRedoControls() {
                 setUndoState({
                     canUndo: payload.canUndo,
                     canRedo: payload.canRedo,
-                    lastCommand: null
+                    lastCommand: null,
+                    lastCommandDescription: null,
+                    undoStack: payload.undoStack || [],
+                    redoStack: payload.redoStack || []
                 });
             },
             { component: 'UndoRedoControls' }
@@ -52,7 +82,10 @@ export default function UndoRedoControls() {
                 setUndoState({
                     canUndo: payload.canUndo,
                     canRedo: payload.canRedo,
-                    lastCommand: payload.command
+                    lastCommand: payload.command,
+                    lastCommandDescription: payload.description,
+                    undoStack: payload.undoStack || [],
+                    redoStack: payload.redoStack || []
                 });
             },
             { component: 'UndoRedoControls' }
@@ -64,7 +97,10 @@ export default function UndoRedoControls() {
                 setUndoState({
                     canUndo: false,
                     canRedo: false,
-                    lastCommand: null
+                    lastCommand: null,
+                    lastCommandDescription: null,
+                    undoStack: [],
+                    redoStack: []
                 });
             },
             { component: 'UndoRedoControls' }
@@ -97,55 +133,254 @@ export default function UndoRedoControls() {
         }
     };
 
+    const handleUndoToIndex = (index) => {
+        setUndoMenuAnchor(null);
+        eventBusService.emit('command:undo-to-index', { index }, {
+            source: 'UndoRedoControls',
+            component: 'UndoRedoControls'
+        });
+    };
+
+    const handleRedoToIndex = (index) => {
+        setRedoMenuAnchor(null);
+        eventBusService.emit('command:redo-to-index', { index }, {
+            source: 'UndoRedoControls',
+            component: 'UndoRedoControls'
+        });
+    };
+
+    const formatTimestamp = (timestamp) => {
+        const now = Date.now();
+        const diff = now - timestamp;
+        const seconds = Math.floor(diff / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+
+        if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+        if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+        if (seconds > 30) return `${seconds} seconds ago`;
+        return 'Just now';
+    };
+
     return (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Tooltip title={undoState.canUndo ? `Undo: ${undoState.lastCommand}` : 'Nothing to undo'}>
-                <span>
-                    <IconButton
-                        size="small"
-                        onClick={handleUndo}
-                        disabled={!undoState.canUndo}
-                        sx={{
-                            color: undoState.canUndo ? 'text.primary' : 'text.disabled',
-                            '&:hover': {
-                                backgroundColor: undoState.canUndo ? 'primary.main' : 'transparent',
-                                color: undoState.canUndo ? 'white' : 'text.disabled',
-                            },
-                            '&:disabled': {
-                                color: 'text.disabled',
-                                opacity: 0.4
-                            }
-                        }}
-                        title="Undo last action"
-                    >
-                        <Undo />
-                    </IconButton>
-                </span>
-            </Tooltip>
+            {/* Undo Button Group */}
+            <Box sx={{ display: 'flex', alignItems: 'center', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                <Tooltip title={undoState.canUndo ? `Undo: ${undoState.lastCommandDescription}` : 'Nothing to undo'}>
+                    <span>
+                        <IconButton
+                            size="small"
+                            onClick={handleUndo}
+                            disabled={!undoState.canUndo}
+                            sx={{
+                                color: undoState.canUndo ? 'text.primary' : 'text.disabled',
+                                borderRadius: 0,
+                                '&:hover': {
+                                    backgroundColor: undoState.canUndo ? 'action.hover' : 'transparent',
+                                },
+                                '&:disabled': {
+                                    color: 'text.disabled',
+                                    opacity: 0.4
+                                }
+                            }}
+                        >
+                            <Undo fontSize="small" />
+                        </IconButton>
+                    </span>
+                </Tooltip>
 
-            <Tooltip title={undoState.canRedo ? 'Redo last undone action' : 'Nothing to redo'}>
-                <span>
-                    <IconButton
-                        size="small"
-                        onClick={handleRedo}
-                        disabled={!undoState.canRedo}
-                        sx={{
-                            color: undoState.canRedo ? 'text.primary' : 'text.disabled',
-                            '&:hover': {
-                                backgroundColor: undoState.canRedo ? 'primary.main' : 'transparent',
-                                color: undoState.canRedo ? 'white' : 'text.disabled',
-                            },
-                            '&:disabled': {
-                                color: 'text.disabled',
-                                opacity: 0.4
-                            }
-                        }}
-                        title="Redo last action"
-                    >
-                        <Redo />
-                    </IconButton>
-                </span>
-            </Tooltip>
+                <Divider orientation="vertical" flexItem />
+
+                <Tooltip title="Undo history">
+                    <span>
+                        <IconButton
+                            size="small"
+                            onClick={(e) => setUndoMenuAnchor(e.currentTarget)}
+                            disabled={!undoState.canUndo}
+                            sx={{
+                                color: undoState.canUndo ? 'text.primary' : 'text.disabled',
+                                borderRadius: 0,
+                                minWidth: 24,
+                                px: 0.5,
+                                '&:hover': {
+                                    backgroundColor: undoState.canUndo ? 'action.hover' : 'transparent',
+                                },
+                                '&:disabled': {
+                                    color: 'text.disabled',
+                                    opacity: 0.4
+                                }
+                            }}
+                        >
+                            <ArrowDropDown fontSize="small" />
+                        </IconButton>
+                    </span>
+                </Tooltip>
+            </Box>
+
+            {/* Redo Button Group */}
+            <Box sx={{ display: 'flex', alignItems: 'center', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                <Tooltip title={undoState.canRedo ? `Redo: ${undoState.redoStack[0]?.description}` : 'Nothing to redo'}>
+                    <span>
+                        <IconButton
+                            size="small"
+                            onClick={handleRedo}
+                            disabled={!undoState.canRedo}
+                            sx={{
+                                color: undoState.canRedo ? 'text.primary' : 'text.disabled',
+                                borderRadius: 0,
+                                '&:hover': {
+                                    backgroundColor: undoState.canRedo ? 'action.hover' : 'transparent',
+                                },
+                                '&:disabled': {
+                                    color: 'text.disabled',
+                                    opacity: 0.4
+                                }
+                            }}
+                        >
+                            <Redo fontSize="small" />
+                        </IconButton>
+                    </span>
+                </Tooltip>
+
+                <Divider orientation="vertical" flexItem />
+
+                <Tooltip title="Redo history">
+                    <span>
+                        <IconButton
+                            size="small"
+                            onClick={(e) => setRedoMenuAnchor(e.currentTarget)}
+                            disabled={!undoState.canRedo}
+                            sx={{
+                                color: undoState.canRedo ? 'text.primary' : 'text.disabled',
+                                borderRadius: 0,
+                                minWidth: 24,
+                                px: 0.5,
+                                '&:hover': {
+                                    backgroundColor: undoState.canRedo ? 'action.hover' : 'transparent',
+                                },
+                                '&:disabled': {
+                                    color: 'text.disabled',
+                                    opacity: 0.4
+                                }
+                            }}
+                        >
+                            <ArrowDropDown fontSize="small" />
+                        </IconButton>
+                    </span>
+                </Tooltip>
+            </Box>
+
+            {/* Undo History Menu */}
+            <Menu
+                anchorEl={undoMenuAnchor}
+                open={Boolean(undoMenuAnchor)}
+                onClose={() => setUndoMenuAnchor(null)}
+                PaperProps={{
+                    sx: {
+                        maxHeight: 400,
+                        minWidth: 300,
+                        '& .MuiMenuItem-root': {
+                            px: 2,
+                            py: 1
+                        }
+                    }
+                }}
+            >
+                <Box sx={{ px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                        Undo History ({undoState.undoStack.length} action{undoState.undoStack.length !== 1 ? 's' : ''})
+                    </Typography>
+                </Box>
+                {undoState.undoStack.length === 0 ? (
+                    <MenuItem disabled>
+                        <Typography variant="body2" color="text.disabled">
+                            No actions to undo
+                        </Typography>
+                    </MenuItem>
+                ) : (
+                    undoState.undoStack.map((action, index) => (
+                        <MenuItem
+                            key={`undo-${action.timestamp}`}
+                            onClick={() => handleUndoToIndex(undoState.undoStack.length - index - 1)}
+                            sx={{
+                                '&:hover': {
+                                    backgroundColor: 'action.hover'
+                                }
+                            }}
+                        >
+                            <ListItemIcon sx={{ minWidth: 32 }}>
+                                <History fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText
+                                primary={action.description}
+                                secondary={formatTimestamp(action.timestamp)}
+                                primaryTypographyProps={{
+                                    fontSize: '0.875rem'
+                                }}
+                                secondaryTypographyProps={{
+                                    fontSize: '0.75rem'
+                                }}
+                            />
+                        </MenuItem>
+                    ))
+                )}
+            </Menu>
+
+            {/* Redo History Menu */}
+            <Menu
+                anchorEl={redoMenuAnchor}
+                open={Boolean(redoMenuAnchor)}
+                onClose={() => setRedoMenuAnchor(null)}
+                PaperProps={{
+                    sx: {
+                        maxHeight: 400,
+                        minWidth: 300,
+                        '& .MuiMenuItem-root': {
+                            px: 2,
+                            py: 1
+                        }
+                    }
+                }}
+            >
+                <Box sx={{ px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                        Redo History ({undoState.redoStack.length} action{undoState.redoStack.length !== 1 ? 's' : ''})
+                    </Typography>
+                </Box>
+                {undoState.redoStack.length === 0 ? (
+                    <MenuItem disabled>
+                        <Typography variant="body2" color="text.disabled">
+                            No actions to redo
+                        </Typography>
+                    </MenuItem>
+                ) : (
+                    undoState.redoStack.map((action, index) => (
+                        <MenuItem
+                            key={`redo-${action.timestamp}`}
+                            onClick={() => handleRedoToIndex(undoState.redoStack.length - index - 1)}
+                            sx={{
+                                '&:hover': {
+                                    backgroundColor: 'action.hover'
+                                }
+                            }}
+                        >
+                            <ListItemIcon sx={{ minWidth: 32 }}>
+                                <CheckCircleOutline fontSize="small" color="success" />
+                            </ListItemIcon>
+                            <ListItemText
+                                primary={action.description}
+                                secondary={formatTimestamp(action.timestamp)}
+                                primaryTypographyProps={{
+                                    fontSize: '0.875rem'
+                                }}
+                                secondaryTypographyProps={{
+                                    fontSize: '0.75rem'
+                                }}
+                            />
+                        </MenuItem>
+                    ))
+                )}
+            </Menu>
         </Box>
     );
 }
