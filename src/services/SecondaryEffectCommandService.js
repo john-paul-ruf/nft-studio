@@ -2,11 +2,16 @@
  * Secondary Effect Command Service
  * Handles secondary effect commands (Add, Delete, Reorder)
  * Extracted from ProjectCommands.js as part of God Object Destruction Plan - Phase 6, Step 6.3
+ * 
+ * UPDATED: Phase 3 - POJO Evolution to Classes
+ * - Commands now work with Effect class instances
+ * - Backward compatible with POJOs via Effect.fromPOJO()
  */
 
 import { Command } from './CommandService.js';
 import EventBusService from './EventBusService.js';
 import CommandDescriptionHelper from '../utils/CommandDescriptionHelper.js';
+import { Effect } from '../models/Effect.js';
 
 /**
  * Service for creating and managing secondary effect commands
@@ -67,11 +72,21 @@ export class AddSecondaryEffectCommand extends Command {
 
             console.log('➕ AddSecondaryEffectCommand: Adding secondary effect to parent at index:', parentIndex);
 
+            // Ensure secondaryEffect is an Effect instance (backward compatibility)
+            const effectInstance = secondaryEffect instanceof Effect 
+                ? secondaryEffect 
+                : Effect.fromPOJO(secondaryEffect);
+
+            // Ensure parent effect is an Effect instance
+            const parentEffectInstance = parentEffect instanceof Effect 
+                ? parentEffect 
+                : Effect.fromPOJO(parentEffect);
+
             const updatedParentEffect = {
-                ...parentEffect,
+                ...parentEffectInstance,
                 secondaryEffects: [
-                    ...(parentEffect.secondaryEffects || []),
-                    secondaryEffect
+                    ...(parentEffectInstance.secondaryEffects || []),
+                    effectInstance
                 ]
             };
 
@@ -82,11 +97,11 @@ export class AddSecondaryEffectCommand extends Command {
             // Emit event for UI updates
             EventBusService.emit('secondary:added', {
                 parentIndex,
-                effect: secondaryEffect,
+                effect: effectInstance,
                 total: updatedParentEffect.secondaryEffects.length
             }, { source: 'AddSecondaryEffectCommand' });
 
-            return { success: true, effect: secondaryEffect };
+            return { success: true, effect: effectInstance };
         };
 
         const undoAction = () => {
@@ -187,13 +202,23 @@ export class DeleteSecondaryEffectCommand extends Command {
 
             console.log('↩️ DeleteSecondaryEffectCommand: Restoring secondary effect');
 
+            // Ensure deletedSecondaryEffect is an Effect instance (backward compatibility)
+            const effectInstance = deletedSecondaryEffect instanceof Effect 
+                ? deletedSecondaryEffect 
+                : Effect.fromPOJO(deletedSecondaryEffect);
+
+            // Ensure parent effect is an Effect instance
+            const parentEffectInstance = parentEffect instanceof Effect 
+                ? parentEffect 
+                : Effect.fromPOJO(parentEffect);
+
             // Create new effects array with restored secondary effect
             const newEffects = [...currentEffects];
-            const newSecondaryEffects = [...(parentEffect.secondaryEffects || [])];
-            newSecondaryEffects.splice(secondaryIndex, 0, deletedSecondaryEffect);
+            const newSecondaryEffects = [...(parentEffectInstance.secondaryEffects || [])];
+            newSecondaryEffects.splice(secondaryIndex, 0, effectInstance);
             
             newEffects[parentIndex] = {
-                ...parentEffect,
+                ...parentEffectInstance,
                 secondaryEffects: newSecondaryEffects
             };
 
@@ -203,7 +228,7 @@ export class DeleteSecondaryEffectCommand extends Command {
             EventBusService.emit('secondary:added', {
                 parentIndex,
                 secondaryIndex,
-                effect: deletedSecondaryEffect,
+                effect: effectInstance,
                 total: newEffects[parentIndex].secondaryEffects.length
             }, { source: 'DeleteSecondaryEffectCommand' });
 

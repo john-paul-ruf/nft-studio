@@ -17,6 +17,7 @@ export function test_orientation_scaling_horizontal_to_vertical() {
         name: 'TestEffect',
         registryKey: 'test-effect',
         className: 'TestEffect',
+        type: 'primary',
         config: {
             position: {
                 name: 'position',
@@ -89,6 +90,7 @@ export function test_orientation_scaling_vertical_to_horizontal() {
         name: 'TestEffect',
         registryKey: 'test-effect',
         className: 'TestEffect',
+        type: 'primary',
         config: {
             position: {
                 name: 'position',
@@ -152,6 +154,7 @@ export function test_orientation_scaling_nested_positions() {
         name: 'TestEffect',
         registryKey: 'test-effect',
         className: 'TestEffect',
+        type: 'primary',
         config: {
             position: {
                 name: 'position',
@@ -165,6 +168,7 @@ export function test_orientation_scaling_nested_positions() {
                     id: 'secondary-1',
                     name: 'SecondaryEffect',
                     registryKey: 'secondary-effect',
+                    type: 'secondary',
                     config: {
                         position: {
                             name: 'position',
@@ -222,6 +226,7 @@ export function test_orientation_scaling_square_resolution() {
         name: 'TestEffect',
         registryKey: 'test-effect',
         className: 'TestEffect',
+        type: 'primary',
         config: {
             position: {
                 name: 'position',

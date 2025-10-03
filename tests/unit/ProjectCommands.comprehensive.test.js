@@ -22,6 +22,31 @@ import {
 } from '../../src/commands/ProjectCommands.js';
 
 /**
+ * Helper function to create valid test effects with all required properties
+ */
+function createTestEffect(overrides = {}) {
+    const base = {
+        id: `test-id-${Date.now()}-${Math.random()}`,
+        name: 'TestEffect',
+        className: 'TestClass',
+        registryKey: 'test-effect',
+        config: {},
+        type: 'primary',
+        percentChance: 100,
+        visible: true,
+        secondaryEffects: [],
+        keyframeEffects: []
+    };
+    
+    // Merge overrides, preserving attachedEffects if provided
+    const result = { ...base, ...overrides };
+    
+    // If attachedEffects is provided in overrides, ensure it's preserved
+    // (spread operator should handle this, but being explicit for clarity)
+    return result;
+}
+
+/**
  * Mock ProjectState for testing
  */
 class MockProjectState {
@@ -88,8 +113,8 @@ class MockProjectState {
 export async function testUpdateEffectCommand(testEnv) {
     console.log('🧪 Testing UpdateEffectCommand...');
 
-    const mockEffect = { name: 'TestEffect', className: 'TestClass', config: { value: 10 } };
-    const updatedEffect = { name: 'TestEffect', className: 'TestClass', config: { value: 20 } };
+    const mockEffect = createTestEffect({ config: { value: 10 } });
+    const updatedEffect = createTestEffect({ id: mockEffect.id, config: { value: 20 } });
     const projectState = new MockProjectState({ effects: [mockEffect] });
 
     const command = new UpdateEffectCommand(projectState, 0, updatedEffect, 'TestEffect');
@@ -114,7 +139,7 @@ export async function testUpdateEffectCommand(testEnv) {
 export async function testAddEffectCommand(testEnv) {
     console.log('🧪 Testing AddEffectCommand...');
 
-    const newEffect = { name: 'NewEffect', className: 'NewClass', config: {} };
+    const newEffect = createTestEffect({ name: 'NewEffect', className: 'NewClass' });
     const projectState = new MockProjectState({ effects: [] });
 
     const command = new AddEffectCommand(projectState, newEffect, 'NewEffect', 'visual');
@@ -140,8 +165,8 @@ export async function testAddEffectCommand(testEnv) {
 export async function testDeleteEffectCommand(testEnv) {
     console.log('🧪 Testing DeleteEffectCommand...');
 
-    const effect1 = { name: 'Effect1', className: 'Class1' };
-    const effect2 = { name: 'Effect2', className: 'Class2' };
+    const effect1 = createTestEffect({ name: 'Effect1', className: 'Class1' });
+    const effect2 = createTestEffect({ name: 'Effect2', className: 'Class2' });
     const projectState = new MockProjectState({ effects: [effect1, effect2] });
 
     const command = new DeleteEffectCommand(projectState, 0);
@@ -237,9 +262,9 @@ export async function testChangeFramesCommand(testEnv) {
 export async function testReorderEffectsCommand(testEnv) {
     console.log('🧪 Testing ReorderEffectsCommand...');
 
-    const effect1 = { name: 'Effect1', className: 'Class1' };
-    const effect2 = { name: 'Effect2', className: 'Class2' };
-    const effect3 = { name: 'Effect3', className: 'Class3' };
+    const effect1 = createTestEffect({ name: 'Effect1', className: 'Class1' });
+    const effect2 = createTestEffect({ name: 'Effect2', className: 'Class2' });
+    const effect3 = createTestEffect({ name: 'Effect3', className: 'Class3' });
     const projectState = new MockProjectState({ effects: [effect1, effect2, effect3] });
 
     const command = new ReorderEffectsCommand(projectState, 0, 2);
@@ -267,8 +292,8 @@ export async function testReorderEffectsCommand(testEnv) {
 export async function testAddSecondaryEffectCommand(testEnv) {
     console.log('🧪 Testing AddSecondaryEffectCommand...');
 
-    const parentEffect = { name: 'ParentEffect', className: 'ParentClass', secondaryEffects: [] };
-    const secondaryEffect = { name: 'SecondaryEffect', className: 'SecondaryClass' };
+    const parentEffect = createTestEffect({ name: 'ParentEffect', className: 'ParentClass', secondaryEffects: [] });
+    const secondaryEffect = createTestEffect({ name: 'SecondaryEffect', className: 'SecondaryClass', type: 'secondary' });
     const projectState = new MockProjectState({ effects: [parentEffect] });
 
     const command = new AddSecondaryEffectCommand(projectState, 0, secondaryEffect, 'SecondaryEffect');
@@ -296,9 +321,9 @@ export async function testAddSecondaryEffectCommand(testEnv) {
 export async function testDeleteSecondaryEffectCommand(testEnv) {
     console.log('🧪 Testing DeleteSecondaryEffectCommand...');
 
-    const secondary1 = { name: 'Secondary1', className: 'SecondaryClass1' };
-    const secondary2 = { name: 'Secondary2', className: 'SecondaryClass2' };
-    const parentEffect = { name: 'ParentEffect', className: 'ParentClass', secondaryEffects: [secondary1, secondary2] };
+    const secondary1 = createTestEffect({ name: 'Secondary1', className: 'SecondaryClass1', type: 'secondary' });
+    const secondary2 = createTestEffect({ name: 'Secondary2', className: 'SecondaryClass2', type: 'secondary' });
+    const parentEffect = createTestEffect({ name: 'ParentEffect', className: 'ParentClass', secondaryEffects: [secondary1, secondary2] });
     const projectState = new MockProjectState({ effects: [parentEffect] });
 
     const command = new DeleteSecondaryEffectCommand(projectState, 0, 0);
@@ -327,10 +352,10 @@ export async function testDeleteSecondaryEffectCommand(testEnv) {
 export async function testReorderSecondaryEffectsCommand(testEnv) {
     console.log('🧪 Testing ReorderSecondaryEffectsCommand...');
 
-    const secondary1 = { name: 'Secondary1', className: 'SecondaryClass1' };
-    const secondary2 = { name: 'Secondary2', className: 'SecondaryClass2' };
-    const secondary3 = { name: 'Secondary3', className: 'SecondaryClass3' };
-    const parentEffect = { name: 'ParentEffect', className: 'ParentClass', secondaryEffects: [secondary1, secondary2, secondary3] };
+    const secondary1 = createTestEffect({ name: 'Secondary1', className: 'SecondaryClass1', type: 'secondary' });
+    const secondary2 = createTestEffect({ name: 'Secondary2', className: 'SecondaryClass2', type: 'secondary' });
+    const secondary3 = createTestEffect({ name: 'Secondary3', className: 'SecondaryClass3', type: 'secondary' });
+    const parentEffect = createTestEffect({ name: 'ParentEffect', className: 'ParentClass', secondaryEffects: [secondary1, secondary2, secondary3] });
     const projectState = new MockProjectState({ effects: [parentEffect] });
 
     const command = new ReorderSecondaryEffectsCommand(projectState, 0, 0, 2);
@@ -358,8 +383,8 @@ export async function testReorderSecondaryEffectsCommand(testEnv) {
 export async function testAddKeyframeEffectCommand(testEnv) {
     console.log('🧪 Testing AddKeyframeEffectCommand...');
 
-    const parentEffect = { name: 'ParentEffect', className: 'ParentClass', attachedEffects: { keyFrame: [] } };
-    const keyframeEffect = { name: 'KeyframeEffect', className: 'KeyframeClass', frame: 50 };
+    const parentEffect = createTestEffect({ name: 'ParentEffect', className: 'ParentClass', attachedEffects: { keyFrame: [] } });
+    const keyframeEffect = createTestEffect({ name: 'KeyframeEffect', className: 'KeyframeClass', frame: 50, type: 'keyframe' });
     const projectState = new MockProjectState({ effects: [parentEffect] });
 
     const command = new AddKeyframeEffectCommand(projectState, 0, keyframeEffect, 'KeyframeEffect', 50);
@@ -368,14 +393,17 @@ export async function testAddKeyframeEffectCommand(testEnv) {
     const result = command.execute();
     if (result.success !== true) throw new Error('Execute should return success');
     const parent = projectState.getState().effects[0];
-    if (parent.attachedEffects.keyFrame.length !== 1) throw new Error('Keyframe effect should be added');
-    if (parent.attachedEffects.keyFrame[0].name !== 'KeyframeEffect') throw new Error('Correct keyframe effect added');
+    // Check both new format (keyframeEffects) and old format (attachedEffects.keyFrame) for backward compatibility
+    const keyframes = parent.keyframeEffects || parent.attachedEffects?.keyFrame || [];
+    if (keyframes.length !== 1) throw new Error('Keyframe effect should be added');
+    if (keyframes[0].name !== 'KeyframeEffect') throw new Error('Correct keyframe effect added');
 
     // Test undo
     const undoResult = command.undo();
     if (undoResult.success !== true) throw new Error('Undo should return success');
     const restoredParent = projectState.getState().effects[0];
-    if (restoredParent.attachedEffects.keyFrame.length !== 0) throw new Error('Keyframe effect should be removed');
+    const restoredKeyframes = restoredParent.keyframeEffects || restoredParent.attachedEffects?.keyFrame || [];
+    if (restoredKeyframes.length !== 0) throw new Error('Keyframe effect should be removed');
 
     console.log('✅ AddKeyframeEffectCommand tests passed');
     return { testName: 'AddKeyframeEffectCommand', status: 'PASSED' };
@@ -387,9 +415,9 @@ export async function testAddKeyframeEffectCommand(testEnv) {
 export async function testDeleteKeyframeEffectCommand(testEnv) {
     console.log('🧪 Testing DeleteKeyframeEffectCommand...');
 
-    const keyframe1 = { name: 'Keyframe1', className: 'KeyframeClass1', frame: 25 };
-    const keyframe2 = { name: 'Keyframe2', className: 'KeyframeClass2', frame: 75 };
-    const parentEffect = { name: 'ParentEffect', className: 'ParentClass', attachedEffects: { keyFrame: [keyframe1, keyframe2] } };
+    const keyframe1 = createTestEffect({ name: 'Keyframe1', className: 'KeyframeClass1', frame: 25, type: 'keyframe' });
+    const keyframe2 = createTestEffect({ name: 'Keyframe2', className: 'KeyframeClass2', frame: 75, type: 'keyframe' });
+    const parentEffect = createTestEffect({ name: 'ParentEffect', className: 'ParentClass', attachedEffects: { keyFrame: [keyframe1, keyframe2] } });
     const projectState = new MockProjectState({ effects: [parentEffect] });
 
     const command = new DeleteKeyframeEffectCommand(projectState, 0, 0);
@@ -398,15 +426,19 @@ export async function testDeleteKeyframeEffectCommand(testEnv) {
     const result = command.execute();
     if (result.success !== true) throw new Error('Execute should return success');
     const parent = projectState.getState().effects[0];
-    if (parent.attachedEffects.keyFrame.length !== 1) throw new Error('Keyframe effect should be deleted');
-    if (parent.attachedEffects.keyFrame[0].name !== 'Keyframe2') throw new Error('Correct keyframe effect remains');
+    // Support both old format (attachedEffects.keyFrame) and new format (keyframeEffects)
+    const keyframes = parent.keyframeEffects || parent.attachedEffects?.keyFrame || [];
+    if (keyframes.length !== 1) throw new Error('Keyframe effect should be deleted');
+    if (keyframes[0].name !== 'Keyframe2') throw new Error('Correct keyframe effect remains');
 
     // Test undo
     const undoResult = command.undo();
     if (undoResult.success !== true) throw new Error('Undo should return success');
     const restoredParent = projectState.getState().effects[0];
-    if (restoredParent.attachedEffects.keyFrame.length !== 2) throw new Error('Keyframe effect should be restored');
-    if (restoredParent.attachedEffects.keyFrame[0].name !== 'Keyframe1') throw new Error('Keyframe effect restored at correct position');
+    // Support both old format (attachedEffects.keyFrame) and new format (keyframeEffects)
+    const restoredKeyframes = restoredParent.keyframeEffects || restoredParent.attachedEffects?.keyFrame || [];
+    if (restoredKeyframes.length !== 2) throw new Error('Keyframe effect should be restored');
+    if (restoredKeyframes[0].name !== 'Keyframe1') throw new Error('Keyframe effect restored at correct position');
 
     console.log('✅ DeleteKeyframeEffectCommand tests passed');
     return { testName: 'DeleteKeyframeEffectCommand', status: 'PASSED' };
@@ -418,10 +450,10 @@ export async function testDeleteKeyframeEffectCommand(testEnv) {
 export async function testReorderKeyframeEffectsCommand(testEnv) {
     console.log('🧪 Testing ReorderKeyframeEffectsCommand...');
 
-    const keyframe1 = { name: 'Keyframe1', className: 'KeyframeClass1', frame: 25 };
-    const keyframe2 = { name: 'Keyframe2', className: 'KeyframeClass2', frame: 50 };
-    const keyframe3 = { name: 'Keyframe3', className: 'KeyframeClass3', frame: 75 };
-    const parentEffect = { name: 'ParentEffect', className: 'ParentClass', attachedEffects: { keyFrame: [keyframe1, keyframe2, keyframe3] } };
+    const keyframe1 = createTestEffect({ name: 'Keyframe1', className: 'KeyframeClass1', frame: 25, type: 'keyframe' });
+    const keyframe2 = createTestEffect({ name: 'Keyframe2', className: 'KeyframeClass2', frame: 50, type: 'keyframe' });
+    const keyframe3 = createTestEffect({ name: 'Keyframe3', className: 'KeyframeClass3', frame: 75, type: 'keyframe' });
+    const parentEffect = createTestEffect({ name: 'ParentEffect', className: 'ParentClass', attachedEffects: { keyFrame: [keyframe1, keyframe2, keyframe3] } });
     const projectState = new MockProjectState({ effects: [parentEffect] });
 
     const command = new ReorderKeyframeEffectsCommand(projectState, 0, 0, 2);

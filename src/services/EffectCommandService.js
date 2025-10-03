@@ -2,11 +2,16 @@
  * Effect Command Service
  * Handles primary effect commands (Add, Update, Delete, Reorder)
  * Extracted from ProjectCommands.js as part of God Object Destruction Plan - Phase 6, Step 6.3
+ * 
+ * UPDATED: Phase 3 - POJO Evolution to Classes
+ * - Commands now work with Effect class instances
+ * - Backward compatible with POJOs via Effect.fromPOJO()
  */
 
 import { Command } from './CommandService.js';
 import EventBusService from './EventBusService.js';
 import CommandDescriptionHelper from '../utils/CommandDescriptionHelper.js';
+import { Effect } from '../models/Effect.js';
 
 /**
  * Service for creating and managing primary effect commands
@@ -77,20 +82,26 @@ export class UpdateEffectCommand extends Command {
             }
 
             previousEffect = currentEffects[effectIndex];
+            
+            // Ensure updatedEffect is an Effect instance (backward compatibility)
+            const effectInstance = updatedEffect instanceof Effect 
+                ? updatedEffect 
+                : Effect.fromPOJO(updatedEffect);
+            
             const newEffects = [...currentEffects];
-            newEffects[effectIndex] = updatedEffect;
+            newEffects[effectIndex] = effectInstance;
 
             console.log('✏️ UpdateEffectCommand: Updating effect at index:', effectIndex);
             projectState.update({ effects: newEffects });
 
             // Emit event for UI updates
             EventBusService.emit('effect:updated', {
-                effect: updatedEffect,
+                effect: effectInstance,
                 previousEffect,
                 index: effectIndex
             }, { source: 'UpdateEffectCommand' });
 
-            return { success: true, effect: updatedEffect, index: effectIndex };
+            return { success: true, effect: effectInstance, index: effectIndex };
         };
 
         const undoAction = () => {
@@ -98,15 +109,20 @@ export class UpdateEffectCommand extends Command {
                 throw new Error('No previous effect state to restore');
             }
 
+            // Ensure previousEffect is an Effect instance (backward compatibility)
+            const effectInstance = previousEffect instanceof Effect 
+                ? previousEffect 
+                : Effect.fromPOJO(previousEffect);
+
             const currentEffects = projectState.getState().effects || [];
             const newEffects = [...currentEffects];
-            newEffects[effectIndex] = previousEffect;
+            newEffects[effectIndex] = effectInstance;
 
             projectState.update({ effects: newEffects });
 
             // Emit event for UI updates
             EventBusService.emit('effect:updated', {
-                effect: previousEffect,
+                effect: effectInstance,
                 previousEffect: updatedEffect,
                 index: effectIndex
             }, { source: 'UpdateEffectCommand' });
@@ -137,7 +153,12 @@ export class AddEffectCommand extends Command {
             console.log('➕ AddEffectCommand: Current effects before add:', currentEffects.length, currentEffects.map(e => e.name || e.className));
             console.log('➕ AddEffectCommand: Effect being added:', effectData);
 
-            const newEffects = [...currentEffects, effectData];
+            // Ensure effectData is an Effect instance (backward compatibility)
+            const effectInstance = effectData instanceof Effect 
+                ? effectData 
+                : Effect.fromPOJO(effectData);
+
+            const newEffects = [...currentEffects, effectInstance];
             console.log('➕ AddEffectCommand: New effects array will have length:', newEffects.length);
 
             projectState.update({ effects: newEffects });
@@ -148,12 +169,12 @@ export class AddEffectCommand extends Command {
 
             // Emit event for UI updates
             EventBusService.emit('effect:added', {
-                effect: effectData,
+                effect: effectInstance,
                 index: newEffects.length - 1,
                 total: newEffects.length
             }, { source: 'AddEffectCommand' });
 
-            return { success: true, effect: effectData, index: newEffects.length - 1 };
+            return { success: true, effect: effectInstance, index: newEffects.length - 1 };
         };
 
         const undoAction = () => {
@@ -227,15 +248,20 @@ export class DeleteEffectCommand extends Command {
                 throw new Error('No effect to restore');
             }
 
+            // Ensure deletedEffect is an Effect instance (backward compatibility)
+            const effectInstance = deletedEffect instanceof Effect 
+                ? deletedEffect 
+                : Effect.fromPOJO(deletedEffect);
+
             const currentEffects = projectState.getState().effects || [];
             const newEffects = [...currentEffects];
-            newEffects.splice(effectIndex, 0, deletedEffect);
+            newEffects.splice(effectIndex, 0, effectInstance);
 
             projectState.update({ effects: newEffects });
 
             // Emit event for UI updates
             EventBusService.emit('effect:added', {
-                effect: deletedEffect,
+                effect: effectInstance,
                 index: effectIndex,
                 total: newEffects.length
             }, { source: 'DeleteEffectCommand' });

@@ -361,6 +361,11 @@ class EffectIPCSerializationService {
                     colorPicker.colorValue = props.colorValue || null;
                     return colorPicker;
 
+                case 'Effect':
+                    // Reconstruct Effect class instance
+                    const { Effect: EffectClass } = await import('../../models/Effect.js');
+                    return EffectClass.fromPOJO(props);
+
                 default:
                     console.warn(`Unknown className for reconstruction: ${__className}`);
                     return null;

@@ -300,6 +300,9 @@ async function testEffectUpdate() {
         effects: [{
             id: 'test-id',
             name: 'TestEffect',
+            className: 'TestEffectClass',
+            registryKey: 'test-effect',
+            type: 'primary',
             config: { oldProperty: 'oldValue' }
         }]
     });
@@ -317,8 +320,11 @@ async function testEffectUpdate() {
     const updatedEffect = {
         id: 'test-id',
         name: 'UpdatedTestEffect',
+        className: 'UpdatedTestEffectClass',
+        registryKey: 'updated-test-effect',
+        type: 'primary',
         config: { newProperty: 'newValue' },
-        secondaryEffects: [{ name: 'secondary1' }]
+        secondaryEffects: [{ name: 'secondary1', id: 'sec-1', className: 'SecondaryClass', registryKey: 'secondary', type: 'secondary', config: {} }]
     };
 
     await service.updateEffect({
@@ -435,6 +441,10 @@ async function testEffectVisibilityToggle() {
         effects: [{
             id: 'test-id',
             name: 'TestEffect',
+            className: 'TestEffectClass',
+            registryKey: 'test-effect',
+            type: 'primary',
+            config: {},
             visible: true
         }]
     });

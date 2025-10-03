@@ -2,11 +2,17 @@
  * Keyframe Effect Command Service
  * Handles keyframe effect commands (Add, Delete, Reorder)
  * Extracted from ProjectCommands.js as part of God Object Destruction Plan - Phase 6, Step 6.3
+ * 
+ * UPDATED: Phase 3 - POJO Evolution to Classes
+ * - Commands now work with Effect class instances
+ * - Backward compatible with POJOs via Effect.fromPOJO()
+ * - Uses new keyframeEffects property (backward compatible with attachedEffects.keyFrame)
  */
 
 import { Command } from './CommandService.js';
 import EventBusService from './EventBusService.js';
 import CommandDescriptionHelper from '../utils/CommandDescriptionHelper.js';
+import { Effect } from '../models/Effect.js';
 
 /**
  * Service for creating and managing keyframe effect commands
@@ -68,13 +74,23 @@ export class AddKeyframeEffectCommand extends Command {
 
             console.log('➕ AddKeyframeEffectCommand: Adding keyframe effect to parent at index:', parentIndex);
 
-            const currentKeyframeEffects = parentEffect.attachedEffects?.keyFrame || [];
+            // Ensure keyframeEffect is an Effect instance (backward compatibility)
+            const effectInstance = keyframeEffect instanceof Effect 
+                ? keyframeEffect 
+                : Effect.fromPOJO(keyframeEffect);
+
+            // Ensure parent effect is an Effect instance
+            const parentEffectInstance = parentEffect instanceof Effect 
+                ? parentEffect 
+                : Effect.fromPOJO(parentEffect);
+
+            // Use new keyframeEffects property (backward compatible with attachedEffects.keyFrame)
+            const currentKeyframeEffects = parentEffectInstance.keyframeEffects || 
+                                          parentEffectInstance.attachedEffects?.keyFrame || [];
+            
             const updatedParentEffect = {
-                ...parentEffect,
-                attachedEffects: {
-                    ...parentEffect.attachedEffects,
-                    keyFrame: [...currentKeyframeEffects, keyframeEffect]
-                }
+                ...parentEffectInstance,
+                keyframeEffects: [...currentKeyframeEffects, effectInstance]
             };
 
             const newEffects = [...currentEffects];
@@ -84,29 +100,34 @@ export class AddKeyframeEffectCommand extends Command {
             // Emit event for UI updates
             EventBusService.emit('keyframe:added', {
                 parentIndex,
-                effect: keyframeEffect,
+                effect: effectInstance,
                 frame,
-                total: updatedParentEffect.attachedEffects.keyFrame.length
+                total: updatedParentEffect.keyframeEffects.length
             }, { source: 'AddKeyframeEffectCommand' });
 
-            return { success: true, effect: keyframeEffect };
+            return { success: true, effect: effectInstance };
         };
 
         const undoAction = () => {
             const currentEffects = projectState.getState().effects || [];
             const parentEffect = currentEffects[parentIndex];
 
-            if (!parentEffect || !parentEffect.attachedEffects?.keyFrame) {
+            // Ensure parent effect is an Effect instance
+            const parentEffectInstance = parentEffect instanceof Effect 
+                ? parentEffect 
+                : Effect.fromPOJO(parentEffect);
+
+            // Use new keyframeEffects property (backward compatible with attachedEffects.keyFrame)
+            const keyframeEffects = parentEffectInstance.keyframeEffects || 
+                                   parentEffectInstance.attachedEffects?.keyFrame || [];
+
+            if (!parentEffect || keyframeEffects.length === 0) {
                 throw new Error('Cannot undo - parent effect or keyframe effects not found');
             }
 
-            const keyframeEffects = parentEffect.attachedEffects.keyFrame;
             const updatedParentEffect = {
-                ...parentEffect,
-                attachedEffects: {
-                    ...parentEffect.attachedEffects,
-                    keyFrame: keyframeEffects.slice(0, -1)
-                }
+                ...parentEffectInstance,
+                keyframeEffects: keyframeEffects.slice(0, -1)
             };
 
             const newEffects = [...currentEffects];
@@ -117,7 +138,7 @@ export class AddKeyframeEffectCommand extends Command {
             EventBusService.emit('keyframe:removed', {
                 parentIndex,
                 index: keyframeEffects.length - 1,
-                total: updatedParentEffect.attachedEffects.keyFrame.length
+                total: updatedParentEffect.keyframeEffects.length
             }, { source: 'AddKeyframeEffectCommand' });
 
             return { success: true };
@@ -150,8 +171,14 @@ export class DeleteKeyframeEffectCommand extends Command {
                 throw new Error(`Cannot delete keyframe effect - parent effect at index ${parentIndex} not found`);
             }
 
-            // Use single source of truth for keyframe effects
-            const keyframeEffects = parentEffect.attachedEffects?.keyFrame || [];
+            // Ensure parent effect is an Effect instance
+            const parentEffectInstance = parentEffect instanceof Effect 
+                ? parentEffect 
+                : Effect.fromPOJO(parentEffect);
+
+            // Use new keyframeEffects property (backward compatible with attachedEffects.keyFrame)
+            const keyframeEffects = parentEffectInstance.keyframeEffects || 
+                                   parentEffectInstance.attachedEffects?.keyFrame || [];
 
             if (keyframeEffects.length === 0) {
                 throw new Error(`Cannot delete keyframe effect - parent effect at index ${parentIndex} has no keyframe effects`);
@@ -166,28 +193,22 @@ export class DeleteKeyframeEffectCommand extends Command {
 
             deletedKeyframeEffect = keyframeEffects[keyframeIndex];
             
-            // Create new effects array with updated parent effect using single source of truth
+            // Create new effects array with updated parent effect
             const newEffects = [...currentEffects];
             const updatedKeyframeEffects = keyframeEffects.filter((_, index) => index !== keyframeIndex);
             newEffects[parentIndex] = {
-                ...parentEffect,
-                attachedEffects: {
-                    ...parentEffect.attachedEffects,
-                    keyFrame: updatedKeyframeEffects
-                }
+                ...parentEffectInstance,
+                keyframeEffects: updatedKeyframeEffects
             };
 
             projectState.update({ effects: newEffects });
-
-            // Get updated count for event
-            const updatedKeyframeEffectsCount = newEffects[parentIndex].attachedEffects?.keyFrame?.length || 0;
 
             // Emit event for UI updates
             EventBusService.emit('keyframe:removed', {
                 parentIndex,
                 keyframeIndex,
                 deletedEffect: deletedKeyframeEffect,
-                total: updatedKeyframeEffectsCount
+                total: updatedKeyframeEffects.length
             }, { source: 'DeleteKeyframeEffectCommand' });
 
             return { success: true, deletedKeyframeEffect, parentIndex, keyframeIndex };
@@ -207,18 +228,26 @@ export class DeleteKeyframeEffectCommand extends Command {
 
             console.log('↩️ DeleteKeyframeEffectCommand: Restoring keyframe effect');
 
-            // Restore using single source of truth format
-            const currentKeyframeEffects = parentEffect.attachedEffects?.keyFrame || [];
+            // Ensure deletedKeyframeEffect is an Effect instance (backward compatibility)
+            const effectInstance = deletedKeyframeEffect instanceof Effect 
+                ? deletedKeyframeEffect 
+                : Effect.fromPOJO(deletedKeyframeEffect);
+
+            // Ensure parent effect is an Effect instance
+            const parentEffectInstance = parentEffect instanceof Effect 
+                ? parentEffect 
+                : Effect.fromPOJO(parentEffect);
+
+            // Use new keyframeEffects property (backward compatible with attachedEffects.keyFrame)
+            const currentKeyframeEffects = parentEffectInstance.keyframeEffects || 
+                                          parentEffectInstance.attachedEffects?.keyFrame || [];
             const newKeyframeEffects = [...currentKeyframeEffects];
-            newKeyframeEffects.splice(keyframeIndex, 0, deletedKeyframeEffect);
+            newKeyframeEffects.splice(keyframeIndex, 0, effectInstance);
 
             const newEffects = [...currentEffects];
             newEffects[parentIndex] = {
-                ...parentEffect,
-                attachedEffects: {
-                    ...parentEffect.attachedEffects,
-                    keyFrame: newKeyframeEffects
-                }
+                ...parentEffectInstance,
+                keyframeEffects: newKeyframeEffects
             };
 
             projectState.update({ effects: newEffects });
@@ -267,8 +296,14 @@ export class ReorderKeyframeEffectsCommand extends Command {
                 throw new Error(`Cannot reorder keyframe effects - parent effect at index ${parentIndex} not found`);
             }
 
-            // Use single source of truth for keyframe effects
-            const keyframeEffects = parentEffect.attachedEffects?.keyFrame || [];
+            // Ensure parent effect is an Effect instance
+            const parentEffectInstance = parentEffect instanceof Effect 
+                ? parentEffect 
+                : Effect.fromPOJO(parentEffect);
+
+            // Use new keyframeEffects property (backward compatible with attachedEffects.keyFrame)
+            const keyframeEffects = parentEffectInstance.keyframeEffects || 
+                                   parentEffectInstance.attachedEffects?.keyFrame || [];
             
             if (keyframeEffects.length === 0) {
                 throw new Error(`Cannot reorder keyframe effects - parent effect at index ${parentIndex} has no keyframe effects`);
@@ -300,7 +335,14 @@ export class ReorderKeyframeEffectsCommand extends Command {
             // Get updated keyframe effects count for event
             const currentEffects = projectState.getState().effects || [];
             const parentEffect = currentEffects[parentIndex];
-            const keyframeEffects = parentEffect?.attachedEffects?.keyFrame || [];
+            
+            // Ensure parent effect is an Effect instance
+            const parentEffectInstance = parentEffect instanceof Effect 
+                ? parentEffect 
+                : Effect.fromPOJO(parentEffect);
+            
+            const keyframeEffects = parentEffectInstance.keyframeEffects || 
+                                   parentEffectInstance.attachedEffects?.keyFrame || [];
 
             // Emit event for UI updates
             EventBusService.emit('keyframe:reordered', {
@@ -315,8 +357,16 @@ export class ReorderKeyframeEffectsCommand extends Command {
 
         const currentEffects = projectState.getState().effects || [];
         const parentEffect = currentEffects[parentIndex];
-        const keyframeEffect = parentEffect?.attachedEffects?.keyFrame?.[sourceIndex];
-        const parentName = CommandDescriptionHelper.getEffectName(parentEffect);
+        
+        // Ensure parent effect is an Effect instance
+        const parentEffectInstance = parentEffect instanceof Effect 
+            ? parentEffect 
+            : Effect.fromPOJO(parentEffect);
+        
+        const keyframeEffects = parentEffectInstance.keyframeEffects || 
+                               parentEffectInstance.attachedEffects?.keyFrame || [];
+        const keyframeEffect = keyframeEffects[sourceIndex];
+        const parentName = CommandDescriptionHelper.getEffectName(parentEffectInstance);
         const description = `Reordered keyframes in ${parentName}`;
 
         super('keyframe.reorder', executeAction, undoAction, description);

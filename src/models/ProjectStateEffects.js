@@ -8,6 +8,8 @@
  * - Effect queries and filtering
  */
 
+import { Effect } from '../models/Effect.js';
+
 export default class ProjectStateEffects {
     constructor(stateCore) {
         this.stateCore = stateCore;
@@ -32,23 +34,34 @@ export default class ProjectStateEffects {
 
     /**
      * Add effect to the effects array
-     * @param {Object} effect - Effect to add
+     * @param {Effect|Object} effect - Effect to add (Effect instance or POJO)
      */
     addEffect(effect) {
         const effects = this.getEffects();
-        effects.push(effect);
+        // Convert POJO to Effect instance if needed (backward compatibility)
+        const effectInstance = effect instanceof Effect ? effect : Effect.fromPOJO(effect);
+        effects.push(effectInstance);
         this.setEffects(effects);
     }
 
     /**
      * Update effect at specific index
      * @param {number} index - Index of effect to update
-     * @param {Object} updates - Updates to apply to the effect
+     * @param {Effect|Object} updates - Updates to apply to the effect (Effect instance or POJO)
      */
     updateEffect(index, updates) {
         const effects = this.getEffects();
         if (effects[index]) {
-            effects[index] = { ...effects[index], ...updates };
+            // If updates is an Effect instance, use it directly
+            // Otherwise, merge updates into existing effect
+            if (updates instanceof Effect) {
+                effects[index] = updates;
+            } else {
+                // Merge updates and recreate Effect instance
+                const currentEffect = effects[index];
+                const merged = { ...currentEffect, ...updates };
+                effects[index] = merged instanceof Effect ? merged : Effect.fromPOJO(merged);
+            }
             this.setEffects(effects);
         }
     }
@@ -117,8 +130,15 @@ export default class ProjectStateEffects {
             return;
         }
 
-        // Use single source of truth for keyframe effects
-        const keyframeEffects = parentEffect.attachedEffects?.keyFrame || [];
+        // Ensure parent effect is an Effect instance
+        const Effect = require('./Effect.js').Effect;
+        const parentEffectInstance = parentEffect instanceof Effect 
+            ? parentEffect 
+            : Effect.fromPOJO(parentEffect);
+
+        // Use new keyframeEffects property (backward compatible with attachedEffects.keyFrame)
+        const keyframeEffects = parentEffectInstance.keyframeEffects || 
+                               parentEffectInstance.attachedEffects?.keyFrame || [];
 
         if (keyframeEffects.length === 0) {
             console.warn('ProjectStateEffects: Cannot reorder keyframe effects - no keyframe effects found');
@@ -129,13 +149,10 @@ export default class ProjectStateEffects {
         const [movedKeyframeEffect] = reorderedKeyframeEffects.splice(sourceIndex, 1);
         reorderedKeyframeEffects.splice(destinationIndex, 0, movedKeyframeEffect);
 
-        // Update using single source of truth format
+        // Update using new keyframeEffects property
         effects[parentIndex] = {
-            ...parentEffect,
-            attachedEffects: {
-                ...parentEffect.attachedEffects,
-                keyFrame: reorderedKeyframeEffects
-            }
+            ...parentEffectInstance,
+            keyframeEffects: reorderedKeyframeEffects
         };
 
         this.setEffects(effects);

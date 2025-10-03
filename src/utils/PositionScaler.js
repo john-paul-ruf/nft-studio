@@ -5,6 +5,7 @@
  */
 
 import ResolutionMapper from './ResolutionMapper.js';
+import { Effect } from '../models/Effect.js';
 
 export class PositionScaler {
     /**
@@ -55,7 +56,16 @@ export class PositionScaler {
         }
 
         // Deep clone effects to avoid mutating original
-        const scaledEffects = JSON.parse(JSON.stringify(effects));
+        // Handle both Effect instances and POJOs
+        const scaledEffects = effects.map(effect => {
+            if (effect instanceof Effect) {
+                // Convert to POJO, scale, then convert back to Effect
+                return Effect.fromPOJO(JSON.parse(JSON.stringify(effect.toPOJO())));
+            } else {
+                // Plain object - just deep clone
+                return JSON.parse(JSON.stringify(effect));
+            }
+        });
 
         let positionsFound = 0;
         let positionsScaled = 0;
@@ -63,7 +73,9 @@ export class PositionScaler {
         // Scale each effect
         scaledEffects.forEach((effect, index) => {
             console.log(`🔍 Examining effect ${index} (${effect.name || effect.className || 'unnamed'}):`);
-            const result = this.scaleEffectPositions(effect, scaleX, scaleY, newWidth, newHeight);
+            // Get the underlying object to scale (POJO for Effect instances, or the object itself)
+            const effectToScale = effect instanceof Effect ? effect : effect;
+            const result = this.scaleEffectPositions(effectToScale, scaleX, scaleY, newWidth, newHeight);
             positionsFound += result.found;
             positionsScaled += result.scaled;
         });

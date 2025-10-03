@@ -18,6 +18,7 @@ import {
     DeleteKeyframeEffectCommand
 } from '../commands/ProjectCommands.js';
 import PreferencesService from './PreferencesService.js';
+import { Effect } from '../models/Effect.js';
 
 class EffectOperationsService {
     /**
@@ -131,8 +132,8 @@ class EffectOperationsService {
                 }
             }
 
-            // Create the effect object
-            const effect = {
+            // Create the effect object using Effect class
+            const effect = new Effect({
                 id: IdGenerator.generateId(),
                 name: effectName,
                 className: effectData?.className || effectName,
@@ -141,7 +142,7 @@ class EffectOperationsService {
                 type: validatedType,
                 percentChance: 100,
                 visible: true
-            };
+            });
 
             // Add the effect using command pattern
             const addCommand = new AddEffectCommand(projectState, effect, effectName);
@@ -191,7 +192,7 @@ class EffectOperationsService {
             const registryKey = effectData?.registryKey || effectName;
 
             // For specialty effects, use the provided config directly without centering
-            const effect = {
+            const effect = new Effect({
                 id: IdGenerator.generateId(),
                 name: effectName,
                 className: effectData?.className || effectName,
@@ -200,7 +201,7 @@ class EffectOperationsService {
                 type: effectType,
                 percentChance: percentChance || 100,
                 visible: true
-            };
+            });
 
             // Add the effect directly to project state
             const currentEffects = projectState.getState().effects || [];
