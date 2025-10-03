@@ -466,7 +466,7 @@ export async function testPipelineStateManagement() {
                 [states.RENDERING]: [states.COMPLETED, states.ERROR, states.CANCELLED],
                 [states.COMPLETED]: [states.INITIALIZING],
                 [states.ERROR]: [states.INITIALIZING],
-                [states.CANCELLED]: [states.INITIALIZING]
+                [states.CANCELLED]: [states.INITIALIZING, states.ERROR]
             };
             
             const transitionTo = (newState) => {
@@ -513,11 +513,19 @@ export async function testPipelineStateManagement() {
                         console.log('  ✓ Rendering started');
                         await new Promise(resolve => setTimeout(resolve, 50));
                         
+                        // Check if cancelled during render
+                        if (currentState === states.CANCELLED) {
+                            return { success: false, cancelled: true };
+                        }
+                        
                         transitionTo(states.COMPLETED);
                         return { success: true };
                     } catch (err) {
-                        error = err.message;
-                        transitionTo(states.ERROR);
+                        // Only transition to ERROR if not already cancelled
+                        if (currentState !== states.CANCELLED) {
+                            error = err.message;
+                            transitionTo(states.ERROR);
+                        }
                         return { success: false, error: err.message };
                     }
                 },

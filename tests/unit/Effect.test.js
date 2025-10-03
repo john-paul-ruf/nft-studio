@@ -13,9 +13,6 @@
 
 import { Effect } from '../../src/models/Effect.js';
 
-// Test Suite
-console.log('🧪 Starting Effect Class Tests...');
-
 // ============================================================================
 // Constructor Tests
 // ============================================================================
@@ -757,5 +754,3 @@ export function test_roundtrip_serialization() {
 
     console.log('✅ Round-trip serialization maintains data');
 }
-
-console.log('🎉 All Effect Class tests completed!');

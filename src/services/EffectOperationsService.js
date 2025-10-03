@@ -146,7 +146,7 @@ class EffectOperationsService {
 
             // Add the effect using command pattern
             const addCommand = new AddEffectCommand(projectState, effect, effectName);
-            this.commandService.execute(addCommand);
+            await this.commandService.execute(addCommand);
 
             // Update metrics
             this.operationMetrics.effectsCreated++;
@@ -253,7 +253,7 @@ class EffectOperationsService {
 
             // Use command pattern for undo/redo support
             const updateCommand = new UpdateEffectCommand(projectState, index, updatedEffect, effectName);
-            this.commandService.execute(updateCommand);
+            await this.commandService.execute(updateCommand);
 
             // Update metrics
             this.operationMetrics.effectsUpdated++;
@@ -296,7 +296,7 @@ class EffectOperationsService {
 
             // Use Command Pattern for delete
             const deleteCommand = new DeleteEffectCommand(projectState, index);
-            this.commandService.execute(deleteCommand);
+            await this.commandService.execute(deleteCommand);
 
             // Update metrics
             this.operationMetrics.effectsDeleted++;
@@ -334,7 +334,7 @@ class EffectOperationsService {
 
             // Use command pattern for undo/redo support
             const reorderCommand = new ReorderEffectsCommand(projectState, fromIndex, toIndex);
-            this.commandService.execute(reorderCommand);
+            await this.commandService.execute(reorderCommand);
 
             // Update metrics
             this.operationMetrics.effectsReordered++;
@@ -387,7 +387,7 @@ class EffectOperationsService {
 
             // Override the description for visibility toggle
             updateCommand.description = `${updatedEffect.visible ? 'Showed' : 'Hid'} ${effectName}`;
-            this.commandService.execute(updateCommand);
+            await this.commandService.execute(updateCommand);
 
             // Emit event
             this.eventBus.emit('effectOperations:effectVisibilityToggled', {
@@ -436,7 +436,7 @@ class EffectOperationsService {
                 secondaryEffectData,
                 effectName
             );
-            this.commandService.execute(addSecondaryCommand);
+            await this.commandService.execute(addSecondaryCommand);
 
             // Update metrics
             this.operationMetrics.secondaryEffectsCreated++;
@@ -490,7 +490,7 @@ class EffectOperationsService {
                 keyframeEffectData,
                 effectName
             );
-            this.commandService.execute(addKeyframeCommand);
+            await this.commandService.execute(addKeyframeCommand);
 
             // Update metrics
             this.operationMetrics.keyframeEffectsCreated++;
@@ -530,7 +530,7 @@ class EffectOperationsService {
                 parentIndex,
                 secondaryIndex
             );
-            this.commandService.execute(deleteSecondaryCommand);
+            await this.commandService.execute(deleteSecondaryCommand);
 
             // Emit event
             this.eventBus.emit('effectOperations:secondaryEffectDeleted', {
@@ -564,7 +564,7 @@ class EffectOperationsService {
                 parentIndex,
                 keyframeIndex
             );
-            this.commandService.execute(deleteKeyframeCommand);
+            await this.commandService.execute(deleteKeyframeCommand);
 
             // Emit event
             this.eventBus.emit('effectOperations:keyframeEffectDeleted', {
@@ -600,7 +600,7 @@ class EffectOperationsService {
                 fromIndex,
                 toIndex
             );
-            this.commandService.execute(reorderSecondaryCommand);
+            await this.commandService.execute(reorderSecondaryCommand);
 
             // Emit event
             this.eventBus.emit('effectOperations:secondaryEffectsReordered', {
@@ -637,7 +637,7 @@ class EffectOperationsService {
                 fromIndex,
                 toIndex
             );
-            this.commandService.execute(reorderKeyframeCommand);
+            await this.commandService.execute(reorderKeyframeCommand);
 
             // Emit event
             this.eventBus.emit('effectOperations:keyframeEffectsReordered', {

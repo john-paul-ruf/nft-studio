@@ -47,7 +47,36 @@ export default class ProjectState {
      * @param {Object} updates - Updates to apply
      */
     update(updates) {
-        this.core.update(updates);
+        // Handle special properties that need delegation to specialized managers
+        const { targetResolution, isHorizontal, effects, ...coreUpdates } = updates;
+        
+        // Apply core updates first
+        if (Object.keys(coreUpdates).length > 0) {
+            this.core.update(coreUpdates);
+        }
+        
+        // Handle resolution changes (triggers auto-scaling)
+        if (targetResolution !== undefined) {
+            this.resolution.setTargetResolution(targetResolution);
+        }
+        
+        // Handle orientation changes (triggers auto-scaling)
+        if (isHorizontal !== undefined) {
+            this.resolution.setIsHorizontal(isHorizontal);
+        }
+        
+        // Handle effects updates
+        if (effects !== undefined) {
+            this.effects.setEffects(effects);
+        }
+    }
+
+    /**
+     * Initialize project with configuration (alias for update)
+     * @param {Object} config - Configuration to apply
+     */
+    initializeProject(config) {
+        this.core.update(config);
     }
 
     /**

@@ -88,7 +88,7 @@ export class ChangeResolutionCommand extends Command {
         };
 
         const description = `Changed resolution to ${newResolution}`;
-        super('project.resolution', executeAction, undoAction, description);
+        super('project.resolution.change', executeAction, undoAction, description);
         this.newResolution = newResolution;
         this.isEffectCommand = false; // Not an effect command
     }
@@ -122,7 +122,7 @@ export class ToggleOrientationCommand extends Command {
 
         const currentState = projectState.getState();
         const description = currentState.isHorizontal ? 'Changed to vertical orientation' : 'Changed to horizontal orientation';
-        super('project.orientation', executeAction, undoAction, description);
+        super('project.orientation.toggle', executeAction, undoAction, description);
         this.isEffectCommand = false; // Not an effect command
     }
 }
@@ -168,7 +168,7 @@ export class ChangeFramesCommand extends Command {
         };
 
         const description = `Changed frame count to ${newFrameCount}`;
-        super('project.frames', executeAction, undoAction, description);
+        super('project.frames.change', executeAction, undoAction, description);
         this.newFrameCount = newFrameCount;
         this.isEffectCommand = false; // Not an effect command
     }

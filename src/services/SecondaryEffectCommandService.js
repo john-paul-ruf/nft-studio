@@ -55,6 +55,19 @@ class SecondaryEffectCommandService {
     createReorderCommand(projectState, parentIndex, sourceIndex, destinationIndex) {
         return new ReorderSecondaryEffectsCommand(projectState, parentIndex, sourceIndex, destinationIndex);
     }
+
+    // Alias methods for backward compatibility with tests
+    createAddSecondaryCommand(projectState, parentIndex, secondaryEffect, secondaryEffectName) {
+        return this.createAddCommand(projectState, parentIndex, secondaryEffect, secondaryEffectName);
+    }
+
+    createDeleteSecondaryCommand(projectState, parentIndex, secondaryIndex) {
+        return this.createDeleteCommand(projectState, parentIndex, secondaryIndex);
+    }
+
+    createReorderSecondaryCommand(projectState, parentIndex, sourceIndex, destinationIndex) {
+        return this.createReorderCommand(projectState, parentIndex, sourceIndex, destinationIndex);
+    }
 }
 
 /**
@@ -73,9 +86,10 @@ export class AddSecondaryEffectCommand extends Command {
             console.log('➕ AddSecondaryEffectCommand: Adding secondary effect to parent at index:', parentIndex);
 
             // Ensure secondaryEffect is an Effect instance (backward compatibility)
+            // Secondary effects should have type 'secondary'
             const effectInstance = secondaryEffect instanceof Effect 
                 ? secondaryEffect 
-                : Effect.fromPOJO(secondaryEffect);
+                : Effect.fromPOJO({ ...secondaryEffect, type: secondaryEffect.type || 'secondary' });
 
             // Ensure parent effect is an Effect instance
             const parentEffectInstance = parentEffect instanceof Effect 
@@ -138,7 +152,7 @@ export class AddSecondaryEffectCommand extends Command {
             parentEffect
         );
 
-        super('secondary.add', executeAction, undoAction, description);
+        super('effect.secondary.add', executeAction, undoAction, description);
         this.parentIndex = parentIndex;
         this.isEffectCommand = true;
     }
@@ -245,7 +259,7 @@ export class DeleteSecondaryEffectCommand extends Command {
             parentEffect
         );
 
-        super('secondary.delete', executeAction, undoAction, description);
+        super('effect.secondary.delete', executeAction, undoAction, description);
         this.parentIndex = parentIndex;
         this.secondaryIndex = secondaryIndex;
         this.isEffectCommand = true;
@@ -308,7 +322,7 @@ export class ReorderSecondaryEffectsCommand extends Command {
             ? `Moved ${effectName} down in ${parentName}`
             : `Moved ${effectName} up in ${parentName}`;
 
-        super('secondary.reorder', executeAction, undoAction, description);
+        super('effect.secondary.reorder', executeAction, undoAction, description);
         this.parentIndex = parentIndex;
         this.sourceIndex = sourceIndex;
         this.destinationIndex = destinationIndex;

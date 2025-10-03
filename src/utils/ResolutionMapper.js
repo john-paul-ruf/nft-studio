@@ -142,6 +142,20 @@ class ResolutionMapper {
     }
 
     /**
+     * Get resolution data (alias for getDimensions with width/height properties)
+     * @param {number|string} width - The width to look up or string resolution name
+     * @param {boolean} isHorizontal - Whether orientation is horizontal
+     * @returns {Object} Resolution object with width and height properties
+     */
+    static getResolution(width, isHorizontal = true) {
+        const dims = this.getDimensions(width, isHorizontal);
+        return {
+            width: dims.w,
+            height: dims.h
+        };
+    }
+
+    /**
      * Get display name for a resolution
      * @param {number} width - The width to look up
      * @returns {string} Display name (e.g., "1920x1080 (Full HD)")

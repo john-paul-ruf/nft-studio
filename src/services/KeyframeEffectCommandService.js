@@ -75,9 +75,11 @@ export class AddKeyframeEffectCommand extends Command {
             console.log('➕ AddKeyframeEffectCommand: Adding keyframe effect to parent at index:', parentIndex);
 
             // Ensure keyframeEffect is an Effect instance (backward compatibility)
+            // Keyframe effects should have type 'keyframe'
+            // IMPORTANT: Preserve the frame parameter on the effect instance
             const effectInstance = keyframeEffect instanceof Effect 
-                ? keyframeEffect 
-                : Effect.fromPOJO(keyframeEffect);
+                ? { ...keyframeEffect, frame }
+                : Effect.fromPOJO({ ...keyframeEffect, type: keyframeEffect.type || 'keyframe', frame });
 
             // Ensure parent effect is an Effect instance
             const parentEffectInstance = parentEffect instanceof Effect 
@@ -149,7 +151,7 @@ export class AddKeyframeEffectCommand extends Command {
         const parentName = CommandDescriptionHelper.getEffectName(parentEffect);
         const description = `Added ${effectName} keyframe at frame ${frame} to ${parentName}`;
 
-        super('keyframe.add', executeAction, undoAction, description);
+        super('effect.keyframe.add', executeAction, undoAction, description);
         this.parentIndex = parentIndex;
         this.frame = frame;
         this.isEffectCommand = true;
@@ -276,7 +278,7 @@ export class DeleteKeyframeEffectCommand extends Command {
             parentEffect
         );
 
-        super('keyframe.delete', executeAction, undoAction, description);
+        super('effect.keyframe.delete', executeAction, undoAction, description);
         this.parentIndex = parentIndex;
         this.keyframeIndex = keyframeIndex;
         this.isEffectCommand = true;
@@ -369,7 +371,7 @@ export class ReorderKeyframeEffectsCommand extends Command {
         const parentName = CommandDescriptionHelper.getEffectName(parentEffectInstance);
         const description = `Reordered keyframes in ${parentName}`;
 
-        super('keyframe.reorder', executeAction, undoAction, description);
+        super('effect.keyframe.reorder', executeAction, undoAction, description);
         this.parentIndex = parentIndex;
         this.sourceIndex = sourceIndex;
         this.destinationIndex = destinationIndex;

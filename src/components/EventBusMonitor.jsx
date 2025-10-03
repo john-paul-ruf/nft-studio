@@ -121,14 +121,15 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
 
     // Subscribe to live events (always active, not dependent on open state)
     useEffect(() => {
+        // Start monitoring when component mounts
+        EventCaptureService.startMonitoring({ enableDebug: true, captureAll: true });
+        
         // Event handler that processes incoming events
         const handleEvent = (eventData) => {
             console.log('📨 EventBusMonitor received event:', eventData);
-
             // Track render progress using RenderProgressTracker
             const eventName = eventData.eventName || 'unknown';
             const data = eventData.data || eventData;
-
             if (eventName === 'render.loop.start') {
                 RenderProgressTracker.handleRenderLoopStart(data);
             } else if (eventName === 'render.loop.complete') {
@@ -140,7 +141,6 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
             } else if (eventName === 'frameStarted') {
                 RenderProgressTracker.handleFrameStarted(data);
             }
-
             // Update render progress state from tracker
             setRenderProgress({
                 isRendering: RenderProgressTracker.isRendering(),
@@ -154,7 +154,6 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                 avgRenderTime: RenderProgressTracker.getAvgRenderTime(),
                 lastFrameTime: 0
             });
-
             // Only update UI if monitor is open and not paused
             if (open && !isPaused) {
                 // Create event object using EventFilterService for categorization
@@ -166,7 +165,6 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                     data: data,
                     raw: JSON.stringify(eventData, null, 2)
                 };
-
                 setEvents(prev => {
                     const updated = [newEvent, ...prev].slice(0, maxEvents);
                     updateStats(updated);
@@ -174,14 +172,13 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                 });
             }
         };
-
         // Register callback with EventCaptureService (always active)
         console.log('🔔 EventBusMonitor: Registering event callback');
         const unregister = EventCaptureService.registerCallback(handleEvent);
-
         return () => {
             console.log('🧹 EventBusMonitor: Unregistering event callback');
             unregister();
+            EventCaptureService.stopMonitoring();
         };
     }, [open, isPaused]);
 
@@ -881,15 +878,12 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                                     </Box>
                                 </Collapse>
                             </Paper>
-
                             {renderEventList()}
                         </>
                     )}
-
                     {selectedTab === 1 && renderStatsPanel()}
                 </Collapse>
             </DialogContent>
-
                 <DialogActions>
                     <Typography variant="caption" sx={{ flex: 1, pl: 2, color: 'text.secondary' }}>
                         {isPaused ? '⏸️ Paused' : '🔴 Recording'} |

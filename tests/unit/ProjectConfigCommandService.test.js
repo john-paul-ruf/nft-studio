@@ -92,7 +92,7 @@ export async function test_change_resolution_command() {
         console.log('📍 Initial resolution:', initialResolution);
         
         // Create change resolution command
-        const newResolution = 720;
+        const newResolution = 1280; // HD 720p (1280x720)
         const changeResolutionCommand = projectConfigCommandService.createChangeResolutionCommand(
             projectState,
             newResolution
@@ -312,7 +312,7 @@ export async function test_multiple_configuration_changes() {
         
         // Execute multiple configuration changes
         const commands = [
-            projectConfigCommandService.createChangeResolutionCommand(projectState, 720),
+            projectConfigCommandService.createChangeResolutionCommand(projectState, 1280), // HD 720p
             projectConfigCommandService.createToggleOrientationCommand(projectState),
             projectConfigCommandService.createChangeFramesCommand(projectState, 90)
         ];
@@ -328,8 +328,8 @@ export async function test_multiple_configuration_changes() {
         // Verify all changes were applied
         const stateAfterChanges = projectState.getState();
         
-        if (stateAfterChanges.targetResolution !== 720) {
-            throw new Error(`Expected resolution 720, got ${stateAfterChanges.targetResolution}`);
+        if (stateAfterChanges.targetResolution !== 1280) {
+            throw new Error(`Expected resolution 1280, got ${stateAfterChanges.targetResolution}`);
         }
         
         if (stateAfterChanges.isHorizontal === initialState.isHorizontal) {

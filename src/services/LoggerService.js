@@ -53,6 +53,15 @@ class LoggerService {
     }
 
     /**
+     * Log warning message (alias for warn)
+     * @param {string} message - Warning message
+     * @param {Object} details - Optional details
+     */
+    warning(message, details = null) {
+        this.logger.warn(message, details);
+    }
+
+    /**
      * Log error message
      * @param {string} message - Error message
      * @param {Object} error - Optional error object

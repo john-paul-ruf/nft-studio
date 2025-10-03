@@ -11,7 +11,7 @@ class ConsoleLogger {
      */
     header(title) {
         console.log('\n' + '='.repeat(60));
-        console.log(`📋 ${title.toUpperCase()}`);
+        console.log(`🚀 ${title.toUpperCase()}`);
         console.log('='.repeat(60));
     }
 
@@ -37,9 +37,10 @@ class ConsoleLogger {
             second: '2-digit',
             hour12: true
         });
-        console.log(`ℹ️  [${timestamp}] ${message}`);
-        if (data && typeof data === 'object') {
-            console.log('   📊 Data:', this.formatData(data));
+        if (data !== null && data !== undefined) {
+            console.log(`ℹ️  [${timestamp}] ${message} - ${this.formatData(data)}`);
+        } else {
+            console.log(`ℹ️  [${timestamp}] ${message}`);
         }
     }
 
@@ -113,11 +114,17 @@ class ConsoleLogger {
     getEventFormatter(eventName) {
         const formatters = {
             'frameCompleted': this.formatFrameCompletedEvent,
+            'frame-completed': this.formatFrameCompletedEvent,
             'workerStarted': this.formatWorkerStartedEvent,
+            'worker-started': this.formatWorkerStartedEvent,
             'workerCompleted': this.formatWorkerCompletedEvent,
+            'worker-completed': this.formatWorkerCompletedEvent,
             'projectProgress': this.formatProjectProgressEvent,
+            'project-progress': this.formatProjectProgressEvent,
             'GENERATION_ERROR': this.formatGenerationErrorEvent,
-            'GENERATION_COMPLETE': this.formatGenerationCompleteEvent
+            'generation-error': this.formatGenerationErrorEvent,
+            'GENERATION_COMPLETE': this.formatGenerationCompleteEvent,
+            'generation-complete': this.formatGenerationCompleteEvent
         };
 
         return formatters[eventName] || this.formatGenericEvent.bind(this, eventName);
@@ -132,7 +139,7 @@ class ConsoleLogger {
         if (data) {
             const progress = Math.round(data.progress || 0); // progress is already a percentage (1-100)
             const timeStr = data.durationMs ? `${data.durationMs}ms` : 'N/A';
-            console.log(`🖼️  [${timestamp}] Frame ${data.frameNumber}/${data.totalFrames} completed (${progress}%) - ${timeStr}`);
+            console.log(`🎬 [${timestamp}] frame-completed - Frame ${data.frame || data.frameNumber}/${data.total || data.totalFrames} completed (${progress}%) - ${timeStr}`);
             if (data.outputPath) {
                 console.log(`   💾 Saved: ${data.outputPath.split('/').pop()}`);
             }
@@ -147,7 +154,9 @@ class ConsoleLogger {
     formatWorkerStartedEvent(timestamp, data) {
         if (data && data.config) {
             const { frameStart, frameEnd, totalFrames } = data.config;
-            console.log(`🔨 [${timestamp}] Worker started: frames ${frameStart}-${frameEnd} (${totalFrames} total) - ${data.workerId}`);
+            console.log(`👷 [${timestamp}] worker-started: frames ${frameStart}-${frameEnd} (${totalFrames} total) - ${data.workerId}`);
+        } else if (data && data.workerId) {
+            console.log(`👷 [${timestamp}] worker-started - ${data.workerId}`);
         }
     }
 
@@ -184,7 +193,7 @@ class ConsoleLogger {
      * @param {Object} data - Event data
      */
     formatGenerationErrorEvent(timestamp, data) {
-        console.log(`🚨 [${timestamp}] Generation Error: ${data?.message || 'Unknown error'}`);
+        console.log(`🚨 [${timestamp}] generation-error: ${data?.message || data?.error || 'Unknown error'}`);
         if (data?.stack) {
             console.log('   🔍 Stack:', data.stack.split('\n').slice(0, 3).join('\n'));
         }
@@ -197,10 +206,11 @@ class ConsoleLogger {
      */
     formatGenerationCompleteEvent(timestamp, data) {
         if (data) {
-            const duration = data.totalDurationMs ? `${(data.totalDurationMs / 1000).toFixed(1)}s` : 'N/A';
-            console.log(`🎉 [${timestamp}] Generation Complete: ${data.totalFrames} frames in ${duration}`);
-            if (data.outputDirectory) {
-                console.log(`   📁 Output: ${data.outputDirectory}`);
+            const duration = data.totalDurationMs ? `${(data.totalDurationMs / 1000).toFixed(1)}s` : (data.duration || 'N/A');
+            const frames = data.totalFrames || 'N/A';
+            console.log(`🎉 [${timestamp}] generation-complete: ${frames} frames in ${duration}`);
+            if (data.outputDirectory || data.outputPath) {
+                console.log(`   📁 Output: ${data.outputDirectory || data.outputPath}`);
             }
         }
     }
@@ -232,9 +242,9 @@ class ConsoleLogger {
         if (Array.isArray(data)) {
             if (data.length === 0) return '[]';
             if (data.length <= 3) {
-                return `[${data.map(item => this.formatDataSummary(item)).join(', ')}]`;
+                return `[${data.map(item => this.formatDataSummary(item)).join(',')}]`;
             }
-            return `[${data.length} items: ${data.slice(0, 2).map(item => this.formatDataSummary(item)).join(', ')}, ...]`;
+            return `[${data.length} items: ${data.slice(0, 2).map(item => this.formatDataSummary(item)).join(',')}, ...]`;
         }
 
         // Format objects based on their content

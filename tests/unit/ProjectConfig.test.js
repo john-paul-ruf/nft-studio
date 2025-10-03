@@ -14,7 +14,6 @@ import { ProjectConfig } from '../../src/models/ProjectConfig.js';
 import { Effect } from '../../src/models/Effect.js';
 
 // Test Suite
-console.log('🧪 Starting ProjectConfig Class Tests...');
 
 // ============================================================================
 // Constructor Tests
@@ -585,5 +584,3 @@ export function test_roundtrip_serialization() {
 
     console.log('✅ Round-trip serialization maintains data');
 }
-
-console.log('🎉 All ProjectConfig Class tests completed!');

@@ -153,7 +153,7 @@ export async function testCommandStackOverflowHandling() {
         
         // Execute all commands using REAL CommandService
         for (const command of commands) {
-            commandService.execute(command);
+            await commandService.execute(command);
         }
         
         // Verify stack size is limited to 50 (REAL behavior)
@@ -240,7 +240,7 @@ export async function testUndoToIndexBoundaryConditions() {
         for (let i = 0; i < 5; i++) {
             const command = new TestCommand(`boundary-test-${i}`, i, `Boundary test ${i}`);
             commands.push(command);
-            commandService.execute(command);
+            await commandService.execute(command);
         }
         
         // Test valid boundary: undo to index 2 (should undo 3 commands)
@@ -288,7 +288,7 @@ export async function testRedoToIndexBoundaryConditions() {
         // Create and execute 5 REAL commands, then undo all
         for (let i = 0; i < 5; i++) {
             const command = new TestCommand(`redo-boundary-${i}`, i, `Redo boundary ${i}`);
-            commandService.execute(command);
+            await commandService.execute(command);
         }
         
         // Undo all commands to populate redo stack
@@ -345,7 +345,7 @@ export async function testCommandExecutionFailureRollback() {
     try {
         // Execute a successful command first
         const successCommand = new TestCommand('success-before-fail', 1, 'Success before fail');
-        commandService.execute(successCommand);
+        await commandService.execute(successCommand);
         
         const initialState = commandService.getState();
         
@@ -356,7 +356,7 @@ export async function testCommandExecutionFailureRollback() {
         let errorMessage = '';
         
         try {
-            commandService.execute(failingCommand);
+            await commandService.execute(failingCommand);
         } catch (error) {
             errorCaught = true;
             errorMessage = error.message;
@@ -398,7 +398,7 @@ export async function testUndoFailureRollback() {
     try {
         // Create and execute command that fails on undo
         const failingUndoCommand = new FailingCommand('failing-undo', false, true);
-        commandService.execute(failingUndoCommand);
+        await commandService.execute(failingUndoCommand);
         
         const initialState = commandService.getState();
         
@@ -450,7 +450,7 @@ export async function testEventEmissionOnCommandLifecycle() {
         
         // Execute REAL command
         const command = new TestCommand('event-test', 42, 'Event test command');
-        commandService.execute(command);
+        await commandService.execute(command);
         
         // Verify command:executed event was emitted
         const executedEvents = eventBusEvents.filter(e => e.event === 'command:executed');
@@ -517,7 +517,7 @@ export async function testErrorEventEmission() {
         const failingCommand = new FailingCommand('error-event-test', true, false);
         
         try {
-            commandService.execute(failingCommand);
+            await commandService.execute(failingCommand);
         } catch (error) {
             // Expected to throw
         }
@@ -554,16 +554,16 @@ export async function testEffectVsNonEffectCommandFiltering() {
         // Execute REAL effect command
         const effectCommand = new TestCommand('effect-cmd', 1, 'Effect command');
         effectCommand.isEffectCommand = true;
-        commandService.execute(effectCommand);
+        await commandService.execute(effectCommand);
         
         // Execute REAL non-effect command
         const nonEffectCommand = new NonEffectCommand('non-effect-cmd', 2);
-        commandService.execute(nonEffectCommand);
+        await commandService.execute(nonEffectCommand);
         
         // Execute another REAL effect command
         const effectCommand2 = new TestCommand('effect-cmd-2', 3, 'Effect command 2');
         effectCommand2.isEffectCommand = true;
-        commandService.execute(effectCommand2);
+        await commandService.execute(effectCommand2);
         
         // Verify only effect commands are in undo stack
         const state = commandService.getState();
@@ -621,7 +621,7 @@ export async function testCommandHistoryStateManagement() {
         for (let i = 0; i < 3; i++) {
             const command = new TestCommand(`state-test-${i}`, i, `State test ${i}`);
             commands.push(command);
-            commandService.execute(command);
+            await commandService.execute(command);
         }
         
         // Verify state after executions
@@ -671,7 +671,7 @@ export async function testCommandHistoryClearing() {
         // Execute some REAL commands
         for (let i = 0; i < 3; i++) {
             const command = new TestCommand(`clear-test-${i}`, i, `Clear test ${i}`);
-            commandService.execute(command);
+            await commandService.execute(command);
         }
         
         // Undo one to populate redo stack
@@ -725,7 +725,7 @@ export async function testEventBusIntegration() {
     try {
         // Execute REAL command
         const command = new TestCommand('eventbus-integration', 99, 'EventBus integration test');
-        commandService.execute(command);
+        await commandService.execute(command);
         
         // Clear captured events
         eventBusEvents.length = 0;
@@ -786,7 +786,7 @@ export async function testEventBusUndoRedoToIndex() {
         // Execute 5 REAL commands
         for (let i = 0; i < 5; i++) {
             const command = new TestCommand(`eventbus-index-${i}`, i, `EventBus index test ${i}`);
-            commandService.execute(command);
+            await commandService.execute(command);
         }
         
         // Trigger undo to index via REAL EventBus

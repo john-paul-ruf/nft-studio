@@ -11,6 +11,7 @@ class CommandService {
         this.redoStack = [];
         this.maxStackSize = 50; // Limit to 50 actions as requested
         this.isExecuting = false;
+        this.executionQueue = Promise.resolve(); // Queue for sequential execution
 
         console.log('⚡ CommandService: Initialized - Single source of truth for user actions');
 
@@ -25,63 +26,89 @@ class CommandService {
 
     /**
      * Execute a command with automatic undo/redo stack management
+     * Handles both sync and async commands, ensuring sequential execution
      * @param {Object} command - Command to execute
+     * @returns {Promise} Promise that resolves when command completes
      */
     execute(command) {
-        if (this.isExecuting) {
-            console.warn('⚡ CommandService: Command already executing, skipping');
-            return;
-        }
-
-        this.isExecuting = true;
-
-        try {
-            console.log(`⚡ CommandService: Executing command '${command.type}'`, command);
-
-            // Execute the command
-            const result = command.execute();
-
-            // Only add to undo stack if command is undoable AND is an effect command
-            if (command.undo && command.isEffectCommand !== false) {
-                // Check if this is an effect-related command
-                if (command.isEffectCommand === true) {
-                    console.log(`⚡ CommandService: Adding effect command to undo stack: ${command.type}`);
-                    this.undoStack.push(command);
-
-                    // Clear redo stack when new command is executed
-                    this.redoStack = [];
-
-                    // Maintain stack size
-                    if (this.undoStack.length > this.maxStackSize) {
-                        this.undoStack = this.undoStack.slice(-this.maxStackSize);
-                    }
-                } else {
-                    console.log(`⚡ CommandService: Skipping non-effect command for undo/redo: ${command.type}`);
+        // Create a promise for this specific execution
+        let executionPromise;
+        
+        // Chain this execution to the queue to ensure sequential execution
+        this.executionQueue = this.executionQueue
+            .then(async () => {
+                if (this.isExecuting) {
+                    console.warn('⚡ CommandService: Command already executing, skipping');
+                    return;
                 }
-            }
 
-            // Only emit undo/redo state changes for effect commands
-            if (command.isEffectCommand !== false) {
-                EventBusService.emit('command:executed', {
-                    command: command.type,
-                    description: command.description,
-                    canUndo: this.canUndo(),
-                    canRedo: this.canRedo(),
-                    stackSize: this.undoStack.length,
-                    undoStack: this.getUndoHistory(),
-                    redoStack: this.getRedoHistory()
-                }, { source: 'CommandService' });
-            }
+                this.isExecuting = true;
 
-            return result;
+                try {
+                    console.log(`⚡ CommandService: Executing command '${command.type}'`, command);
 
-        } catch (error) {
-            console.error(`⚡ CommandService: Error executing command '${command.type}':`, error);
-            EventBusService.emit('command:error', { command: command.type, error }, { source: 'CommandService' });
-            throw error;
-        } finally {
-            this.isExecuting = false;
-        }
+                    // Execute the command (await if it's a promise)
+                    const result = await command.execute();
+
+                    // Only add to undo stack if command is undoable AND is an effect command
+                    if (command.undo && command.isEffectCommand !== false) {
+                        // Check if this is an effect-related command
+                        if (command.isEffectCommand === true) {
+                            console.log(`⚡ CommandService: Adding effect command to undo stack: ${command.type}`);
+                            this.undoStack.push(command);
+
+                            // Clear redo stack when new command is executed
+                            this.redoStack = [];
+
+                            // Maintain stack size
+                            if (this.undoStack.length > this.maxStackSize) {
+                                this.undoStack = this.undoStack.slice(-this.maxStackSize);
+                            }
+                        } else {
+                            console.log(`⚡ CommandService: Skipping non-effect command for undo/redo: ${command.type}`);
+                        }
+                    }
+
+                    // Only emit undo/redo state changes for effect commands
+                    if (command.isEffectCommand !== false) {
+                        EventBusService.emit('command:executed', {
+                            command: command.type,
+                            description: command.description,
+                            canUndo: this.canUndo(),
+                            canRedo: this.canRedo(),
+                            stackSize: this.undoStack.length,
+                            undoStack: this.getUndoHistory(),
+                            redoStack: this.getRedoHistory()
+                        }, { source: 'CommandService' });
+                    }
+
+                    return result;
+
+                } catch (error) {
+                    console.error(`⚡ CommandService: Error executing command '${command.type}':`, error);
+                    EventBusService.emit('command:error', { command: command.type, error }, { source: 'CommandService' });
+                    throw error;
+                } finally {
+                    this.isExecuting = false;
+                }
+            })
+            .catch(error => {
+                // Catch errors to prevent unhandled rejections in the queue chain
+                // The error is already logged and emitted above, just prevent propagation
+                throw error;
+            });
+
+        // Store the execution promise before catching to return to caller
+        executionPromise = this.executionQueue;
+        
+        // Catch errors in the queue to prevent them from breaking the chain
+        this.executionQueue = this.executionQueue.catch(() => {
+            // Silently catch to keep the queue alive for next command
+            // Errors are already handled and thrown to the caller via executionPromise
+        });
+
+        // Return the promise for this specific execution (with error propagation)
+        return executionPromise;
     }
 
     /**

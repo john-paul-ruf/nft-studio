@@ -164,6 +164,18 @@ class TestEnvironment {
     async verifyCleanup() {
         return this.tempManager.verifyCleanup();
     }
+
+    /**
+     * Assert helper for tests
+     * @param {boolean} condition - Condition to check
+     * @param {string} message - Error message if assertion fails
+     * @throws {Error} If condition is false
+     */
+    assert(condition, message) {
+        if (!condition) {
+            throw new Error(`Assertion failed: ${message}`);
+        }
+    }
 }
 
 export default TestEnvironment;

@@ -19,6 +19,11 @@ class ProjectMetadataService {
      * @returns {string} Project name
      */
     extractProjectName(settings) {
+        // Handle null/undefined settings
+        if (!settings) {
+            return 'Converted Project';
+        }
+        
         // Try various sources for project name
         const sources = [
             settings.config?.finalFileName,
@@ -42,6 +47,11 @@ class ProjectMetadataService {
      * @returns {string|null} Output directory path or null
      */
     extractOutputDirectory(settings) {
+        // Handle null/undefined settings
+        if (!settings) {
+            return null;
+        }
+        
         // First check if there's an explicit outputDirectory field (from newer exports)
         if (settings.outputDirectory) {
             console.log('📁 Using explicit outputDirectory from settings:', settings.outputDirectory);
@@ -98,6 +108,10 @@ class ProjectMetadataService {
      * @returns {string} Artist name or empty string
      */
     extractArtist(settings) {
+        // Handle null/undefined settings
+        if (!settings) {
+            return '';
+        }
         return settings.config?._INVOKER_ || '';
     }
 
@@ -107,7 +121,12 @@ class ProjectMetadataService {
      * @returns {number} Number of frames
      */
     extractFrameCount(settings) {
-        return settings.config?.numberOfFrame || 100;
+        // Handle null/undefined settings
+        if (!settings) {
+            return 100;
+        }
+        // Use nullish coalescing to allow 0 as a valid value
+        return settings.config?.numberOfFrame ?? 100;
     }
 
     /**
@@ -116,9 +135,16 @@ class ProjectMetadataService {
      * @returns {Object} Render settings
      */
     extractRenderSettings(settings) {
+        // Handle null/undefined settings
+        if (!settings) {
+            return {
+                renderStartFrame: 0,
+                renderJumpFrames: 1
+            };
+        }
         return {
-            renderStartFrame: settings.frameStart || 0,
-            renderJumpFrames: settings.config?.frameInc || 1
+            renderStartFrame: settings.frameStart ?? 0,
+            renderJumpFrames: settings.config?.frameInc ?? 1
         };
     }
 }

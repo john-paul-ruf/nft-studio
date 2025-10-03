@@ -21,6 +21,7 @@ export class Effect {
      * @param {boolean} [params.visible=true] - UI visibility flag
      * @param {Array<Effect>} [params.secondaryEffects=[]] - Nested secondary effects
      * @param {Array<Effect>} [params.keyframeEffects=[]] - Animation keyframe effects
+     * @param {number} [params.frame] - Frame number (for keyframe effects)
      * 
      * @throws {Error} If required parameters are missing or invalid
      */
@@ -34,7 +35,8 @@ export class Effect {
         percentChance = 100,
         visible = true,
         secondaryEffects = [],
-        keyframeEffects = []
+        keyframeEffects = [],
+        frame
     }) {
         // Validate required parameters
         if (!id) {
@@ -85,6 +87,11 @@ export class Effect {
         this.visible = visible;
         this.secondaryEffects = secondaryEffects;
         this.keyframeEffects = keyframeEffects;
+        
+        // Optional frame property for keyframe effects
+        if (frame !== undefined) {
+            this.frame = frame;
+        }
     }
 
     /**
@@ -123,7 +130,7 @@ export class Effect {
         }
 
         return new Effect({
-            id: pojo.id,
+            id: pojo.id || `effect_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             name: pojo.name,
             className: pojo.className,
             registryKey: pojo.registryKey,
@@ -132,7 +139,8 @@ export class Effect {
             percentChance: pojo.percentChance,
             visible: pojo.visible,
             secondaryEffects,
-            keyframeEffects
+            keyframeEffects,
+            frame: pojo.frame
         });
     }
 
@@ -144,7 +152,7 @@ export class Effect {
      * @returns {Object} Plain object representation
      */
     toPOJO() {
-        return {
+        const pojo = {
             id: this.id,
             name: this.name,
             className: this.className,
@@ -160,6 +168,13 @@ export class Effect {
                 ke instanceof Effect ? ke.toPOJO() : ke
             )
         };
+        
+        // Include frame property if it exists (for keyframe effects)
+        if (this.frame !== undefined) {
+            pojo.frame = this.frame;
+        }
+        
+        return pojo;
     }
 
     /**

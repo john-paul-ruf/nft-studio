@@ -136,17 +136,19 @@ export function test_resolution_key_trigger() {
     console.log('✅ Resolution key trigger test passed');
 }
 
-// Run tests
-console.log('\n🚀 Starting Resolution Scaling UI Tests\n');
-
-try {
-    test_effect_configurer_resolution_sync();
-    test_resolution_key_trigger();
+// Run tests if called directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+    console.log('\n🚀 Starting Resolution Scaling UI Tests\n');
     
-    console.log('\n✅ All tests passed!\n');
-    process.exit(0);
-} catch (error) {
-    console.error('\n❌ Test failed:', error.message);
-    console.error(error.stack);
-    process.exit(1);
+    try {
+        test_effect_configurer_resolution_sync();
+        test_resolution_key_trigger();
+        
+        console.log('\n✅ All tests passed!\n');
+        process.exit(0);
+    } catch (error) {
+        console.error('\n❌ Test failed:', error.message);
+        console.error(error.stack);
+        process.exit(1);
+    }
 }

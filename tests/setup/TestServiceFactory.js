@@ -1,7 +1,300 @@
 import DependencyContainer from '../../src/main/container/DependencyContainer.js';
 import ImageService from '../../src/main/services/ImageService.js';
+import ProjectState from '../../src/models/ProjectState.js';
+import EventBusService from '../../src/services/EventBusService.js';
+import CommandService from '../../src/services/CommandService.js';
+import EffectCommandService from '../../src/services/EffectCommandService.js';
+import SecondaryEffectCommandService from '../../src/services/SecondaryEffectCommandService.js';
+import KeyframeEffectCommandService from '../../src/services/KeyframeEffectCommandService.js';
+import ProjectConfigCommandService from '../../src/services/ProjectConfigCommandService.js';
+import ColorSchemeService from '../../src/services/ColorSchemeService.js';
+import PreferencesService from '../../src/services/PreferencesService.js';
+import { PositionScaler } from '../../src/utils/PositionScaler.js';
+import ResolutionMapper from '../../src/utils/ResolutionMapper.js';
 
 // Test-compatible service implementations
+
+/**
+ * TestEventBusService - Isolated EventBus instance for testing
+ * Creates a fresh EventBus instance for each test to ensure isolation
+ */
+class TestEventBusService {
+    constructor() {
+        this.listeners = new Map();
+        this.eventHistory = [];
+        this.isLoggingEnabled = false; // Disabled by default for tests
+    }
+
+    subscribe(eventType, handler, options = {}) {
+        if (!this.listeners.has(eventType)) {
+            this.listeners.set(eventType, new Set());
+        }
+
+        const subscription = {
+            handler,
+            id: Math.random().toString(36).substr(2, 9),
+            once: options.once || false,
+            component: options.component || 'unknown'
+        };
+
+        this.listeners.get(eventType).add(subscription);
+
+        if (this.isLoggingEnabled) {
+            console.log(`📡 EventBus: ${options.component} subscribed to '${eventType}'`);
+        }
+
+        return () => {
+            this.listeners.get(eventType)?.delete(subscription);
+            if (this.isLoggingEnabled) {
+                console.log(`📡 EventBus: ${options.component} unsubscribed from '${eventType}'`);
+            }
+        };
+    }
+
+    unsubscribe(eventType, handler) {
+        const subscribers = this.listeners.get(eventType);
+        if (subscribers) {
+            // Find and remove subscription with matching handler
+            for (const subscription of subscribers) {
+                if (subscription.handler === handler) {
+                    subscribers.delete(subscription);
+                    if (this.isLoggingEnabled) {
+                        console.log(`📡 EventBus: Unsubscribed from '${eventType}'`);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    emit(eventType, payload = {}, context = {}) {
+        const event = {
+            type: eventType,
+            payload,
+            context,
+            timestamp: Date.now()
+        };
+
+        this.eventHistory.push(event);
+
+        const subscribers = this.listeners.get(eventType);
+        if (subscribers && subscribers.size > 0) {
+            const toRemove = [];
+
+            subscribers.forEach(subscription => {
+                try {
+                    subscription.handler(payload, event);
+
+                    if (subscription.once) {
+                        toRemove.push(subscription);
+                    }
+                } catch (error) {
+                    console.error(`📡 EventBus: Error in ${subscription.component} handler for '${eventType}':`, error);
+                }
+            });
+
+            toRemove.forEach(subscription => subscribers.delete(subscription));
+        }
+    }
+
+    getEventHistory(eventType = null) {
+        if (eventType) {
+            return this.eventHistory.filter(event => event.type === eventType);
+        }
+        return [...this.eventHistory];
+    }
+
+    replayEvents(events) {
+        events.forEach(event => {
+            this.emit(event.type, event.payload, { ...event.context, isReplay: true });
+        });
+    }
+
+    clear() {
+        this.listeners.clear();
+        this.eventHistory = [];
+    }
+
+    getStats() {
+        const stats = {};
+        this.listeners.forEach((subscribers, eventType) => {
+            stats[eventType] = subscribers.size;
+        });
+        return stats;
+    }
+
+    setLogging(enabled) {
+        this.isLoggingEnabled = enabled;
+    }
+}
+
+/**
+ * TestCommandService - Command service with injectable EventBus for testing
+ * Accepts EventBusService as a constructor parameter for test isolation
+ */
+class TestCommandService {
+    constructor(eventBusService) {
+        this.eventBusService = eventBusService;
+        this.undoStack = [];
+        this.redoStack = [];
+        this.maxStackSize = 50;
+        this.isExecuting = false;
+
+        // Subscribe to undo/redo events using the injected EventBusService
+        this.eventBusService.subscribe('command:undo', () => this.undo(), { component: 'CommandService' });
+        this.eventBusService.subscribe('command:redo', () => this.redo(), { component: 'CommandService' });
+        this.eventBusService.subscribe('command:undo-to-index', (payload) => this.undoToIndex(payload.index), { component: 'CommandService' });
+        this.eventBusService.subscribe('command:redo-to-index', (payload) => this.redoToIndex(payload.index), { component: 'CommandService' });
+    }
+
+    execute(command) {
+        if (this.isExecuting) {
+            return;
+        }
+
+        this.isExecuting = true;
+
+        try {
+            const result = command.execute();
+
+            // Add command to undo stack if it has an undo method
+            if (command.undo) {
+                this.undoStack.push(command);
+
+                if (this.undoStack.length > this.maxStackSize) {
+                    this.undoStack.shift();
+                }
+
+                this.redoStack = [];
+                this.eventBusService.emit('command:stack-changed', {
+                    undoCount: this.undoStack.length,
+                    redoCount: this.redoStack.length
+                });
+            }
+
+            // Emit command:executed event (matching real CommandService behavior)
+            this.eventBusService.emit('command:executed', {
+                command: command.type,
+                commandType: command.type,
+                description: command.description || command.name,
+                canUndo: this.undoStack.length > 0,
+                canRedo: this.redoStack.length > 0,
+                stackSize: this.undoStack.length
+            });
+
+            return result;
+        } finally {
+            this.isExecuting = false;
+        }
+    }
+
+    // Alias for tests that use executeCommand instead of execute
+    executeCommand(command) {
+        return this.execute(command);
+    }
+
+    undo() {
+        if (this.undoStack.length === 0) {
+            return { success: false, message: 'No commands to undo' };
+        }
+
+        const command = this.undoStack.pop();
+        const result = command.undo();
+        this.redoStack.push(command);
+
+        this.eventBusService.emit('command:stack-changed', {
+            undoCount: this.undoStack.length,
+            redoCount: this.redoStack.length
+        });
+
+        return result || { success: true };
+    }
+
+    redo() {
+        if (this.redoStack.length === 0) {
+            return { success: false, message: 'No commands to redo' };
+        }
+
+        const command = this.redoStack.pop();
+        const result = command.execute();
+        this.undoStack.push(command);
+
+        this.eventBusService.emit('command:stack-changed', {
+            undoCount: this.undoStack.length,
+            redoCount: this.redoStack.length
+        });
+
+        return result || { success: true };
+    }
+
+    undoToIndex(index) {
+        while (this.undoStack.length > index) {
+            this.undo();
+        }
+    }
+
+    redoToIndex(index) {
+        const targetCount = index + 1;
+        while (this.undoStack.length < targetCount && this.redoStack.length > 0) {
+            this.redo();
+        }
+    }
+
+    getUndoStack() {
+        return [...this.undoStack];
+    }
+
+    getRedoStack() {
+        return [...this.redoStack];
+    }
+
+    clear() {
+        this.undoStack = [];
+        this.redoStack = [];
+        this.eventBusService.emit('command:stack-changed', {
+            undoCount: 0,
+            redoCount: 0
+        });
+    }
+}
+
+/**
+ * TestRenderService - Simple render service for testing
+ * Provides basic rendering functionality for tests
+ */
+class TestRenderService {
+    constructor() {
+        this.isRendering = false;
+        this.progress = 0;
+        this.currentFrame = 0;
+    }
+
+    async startRender(config) {
+        this.isRendering = true;
+        this.progress = 0;
+        this.currentFrame = 0;
+        return { success: true, message: 'Render started' };
+    }
+
+    async stopRender() {
+        this.isRendering = false;
+        return { success: true, message: 'Render stopped' };
+    }
+
+    getProgress() {
+        return {
+            isRendering: this.isRendering,
+            progress: this.progress,
+            currentFrame: this.currentFrame
+        };
+    }
+
+    async renderFrame(frameNumber) {
+        this.currentFrame = frameNumber;
+        return { success: true, frame: frameNumber };
+    }
+}
+
 class TestDialogService {
     /**
      * Show folder selection dialog
@@ -745,6 +1038,43 @@ class TestServiceFactory {
         this.container.registerSingleton('effectRegistryService', () => new TestEffectRegistryService());
         this.container.registerSingleton('configProcessingService', () => new TestConfigProcessingService());
         this.container.registerSingleton('logger', () => new TestLogger());
+        this.container.registerSingleton('RenderService', () => new TestRenderService());
+        
+        // Register EventBusService (required by CommandService and others)
+        // Use TestEventBusService for isolated test instances
+        this.container.registerSingleton('EventBusService', () => new TestEventBusService());
+        // Register 'EventBus' as an alias for 'EventBusService'
+        this.container.registerSingleton('EventBus', (container) => container.resolve('EventBusService'));
+        
+        // Register static services (ColorSchemeService and PreferencesService)
+        this.container.registerSingleton('ColorSchemeService', () => ColorSchemeService);
+        this.container.registerSingleton('PreferencesService', () => PreferencesService);
+        
+        // Register ProjectState (single source of truth for project data)
+        this.container.registerSingleton('ProjectState', () => new ProjectState({
+            targetResolution: '1080p',
+            isHorizontal: true,
+            numFrames: 100,
+            effects: []
+        }));
+        
+        // Register CommandService (required by command services)
+        // Use TestCommandService for injectable EventBus
+        this.container.registerSingleton('CommandService', (container) => {
+            return new TestCommandService(container.resolve('EventBusService'));
+        });
+        
+        // Register Effect Command Services (use production singletons - they don't accept constructor params)
+        this.container.registerSingleton('EffectCommandService', () => EffectCommandService);
+        this.container.registerSingleton('SecondaryEffectCommandService', () => SecondaryEffectCommandService);
+        this.container.registerSingleton('KeyframeEffectCommandService', () => KeyframeEffectCommandService);
+        this.container.registerSingleton('ProjectConfigCommandService', () => ProjectConfigCommandService);
+        
+        // Register PositionScaler (static utility class for resolution scaling)
+        this.container.registerSingleton('PositionScaler', () => PositionScaler);
+        
+        // Register ResolutionMapper (static utility class for resolution mapping)
+        this.container.registerSingleton('ResolutionMapper', () => ResolutionMapper);
         
         // Register composite services with dependencies
         this.container.registerSingleton('frameService', (container) => {

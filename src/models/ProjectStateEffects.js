@@ -131,7 +131,6 @@ export default class ProjectStateEffects {
         }
 
         // Ensure parent effect is an Effect instance
-        const Effect = require('./Effect.js').Effect;
         const parentEffectInstance = parentEffect instanceof Effect 
             ? parentEffect 
             : Effect.fromPOJO(parentEffect);

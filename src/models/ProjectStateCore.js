@@ -23,7 +23,13 @@ export default class ProjectStateCore {
      */
     initializeState(initialConfig) {
         if (initialConfig) {
-            return { ...initialConfig };
+            // Handle frameCount alias (map to numFrames)
+            const config = { ...initialConfig };
+            if ('frameCount' in config && !('numFrames' in config)) {
+                config.numFrames = config.frameCount;
+                delete config.frameCount;
+            }
+            return config;
         }
 
         // Default project state
@@ -47,7 +53,12 @@ export default class ProjectStateCore {
      * @returns {Object} Current state
      */
     getState() {
-        return { ...this.state };
+        const state = { ...this.state };
+        // Add frameCount alias for backward compatibility
+        if ('numFrames' in state) {
+            state.frameCount = state.numFrames;
+        }
+        return state;
     }
 
     /**
@@ -59,7 +70,14 @@ export default class ProjectStateCore {
         console.log('📝 ProjectStateCore.update: Before update - effects count:', oldEffectsCount);
         console.log('📝 ProjectStateCore.update: Updates being applied:', updates);
 
-        this.state = { ...this.state, ...updates };
+        // Handle frameCount alias (map to numFrames)
+        const normalizedUpdates = { ...updates };
+        if ('frameCount' in normalizedUpdates && !('numFrames' in normalizedUpdates)) {
+            normalizedUpdates.numFrames = normalizedUpdates.frameCount;
+            delete normalizedUpdates.frameCount;
+        }
+
+        this.state = { ...this.state, ...normalizedUpdates };
 
         const newEffectsCount = this.state?.effects?.length || 0;
         console.log('📝 ProjectStateCore.update: After update - effects count:', newEffectsCount);

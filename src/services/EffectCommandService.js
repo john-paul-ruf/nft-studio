@@ -84,9 +84,13 @@ export class UpdateEffectCommand extends Command {
             previousEffect = currentEffects[effectIndex];
             
             // Ensure updatedEffect is an Effect instance (backward compatibility)
+            // If updatedEffect is a POJO without type, use the previous effect's type
             const effectInstance = updatedEffect instanceof Effect 
                 ? updatedEffect 
-                : Effect.fromPOJO(updatedEffect);
+                : Effect.fromPOJO({ 
+                    ...updatedEffect, 
+                    type: updatedEffect.type || previousEffect.type 
+                });
             
             const newEffects = [...currentEffects];
             newEffects[effectIndex] = effectInstance;
@@ -110,6 +114,7 @@ export class UpdateEffectCommand extends Command {
             }
 
             // Ensure previousEffect is an Effect instance (backward compatibility)
+            // previousEffect should already have all required properties including type
             const effectInstance = previousEffect instanceof Effect 
                 ? previousEffect 
                 : Effect.fromPOJO(previousEffect);
@@ -154,9 +159,10 @@ export class AddEffectCommand extends Command {
             console.log('➕ AddEffectCommand: Effect being added:', effectData);
 
             // Ensure effectData is an Effect instance (backward compatibility)
+            // If effectData is a POJO, merge in the effectType before converting
             const effectInstance = effectData instanceof Effect 
                 ? effectData 
-                : Effect.fromPOJO(effectData);
+                : Effect.fromPOJO({ ...effectData, type: effectData.type || effectType });
 
             const newEffects = [...currentEffects, effectInstance];
             console.log('➕ AddEffectCommand: New effects array will have length:', newEffects.length);
@@ -249,6 +255,7 @@ export class DeleteEffectCommand extends Command {
             }
 
             // Ensure deletedEffect is an Effect instance (backward compatibility)
+            // deletedEffect should already have all required properties including type
             const effectInstance = deletedEffect instanceof Effect 
                 ? deletedEffect 
                 : Effect.fromPOJO(deletedEffect);
