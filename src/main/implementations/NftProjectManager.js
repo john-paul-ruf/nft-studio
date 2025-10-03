@@ -51,7 +51,8 @@ class NftProjectManager {
             null, // fileSystem - for future abstraction
             null, // validator - for future abstraction
             eventBus,
-            this.logger
+            this.logger,
+            this.pluginLifecycleManager // Pass plugin lifecycle manager for plugin path access
         );
         
         this.renderCoordinator = new RenderCoordinator(

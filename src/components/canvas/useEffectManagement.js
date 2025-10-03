@@ -144,7 +144,10 @@ export default function useEffectManagement(projectState) {
                 if (targetEffect) {
                     const secondaryEffectData = {
                         id: IdGenerator.generateId(),
-                        registryKey: payload.effectName,
+                        name: registryKey, // Use registryKey as the name (it's the canonical identifier)
+                        className: effectData?.className || payload.effectName,
+                        registryKey: registryKey, // Use the registryKey we looked up
+                        type: 'secondary',
                         config
                     };
 
@@ -205,7 +208,10 @@ export default function useEffectManagement(projectState) {
                 if (targetEffect) {
                     const keyframeEffectData = {
                         id: IdGenerator.generateId(),
-                        registryKey: payload.effectName,
+                        name: registryKey, // Use registryKey as the name (it's the canonical identifier)
+                        className: effectData?.className || payload.effectName,
+                        registryKey: registryKey, // Use the registryKey we looked up
+                        type: 'keyframe',
                         config
                     };
 
@@ -360,7 +366,8 @@ export default function useEffectManagement(projectState) {
                 registryKey: registryKey,
                 config: config, // Use the provided config as-is
                 type: effectType,
-                percentChance: percentChance || 100
+                percentChance: percentChance || 100,
+                visible: true
             };
 
             console.log('🌟 useEffectManagement: Created specialty effect:', effect);
@@ -445,6 +452,8 @@ export default function useEffectManagement(projectState) {
 
                 const effect = {
                     id: IdGenerator.generateId(),
+                    name: effectName,
+                    className: effectName,
                     registryKey: effectName,
                     type: validatedType,
                     config: processedConfig,
@@ -744,16 +753,21 @@ export default function useEffectManagement(projectState) {
             }
 
             // Use the already-fetched config data instead of making another API call
+            const secondaryEffectName = newSecondaryEffect.name || newSecondaryEffect.className || 'secondary';
             const secondaryEffectToAdd = {
                 id: newSecondaryEffect.id,
+                name: secondaryEffectName,
+                className: newSecondaryEffect.className || secondaryEffectName,
                 registryKey: newSecondaryEffect.registryKey,
-                config: newSecondaryEffect.config || {}
+                config: newSecondaryEffect.config || {},
+                type: 'secondary',
+                percentChance: newSecondaryEffect.percentChance || 100,
+                visible: newSecondaryEffect.visible !== false
             };
 
             console.log('🎭 HANDLE_ADD_SECONDARY: Effect to add:', secondaryEffectToAdd);
 
             // Use command pattern for undo/redo support
-            const secondaryEffectName = newSecondaryEffect.name || newSecondaryEffect.className || 'secondary';
             const addCommand = new AddSecondaryEffectCommand(
                 projectState,
                 effectIndex,
@@ -777,17 +791,22 @@ export default function useEffectManagement(projectState) {
             }
 
             // Use the already-fetched config data instead of making another API call
+            const keyframeEffectName = newKeyframeEffect.name || newKeyframeEffect.className || 'keyframe';
             const keyframeEffectToAdd = {
                 id: newKeyframeEffect.id,
+                name: keyframeEffectName,
+                className: newKeyframeEffect.className || keyframeEffectName,
                 frame: selectedFrame,
                 registryKey: newKeyframeEffect.registryKey,
-                config: newKeyframeEffect.config || {}
+                config: newKeyframeEffect.config || {},
+                type: 'keyframe',
+                percentChance: newKeyframeEffect.percentChance || 100,
+                visible: newKeyframeEffect.visible !== false
             };
 
             console.log('🎭 handleAddKeyframeEffect: Keyframe effect to add:', keyframeEffectToAdd);
 
             // Use command pattern for undo/redo support
-            const keyframeEffectName = newKeyframeEffect.name || newKeyframeEffect.className || 'keyframe';
             const addCommand = new AddKeyframeEffectCommand(
                 projectState,
                 effectIndex,

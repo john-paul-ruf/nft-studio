@@ -142,7 +142,7 @@ export class PluginLifecycleManager {
      */
     async _refreshEffectRegistry() {
         try {
-            const EffectRegistryService = await import('./EffectRegistryService.js');
+            const EffectRegistryService = await import('../main/services/EffectRegistryService.js');
             const registryService = new EffectRegistryService.default();
             // Pass false to ensure plugins are reloaded since we just loaded new ones
             await registryService.refreshRegistry(false);
@@ -164,6 +164,14 @@ export class PluginLifecycleManager {
      */
     getLoadedPlugins() {
         return Array.from(this.loadedPlugins.values());
+    }
+
+    /**
+     * Get plugin paths for serialization (e.g., for worker threads)
+     * @returns {Array<string>} Array of plugin paths
+     */
+    getPluginPaths() {
+        return Array.from(this.loadedPlugins.values()).map(plugin => plugin.path);
     }
 
     /**

@@ -90,6 +90,7 @@ class EffectDiscoveryService {
 
                     return {
                         name: effectName,
+                        registryKey: plugin.name, // Add registryKey to match getAvailableEffects() structure
                         displayName: plugin.metadata?.displayName || effectName,
                         description: plugin.metadata?.description || '',
                         category: plugin.category,

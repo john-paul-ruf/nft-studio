@@ -20,12 +20,13 @@ import { Settings } from 'my-nft-gen/src/core/Settings.js';
  * - Settings file operations
  */
 export class ProjectLifecycleManager {
-    constructor(fileSystem = null, validator = null, eventBus = null, logger = null) {
+    constructor(fileSystem = null, validator = null, eventBus = null, logger = null, pluginLifecycleManager = null) {
         // Dependency injection following Dependency Inversion Principle
         this.fileSystem = fileSystem; // For future file operations abstraction
         this.validator = validator;   // For future validation abstraction
         this.eventBus = eventBus;     // For event emission
         this.logger = logger || defaultLogger;
+        this.pluginLifecycleManager = pluginLifecycleManager; // For plugin path access
         
         // Internal state
         this.activeProjects = new Map();
@@ -444,13 +445,18 @@ export class ProjectLifecycleManager {
             projectDirectory = path.resolve(process.cwd(), projectDirectory);
         }
 
+        // Get plugin paths from PluginLifecycleManager if available
+        const pluginPaths = this.pluginLifecycleManager 
+            ? this.pluginLifecycleManager.getPluginPaths() 
+            : [];
+
         // Create the project instance
         const project = new Project({
             artist: projectConfig.artist || 'NFT Studio User',
             projectName: projectConfig.projectName,
             projectDirectory: projectDirectory,
             colorScheme: colorSchemeInfo.colorScheme,
-            pluginPaths: [], // Plugin paths will be handled by PluginLifecycleManager
+            pluginPaths: pluginPaths, // Plugin paths from PluginLifecycleManager
             neutrals: colorSchemeInfo.neutrals,
             backgrounds: colorSchemeInfo.backgrounds,
             lights: colorSchemeInfo.lights,

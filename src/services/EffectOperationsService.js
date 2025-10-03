@@ -423,7 +423,10 @@ class EffectOperationsService {
 
             const secondaryEffectData = {
                 id: IdGenerator.generateId(),
+                name: effectName,
+                className: effectName,
                 registryKey: effectName,
+                type: 'secondary',
                 config
             };
 
@@ -473,7 +476,10 @@ class EffectOperationsService {
 
             const keyframeEffectData = {
                 id: IdGenerator.generateId(),
+                name: effectName,
+                className: effectName,
                 registryKey: effectName,
+                type: 'keyframe',
                 frame: frame,
                 config
             };

@@ -72,14 +72,13 @@ function EffectConfigurer({
     const [percentChance, setPercentChance] = useState(100);
     const [validationErrors, setValidationErrors] = useState({});
     const [isConfigComplete, setIsConfigComplete] = useState(false);
-    
-    // Single source of truth: use initialConfig directly, no local state
-    const effectConfig = initialConfig || {};
+    const [effectConfig, setEffectConfig] = useState(initialConfig || {});
     
     // Refs for performance optimization
     const configRef = useRef(effectConfig);
     const schemaRef = useRef(null);
     const previousResolution = useRef(projectState?.targetResolution);
+    const defaultsLoadedForEffect = useRef(null); // Track which effect we've loaded defaults for
     
     // Debug logging for props
     console.log('🔧 EffectConfigurer: Props received:', {
@@ -89,6 +88,7 @@ function EffectConfigurer({
         effectType: selectedEffect?.effectType,
         projectState,
         initialConfig,
+        initialConfigKeys: initialConfig ? Object.keys(initialConfig) : 'none',
         initialPercentChance,
         isModal,
         useWideLayout
@@ -100,6 +100,24 @@ function EffectConfigurer({
             setPercentChance(initialPercentChance);
         }
     }, [initialPercentChance]);
+
+    // Sync effectConfig with initialConfig when it changes
+    // This ensures that when editing an existing effect, we use the config from ProjectState
+    useEffect(() => {
+        if (initialConfig && Object.keys(initialConfig).length > 0) {
+            console.log('📋 EffectConfigurer: Syncing with initialConfig (from ProjectState):', initialConfig);
+            setEffectConfig(initialConfig);
+            configRef.current = initialConfig;
+            // Mark that we're using initialConfig, so we don't load defaults
+            defaultsLoadedForEffect.current = selectedEffect?.registryKey;
+        } else if (!initialConfig || Object.keys(initialConfig).length === 0) {
+            // Reset when switching to a new effect without initialConfig
+            console.log('📋 EffectConfigurer: No initialConfig, resetting for new effect');
+            setEffectConfig({});
+            configRef.current = {};
+            defaultsLoadedForEffect.current = null;
+        }
+    }, [initialConfig, selectedEffect?.registryKey]);
 
     // Load configuration schema when effect changes
     useEffect(() => {
@@ -141,14 +159,29 @@ function EffectConfigurer({
     }, [selectedEffect, projectState, services.configManager, services.validator, effectConfig]);
 
     // Check for saved defaults when effect changes
+    // ONLY apply defaults when there's no initialConfig (i.e., when adding a new effect)
     useEffect(() => {
         const checkDefaults = async () => {
             if (!selectedEffect?.registryKey) return;
+            
+            // Don't apply defaults if we've already loaded initialConfig for this effect
+            if (defaultsLoadedForEffect.current === selectedEffect.registryKey) {
+                console.log('📋 Skipping defaults - already using initialConfig for:', selectedEffect.registryKey);
+                return;
+            }
+            
+            // Don't apply defaults if we have an initialConfig (editing existing effect)
+            if (initialConfig && Object.keys(initialConfig).length > 0) {
+                console.log('📋 Skipping defaults - using initialConfig for existing effect:', selectedEffect.registryKey);
+                return;
+            }
 
             try {
                 const defaults = await services.configManager.checkForDefaults(selectedEffect.registryKey);
                 if (defaults) {
-                    console.log('📋 Found saved defaults for effect:', selectedEffect.registryKey, defaults);
+                    console.log('📋 Found saved defaults for new effect:', selectedEffect.registryKey, defaults);
+                    // Mark that we've loaded defaults for this effect
+                    defaultsLoadedForEffect.current = selectedEffect.registryKey;
                     // Apply defaults through configuration change
                     handleConfigurationChange(defaults);
                 }
@@ -158,13 +191,51 @@ function EffectConfigurer({
         };
 
         checkDefaults();
-    }, [selectedEffect?.registryKey, services.configManager]);
+    }, [selectedEffect?.registryKey, services.configManager, initialConfig, handleConfigurationChange]);
 
-    // Configuration change handler with service coordination
+    // Field change handler - converts individual field changes to full config updates
+    const handleFieldChange = useCallback((fieldName, fieldValue) => {
+        console.log('🔄 Field change:', fieldName, '=', fieldValue);
+        
+        // Create updated config with the new field value
+        const updatedConfig = {
+            ...configRef.current,
+            [fieldName]: fieldValue
+        };
+        
+        // Update local state
+        setEffectConfig(updatedConfig);
+        configRef.current = updatedConfig;
+        
+        // Validate configuration using EffectFormValidator
+        if (schemaRef.current) {
+            const validation = services.validator.validateConfiguration(updatedConfig, schemaRef.current);
+            setValidationErrors(validation.errors);
+            setIsConfigComplete(validation.isComplete);
+        }
+        
+        // Apply center defaults using EffectConfigurationManager
+        const configWithDefaults = services.configManager.applyCenterDefaults(updatedConfig, projectState);
+        
+        // Process configuration change using EffectConfigurationManager
+        services.configManager.processConfigurationChange(configWithDefaults, selectedEffect, onConfigChange);
+        
+        // Coordinate event emission using EffectEventCoordinator
+        services.eventCoordinator.coordinateConfigurationChange(
+            configWithDefaults, 
+            selectedEffect, 
+            onConfigChange,
+            { fieldName, fieldValue, source: 'user-input', timestamp: Date.now() }
+        );
+        
+    }, [selectedEffect, projectState, onConfigChange, services]);
+
+    // Configuration change handler with service coordination (for bulk updates)
     const handleConfigurationChange = useCallback((newConfig, metadata = {}) => {
         console.log('🔄 Configuration change:', newConfig);
         
-        // Update refs
+        // Update local state
+        setEffectConfig(newConfig);
         configRef.current = newConfig;
         
         // Validate configuration using EffectFormValidator
@@ -376,7 +447,7 @@ function EffectConfigurer({
                     <EffectFormRenderer
                         configSchema={configSchema}
                         effectConfig={effectConfig}
-                        onConfigChange={handleConfigurationChange}
+                        onConfigChange={handleFieldChange}
                         projectState={projectState}
                         validationErrors={validationErrors}
                     />

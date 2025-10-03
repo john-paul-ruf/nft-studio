@@ -112,6 +112,8 @@ class EffectConversionService {
                 const effectConfig = settingsEffect.currentEffectConfig || settingsEffect.config;
                 const uiEffect = {
                     id: IdGenerator.generateId(),
+                    name: effectName,
+                    className: effectName,
                     registryKey: effectName,
                     type: effectType, // Use the provided effect type
                     config: await this.convertEffectConfig(effectConfig, effectName),
@@ -124,12 +126,18 @@ class EffectConversionService {
 
                 // Convert secondary effects if they exist (legacy format)
                 if (settingsEffect.possibleSecondaryEffects && settingsEffect.possibleSecondaryEffects.length > 0) {
-                    uiEffect.secondaryEffects = await Promise.all(settingsEffect.possibleSecondaryEffects.map(async secEffect => ({
-                        id: IdGenerator.generateId(),
-                        registryKey: secEffect.name || 'secondary-effect',
-                        config: await this.convertEffectConfig(secEffect.currentEffectConfig || secEffect.config, secEffect.name || 'secondary-effect'),
-                        percentChance: secEffect.percentChance || 100
-                    })));
+                    uiEffect.secondaryEffects = await Promise.all(settingsEffect.possibleSecondaryEffects.map(async secEffect => {
+                        const secEffectName = secEffect.name || 'secondary-effect';
+                        return {
+                            id: IdGenerator.generateId(),
+                            name: secEffectName,
+                            className: secEffectName,
+                            registryKey: secEffectName,
+                            type: 'secondary',
+                            config: await this.convertEffectConfig(secEffect.currentEffectConfig || secEffect.config, secEffectName),
+                            percentChance: secEffect.percentChance || 100
+                        };
+                    }));
                 }
 
                 // Convert additional effects - these are secondary/keyframe effects attached to this primary effect
@@ -138,18 +146,24 @@ class EffectConversionService {
 
                     // In this settings format, additionalEffects are directly the secondary/keyframe effects
                     // Convert them to the structure the UI expects: secondaryEffects array
-                    const convertedSecondaryEffects = await Promise.all(settingsEffect.additionalEffects.map(async additionalEffect => ({
-                        id: IdGenerator.generateId(),
-                        registryKey: additionalEffect.name || 'additional-effect',
-                        config: await this.convertEffectConfig(additionalEffect.config, additionalEffect.name || 'additional-effect'),
-                        percentChance: 100,
-                        // Preserve original effect metadata
-                        originalData: {
-                            requiresLayer: additionalEffect.requiresLayer,
-                            ignoreAdditionalEffects: additionalEffect.ignoreAdditionalEffects
-                        }
-                    })));
-
+                    const convertedSecondaryEffects = await Promise.all(settingsEffect.additionalEffects.map(async additionalEffect => {
+                            const addEffectName = additionalEffect.name || 'additional-effect';
+                            return {
+                                id: IdGenerator.generateId(),
+                                name: addEffectName,
+                                className: addEffectName,
+                                registryKey: addEffectName,
+                                type: 'secondary',
+                                config: await this.convertEffectConfig(additionalEffect.config, addEffectName),
+                                percentChance: 100,
+                                // Preserve original effect metadata
+                                originalData: {
+                                    requiresLayer: additionalEffect.requiresLayer,
+                                    ignoreAdditionalEffects: additionalEffect.ignoreAdditionalEffects
+                                }
+                            };
+                        })
+                    );
                     // Attach these as secondaryEffects (what the UI expects)
                     uiEffect.secondaryEffects = convertedSecondaryEffects;
 
@@ -170,6 +184,8 @@ class EffectConversionService {
                 // Return a basic effect structure to prevent complete failure
                 convertedEffects.push({
                     id: IdGenerator.generateId(),
+                    name: 'base-config',
+                    className: 'base-config',
                     registryKey: 'base-config',
                     type: effectType,
                     config: {},

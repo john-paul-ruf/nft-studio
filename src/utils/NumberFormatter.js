@@ -1,7 +1,7 @@
 /**
  * Utility for formatting numbers in effect config inputs
- * - Numbers between 0 and 1: show three decimal places (0.000)
- * - Numbers 1 and above: show as integers only
+ * - All numbers: show up to three decimal places (#.###)
+ * - Trailing zeros are removed for cleaner display
  */
 class NumberFormatter {
     /**
@@ -16,28 +16,17 @@ class NumberFormatter {
 
         const numValue = Number(value);
         
-        // Numbers between 0 and 1 (exclusive) get 3 decimal places
-        if (numValue > 0 && numValue < 1) {
-            return numValue.toFixed(3);
-        }
-        
-        // Numbers 1 and above are integers
-        if (numValue >= 1) {
-            return Math.round(numValue).toString();
-        }
-        
-        // Handle 0 and negative numbers
+        // Handle zero
         if (numValue === 0) {
             return '0';
         }
         
-        // Negative numbers between -1 and 0 get 3 decimal places
-        if (numValue > -1 && numValue < 0) {
-            return numValue.toFixed(3);
-        }
+        // All numbers get up to 3 decimal places, with trailing zeros removed
+        // This allows formats like: 0.5, 1.25, 2.333, 10, 100.5, etc.
+        const formatted = numValue.toFixed(3);
         
-        // Negative numbers -1 and below are integers
-        return Math.round(numValue).toString();
+        // Remove trailing zeros and unnecessary decimal point
+        return formatted.replace(/\.?0+$/, '');
     }
 
     /**
@@ -53,36 +42,21 @@ class NumberFormatter {
     /**
      * Get the appropriate step value for an input based on the current value
      * @param {number} value - Current value
-     * @returns {number} - Step value (0.001 for decimals, 1 for integers)
+     * @returns {number} - Step value (always 0.001 for 3 decimal precision)
      */
     static getStepForValue(value) {
-        if (value === null || value === undefined || isNaN(value)) {
-            return 1;
-        }
-
-        const numValue = Number(value);
-        
-        // Use fine step for values between -1 and 1 (exclusive of endpoints)
-        if (numValue > -1 && numValue < 1 && numValue !== 0) {
-            return 0.001;
-        }
-        
-        // Use integer step for everything else
-        return 1;
+        // Always use fine step to allow 3 decimal places (#.###)
+        return 0.001;
     }
 
     /**
      * Determine if a value should be treated as decimal based on its range
      * @param {number} value - The value to check
-     * @returns {boolean} - True if should use decimal formatting
+     * @returns {boolean} - True if should use decimal formatting (always true now)
      */
     static shouldUseDecimalFormatting(value) {
-        if (value === null || value === undefined || isNaN(value)) {
-            return false;
-        }
-
-        const numValue = Number(value);
-        return numValue > -1 && numValue < 1 && numValue !== 0;
+        // Always use decimal formatting to support #.### format for all values
+        return true;
     }
 }
 

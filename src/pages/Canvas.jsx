@@ -575,6 +575,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                                     initialConfig={editingEffectData.config}
                                     projectState={projectState}
                                     getResolutionDimensions={getResolutionDimensions}
+                                    onConfigChange={handleSubEffectUpdate}
                                 />
                             );
                         })()}

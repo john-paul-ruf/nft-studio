@@ -437,7 +437,7 @@ export default function EventDrivenToolbarActions({ projectState }) {
             (payload) => {
                 console.log('🔥 EventDrivenToolbarActions: EffectConfigurer add effect event:', payload);
                 eventBusService.emit('effect:add', {
-                    effectName: payload.effectClass?.name || payload.effectClass?.className,
+                    effectName: payload.effect?.name || payload.effect?.className,
                     effectType: 'primary',
                     config: payload.config,
                     percentChance: payload.percentChance
