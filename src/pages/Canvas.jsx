@@ -593,6 +593,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                     isMinimized={isEventMonitorMinimized}
                     setIsMinimized={setIsEventMonitorMinimized}
                     isForResumedProject={isEventMonitorForResumedProject}
+                    renderLoopActive={isRenderLoopActive}
                 />
 
                 {/* Plugin Manager */}

@@ -20,17 +20,23 @@ export default class ProjectPersistenceService {
         this.currentProjectState = projectState;
         this.currentProjectPath = await this.generateProjectFilePath(projectState, projectDirectory);
 
-        // Set up auto-save callback on the ProjectState
-        const originalOnUpdate = projectState.onUpdate;
-        projectState.onUpdate = (newState) => {
+        // Set up auto-save callback on the ProjectState core
+        const originalOnUpdate = projectState.core.onUpdate;
+        projectState.core.onUpdate = (newState) => {
+            console.log('💾 ProjectPersistenceService: onUpdate callback triggered');
+            
             // Call original callback first
             if (originalOnUpdate) {
+                console.log('💾 ProjectPersistenceService: Calling original onUpdate callback');
                 originalOnUpdate(newState);
             }
 
             // Trigger auto-save
             if (this.autoSaveEnabled) {
+                console.log('💾 ProjectPersistenceService: Auto-save enabled, triggering debounced save');
                 this.debouncedSave();
+            } else {
+                console.log('💾 ProjectPersistenceService: Auto-save disabled, skipping save');
             }
         };
 
@@ -74,11 +80,16 @@ export default class ProjectPersistenceService {
      * Debounced save to avoid excessive file writes
      */
     debouncedSave() {
+        console.log('💾 ProjectPersistenceService: debouncedSave called');
+        
         if (this.saveTimeout) {
+            console.log('💾 ProjectPersistenceService: Clearing existing save timeout');
             clearTimeout(this.saveTimeout);
         }
 
+        console.log(`💾 ProjectPersistenceService: Setting save timeout for ${this.saveDelay}ms`);
         this.saveTimeout = setTimeout(() => {
+            console.log('💾 ProjectPersistenceService: Save timeout triggered, calling saveProject');
             this.saveProject();
         }, this.saveDelay);
     }

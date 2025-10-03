@@ -329,6 +329,22 @@ class RenderProgressTracker {
     }
 
     /**
+     * Get start time
+     * @returns {number|null} Start time timestamp or null
+     */
+    getStartTime() {
+        return this.progress.startTime;
+    }
+
+    /**
+     * Get average render time per frame
+     * @returns {number} Average render time in milliseconds
+     */
+    getAvgRenderTime() {
+        return this.progress.avgRenderTime;
+    }
+
+    /**
      * Set total frames
      * @param {number} totalFrames - Total frames
      */

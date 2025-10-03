@@ -101,11 +101,18 @@ function EffectConfigurer({
         }
     }, [initialPercentChance]);
 
-    // Sync effectConfig with initialConfig when it changes
+    // Track resolution changes to detect when positions have been scaled
+    const currentResolution = projectState ? projectState.getTargetResolution() : null;
+    const currentOrientation = projectState ? projectState.getIsHorizontal() : null;
+    const resolutionKey = `${currentResolution}-${currentOrientation}`;
+
+    // Sync effectConfig with initialConfig when it changes OR when resolution changes
     // This ensures that when editing an existing effect, we use the config from ProjectState
+    // and that we pick up scaled positions after resolution changes
     useEffect(() => {
         if (initialConfig && Object.keys(initialConfig).length > 0) {
             console.log('📋 EffectConfigurer: Syncing with initialConfig (from ProjectState):', initialConfig);
+            console.log('📋 EffectConfigurer: Current resolution:', resolutionKey);
             setEffectConfig(initialConfig);
             configRef.current = initialConfig;
             // Mark that we're using initialConfig, so we don't load defaults
@@ -117,7 +124,7 @@ function EffectConfigurer({
             configRef.current = {};
             defaultsLoadedForEffect.current = null;
         }
-    }, [initialConfig, selectedEffect?.registryKey]);
+    }, [initialConfig, selectedEffect?.registryKey, resolutionKey]);
 
     // Load configuration schema when effect changes
     useEffect(() => {

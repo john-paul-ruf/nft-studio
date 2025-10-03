@@ -15,11 +15,158 @@ class EventCaptureService {
     constructor() {
         this.listeners = new Map();
         this.isMonitoring = false;
+        this.eventBuffer = [];
+        this.maxBufferSize = 1000;
+        this.eventCallbacks = new Set();
+        
+        // Start monitoring immediately on service creation
+        this.initializeBackgroundMonitoring();
+    }
+    
+    /**
+     * Initialize background event monitoring that runs independently of UI state
+     */
+    async initializeBackgroundMonitoring() {
+        console.log('🔄 EventCaptureService: Initializing background monitoring');
+        
+        // Wait a bit for window.api to be available
+        const waitForApi = () => {
+            return new Promise((resolve) => {
+                const checkApi = () => {
+                    if (window.api) {
+                        resolve();
+                    } else {
+                        setTimeout(checkApi, 100);
+                    }
+                };
+                checkApi();
+            });
+        };
+        
+        await waitForApi();
+        
+        // Start persistent monitoring
+        await this.startPersistentMonitoring();
+    }
+    
+    /**
+     * Start persistent background monitoring (always active)
+     */
+    async startPersistentMonitoring() {
+        if (this.isMonitoring) {
+            console.log('✅ EventCaptureService: Background monitoring already active');
+            return { success: true };
+        }
+        
+        try {
+            // Start monitoring on main process
+            const result = await window.api.startEventMonitoring({
+                enableDebug: true,
+                captureAll: true,
+                includeFlaggedOff: true
+            });
+            
+            if (result.success) {
+                this.isMonitoring = true;
+                console.log('✅ EventCaptureService: Background monitoring started');
+                
+                // Set up persistent event listeners
+                this.setupPersistentListeners();
+            }
+            
+            return result;
+        } catch (error) {
+            console.error('❌ EventCaptureService: Failed to start background monitoring:', error);
+            return { success: false, error: error.message };
+        }
+    }
+    
+    /**
+     * Set up persistent event listeners that always capture events
+     */
+    setupPersistentListeners() {
+        // Handler for worker events
+        const workerHandler = (data) => {
+            const normalizedEvent = this.normalizeEventData(data);
+            this.addToBuffer(normalizedEvent);
+            this.notifyCallbacks(normalizedEvent);
+        };
+        
+        // Handler for event bus messages
+        const eventBusHandler = (ipcEvent, eventData) => {
+            const normalizedEvent = this.normalizeEventData(eventData);
+            this.addToBuffer(normalizedEvent);
+            this.notifyCallbacks(normalizedEvent);
+        };
+        
+        // Subscribe to IPC channels
+        window.api.onWorkerEvent(workerHandler);
+        window.api.onEventBusMessage(eventBusHandler);
+        
+        this.listeners.set('worker', workerHandler);
+        this.listeners.set('eventbus', eventBusHandler);
+        
+        console.log('✅ EventCaptureService: Persistent listeners established');
+    }
+    
+    /**
+     * Add event to internal buffer
+     */
+    addToBuffer(eventData) {
+        this.eventBuffer.unshift(eventData);
+        
+        // Keep buffer size manageable
+        if (this.eventBuffer.length > this.maxBufferSize) {
+            this.eventBuffer = this.eventBuffer.slice(0, this.maxBufferSize);
+        }
+    }
+    
+    /**
+     * Notify all registered callbacks about new event
+     */
+    notifyCallbacks(eventData) {
+        this.eventCallbacks.forEach(callback => {
+            try {
+                callback(eventData);
+            } catch (error) {
+                console.error('❌ EventCaptureService: Error in event callback:', error);
+            }
+        });
+    }
+    
+    /**
+     * Register a callback to receive events (for UI components)
+     */
+    registerCallback(callback) {
+        this.eventCallbacks.add(callback);
+        console.log('✅ EventCaptureService: Callback registered, total:', this.eventCallbacks.size);
+        
+        // Return unregister function
+        return () => {
+            this.eventCallbacks.delete(callback);
+            console.log('🧹 EventCaptureService: Callback unregistered, remaining:', this.eventCallbacks.size);
+        };
+    }
+    
+    /**
+     * Get all buffered events
+     */
+    getBufferedEvents() {
+        return [...this.eventBuffer];
+    }
+    
+    /**
+     * Clear event buffer
+     */
+    clearBuffer() {
+        this.eventBuffer = [];
+        console.log('🧹 EventCaptureService: Event buffer cleared');
     }
 
     /**
      * Start event monitoring on the main process
      * @param {Object} options - Monitoring options
+     * @param {Function} options.onEvent - Callback function to handle events
      * @param {boolean} options.enableDebug - Enable debug mode
      * @param {boolean} options.captureAll - Capture all events
      * @param {boolean} options.includeFlaggedOff - Include flagged off events
@@ -42,6 +189,13 @@ class EventCaptureService {
             if (result.success) {
                 this.isMonitoring = true;
                 console.log('✅ EventCaptureService: Event monitoring started on main process');
+                
+                // Subscribe to IPC channels if callback is provided
+                if (options.onEvent) {
+                    console.log('✅ EventCaptureService: Setting up IPC event listeners');
+                    this.subscribeToWorkerEvents(options.onEvent);
+                    this.subscribeToEventBusMessages(options.onEvent);
+                }
             } else {
                 console.error('❌ EventCaptureService: Failed to start event monitoring:', result.error);
             }
@@ -62,6 +216,20 @@ class EventCaptureService {
         }
 
         try {
+            // Clean up IPC listeners first
+            if (this.listeners.has('worker')) {
+                window.api.removeWorkerEventListener();
+                this.listeners.delete('worker');
+                console.log('🧹 EventCaptureService: Removed worker event listener');
+            }
+
+            if (this.listeners.has('eventbus')) {
+                window.api.offEventBusMessage(this.listeners.get('eventbus'));
+                this.listeners.delete('eventbus');
+                console.log('🧹 EventCaptureService: Removed event bus listener');
+            }
+
+            // Stop monitoring on main process
             await window.api.stopEventMonitoring();
             this.isMonitoring = false;
             console.log('🧹 EventCaptureService: Event monitoring stopped on main process');
@@ -81,6 +249,13 @@ class EventCaptureService {
         if (!window.api) {
             console.error('❌ EventCaptureService: window.api not available for worker events');
             return () => {};
+        }
+
+        // Clean up existing listener if any
+        if (this.listeners.has('worker')) {
+            console.log('🧹 EventCaptureService: Removing existing worker listener before subscribing');
+            window.api.removeWorkerEventListener();
+            this.listeners.delete('worker');
         }
 
         const handler = (data) => {
@@ -114,9 +289,20 @@ class EventCaptureService {
             return () => {};
         }
 
-        const handler = (event, data) => {
-            console.log('🎯 EventCaptureService: EventBus message received:', data);
-            const normalizedEvent = this.normalizeEventData(data);
+        // Clean up existing listener if any
+        if (this.listeners.has('eventbus')) {
+            console.log('🧹 EventCaptureService: Removing existing eventbus listener before subscribing');
+            window.api.offEventBusMessage(this.listeners.get('eventbus'));
+            this.listeners.delete('eventbus');
+        }
+
+        const handler = (ipcEvent, eventData) => {
+            console.log('🎯 EventCaptureService: EventBus message received via IPC');
+            console.log('🎯 EventCaptureService: IPC Event object:', ipcEvent);
+            console.log('🎯 EventCaptureService: Event data:', eventData);
+            // The eventData parameter contains the actual event object sent from main process
+            const normalizedEvent = this.normalizeEventData(eventData);
+            console.log('🎯 EventCaptureService: Normalized event:', normalizedEvent);
             callback(normalizedEvent);
         };
 

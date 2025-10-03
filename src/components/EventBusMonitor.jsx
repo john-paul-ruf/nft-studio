@@ -58,7 +58,7 @@ import EventFilterService from '../services/EventFilterService';
 import EventExportService from '../services/EventExportService';
 import RenderProgressTracker from '../services/RenderProgressTracker';
 
-export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, setIsMinimized, isForResumedProject = false }) {
+export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, setIsMinimized, isForResumedProject = false, renderLoopActive = false }) {
     const [events, setEvents] = useState([]);
     const [filteredEvents, setFilteredEvents] = useState([]);
     const [isPaused, setIsPaused] = useState(false);
@@ -73,6 +73,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
     const [eventStats, setEventStats] = useState({});
     const [isStoppingRenderLoop, setIsStoppingRenderLoop] = useState(false);
     const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(true);
+    const [isRenderLoopActive, setIsRenderLoopActive] = useState(renderLoopActive);
     // Progress tracking state - now managed by RenderProgressTracker
     const [renderProgress, setRenderProgress] = useState({
         isRendering: false,
@@ -89,48 +90,79 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
     const eventListRef = useRef(null);
     const maxEvents = 1000;
 
+    // Load buffered events when monitor opens
     useEffect(() => {
-        if (open && !isPaused) {
-            // Event handler that processes incoming events
-            const handleEvent = (eventData) => {
-                console.log('📨 EventBusMonitor received IPC event:', eventData);
-
-                // Track render progress using RenderProgressTracker
+        if (open) {
+            console.log('📂 EventBusMonitor: Loading buffered events from EventCaptureService');
+            
+            // Load all buffered events
+            const bufferedEvents = EventCaptureService.getBufferedEvents();
+            console.log(`📂 EventBusMonitor: Found ${bufferedEvents.length} buffered events`);
+            
+            // Convert buffered events to display format
+            const displayEvents = bufferedEvents.map(eventData => {
                 const eventName = eventData.eventName || 'unknown';
                 const data = eventData.data || eventData;
+                
+                return {
+                    id: Date.now() + Math.random(),
+                    type: eventName,
+                    category: EventFilterService.detectCategory(eventName, data),
+                    timestamp: eventData.timestamp || new Date().toISOString(),
+                    data: data,
+                    raw: JSON.stringify(eventData, null, 2)
+                };
+            });
+            
+            setEvents(displayEvents);
+            updateStats(displayEvents);
+        }
+    }, [open]);
 
-                if (eventName === 'render.loop.start') {
-                    RenderProgressTracker.handleRenderLoopStart(data);
-                } else if (eventName === 'render.loop.complete') {
-                    RenderProgressTracker.handleRenderLoopComplete();
-                } else if (eventName === 'render.loop.error') {
-                    RenderProgressTracker.handleRenderLoopError();
-                } else if (eventName === 'frameCompleted') {
-                    RenderProgressTracker.handleFrameCompleted(data);
-                } else if (eventName === 'frameStarted') {
-                    RenderProgressTracker.handleFrameStarted(data);
-                }
+    // Subscribe to live events (always active, not dependent on open state)
+    useEffect(() => {
+        // Event handler that processes incoming events
+        const handleEvent = (eventData) => {
+            console.log('📨 EventBusMonitor received event:', eventData);
 
-                // Update render progress state from tracker
-                setRenderProgress({
-                    isRendering: RenderProgressTracker.isRendering(),
-                    currentFrame: RenderProgressTracker.getCurrentFrame(),
-                    totalFrames: RenderProgressTracker.getTotalFrames(),
-                    progress: RenderProgressTracker.getProgress(),
-                    projectName: RenderProgressTracker.getProjectName(),
-                    fps: RenderProgressTracker.getFPS(),
-                    eta: RenderProgressTracker.getETA(),
-                    startTime: RenderProgressTracker.getStartTime(),
-                    avgRenderTime: RenderProgressTracker.getAvgRenderTime(),
-                    lastFrameTime: 0
-                });
+            // Track render progress using RenderProgressTracker
+            const eventName = eventData.eventName || 'unknown';
+            const data = eventData.data || eventData;
 
+            if (eventName === 'render.loop.start') {
+                RenderProgressTracker.handleRenderLoopStart(data);
+            } else if (eventName === 'render.loop.complete') {
+                RenderProgressTracker.handleRenderLoopComplete();
+            } else if (eventName === 'render.loop.error') {
+                RenderProgressTracker.handleRenderLoopError();
+            } else if (eventName === 'frameCompleted') {
+                RenderProgressTracker.handleFrameCompleted(data);
+            } else if (eventName === 'frameStarted') {
+                RenderProgressTracker.handleFrameStarted(data);
+            }
+
+            // Update render progress state from tracker
+            setRenderProgress({
+                isRendering: RenderProgressTracker.isRendering(),
+                currentFrame: RenderProgressTracker.getCurrentFrame(),
+                totalFrames: RenderProgressTracker.getTotalFrames(),
+                progress: RenderProgressTracker.getProgressPercentage(),
+                projectName: RenderProgressTracker.getProjectName(),
+                fps: RenderProgressTracker.getFPS(),
+                eta: RenderProgressTracker.getETA(),
+                startTime: RenderProgressTracker.getStartTime(),
+                avgRenderTime: RenderProgressTracker.getAvgRenderTime(),
+                lastFrameTime: 0
+            });
+
+            // Only update UI if monitor is open and not paused
+            if (open && !isPaused) {
                 // Create event object using EventFilterService for categorization
                 const newEvent = {
                     id: Date.now() + Math.random(),
                     type: eventName,
                     category: EventFilterService.detectCategory(eventName, data),
-                    timestamp: new Date().toISOString(),
+                    timestamp: eventData.timestamp || new Date().toISOString(),
                     data: data,
                     raw: JSON.stringify(eventData, null, 2)
                 };
@@ -140,31 +172,39 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                     updateStats(updated);
                     return updated;
                 });
-            };
+            }
+        };
 
-            // Start event capture using EventCaptureService
-            EventCaptureService.startMonitoring({
-                onEvent: handleEvent,
-                enableDebug: true,
-                captureAll: true,
-                includeFlaggedOff: true
-            });
+        // Register callback with EventCaptureService (always active)
+        console.log('🔔 EventBusMonitor: Registering event callback');
+        const unregister = EventCaptureService.registerCallback(handleEvent);
 
-            return () => {
-                // Cleanup using EventCaptureService
-                EventCaptureService.stopMonitoring();
-            };
-        }
+        return () => {
+            console.log('🧹 EventBusMonitor: Unregistering event callback');
+            unregister();
+        };
     }, [open, isPaused]);
 
     // Set up event-driven worker event listeners
     useEffect(() => {
         if (open) {
-            let unsubscribeWorkerStarted, unsubscribeWorkerKilled, unsubscribeWorkerKillFailed;
+            let unsubscribeWorkerStarted, unsubscribeWorkerKilled, unsubscribeWorkerKillFailed, unsubscribeRenderLoopToggle, unsubscribeRenderLoopError;
 
             // Import EventBusService and set up worker event listeners
             import('../services/EventBusService.js').then(({ default: EventBusService }) => {
                 console.log('🎯 EventBusMonitor: Setting up event-driven worker listeners');
+
+                // Listen for render loop toggle events to track render loop status
+                unsubscribeRenderLoopToggle = EventBusService.subscribe('renderloop:toggled', (payload) => {
+                    console.log('🎯 EventBusMonitor: Render loop toggle event received:', payload);
+                    setIsRenderLoopActive(payload.isActive);
+                }, { component: 'EventBusMonitor' });
+
+                // Listen for render loop error events
+                unsubscribeRenderLoopError = EventBusService.subscribe('renderloop:error', (payload) => {
+                    console.log('🎯 EventBusMonitor: Render loop error event received:', payload);
+                    setIsRenderLoopActive(false);
+                }, { component: 'EventBusMonitor' });
 
                 // Listen for worker started events
                 unsubscribeWorkerStarted = EventBusService.subscribe('workerStarted', (data) => {
@@ -198,6 +238,8 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                         ...prev,
                         isRendering: false
                     }));
+                    // Also update render loop status
+                    setIsRenderLoopActive(false);
                 }, { component: 'EventBusMonitor' });
 
                 // Listen for worker kill failed events
@@ -223,6 +265,8 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                 if (unsubscribeWorkerStarted) unsubscribeWorkerStarted();
                 if (unsubscribeWorkerKilled) unsubscribeWorkerKilled();
                 if (unsubscribeWorkerKillFailed) unsubscribeWorkerKillFailed();
+                if (unsubscribeRenderLoopToggle) unsubscribeRenderLoopToggle();
+                if (unsubscribeRenderLoopError) unsubscribeRenderLoopError();
             };
         }
     }, [open]);
@@ -246,6 +290,11 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
             setIsMinimized(false);
         }
     }, [open, setIsMinimized]);
+
+    // Sync internal render loop state with prop
+    useEffect(() => {
+        setIsRenderLoopActive(renderLoopActive);
+    }, [renderLoopActive]);
 
     const updateStats = (eventList) => {
         const stats = {};
@@ -279,6 +328,9 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
         setEvents([]);
         setFilteredEvents([]);
         setEventStats({});
+        // Also clear the persistent buffer in EventCaptureService
+        EventCaptureService.clearBuffer();
+        console.log('🧹 EventBusMonitor: Cleared all events including buffer');
     };
 
     const exportEvents = () => {
@@ -286,7 +338,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
     };
 
     const stopRenderLoop = async () => {
-        if (!renderProgress.isRendering || isStoppingRenderLoop) return;
+        if ((!renderProgress.isRendering && !isRenderLoopActive) || isStoppingRenderLoop) return;
         
         setIsStoppingRenderLoop(true);
         try {
@@ -322,6 +374,8 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                 avgRenderTime: 0,
                 lastFrameTime: 0
             });
+            // Also reset render loop status
+            setIsRenderLoopActive(false);
         } catch (error) {
             console.error('❌ EventBusMonitor: Failed to stop render loop:', error);
         } finally {
@@ -510,7 +564,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
     return (
         <>
             {/* Progress Widget - Show when modal is closed or minimized and render is active */}
-            {(!open || isMinimized) && renderProgress.isRendering && (
+            {(!open || isMinimized) && (renderProgress.isRendering || isRenderLoopActive) && (
                 <RenderProgressWidget
                     renderProgress={renderProgress}
                     onOpen={() => {
@@ -519,6 +573,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                     }}
                     onStop={stopRenderLoop}
                     isStoppingRenderLoop={isStoppingRenderLoop}
+                    isRenderLoopActive={isRenderLoopActive}
                 />
             )}
 
@@ -548,7 +603,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                     </Box>
 
                     <Box sx={{ display: 'flex', gap: 1 }}>
-                        {renderProgress.isRendering && (
+                        {(renderProgress.isRendering || isRenderLoopActive) && (
                             <Tooltip title={isStoppingRenderLoop ? "Stopping..." : "Stop Render Loop"}>
                                 <IconButton 
                                     onClick={stopRenderLoop} 
@@ -559,17 +614,19 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                                 </IconButton>
                             </Tooltip>
                         )}
-                        <IconButton onClick={() => {
-                            if (setIsMinimized) setIsMinimized(true);
-                        }}>
-                            <Minimize />
-                        </IconButton>
+                        {setIsMinimized && (
+                            <Tooltip title="Minimize">
+                                <IconButton onClick={() => setIsMinimized(true)}>
+                                    <Minimize />
+                                </IconButton>
+                            </Tooltip>
+                        )}
                     </Box>
                 </Box>
             </DialogTitle>
 
             <DialogContent>
-                {/* Progress Bar - Always visible when rendering */}
+                {/* Progress Bar - Show detailed progress when available, or basic status when render loop is active */}
                 {renderProgress.isRendering && (
                     <Paper sx={{ p: 2, mb: 2, bgcolor: 'primary.dark', color: 'primary.contrastText' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
@@ -618,6 +675,33 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                                 )}
                             </Box>
                         </Box>
+                    </Paper>
+                )}
+
+                {/* Basic render loop status when active but no detailed progress */}
+                {!renderProgress.isRendering && isRenderLoopActive && (
+                    <Paper sx={{ p: 2, mb: 2, bgcolor: 'warning.dark', color: 'warning.contrastText' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                                🔄 Render Loop Active
+                            </Typography>
+                            <Typography variant="caption">
+                                Waiting for progress data...
+                            </Typography>
+                        </Box>
+
+                        <LinearProgress
+                            variant="indeterminate"
+                            sx={{
+                                height: 8,
+                                borderRadius: 1,
+                                bgcolor: 'rgba(255,255,255,0.2)',
+                                '& .MuiLinearProgress-bar': {
+                                    borderRadius: 1,
+                                    bgcolor: '#ff9800'
+                                }
+                            }}
+                        />
                     </Paper>
                 )}
 

@@ -13,9 +13,11 @@ export default function RenderProgressWidget({
     renderProgress, 
     onOpen, 
     onStop, 
-    isStoppingRenderLoop 
+    isStoppingRenderLoop,
+    isRenderLoopActive = false
 }) {
-    if (!renderProgress.isRendering) return null;
+    // Show widget if either detailed progress is available OR render loop is active
+    if (!renderProgress.isRendering && !isRenderLoopActive) return null;
 
     return (
         <Paper 
@@ -37,7 +39,7 @@ export default function RenderProgressWidget({
         >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                    🎬 {renderProgress.projectName}
+                    🎬 {renderProgress.projectName || 'Render Loop Active'}
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 1 }}>
                     <Tooltip title="Stop Render Loop">
@@ -57,8 +59,8 @@ export default function RenderProgressWidget({
             </Box>
             
             <LinearProgress
-                variant="determinate"
-                value={renderProgress.progress}
+                variant={renderProgress.isRendering ? "determinate" : "indeterminate"}
+                value={renderProgress.isRendering ? renderProgress.progress : undefined}
                 sx={{
                     height: 6,
                     borderRadius: 1,
@@ -72,12 +74,20 @@ export default function RenderProgressWidget({
             />
             
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                    {renderProgress.currentFrame + 1}/{renderProgress.totalFrames} ({renderProgress.progress}%)
-                </Typography>
-                {renderProgress.eta && (
+                {renderProgress.isRendering ? (
+                    <>
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                            {renderProgress.currentFrame + 1}/{renderProgress.totalFrames} ({renderProgress.progress}%)
+                        </Typography>
+                        {renderProgress.eta && (
+                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                                ETA: {renderProgress.eta}
+                            </Typography>
+                        )}
+                    </>
+                ) : (
                     <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                        ETA: {renderProgress.eta}
+                        Render loop is active
                     </Typography>
                 )}
             </Box>
