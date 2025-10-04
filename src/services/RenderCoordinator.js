@@ -372,13 +372,18 @@ export class RenderCoordinator {
         try {
             this.logger.info(`Starting generateRandomLoop for loop: ${loopId}, worker: ${workerId}`);
 
+            // Get totalFrames from project state
+            const config = projectState.getState();
+            const totalFrames = config.numFrames || 100;
+
             // Emit render loop start event
             if (eventBus) {
                 eventBus.emit('render.loop.start', {
                     timestamp: Date.now(),
                     projectName: project.projectName,
                     loopId,
-                    workerId
+                    workerId,
+                    totalFrames
                 });
             }
 
@@ -387,7 +392,8 @@ export class RenderCoordinator {
                 timestamp: Date.now(),
                 projectName: project.projectName,
                 loopId,
-                workerId
+                workerId,
+                totalFrames
             });
 
             // Check if loop was terminated before starting
@@ -474,6 +480,7 @@ export class RenderCoordinator {
     async runProjectResume(project, eventBus, loopId, workerId, projectState) {
         try {
             const config = projectState.getState();
+            const totalFrames = config.numFrames || 100;
             this.logger.info(`Starting ResumeProject for loop: ${loopId}, worker: ${workerId}, settings: ${config.settingsFilePath}`);
 
             // Emit project resume start event
@@ -483,7 +490,8 @@ export class RenderCoordinator {
                     projectName: project?.projectName || 'Unknown',
                     settingsFilePath: config.settingsFilePath,
                     loopId,
-                    workerId
+                    workerId,
+                    totalFrames
                 });
             }
 
@@ -493,7 +501,8 @@ export class RenderCoordinator {
                 projectName: project?.projectName || 'Unknown',
                 settingsFilePath: config.settingsFilePath,
                 loopId,
-                workerId
+                workerId,
+                totalFrames
             });
 
             // Check if loop was terminated before starting
@@ -777,24 +786,48 @@ export class RenderCoordinator {
      * @private
      */
     setupEventForwarding(eventBus) {
+        console.log('🔧 [RenderCoordinator] Setting up event forwarding wrapper');
+        
         const forwardEventToRenderer = (eventName, data) => {
+            // Enhanced logging for frame events
+            if (eventName === 'frameStarted' || eventName === 'frameCompleted') {
+                console.log(`🎬 [RenderCoordinator] Forwarding ${eventName} - Frame ${data?.frameNumber || 'unknown'}`);
+            }
+            
             this.logger.event(eventName, data);
             try {
                 if (BrowserWindow && BrowserWindow.getAllWindows && BrowserWindow.getAllWindows().length > 0) {
-                    BrowserWindow.getAllWindows()[0].webContents.send('worker-event', { eventName, data });
+                    const windows = BrowserWindow.getAllWindows();
+                    const window = windows[0];
+                    const payload = { eventName, data };
+                    
+                    console.log(`📤 [RenderCoordinator] Sending to renderer via IPC: ${eventName} (${windows.length} windows)`);
+                    console.log(`📤 [RenderCoordinator] Window destroyed?`, window.isDestroyed());
+                    console.log(`📤 [RenderCoordinator] WebContents destroyed?`, window.webContents.isDestroyed());
+                    console.log(`📤 [RenderCoordinator] WebContents ID:`, window.webContents.id);
+                    console.log(`📤 [RenderCoordinator] Payload:`, JSON.stringify(payload).substring(0, 200));
+                    
+                    window.webContents.send('worker-event', payload);
+                    console.log(`✅ [RenderCoordinator] IPC send completed for: ${eventName}`);
+                } else {
+                    console.log(`⚠️ [RenderCoordinator] No BrowserWindow available to send: ${eventName}`);
                 }
             } catch (error) {
-                // BrowserWindow not available (e.g., in test environment)
-                // This is expected and should not cause failures
+                console.error(`❌ [RenderCoordinator] Error sending to renderer: ${eventName}`, error);
             }
         };
 
         const originalEmit = eventBus.emit.bind(eventBus);
         eventBus.emit = function (eventName, data) {
+            // Log ALL events being emitted through the event bus
+            console.log(`📡 [RenderCoordinator] EventBus.emit called: ${eventName}`);
+            
             const result = originalEmit(eventName, data);
             forwardEventToRenderer(eventName, data);
             return result;
         };
+        
+        console.log('✅ [RenderCoordinator] Event forwarding wrapper installed');
     }
 
     /**

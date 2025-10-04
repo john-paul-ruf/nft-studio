@@ -64,6 +64,7 @@ export async function testUndoRedoWorkflows() {
                     name: 'TestEffect1',
                     className: 'TestEffect',
                     registryKey: 'test-effect',
+                    type: 'primary',
                     config: {
                         position: { name: 'position', x: 100, y: 100 }
                     }
@@ -386,6 +387,7 @@ export async function testEffectVsNonEffectCommands() {
                     name: 'EffectCommandTest',
                     className: 'TestEffect',
                     registryKey: 'test-effect',
+                    type: 'primary',
                     config: { value: 100 }
                 };
                 await projectState.update({

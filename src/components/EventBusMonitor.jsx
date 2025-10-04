@@ -126,11 +126,15 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
         
         // Event handler that processes incoming events
         const handleEvent = (eventData) => {
-            console.log('📨 EventBusMonitor received event:', eventData);
-            // Track render progress using RenderProgressTracker
             const eventName = eventData.eventName || 'unknown';
             const data = eventData.data || eventData;
-            if (eventName === 'render.loop.start') {
+            
+            if (eventName === 'frameStarted' || eventName === 'frameCompleted') {
+                console.log(`📨 EventBusMonitor received event: ${eventName}`);
+            }
+            
+            // Track render progress using RenderProgressTracker
+            if (eventName === 'render.loop.start' || eventName === 'project.resume.start') {
                 RenderProgressTracker.handleRenderLoopStart(data);
             } else if (eventName === 'render.loop.complete') {
                 RenderProgressTracker.handleRenderLoopComplete();
@@ -154,23 +158,21 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                 avgRenderTime: RenderProgressTracker.getAvgRenderTime(),
                 lastFrameTime: 0
             });
-            // Only update UI if monitor is open and not paused
-            if (open && !isPaused) {
-                // Create event object using EventFilterService for categorization
-                const newEvent = {
-                    id: Date.now() + Math.random(),
-                    type: eventName,
-                    category: EventFilterService.detectCategory(eventName, data),
-                    timestamp: eventData.timestamp || new Date().toISOString(),
-                    data: data,
-                    raw: JSON.stringify(eventData, null, 2)
-                };
-                setEvents(prev => {
-                    const updated = [newEvent, ...prev].slice(0, maxEvents);
-                    updateStats(updated);
-                    return updated;
-                });
-            }
+            // Always update events state - let React handle the UI updates
+            // Create event object using EventFilterService for categorization
+            const newEvent = {
+                id: Date.now() + Math.random(),
+                type: eventName,
+                category: EventFilterService.detectCategory(eventName, data),
+                timestamp: eventData.timestamp || new Date().toISOString(),
+                data: data,
+                raw: JSON.stringify(eventData, null, 2)
+            };
+            setEvents(prev => {
+                const updated = [newEvent, ...prev].slice(0, maxEvents);
+                updateStats(updated);
+                return updated;
+            });
         };
         // Register callback with EventCaptureService (always active)
         console.log('🔔 EventBusMonitor: Registering event callback');
@@ -180,7 +182,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
             unregister();
             EventCaptureService.stopMonitoring();
         };
-    }, [open, isPaused]);
+    }, []); // Empty dependency array - only run once on mount
 
     // Set up event-driven worker event listeners
     useEffect(() => {

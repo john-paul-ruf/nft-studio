@@ -54,6 +54,20 @@ class EventBusHandlers {
             return { success: true };
         });
 
+        // Test IPC channel - sends a test event to renderer
+        ipcMain.handle('test-ipc-channel', () => {
+            console.log('🧪 [EventBusHandlers] Test IPC invoked from renderer');
+            const windows = BrowserWindow.getAllWindows();
+            if (windows.length > 0) {
+                console.log(`🧪 [EventBusHandlers] Sending test worker-event to ${windows.length} window(s)`);
+                windows[0].webContents.send('worker-event', {
+                    eventName: 'TEST_EVENT',
+                    data: { message: 'This is a test event', timestamp: Date.now() }
+                });
+                return { success: true, message: 'Test event sent' };
+            }
+            return { success: false, message: 'No windows available' };
+        });
 
         this.logger.success('EventBusHandlers registered');
     }
@@ -78,8 +92,9 @@ class EventBusHandlers {
             maxHistorySize: this.maxBufferSize
         });
 
-        // Override console methods to capture ALL logs
-        this.interceptConsoleLogs();
+        // DISABLED: Console interception floods the event system with console.log events
+        // and prevents actual progress events (frameCompleted, etc.) from being visible
+        // this.interceptConsoleLogs();
 
         // Subscribe to ALL possible events
         this.subscribeToAllEvents();

@@ -60,7 +60,7 @@ class RenderProgressTracker {
             eta: '',
             startTime: Date.now(),
             projectName: eventData?.projectName || this.progress.projectName,
-            totalFrames: this.progress.totalFrames || 100
+            totalFrames: eventData?.totalFrames || this.progress.totalFrames || 100
         };
 
         return this.getProgress();

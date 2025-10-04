@@ -488,7 +488,8 @@ class EffectOperationsService {
                 projectState,
                 parentIndex,
                 keyframeEffectData,
-                effectName
+                effectName,
+                frame
             );
             await this.commandService.execute(addKeyframeCommand);
 

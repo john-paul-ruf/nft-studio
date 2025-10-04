@@ -59,8 +59,8 @@ export class PositionScaler {
         // Handle both Effect instances and POJOs
         const scaledEffects = effects.map(effect => {
             if (effect instanceof Effect) {
-                // Convert to POJO, scale, then convert back to Effect
-                return Effect.fromPOJO(JSON.parse(JSON.stringify(effect.toPOJO())));
+                // Convert to POJO for deep cloning
+                return JSON.parse(JSON.stringify(effect.toPOJO()));
             } else {
                 // Plain object - just deep clone
                 return JSON.parse(JSON.stringify(effect));
@@ -86,7 +86,18 @@ export class PositionScaler {
             effectsProcessed: scaledEffects.length
         });
 
-        return scaledEffects;
+        // Convert POJOs back to Effect instances to maintain proper type
+        const effectInstances = scaledEffects.map(effect => {
+            // If it's already an Effect instance, return as-is
+            if (effect instanceof Effect) {
+                return effect;
+            }
+            // Otherwise, convert POJO to Effect instance
+            return Effect.fromPOJO(effect);
+        });
+
+        console.log('✅ PositionScaler: Converted scaled effects back to Effect instances');
+        return effectInstances;
     }
 
     /**

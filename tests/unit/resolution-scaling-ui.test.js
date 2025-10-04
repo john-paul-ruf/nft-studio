@@ -22,6 +22,7 @@ export function test_effect_configurer_resolution_sync() {
                 name: 'TestEffect',
                 className: 'TestEffect',
                 registryKey: 'test-effect',
+                type: 'primary',
                 config: {
                     position: {
                         name: 'position',

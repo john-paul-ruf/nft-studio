@@ -57,6 +57,7 @@ export async function testResolutionChangeCascade() {
                     name: 'TestEffect',
                     className: 'TestEffect',
                     registryKey: 'test-effect',
+                    type: 'primary',
                     config: {
                         position: { name: 'position', x: 960, y: 540 }
                     }
@@ -137,6 +138,7 @@ export async function testUndoRedoWithResolutionChanges() {
                     name: 'TestEffect',
                     className: 'TestEffect',
                     registryKey: 'test-effect',
+                    type: 'primary',
                     config: {
                         position: { name: 'position', x: 960, y: 540 }
                     }
@@ -241,6 +243,7 @@ export async function testPositionScalingUpdatesComponents() {
                     name: 'PositionEffect',
                     className: 'PositionEffect',
                     registryKey: 'position-effect',
+                    type: 'primary',
                     config: {
                         center: { name: 'position', x: 960, y: 540 },
                         corner: { name: 'position', x: 100, y: 100 }
@@ -250,6 +253,7 @@ export async function testPositionScalingUpdatesComponents() {
                     name: 'ArcEffect',
                     className: 'ArcEffect',
                     registryKey: 'arc-effect',
+                    type: 'primary',
                     config: {
                         arcPath: {
                             name: 'arc-path',
@@ -350,6 +354,7 @@ export async function testCrossServiceCommunication() {
                     name: 'TestEffect',
                     className: 'TestEffect',
                     registryKey: 'test-effect',
+                    type: 'primary',
                     config: {
                         position: { name: 'position', x: 960, y: 540 }
                     }

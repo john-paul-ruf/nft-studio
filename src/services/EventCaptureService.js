@@ -19,14 +19,22 @@ class EventCaptureService {
         this.maxBufferSize = 1000;
         this.eventCallbacks = new Set();
         
-        // Start monitoring immediately on service creation
-        this.initializeBackgroundMonitoring();
+        // Start monitoring immediately on service creation (only in browser environment)
+        if (typeof window !== 'undefined') {
+            this.initializeBackgroundMonitoring();
+        }
     }
     
     /**
      * Initialize background event monitoring that runs independently of UI state
      */
     async initializeBackgroundMonitoring() {
+        // Skip initialization if not in browser environment
+        if (typeof window === 'undefined') {
+            console.log('⚠️ EventCaptureService: Skipping background monitoring (not in browser environment)');
+            return;
+        }
+        
         console.log('🔄 EventCaptureService: Initializing background monitoring');
         
         // Wait a bit for window.api to be available
@@ -87,6 +95,11 @@ class EventCaptureService {
     setupPersistentListeners() {
         // Handler for worker events
         const workerHandler = (data) => {
+            // Log frame events for debugging
+            if (data.eventName === 'frameStarted' || data.eventName === 'frameCompleted') {
+                console.log(`🎬 [EventCaptureService] Received ${data.eventName} - Frame ${data.data?.frameNumber || 'unknown'}`);
+            }
+            
             const normalizedEvent = this.normalizeEventData(data);
             this.addToBuffer(normalizedEvent);
             this.notifyCallbacks(normalizedEvent);
@@ -94,6 +107,11 @@ class EventCaptureService {
         
         // Handler for event bus messages
         const eventBusHandler = (ipcEvent, eventData) => {
+            // Log frame events for debugging
+            if (eventData.eventName === 'frameStarted' || eventData.eventName === 'frameCompleted') {
+                console.log(`🎬 [EventCaptureService] Received via EventBus ${eventData.eventName} - Frame ${eventData.data?.frameNumber || 'unknown'}`);
+            }
+            
             const normalizedEvent = this.normalizeEventData(eventData);
             this.addToBuffer(normalizedEvent);
             this.notifyCallbacks(normalizedEvent);
@@ -125,6 +143,11 @@ class EventCaptureService {
      * Notify all registered callbacks about new event
      */
     notifyCallbacks(eventData) {
+        const eventName = eventData.eventName || 'unknown';
+        if (eventName === 'frameStarted' || eventName === 'frameCompleted') {
+            console.log(`📢 [EventCaptureService] Notifying ${this.eventCallbacks.size} callbacks about: ${eventName}`);
+        }
+        
         this.eventCallbacks.forEach(callback => {
             try {
                 callback(eventData);
@@ -326,8 +349,40 @@ class EventCaptureService {
      * @returns {Object} Normalized event data
      */
     normalizeEventData(eventData) {
+        const rawEventName = eventData.eventName || 'unknown';
+        
+        // Map event names from my-nft-gen library to standard names
+        // This ensures render loop events are recognized by EventBusMonitor
+        const eventNameMap = {
+            // Frame events - map various formats to standard names
+            'frame.complete': 'frameCompleted',
+            'frame.render.complete': 'frameCompleted',
+            'frameComplete': 'frameCompleted',
+            'frame.start': 'frameStarted',
+            'frame.render.start': 'frameStarted',
+            'frameStart': 'frameStarted',
+            'frame.error': 'frameError',
+            'frame.render.error': 'frameError',
+            // Keep standard names as-is
+            'frameCompleted': 'frameCompleted',
+            'frameStarted': 'frameStarted',
+            'frameError': 'frameError',
+            'render.loop.start': 'render.loop.start',
+            'render.loop.complete': 'render.loop.complete',
+            'render.loop.error': 'render.loop.error',
+            'project.resume.start': 'project.resume.start'
+        };
+        
+        // Normalize the event name
+        const normalizedEventName = eventNameMap[rawEventName] || rawEventName;
+        
+        // Log mapping if event name was changed
+        if (normalizedEventName !== rawEventName) {
+            console.log(`🔄 EventCaptureService: Mapped event name '${rawEventName}' → '${normalizedEventName}'`);
+        }
+        
         return {
-            eventName: eventData.eventName || 'unknown',
+            eventName: normalizedEventName,
             data: eventData.data || eventData,
             timestamp: eventData.timestamp || new Date().toISOString(),
             source: eventData.source || 'unknown'

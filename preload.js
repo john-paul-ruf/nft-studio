@@ -1,5 +1,10 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Debug: Log ALL IPC messages on worker-event channel
+ipcRenderer.on('worker-event', (event, data) => {
+    console.log('🔍 [Preload RAW] IPC worker-event received:', data?.eventName || 'unknown');
+});
+
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('api', {
@@ -54,10 +59,22 @@ contextBridge.exposeInMainWorld('api', {
 
     // Event handling
     onWorkerEvent: (callback) => {
-        ipcRenderer.on('worker-event', (event, data) => callback(data));
+        ipcRenderer.on('worker-event', (event, data) => {
+            // Log frame events for debugging
+            if (data.eventName === 'frameStarted' || data.eventName === 'frameCompleted') {
+                console.log(`📥 [Preload] Received IPC worker-event: ${data.eventName} - Frame ${data.data?.frameNumber || 'unknown'}`);
+            }
+            callback(data);
+        });
     },
     removeWorkerEventListener: () => {
         ipcRenderer.removeAllListeners('worker-event');
+    },
+    
+    // Test IPC channel
+    testIpcChannel: () => {
+        console.log('🧪 [Preload] Testing IPC channel...');
+        return ipcRenderer.invoke('test-ipc-channel');
     },
 
     // EventBus monitoring
