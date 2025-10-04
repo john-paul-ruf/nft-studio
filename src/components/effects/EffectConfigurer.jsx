@@ -440,6 +440,11 @@ function EffectConfigurer({
                 <Typography variant="body2" color="text.secondary">
                     Effect Type: {selectedEffect.effectType || 'Unknown'}
                 </Typography>
+                {selectedEffect.id && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontFamily: 'monospace' }}>
+                        ID: {selectedEffect.id}
+                    </Typography>
+                )}
             </Box>
 
             {/* Configuration Status */}
