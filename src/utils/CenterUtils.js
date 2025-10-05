@@ -325,33 +325,37 @@ export class CenterUtils {
         const center = this.getCenterPosition(width, height);
         const updatedConfig = { ...config };
 
-        // Only apply center to fields that are explicitly center fields AND don't have values yet
-        Object.keys(updatedConfig).forEach(key => {
-            const value = updatedConfig[key];
+        // Recursive function to process nested objects
+        const processObject = (obj, parentKey = '') => {
+            Object.keys(obj).forEach(key => {
+                const value = obj[key];
+                const fieldName = key.toLowerCase();
 
-            // Skip if field already has a value
-            if (value !== null && value !== undefined) {
-                // For objects, check if they have actual coordinate values
-                if (typeof value === 'object' && !Array.isArray(value)) {
-                    // If it has x,y coordinates that aren't default (0,0), skip it
-                    if ((value.x !== undefined && value.x !== 0) || (value.y !== undefined && value.y !== 0)) {
-                        console.log(`⏸️ CenterUtils: Skipping field '${key}' - already has position values`);
-                        return;
+                // Check if this is a center field by name
+                const isCenterField = fieldName === 'center' ||
+                    (fieldName.includes('center') && !fieldName.includes('position'));
+
+                if (isCenterField) {
+                    // Apply center defaults if value is null, undefined, or 0,0
+                    if (value === null || value === undefined) {
+                        obj[key] = this.applyCenterToValue({}, center);
+                        console.log(`🎯 CenterUtils: Applied center defaults to null field '${key}'`);
+                    } else if (typeof value === 'object' && !Array.isArray(value)) {
+                        // Check if it's at 0,0 (needs defaults)
+                        if (value.x === 0 && value.y === 0) {
+                            obj[key] = this.applyCenterToValue(value, center);
+                            console.log(`🎯 CenterUtils: Applied center defaults to 0,0 field '${key}'`);
+                        }
+                        // If it has non-zero values, leave it alone
                     }
-                } else {
-                    // Non-object values that aren't null/undefined should be kept as-is
-                    return;
+                } else if (typeof value === 'object' && !Array.isArray(value) && value !== null) {
+                    // Recursively process nested objects
+                    processObject(value, key);
                 }
-            }
+            });
+        };
 
-            // Only apply center to fields with "center" in the name
-            const fieldName = key.toLowerCase();
-            if (fieldName === 'center' || (fieldName.includes('center') && !fieldName.includes('position'))) {
-                updatedConfig[key] = this.applyCenterToValue(value || {}, center);
-                console.log(`🎯 CenterUtils: Applied center defaults to field '${key}':`, updatedConfig[key]);
-            }
-        });
-
+        processObject(updatedConfig);
         return updatedConfig;
     }
 

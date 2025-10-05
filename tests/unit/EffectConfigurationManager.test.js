@@ -147,32 +147,33 @@ export async function testEffectConfigurationManagerCenterPositions(testEnv) {
         getResolutionDimensions: () => ({ width: 1920, height: 1080 })
     };
     
-    const result = manager.applyCenterDefaults(testConfig, testProjectState);
-    
+    // Test with isNewEffect = true (should update metrics)
+    const result = manager.applyCenterDefaults(testConfig, testProjectState, true);
+
     // Should return a configuration (CenterUtils may modify it)
     if (!result) {
         throw new Error('Center defaults application should return a configuration');
     }
-    
+
     if (typeof result !== 'object') {
         throw new Error('Result should be an object');
     }
-    
+
     // Test with null inputs
-    const nullConfigResult = manager.applyCenterDefaults(null, testProjectState);
+    const nullConfigResult = manager.applyCenterDefaults(null, testProjectState, true);
     if (nullConfigResult !== null) {
         // CenterUtils should handle null gracefully
     }
-    
-    const nullProjectResult = manager.applyCenterDefaults(testConfig, null);
+
+    const nullProjectResult = manager.applyCenterDefaults(testConfig, null, true);
     if (!nullProjectResult) {
         throw new Error('Should handle null project state gracefully');
     }
-    
-    // Check metrics were updated
+
+    // Check metrics were updated when isNewEffect is true
     const metrics = manager.getConfigurationMetrics();
     if (metrics.centerPositionsApplied === 0) {
-        throw new Error('Center positions applied metric should be updated');
+        throw new Error('Center positions applied metric should be updated for new effects');
     }
     
     console.log('✅ EffectConfigurationManager center position application passed');
@@ -436,18 +437,19 @@ export async function testEffectConfigurationManagerMetrics(testEnv) {
     // Perform some operations to update metrics
     const testConfig = { opacity: 0.8 };
     const testEffect = { name: 'TestEffect' };
-    
+
     manager.processConfigurationChange(testConfig, testEffect);
-    manager.applyCenterDefaults(testConfig, { targetResolution: 1920 });
-    
+    // Pass isNewEffect = true to ensure metrics are updated
+    manager.applyCenterDefaults(testConfig, { targetResolution: 1920 }, true);
+
     const afterMetrics = manager.getConfigurationMetrics();
-    
+
     if (afterMetrics.configurationsProcessed <= initialMetrics.configurationsProcessed) {
         throw new Error('Configurations processed should increase');
     }
-    
+
     if (afterMetrics.centerPositionsApplied <= initialMetrics.centerPositionsApplied) {
-        throw new Error('Center positions applied should increase');
+        throw new Error('Center positions applied should increase for new effects');
     }
     
     // Test metrics reset

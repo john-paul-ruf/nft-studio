@@ -454,36 +454,38 @@ async function testShouldApplyCenterDecisionTree() {
             throw new Error('Field containing "center" not detected as center field');
         }
         
-        // Test value-based detection (center position)
+        // Test that regular position fields are NOT detected as center fields
+        // (even if they happen to be at the center position)
         const centerPositionValue = { name: 'position', x: 960, y: 540 }; // Center of 1920x1080
-        const centerByValue = CenterUtils.shouldApplyCenter('someField', centerPositionValue, resolutionInfo);
-        if (!centerByValue) {
-            throw new Error('Center position value not detected as center field');
+        const centerByValue = CenterUtils.shouldApplyCenter('position', centerPositionValue, resolutionInfo);
+        if (centerByValue) {
+            throw new Error('Regular position field should not be detected as center field');
         }
-        
-        // Test non-center position
+
+        // Test non-center position (should also not be detected)
         const nonCenterValue = { name: 'position', x: 100, y: 200 }; // Not center
         const nonCenterByValue = CenterUtils.shouldApplyCenter('someField', nonCenterValue, resolutionInfo);
         if (nonCenterByValue) {
             throw new Error('Non-center position incorrectly detected as center field');
         }
-        
-        // Test legacy point2d center detection
+
+        // Test legacy point2d - regular positions should not auto-center
         const legacyCenterPoint = { x: 960, y: 540 }; // Center, no name
         const legacyCenterDetected = CenterUtils.shouldApplyCenter('position', legacyCenterPoint, resolutionInfo);
-        if (!legacyCenterDetected) {
-            throw new Error('Legacy center point not detected as center field');
+        if (legacyCenterDetected) {
+            throw new Error('Regular position field should not be detected as center field');
         }
         
-        // Test arc path center detection
+        // Test arc path center detection - only detected for arc-path objects with "center" field name
         const arcPathCenter = {
             name: 'arc-path',
             center: { x: 960, y: 540 },
             radius: 100
         };
+        // Arc path is special - it has a center property that should auto-center
         const arcCenterDetected = CenterUtils.shouldApplyCenter('arcField', arcPathCenter, resolutionInfo);
         if (!arcCenterDetected) {
-            throw new Error('Arc path with center not detected as center field');
+            throw new Error('Arc path with center property should be detected as having a center field');
         }
         
         // Test non-position values
@@ -592,41 +594,44 @@ async function testConfigObjectProcessing() {
     try {
         const resolutionInfo = { resolution: 1920, isHorizontal: true };
         
-        // Test complex config with nested center fields
+        // Test complex config with center fields that need defaults
+        // Fields with existing non-zero values won't be modified
         const complexConfig = {
-            center: { name: 'position', x: 960, y: 540 }, // Should be detected as center
+            center: { name: 'position', x: 0, y: 0 }, // Will get center defaults (0,0)
             nonCenter: { name: 'position', x: 100, y: 200 }, // Should not be modified
             nested: {
-                centerPosition: { x: 960, y: 540 }, // Legacy format, should be detected
+                centerPosition: null, // Will get center defaults (null)
                 regularField: 'some value'
             },
             arcCenter: {
                 name: 'arc-path',
-                center: { x: 960, y: 540 },
+                center: { x: 960, y: 540 }, // Already has values, won't be modified
                 radius: 100
             }
         };
-        
+
         const processedConfig = CenterUtils.detectAndApplyCenter(complexConfig, resolutionInfo);
-        
-        // Check that center field was processed
-        if (!processedConfig.center.__centerOverrideApplied) {
-            throw new Error('Center field not processed');
+
+        // Check that center field with 0,0 was processed
+        if (processedConfig.center.x !== 960 || processedConfig.center.y !== 540) {
+            throw new Error('Center field with 0,0 should get center defaults');
         }
-        
+
         // Check that non-center field was not modified
-        if (processedConfig.nonCenter.__centerOverrideApplied) {
-            throw new Error('Non-center field incorrectly processed');
+        if (processedConfig.nonCenter.x !== 100 || processedConfig.nonCenter.y !== 200) {
+            throw new Error('Non-center field should not be modified');
         }
-        
-        // Check nested center processing
-        if (!processedConfig.nested.centerPosition.__centerOverrideApplied) {
-            throw new Error('Nested center field not processed');
+
+        // Check nested center processing for null field
+        if (!processedConfig.nested.centerPosition ||
+            processedConfig.nested.centerPosition.x !== 960 ||
+            processedConfig.nested.centerPosition.y !== 540) {
+            throw new Error('Nested center field with null should get center defaults');
         }
-        
-        // Check arc path center processing
-        if (!processedConfig.arcCenter.__centerOverrideApplied) {
-            throw new Error('Arc path center not processed');
+
+        // Arc path with existing center values should not be modified
+        if (processedConfig.arcCenter.center.x !== 960 || processedConfig.arcCenter.center.y !== 540) {
+            throw new Error('Arc path center with existing values should not be modified');
         }
         
         // Check that regular fields are preserved
