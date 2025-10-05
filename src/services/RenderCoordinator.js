@@ -376,6 +376,9 @@ export class RenderCoordinator {
             // Import the loop terminator
             const { killWorker } = await import('../core/events/LoopTerminator.js');
 
+            // Signal the loop to stop immediately
+            this.renderLoopActive = false;
+
             // Use event-driven worker termination
             if (this.currentWorkerId) {
                 this.logger.info(`Terminating worker via event system: ${this.currentWorkerId}`);
@@ -383,9 +386,6 @@ export class RenderCoordinator {
             } else {
                 // Fallback to old method if no worker ID
                 this.logger.info('No worker ID available, using fallback termination');
-                
-                // Signal the loop to stop
-                this.renderLoopActive = false;
 
                 // If there's an active worker process, kill it
                 if (this.activeWorkerProcess) {
@@ -395,33 +395,52 @@ export class RenderCoordinator {
                 }
             }
 
+            // Also try to kill any child processes immediately
+            await this.killAnyActiveChildProcesses();
+
+            // Wait a moment for processes to actually stop
+            await new Promise(resolve => setTimeout(resolve, 500));
+
             // Clean up will be handled by the event-driven system
             await this.cleanupWorker(this.currentWorkerId || 'unknown', 'user_stopped');
 
-            this.logger.success('Active loop stop initiated via event system');
-            return { success: true, message: 'Active loop stopped via event system' };
+            // Verify the loop is actually stopped
+            if (!this.renderLoopActive && !this.activeRenderLoop) {
+                this.logger.success('Active loop stopped successfully via event system');
+                return { success: true, message: 'Active loop stopped via event system' };
+            } else {
+                // Force kill if still running
+                await this.killAnyActiveChildProcesses();
+                this.renderLoopActive = false;
+                this.activeRenderLoop = null;
+                this.logger.warn('Active loop force-stopped');
+                return { success: true, message: 'Active loop force-stopped' };
+            }
 
         } catch (error) {
             this.logger.error('Failed to stop active loop via event system, using fallback', error);
-            
-            // Fallback to old method
+
+            // Fallback to old method - force stop everything
             this.renderLoopActive = false;
-            
+
             if (this.activeWorkerProcess) {
                 this.activeWorkerProcess.kill('SIGTERM');
                 this.activeWorkerProcess = null;
             }
-            
+
+            // Force kill child processes
+            await this.killAnyActiveChildProcesses();
+
             if (this.activeRenderLoopEventBus) {
                 this.activeRenderLoopEventBus.removeAllListeners();
                 this.activeRenderLoopEventBus.clear();
                 this.activeRenderLoopEventBus = null;
             }
-            
+
             this.activeRenderLoop = null;
             this.currentLoopId = null;
             this.currentWorkerId = null;
-            
+
             return { success: true, message: 'Active loop stopped (fallback method)' };
         }
     }
@@ -925,7 +944,7 @@ export class RenderCoordinator {
                             this.logger.info('Random loop termination requested during generation');
                             terminationResolve('terminated');
                         }
-                    }, 100); // Check every 100ms for faster response
+                    }, 50); // Check every 50ms for faster response
 
                     // Store the interval so we can clear it later
                     terminationListener = checkTermination;
@@ -989,7 +1008,7 @@ export class RenderCoordinator {
                             this.logger.info('Project resume termination requested during execution');
                             terminationResolve('terminated');
                         }
-                    }, 100); // Check every 100ms for faster response
+                    }, 50); // Check every 50ms for faster response
 
                     // Store the interval so we can clear it later
                     terminationListener = checkTermination;

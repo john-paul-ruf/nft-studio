@@ -154,28 +154,49 @@ export default function EventDrivenToolbarActions({ projectState }) {
                     } else {
                         // Stop render loop using new event-driven system
                         console.log('🔥 EventDrivenToolbarActions: Stopping render loop using event-driven system');
-                        
+
                         try {
                             // Try the new event-driven approach first
                             const { killAllWorkers } = await import('../core/events/LoopTerminator.js');
                             console.log('🔥 EventDrivenToolbarActions: Using event-driven worker termination');
                             killAllWorkers('SIGTERM');
-                            
-                            // Also call the API for backward compatibility
+
+                            // Also call the API and wait for confirmation
                             const result = await window.api.stopRenderLoop();
                             console.log('✅ EventDrivenToolbarActions: Render loop stopped via event system:', result);
+
+                            // Only update UI state if stop was successful
+                            if (result && result.success) {
+                                // Emit the toggle event to update UI state
+                                eventBusService.emit('renderloop:toggled', {
+                                    isActive: false
+                                }, { source: 'EventDrivenToolbarActions' });
+                            } else {
+                                throw new Error(result?.message || 'Failed to stop render loop');
+                            }
                         } catch (importError) {
                             console.warn('⚠️ EventDrivenToolbarActions: Event-driven termination not available, using fallback:', importError);
                             // Fallback to old method
                             const result = await window.api.stopRenderLoop();
                             console.log('✅ EventDrivenToolbarActions: Render loop stopped via fallback:', result);
+
+                            // Only update UI state if stop was successful
+                            if (result && result.success) {
+                                eventBusService.emit('renderloop:toggled', {
+                                    isActive: false
+                                }, { source: 'EventDrivenToolbarActions' });
+                            } else {
+                                throw new Error(result?.message || 'Failed to stop render loop');
+                            }
                         }
                     }
 
-                    // Emit the toggle event to update UI state
-                    eventBusService.emit('renderloop:toggled', {
-                        isActive: payload.isActive
-                    }, { source: 'EventDrivenToolbarActions' });
+                    // If we're starting the loop, emit the toggle event
+                    if (payload.isActive) {
+                        eventBusService.emit('renderloop:toggled', {
+                            isActive: true
+                        }, { source: 'EventDrivenToolbarActions' });
+                    }
                 } catch (error) {
                     console.error('❌ EventDrivenToolbarActions: Render loop operation failed:', error);
                     // Emit error event to potentially revert UI state
