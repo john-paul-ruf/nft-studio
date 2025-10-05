@@ -51,17 +51,11 @@ export default class ProjectStateManager {
      * @param {Function} callback - Callback to register
      */
     onUpdate(callback) {
-        console.log('🔄 ProjectStateManager: Registering new update callback');
-        console.log('🔄 ProjectStateManager: Callbacks before registration:', this.updateCallbacks.size);
         this.updateCallbacks.add(callback);
-        console.log('🔄 ProjectStateManager: Callbacks after registration:', this.updateCallbacks.size);
 
         // Return unsubscribe function
         return () => {
-            console.log('🔄 ProjectStateManager: Unregistering update callback');
-            console.log('🔄 ProjectStateManager: Callbacks before unregistration:', this.updateCallbacks.size);
             this.updateCallbacks.delete(callback);
-            console.log('🔄 ProjectStateManager: Callbacks after unregistration:', this.updateCallbacks.size);
         };
     }
 

@@ -79,20 +79,6 @@ function EffectConfigurer({
     const schemaRef = useRef(null);
     const previousResolution = useRef(projectState?.targetResolution);
     const defaultsLoadedForEffect = useRef(null); // Track which effect we've loaded defaults for
-    
-    // Debug logging for props
-    console.log('🔧 EffectConfigurer: Props received:', {
-        selectedEffect,
-        selectedEffectRegistryKey: selectedEffect?.registryKey,
-        selectedEffectName: selectedEffect?.name,
-        effectType: selectedEffect?.effectType,
-        projectState,
-        initialConfig,
-        initialConfigKeys: initialConfig ? Object.keys(initialConfig) : 'none',
-        initialPercentChance,
-        isModal,
-        useWideLayout
-    });
 
     // Initialize percent chance from props
     useEffect(() => {
@@ -111,15 +97,12 @@ function EffectConfigurer({
     // and that we pick up scaled positions after resolution changes
     useEffect(() => {
         if (initialConfig && Object.keys(initialConfig).length > 0) {
-            console.log('📋 EffectConfigurer: Syncing with initialConfig (from ProjectState):', initialConfig);
-            console.log('📋 EffectConfigurer: Current resolution:', resolutionKey);
             setEffectConfig(initialConfig);
             configRef.current = initialConfig;
             // Mark that we're using initialConfig, so we don't load defaults
             defaultsLoadedForEffect.current = selectedEffect?.registryKey;
         } else if (!initialConfig || Object.keys(initialConfig).length === 0) {
             // Reset when switching to a new effect without initialConfig
-            console.log('📋 EffectConfigurer: No initialConfig, resetting for new effect');
             setEffectConfig({});
             configRef.current = {};
             defaultsLoadedForEffect.current = null;
@@ -136,13 +119,11 @@ function EffectConfigurer({
             }
 
             try {
-                console.log('🔄 Loading schema for effect:', selectedEffect.registryKey);
-                
+
                 // Use EffectConfigurationManager to load schema
                 const schema = await services.configManager.loadConfigSchema(selectedEffect, projectState);
                 
                 if (schema) {
-                    console.log('✅ Schema loaded successfully:', schema);
                     setConfigSchema(schema);
                     schemaRef.current = schema;
                     
@@ -151,7 +132,6 @@ function EffectConfigurer({
                     setValidationErrors(validation.errors);
                     setIsConfigComplete(validation.isComplete);
                 } else {
-                    console.warn('⚠️ No schema found for effect:', selectedEffect.registryKey);
                     setConfigSchema(null);
                     schemaRef.current = null;
                 }
@@ -186,7 +166,6 @@ function EffectConfigurer({
             try {
                 const defaults = await services.configManager.checkForDefaults(selectedEffect.registryKey);
                 if (defaults) {
-                    console.log('📋 Found saved defaults for new effect:', selectedEffect.registryKey, defaults);
                     // Mark that we've loaded defaults for this effect
                     defaultsLoadedForEffect.current = selectedEffect.registryKey;
                     // Apply defaults through configuration change
@@ -202,8 +181,7 @@ function EffectConfigurer({
 
     // Field change handler - converts individual field changes to full config updates
     const handleFieldChange = useCallback((fieldName, fieldValue) => {
-        console.log('🔄 Field change:', fieldName, '=', fieldValue);
-        
+
         // Create updated config with the new field value
         const updatedConfig = {
             ...configRef.current,
@@ -239,8 +217,7 @@ function EffectConfigurer({
 
     // Configuration change handler with service coordination (for bulk updates)
     const handleConfigurationChange = useCallback((newConfig, metadata = {}) => {
-        console.log('🔄 Configuration change:', newConfig);
-        
+
         // Update local state
         setEffectConfig(newConfig);
         configRef.current = newConfig;
@@ -284,7 +261,6 @@ function EffectConfigurer({
             onAddEffect
         );
         
-        console.log('✅ Effect added:', selectedEffect.name, finalConfig);
     }, [selectedEffect, isConfigComplete, onAddEffect, services.eventCoordinator]);
 
     // Effect attachment handler with service coordination
@@ -302,7 +278,6 @@ function EffectConfigurer({
             onAttachEffect
         );
         
-        console.log('✅ Effect attached:', effect.name, config);
     }, [projectState, onAttachEffect, services.eventCoordinator]);
 
     // Resolution change handler with service coordination
@@ -314,7 +289,6 @@ function EffectConfigurer({
                 newResolution,
                 projectState,
                 (oldRes, newRes, state) => {
-                    console.log('🔄 Resolution changed:', oldRes, '->', newRes);
                     // Re-validate configuration with new resolution
                     if (schemaRef.current) {
                         const validation = services.validator.validateConfiguration(configRef.current, schemaRef.current);
@@ -344,7 +318,6 @@ function EffectConfigurer({
 
         try {
             await services.configManager.saveAsDefault(selectedEffect.registryKey, configRef.current);
-            console.log('✅ Configuration saved as default for:', selectedEffect.registryKey);
         } catch (error) {
             console.error('❌ Error saving defaults:', error);
         }
@@ -359,8 +332,7 @@ function EffectConfigurer({
 
         try {
             await services.configManager.resetDefaults(selectedEffect.registryKey);
-            console.log('✅ Defaults reset for:', selectedEffect.registryKey);
-            
+
             // Clear current configuration
             handleConfigurationChange({});
         } catch (error) {
@@ -435,20 +407,10 @@ function EffectConfigurer({
             {/* Effect Header */}
             <Box sx={{ mb: 2 }}>
                 <Typography variant="h6" gutterBottom>
-                    Configure {selectedEffect.name}
+                    {selectedEffect.name} - {selectedEffect.id}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                    Effect Type: {selectedEffect.effectType || 'Unknown'}
-                </Typography>
-                {selectedEffect.id && (
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontFamily: 'monospace' }}>
-                        ID: {selectedEffect.id}
-                    </Typography>
-                )}
             </Box>
 
-            {/* Configuration Status */}
-            {renderConfigurationStatus()}
 
             {/* Validation Errors */}
             {renderValidationErrors()}

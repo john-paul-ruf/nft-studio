@@ -396,32 +396,11 @@ export default function useEffectManagement(projectState) {
                 const savedDefaults = await PreferencesService.getEffectDefaults(registryKey);
                 let processedConfig = savedDefaults || result.defaults;
 
-                console.log('🎯 useEffectManagement: Using effect defaults:', {
-                    effectName,
-                    registryKey,
-                    usingSavedDefaults: !!savedDefaults,
-                    config: processedConfig
-                });
-
                 // Apply center defaults immediately when adding effect
                 const projectData = projectState.getState();
 
-                console.log('🎯 useEffectManagement: Applying center defaults to newly added effect:', {
-                    effectName,
-                    originalConfig: processedConfig,
-                    projectData: {
-                        targetResolution: projectData?.targetResolution,
-                        isHorizontal: projectData?.isHorizontal
-                    }
-                });
-
                 if (projectData) {
                     processedConfig = CenterUtils.detectAndApplyCenter(processedConfig, projectData);
-                    console.log('🎯 useEffectManagement: Center defaults applied:', {
-                        original: savedDefaults || result.defaults,
-                        processed: processedConfig,
-                        changed: JSON.stringify(result.defaults) !== JSON.stringify(processedConfig)
-                    });
                 }
 
                 // Validate and correct effect type to prevent categorization issues
@@ -486,13 +465,6 @@ export default function useEffectManagement(projectState) {
         const currentEffect = currentEffects[index];
         const effectName = updatedEffect.name || updatedEffect.className || 'Effect';
 
-        console.log('🔧 HANDLE_EFFECT_UPDATE: Updating effect at index', index, {
-            originalEffect: currentEffect,
-            updatedEffect: updatedEffect,
-            secondaryEffectsCount: updatedEffect.secondaryEffects?.length || 0,
-            secondaryEffects: updatedEffect.secondaryEffects
-        });
-
         // Use command pattern for undo/redo support
         const updateCommand = new UpdateEffectCommand(projectState, index, updatedEffect, effectName);
         commandService.execute(updateCommand);
@@ -500,27 +472,17 @@ export default function useEffectManagement(projectState) {
         // Verify what was actually stored
         const verifyEffects = projectState.getState().effects || [];
         const storedEffect = verifyEffects[index];
-        console.log('🔧 HANDLE_EFFECT_UPDATE: Verification - effect after storage:', {
-            storedEffect: storedEffect,
-            storedSecondaryEffects: storedEffect?.secondaryEffects,
-            storedSecondaryCount: storedEffect?.secondaryEffects?.length || 0
-        });
+
     }, [projectState, commandService]);
 
     const handleEffectDelete = useCallback((index) => {
         // Get fresh effects from current ProjectState
         const currentEffects = projectState.getState().effects || [];
-        console.log('🗑️ useEffectManagement: handleEffectDelete called with index:', index);
-        console.log('🗑️ useEffectManagement: Current effects before delete:', currentEffects.length, currentEffects.map(e => e.name || e.className));
-
-        // Use Command Pattern for delete
         const deleteCommand = new DeleteEffectCommand(projectState, index);
         commandService.execute(deleteCommand);
-        console.log(`✅ Command executed: Delete effect at index ${index}`);
     }, [projectState, commandService]);
 
     const handleEffectReorder = useCallback((fromIndex, toIndex) => {
-        console.log('🔄 handleEffectReorder: Reordering effects', { fromIndex, toIndex });
 
         // Use command pattern for undo/redo support
         const reorderCommand = new ReorderEffectsCommand(projectState, fromIndex, toIndex);
