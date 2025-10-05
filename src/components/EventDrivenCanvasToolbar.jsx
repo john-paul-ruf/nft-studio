@@ -29,7 +29,7 @@ export default function EventDrivenCanvasToolbar({
     const isHorizontal = projectState ? projectState.getIsHorizontal() : true;
 
     // UI-only state (not business logic)
-    const [currentThemeKey, setCurrentThemeKey] = useState('dark');
+    const [currentThemeKey, setCurrentThemeKey] = useState('cyberpunk');
     const [zoomMenuAnchor, setZoomMenuAnchor] = useState(null);
     const [colorSchemeMenuAnchor, setColorSchemeMenuAnchor] = useState(null);
     const [isPinned, setIsPinned] = useState(false);
@@ -117,16 +117,15 @@ export default function EventDrivenCanvasToolbar({
     }, [eventBusService]);
 
     const handleThemeChange = useCallback(() => {
-        const themes = ['dark', 'light', 'cyberpunk']; // Only 3 themes as requested
-        const currentIndex = themes.indexOf(currentThemeKey);
-        const nextTheme = themes[(currentIndex + 1) % themes.length];
+        const themes = ['cyberpunk']; // Only cyberpunk theme
+        const nextTheme = 'cyberpunk'; // Always cyberpunk
         setCurrentThemeKey(nextTheme);
 
         eventBusService.emit('toolbar:theme:change', { themeKey: nextTheme }, {
             source: 'EventDrivenCanvasToolbar',
             component: 'EventDrivenCanvasToolbar'
         });
-    }, [eventBusService, currentThemeKey]);
+    }, [eventBusService]);
 
     const handleColorSchemeChange = useCallback((schemeId) => {
         eventBusService.emit('toolbar:colorscheme:change', { schemeId }, {
@@ -197,7 +196,7 @@ export default function EventDrivenCanvasToolbar({
             isRendering={isRendering}
             selectedFrame={selectedFrame}
             zoom={zoom}
-            themeMode={currentThemeKey === 'dark' ? 'dark' : 'light'}
+            themeMode='dark'
             currentTheme={currentTheme}
             isRenderLoopActive={isRenderLoopActive}
             lastSaveStatus={null}
@@ -215,8 +214,6 @@ export default function EventDrivenCanvasToolbar({
             onThemeToggle={handleThemeChange}
             currentThemeKey={currentThemeKey}
             availableThemes={{
-                dark: { name: 'Dark' },
-                light: { name: 'Light' },
                 cyberpunk: { name: 'Cyberpunk' }
             }}
             onForceSave={null}

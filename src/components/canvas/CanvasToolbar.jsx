@@ -619,14 +619,8 @@ export default function CanvasToolbar({
                                 }
                             }}
                         >
-                            {/* Icon changes based on theme */}
-                            {currentThemeKey === 'light' && <LightMode />}
-                            {currentThemeKey === 'dark' && <DarkMode />}
-                            {currentThemeKey === 'neon-underground' && <span style={{fontSize: '16px'}}>🔋</span>}
-                            {currentThemeKey === 'mystic-ritual' && <span style={{fontSize: '16px'}}>🔮</span>}
-                            {currentThemeKey === 'street-canvas' && <span style={{fontSize: '16px'}}>🎨</span>}
-                            {currentThemeKey === 'bass-drop' && <span style={{fontSize: '16px'}}>🎧</span>}
-                            {currentThemeKey === 'vapor-dreams' && <span style={{fontSize: '16px'}}>🌈</span>}
+                            {/* Cyberpunk theme icon */}
+                            <span style={{fontSize: '16px'}}>⚡</span>
                         </IconButton>
                     </Tooltip>
                 </Box>

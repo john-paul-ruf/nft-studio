@@ -116,7 +116,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
     // UI state only
     const [selectedFrame, setSelectedFrame] = useState(0);
     const [showEffectPicker, setShowEffectPicker] = useState(false);
-    const [currentThemeKey, setCurrentThemeKey] = useState('dark');
+    const [currentThemeKey, setCurrentThemeKey] = useState('cyberpunk');
     const [isRenderLoopActive, setIsRenderLoopActive] = useState(false);
     const [showEventMonitor, setShowEventMonitor] = useState(false);
     const [isEventMonitorMinimized, setIsEventMonitorMinimized] = useState(false);

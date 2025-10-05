@@ -1,39 +1,7 @@
 import { createTheme } from '@mui/material';
 
-// App theme definitions - Professional & Reduced Contrast
+// App theme definitions - Cyberpunk only
 export const appThemes = {
-    dark: {
-        name: 'Dark',
-        palette: {
-            mode: 'dark',
-            primary: { main: '#5a8bb5', contrastText: '#ffffff' },
-            secondary: { main: '#d4977b', contrastText: '#ffffff' },
-            background: { default: '#1a1a1a', paper: '#2a2a2a' },
-            text: { primary: '#e0e0e0', secondary: '#a0a0a0' },
-            divider: '#404040',
-            action: { hover: '#353535' },
-            success: { main: '#5d9c5d', contrastText: '#ffffff' },
-            warning: { main: '#d49c3d', contrastText: '#ffffff' },
-            error: { main: '#c76161', contrastText: '#ffffff' },
-            info: { main: '#5a8bb5', contrastText: '#ffffff' },
-        }
-    },
-    light: {
-        name: 'Light',
-        palette: {
-            mode: 'light',
-            primary: { main: '#4a7ba7', contrastText: '#ffffff' },
-            secondary: { main: '#a67c52', contrastText: '#ffffff' },
-            background: { default: '#fafafa', paper: '#f5f5f5' },
-            text: { primary: '#2a2a2a', secondary: '#606060' },
-            divider: '#d0d0d0',
-            action: { hover: '#eeeeee' },
-            success: { main: '#5a9e5a', contrastText: '#ffffff' },
-            warning: { main: '#cc9543', contrastText: '#ffffff' },
-            error: { main: '#b85555', contrastText: '#ffffff' },
-            info: { main: '#4a7ba7', contrastText: '#ffffff' },
-        }
-    },
     cyberpunk: {
         name: 'Cyberpunk',
         palette: {
@@ -52,8 +20,8 @@ export const appThemes = {
     }
 };
 
-export const createAppTheme = (themeKey = 'dark') => {
-    const themeConfig = appThemes[themeKey] || appThemes['dark'];
+export const createAppTheme = (themeKey = 'cyberpunk') => {
+    const themeConfig = appThemes[themeKey] || appThemes['cyberpunk'];
 
     const theme = createTheme({
         palette: themeConfig.palette,

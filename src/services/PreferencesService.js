@@ -47,7 +47,7 @@ class PreferencesService {
                 lastProjectDirectory: '' // Last used project directory
             },
             theme: {
-                selectedTheme: 'dark' // User's preferred theme (dark, light, cyberpunk)
+                selectedTheme: 'cyberpunk' // User's preferred theme (cyberpunk only)
             },
             effectDefaults: {}, // Object mapping registryKey to default config objects
             lastModified: new Date().toISOString()
@@ -322,16 +322,16 @@ class PreferencesService {
 
     /**
      * Get the user's selected theme
-     * @returns {Promise<string>} Selected theme key (dark, light, cyberpunk)
+     * @returns {Promise<string>} Selected theme key (cyberpunk only)
      */
     static async getSelectedTheme() {
         const preferences = await this.getPreferences();
-        return preferences.theme?.selectedTheme || 'dark';
+        return preferences.theme?.selectedTheme || 'cyberpunk';
     }
 
     /**
      * Set the user's selected theme
-     * @param {string} themeKey - Theme key to save (dark, light, cyberpunk)
+     * @param {string} themeKey - Theme key to save (cyberpunk only)
      * @returns {Promise<boolean>} Success status
      */
     static async setSelectedTheme(themeKey) {
