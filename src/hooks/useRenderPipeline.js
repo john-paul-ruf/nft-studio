@@ -57,7 +57,18 @@ export function useRenderPipeline() {
                 setIsRendering(false);
             } else {
                 console.log('useRenderPipeline: Render complete:', result);
-                setRenderResult(result);
+                
+                // Handle new return format: { imageData, settingsFile, isPinned }
+                // For backward compatibility, also handle old format (string)
+                const imageData = typeof result === 'string' ? result : result?.imageData;
+                setRenderResult(imageData);
+                
+                // Log settings file info if available
+                if (result?.settingsFile) {
+                    console.log('📄 Settings file generated:', result.settingsFile);
+                    console.log('📌 Pin status:', result.isPinned ? 'PINNED' : 'UNPINNED');
+                }
+                
                 setRenderError(null);
                 setIsRendering(false);
             }

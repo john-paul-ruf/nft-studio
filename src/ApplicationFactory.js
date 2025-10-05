@@ -5,6 +5,7 @@ import RenderPipelineService from './services/RenderPipelineService.js';
 import EventBusService from './services/EventBusService.js';
 import CommandService from './services/CommandService.js';
 import LoggerService from './services/LoggerService.js';
+import { PinSettingService } from './services/PinSettingService.js';
 
 // Utils
 import { utilsFactory } from './utils/UtilsFactory.js';
@@ -27,6 +28,7 @@ class ApplicationFactory {
         this.eventBusService = EventBusService; // Singleton
         this.commandService = CommandService; // Singleton
         this.loggerService = LoggerService; // Singleton
+        this.pinSettingService = null; // Will be initialized with dependencies
         this.initialized = false;
     }
 
@@ -48,10 +50,14 @@ class ApplicationFactory {
         this.projectStateManager = new ProjectStateManager();
         console.log('✅ ProjectStateManager initialized');
 
-        // Initialize RenderPipelineService and wire to ProjectStateManager
+        // Initialize PinSettingService with dependencies (before RenderPipelineService)
+        this.pinSettingService = new PinSettingService(this.eventBusService, this.loggerService);
+        console.log('✅ PinSettingService initialized');
+
+        // Initialize RenderPipelineService and wire to ProjectStateManager and PinSettingService
         this.renderPipelineService = new RenderPipelineService();
-        this.renderPipelineService.initialize(this.projectStateManager);
-        console.log('✅ RenderPipelineService initialized');
+        this.renderPipelineService.initialize(this.projectStateManager, this.pinSettingService);
+        console.log('✅ RenderPipelineService initialized with PinSettingService');
 
         // Set up IPC bridge for EventBusService
         this.setupEventBusBridge();
@@ -232,6 +238,15 @@ class ApplicationFactory {
     }
 
     /**
+     * Get PinSettingService singleton
+     * @returns {PinSettingService} Pin setting service
+     */
+    getPinSettingService() {
+        this.ensureInitialized();
+        return this.pinSettingService;
+    }
+
+    /**
      * Register custom repository
      * @param {string} name - Repository name
      * @param {*} repository - Repository instance
@@ -259,6 +274,7 @@ class ApplicationFactory {
             // State Management
             projectStateManager: this.getProjectStateManager(),
             renderPipelineService: this.getRenderPipelineService(),
+            pinSettingService: this.getPinSettingService(),
 
             // Event-Driven Architecture - Single Source of Truth
             eventBusService: this.eventBusService,

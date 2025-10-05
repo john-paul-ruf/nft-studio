@@ -13,11 +13,13 @@ import {
 } from '../commands/ProjectCommands.js';
 
 export default function EventDrivenToolbarActions({ projectState }) {
-    const { eventBusService, commandService, renderPipelineService } = useServices();
-
+    const { eventBusService, commandService, renderPipelineService, pinSettingService } = useServices();
 
     // Circuit breaker to prevent infinite resolution loops
     const lastResolutionRef = useRef(null);
+    
+    // Store last generated settings file for pin feature
+    const lastSettingsFileRef = useRef(null);
 
     useEffect(() => {
         console.log('🔥 EventDrivenToolbarActions: Subscribing to all toolbar events');
@@ -72,7 +74,14 @@ export default function EventDrivenToolbarActions({ projectState }) {
             'toolbar:render:trigger',
             (payload) => {
                 console.log('🔥 EventDrivenToolbarActions: Manual render event:', payload);
-                renderPipelineService.triggerRender(payload.selectedFrame || 0);
+                
+                // Check if pin is active and pass settingsFile
+                const settingsFile = pinSettingService.isPinned() ? pinSettingService.getSettingsFilePath() : null;
+                if (settingsFile) {
+                    console.log('📌 EventDrivenToolbarActions: Rendering with pinned settings:', settingsFile);
+                }
+                
+                renderPipelineService.triggerRender(payload.selectedFrame || 0, settingsFile);
             },
             { component: 'EventDrivenToolbarActions' }
         );
@@ -85,52 +94,63 @@ export default function EventDrivenToolbarActions({ projectState }) {
 
                 try {
                     if (payload.isActive) {
-                        // Start render loop with proper color scheme data
-                        console.log('🔥 EventDrivenToolbarActions: Starting render loop');
-                        const config = projectState ? projectState.getState() : {};
+                        // Check if pin is active
+                        const isPinned = pinSettingService.isPinned();
+                        const settingsFile = isPinned ? pinSettingService.getSettingsFilePath() : null;
+                        
+                        if (isPinned && settingsFile) {
+                            // Use resume loop with pinned settings
+                            console.log('📌 EventDrivenToolbarActions: Starting render loop with pinned settings:', settingsFile);
+                            const result = await window.api.startResumeLoop(settingsFile);
+                            console.log('✅ EventDrivenToolbarActions: Render loop started with pinned settings:', result);
+                        } else {
+                            // Start render loop with proper color scheme data
+                            console.log('🔥 EventDrivenToolbarActions: Starting render loop');
+                            const config = projectState ? projectState.getState() : {};
 
-                        // Process color scheme data like RenderPipelineService does
-                        let colorSchemeData = null;
+                            // Process color scheme data like RenderPipelineService does
+                            let colorSchemeData = null;
 
-                        // First, check if we already have colorSchemeData (e.g., from imported project)
-                        if (config.colorSchemeData) {
-                            console.log('🎨 EventDrivenToolbarActions: Using existing colorSchemeData from config');
-                            colorSchemeData = config.colorSchemeData;
-                        }
-                        // Otherwise, try to load color scheme by name
-                        else if (config.colorScheme) {
-                            try {
-                                const ColorSchemeService = (await import('../services/ColorSchemeService.js')).default;
-                                const fullScheme = await ColorSchemeService.getColorScheme(config.colorScheme);
-                                if (fullScheme) {
-                                    colorSchemeData = {
-                                        name: fullScheme.name,
-                                        colors: fullScheme.lights || [],
-                                        lights: fullScheme.lights || [],
-                                        neutrals: fullScheme.neutrals || [],
-                                        backgrounds: fullScheme.backgrounds || []
-                                    };
-                                    console.log('🎨 EventDrivenToolbarActions: Loaded color scheme by name:', colorSchemeData);
-                                }
-                            } catch (error) {
-                                console.warn('⚠️ EventDrivenToolbarActions: Could not load color scheme by name:', error);
+                            // First, check if we already have colorSchemeData (e.g., from imported project)
+                            if (config.colorSchemeData) {
+                                console.log('🎨 EventDrivenToolbarActions: Using existing colorSchemeData from config');
+                                colorSchemeData = config.colorSchemeData;
                             }
+                            // Otherwise, try to load color scheme by name
+                            else if (config.colorScheme) {
+                                try {
+                                    const ColorSchemeService = (await import('../services/ColorSchemeService.js')).default;
+                                    const fullScheme = await ColorSchemeService.getColorScheme(config.colorScheme);
+                                    if (fullScheme) {
+                                        colorSchemeData = {
+                                            name: fullScheme.name,
+                                            colors: fullScheme.lights || [],
+                                            lights: fullScheme.lights || [],
+                                            neutrals: fullScheme.neutrals || [],
+                                            backgrounds: fullScheme.backgrounds || []
+                                        };
+                                        console.log('🎨 EventDrivenToolbarActions: Loaded color scheme by name:', colorSchemeData);
+                                    }
+                                } catch (error) {
+                                    console.warn('⚠️ EventDrivenToolbarActions: Could not load color scheme by name:', error);
+                                }
+                            }
+
+                            // Enhance config with color scheme data
+                            const enhancedConfig = {
+                                ...config,
+                                colorSchemeData: colorSchemeData
+                            };
+
+                            console.log('🔥 EventDrivenToolbarActions: Starting render loop with enhanced config:', {
+                                colorScheme: config.colorScheme,
+                                hasColorSchemeData: !!colorSchemeData,
+                                effectsCount: config.effects?.length || 0
+                            });
+
+                            const result = await window.api.startRenderLoop(enhancedConfig);
+                            console.log('✅ EventDrivenToolbarActions: Render loop started:', result);
                         }
-
-                        // Enhance config with color scheme data
-                        const enhancedConfig = {
-                            ...config,
-                            colorSchemeData: colorSchemeData
-                        };
-
-                        console.log('🔥 EventDrivenToolbarActions: Starting render loop with enhanced config:', {
-                            colorScheme: config.colorScheme,
-                            hasColorSchemeData: !!colorSchemeData,
-                            effectsCount: config.effects?.length || 0
-                        });
-
-                        const result = await window.api.startRenderLoop(enhancedConfig);
-                        console.log('✅ EventDrivenToolbarActions: Render loop started:', result);
                     } else {
                         // Stop render loop using new event-driven system
                         console.log('🔥 EventDrivenToolbarActions: Stopping render loop using event-driven system');
@@ -461,6 +481,52 @@ export default function EventDrivenToolbarActions({ projectState }) {
             { component: 'EventDrivenToolbarActions' }
         );
 
+        // Pin toggle events
+        const unsubscribePinToggle = eventBusService.subscribe(
+            'toolbar:pin:toggle',
+            async (payload) => {
+                console.log('🔥 EventDrivenToolbarActions: Pin toggle event:', payload);
+                
+                try {
+                    if (pinSettingService.isPinned()) {
+                        // Unpin: Exit audit mode
+                        console.log('📌 EventDrivenToolbarActions: Unpinning settings');
+                        await pinSettingService.unpinSettings();
+                        
+                        // Emit success event
+                        eventBusService.emit('pin:unpinned', {}, { source: 'EventDrivenToolbarActions' });
+                    } else {
+                        // Pin: Enter audit mode - use last generated settings file
+                        console.log('📌 EventDrivenToolbarActions: Pinning settings');
+                        
+                        // Check if we have a settings file from the last render
+                        const settingsFile = lastSettingsFileRef.current;
+                        
+                        if (!settingsFile) {
+                            throw new Error('No settings file available. Please render a frame first before pinning.');
+                        }
+                        
+                        console.log('📌 EventDrivenToolbarActions: Using settings file from last render:', settingsFile);
+                        
+                        // Pin the settings file (no need to save data - it's already in the file)
+                        await pinSettingService.pinSettings(settingsFile);
+                        
+                        // Emit success event
+                        eventBusService.emit('pin:pinned', {
+                            settingsFile: settingsFile
+                        }, { source: 'EventDrivenToolbarActions' });
+                    }
+                } catch (error) {
+                    console.error('❌ EventDrivenToolbarActions: Pin toggle error:', error);
+                    eventBusService.emit('pin:error', {
+                        message: 'Failed to toggle pin state',
+                        error: error.message
+                    }, { source: 'EventDrivenToolbarActions' });
+                }
+            },
+            { component: 'EventDrivenToolbarActions' }
+        );
+
         // Project import events
         const unsubscribeProjectImport = eventBusService.subscribe(
             'project:import',
@@ -470,6 +536,20 @@ export default function EventDrivenToolbarActions({ projectState }) {
             },
             { component: 'EventDrivenToolbarActions' }
         );
+
+        // Subscribe to render completion to capture settings file
+        const unsubscribeRenderComplete = renderPipelineService.onRenderComplete((result, error) => {
+            if (!error && result) {
+                // Capture settings file from render result
+                const settingsFile = result?.settingsFile;
+                if (settingsFile) {
+                    console.log('📄 EventDrivenToolbarActions: Captured settings file from render:', settingsFile);
+                    lastSettingsFileRef.current = settingsFile;
+                } else {
+                    console.log('⚠️ EventDrivenToolbarActions: No settings file in render result');
+                }
+            }
+        });
 
         // Cleanup all subscriptions
         return () => {
@@ -498,9 +578,11 @@ export default function EventDrivenToolbarActions({ projectState }) {
             unsubscribeEffectConfigurerConfig();
             unsubscribeEffectConfigurerAdd();
             unsubscribeEffectConfigurerAttach();
+            unsubscribePinToggle();
             unsubscribeProjectImport();
+            unsubscribeRenderComplete();
         };
-    }, [eventBusService, commandService, renderPipelineService, projectState]);
+    }, [eventBusService, commandService, renderPipelineService, pinSettingService, projectState]);
 
     // This component has no render - it's pure event handling
     return null;

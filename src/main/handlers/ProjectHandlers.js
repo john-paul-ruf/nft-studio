@@ -28,10 +28,10 @@ class ProjectHandlers {
             return await this.projectManager.importFromSettings(settingsPath);
         });
 
-        ipcMain.handle('render-frame', async (event, configInput, frameNumber) => {
+        ipcMain.handle('render-frame', async (event, configInput, frameNumber, settingsFile = null) => {
             // Convert to ProjectState if needed
             const projectState = await this.ensureProjectState(configInput);
-            return await this.projectManager.renderFrame(projectState, frameNumber);
+            return await this.projectManager.renderFrame(projectState, frameNumber, settingsFile);
         });
 
         ipcMain.handle('start-render-loop', async (event, configInput) => {

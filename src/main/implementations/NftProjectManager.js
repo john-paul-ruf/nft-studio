@@ -181,9 +181,10 @@ class NftProjectManager {
      * Render a single frame
      * @param {Object|ProjectState} configInput - Project configuration or ProjectState instance
      * @param {number} frameNumber - Frame to render
-     * @returns {Promise<Object>} Render result with buffer
+     * @param {string|null} settingsFile - Optional settings file path for pinned rendering
+     * @returns {Promise<Object>} Render result with buffer and settings file
      */
-    async renderFrame(configInput, frameNumber) {
+    async renderFrame(configInput, frameNumber, settingsFile = null) {
         try {
             // Ensure plugins are loaded
             await this.pluginLifecycleManager.ensurePluginsLoaded();
@@ -192,7 +193,12 @@ class NftProjectManager {
             const projectState = await this.projectLifecycleManager.ensureProjectState(configInput);
             const config = projectState.getState();
 
-            this.logger.info('Starting frame render', { frameNumber, config: config.projectName });
+            this.logger.info('Starting frame render', { 
+                frameNumber, 
+                config: config.projectName,
+                settingsFile: settingsFile || 'none (unpinned)',
+                isPinned: !!settingsFile
+            });
 
             // Create project using ProjectLifecycleManager
             const projectResult = await this.projectLifecycleManager.createProject(projectState);
@@ -203,12 +209,14 @@ class NftProjectManager {
             // Configure the project based on UI parameters
             await this.configureProjectFromProjectState(projectResult.project, projectState);
 
-            // Use RenderCoordinator for frame rendering
+            // Use RenderCoordinator for frame rendering (pass settings file for pin mode)
             const renderResult = await this.renderCoordinator.renderFrame(
                 projectResult.project,
                 frameNumber,
                 config.numFrames || 100,
-                config.projectName
+                config.projectName,
+                settingsFile,
+                config.outputDirectory  // Pass output directory for settings files
             );
 
             return renderResult;

@@ -13,6 +13,7 @@ export class RenderPipelineService {
         this.renderResult = null;
         this.renderCallbacks = new Set();
         this.projectStateManager = null;
+        this.pinSettingService = null;
         this.lastRenderConfig = null;
         this.renderDebounceTimer = null;
         this.DEBOUNCE_MS = 50; // Batch rapid changes
@@ -23,14 +24,16 @@ export class RenderPipelineService {
     /**
      * Initialize the render pipeline with required dependencies
      * @param {ProjectStateManager} projectStateManager - State manager to observe
+     * @param {PinSettingService} pinSettingService - Pin setting service (optional)
      */
-    initialize(projectStateManager) {
+    initialize(projectStateManager, pinSettingService = null) {
         if (this.isInitialized) {
             console.warn('RenderPipelineService already initialized');
             return;
         }
 
         this.projectStateManager = projectStateManager;
+        this.pinSettingService = pinSettingService;
 
         // DISABLED: Auto-rendering on ProjectState changes
         // Only render when manually triggered via triggerRender() method
@@ -84,6 +87,7 @@ export class RenderPipelineService {
         }
 
         const config = projectState.getState();
+        
         if (!config || !config.effects || config.effects.length === 0) {
             console.log('ℹ️ RenderPipeline: No effects to render');
             return;
@@ -92,8 +96,15 @@ export class RenderPipelineService {
         this.isRendering = true;
         console.log('🚀 RenderPipeline: Executing render for frame:', selectedFrame);
 
+        // Get settings file if pinned
+        let settingsFile = null;
+        if (this.pinSettingService && this.pinSettingService.isPinned()) {
+            settingsFile = this.pinSettingService.getSettingsFilePath();
+            console.log('📌 RenderPipeline: Using pinned settings file:', settingsFile);
+        }
+
         try {
-            const renderResult = await this.performRender(config, selectedFrame);
+            const renderResult = await this.performRender(config, selectedFrame, settingsFile);
             this.renderResult = renderResult;
             this.notifyRenderComplete(renderResult);
         } catch (error) {
@@ -108,12 +119,11 @@ export class RenderPipelineService {
      * Perform the actual render using existing render logic
      * @param {Object} config - Project configuration
      * @param {number} selectedFrame - Frame to render
-     * @returns {Promise<string>} Render result (image URL)
+     * @param {string|null} settingsFile - Optional settings file path for pinned rendering
+     * @returns {Promise<Object>} Render result object with { imageData: string, settingsFile: string|null, isPinned: boolean }
      */
-    async performRender(config, selectedFrame) {
-        const projectState = this.projectStateManager.getProjectState();
-
-        // Get resolution dimensions from ProjectState
+    async performRender(config, selectedFrame, settingsFile = null) {
+        // Get resolution dimensions
         const dimensions = this.getResolutionDimensions();
 
         // Prepare color scheme data
@@ -175,7 +185,7 @@ export class RenderPipelineService {
         }
 
         // Get orientation from ProjectState
-        const isHorizontal = projectState.getIsHorizontal();
+        const isHorizontal = this.projectStateManager.getProjectState().getIsHorizontal();
 
         // Prepare render config
         const renderConfig = {
@@ -193,21 +203,24 @@ export class RenderPipelineService {
         console.log('🚀 RenderPipelineService: Final render config:');
         console.log('🚀 Dimensions:', { width: dimensions.w, height: dimensions.h });
         console.log('🚀 Frame:', selectedFrame);
+        console.log('🚀 Settings file:', settingsFile || 'none (unpinned)');
         console.log('🚀 Effects count:', renderConfig.effects.length);
         console.log('🚀 Effects to render:', renderConfig.effects.map(e => e.registryKey || e.name || e.className));
 
-        // Execute render via IPC
-        const result = await window.api.renderFrame(renderConfig, selectedFrame);
+        // Execute render via IPC (pass settings file for pin mode)
+        const result = await window.api.renderFrame(renderConfig, selectedFrame, settingsFile);
 
         if (result.success && (result.frameBuffer || result.fileUrl)) {
+            let imageData;
+            
             // Handle different result formats
             if (result.method === 'filesystem' || result.bufferType === 'filesystem') {
-                return result.fileUrl;
+                imageData = result.fileUrl;
             } else if (result.bufferType === 'base64' || typeof result.frameBuffer === 'string') {
                 if (result.frameBuffer.startsWith('data:image')) {
-                    return result.frameBuffer;
+                    imageData = result.frameBuffer;
                 } else {
-                    return `data:image/png;base64,${result.frameBuffer}`;
+                    imageData = `data:image/png;base64,${result.frameBuffer}`;
                 }
             } else if (result.frameBuffer instanceof ArrayBuffer || result.frameBuffer instanceof Uint8Array) {
                 // Convert binary to base64
@@ -225,8 +238,15 @@ export class RenderPipelineService {
                     binary += String.fromCharCode.apply(null, chunk);
                 }
                 const base64 = btoa(binary);
-                return `data:image/png;base64,${base64}`;
+                imageData = `data:image/png;base64,${base64}`;
             }
+            
+            // Return object with both image data and settings file path
+            return {
+                imageData: imageData,
+                settingsFile: result.settingsFile || null,
+                isPinned: !!settingsFile
+            };
         }
 
         throw new Error(result.error || 'Render failed with no error message');
@@ -267,7 +287,7 @@ export class RenderPipelineService {
 
     /**
      * Notify all callbacks of render completion
-     * @param {string} renderResult - Render result
+     * @param {Object} renderResult - Render result object with { imageData, settingsFile, isPinned }
      */
     notifyRenderComplete(renderResult) {
         console.log('✅ RenderPipeline: Render complete, notifying callbacks');

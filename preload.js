@@ -25,7 +25,7 @@ contextBridge.exposeInMainWorld('api', {
     importFromSettings: (settingsPath) => ipcRenderer.invoke('import-from-settings', settingsPath),
     loadProject: (filePath) => ipcRenderer.invoke('load-project', filePath),
     saveProject: (filePath, config) => ipcRenderer.invoke('save-project', filePath, config),
-    renderFrame: (config, frameNumber) => ipcRenderer.invoke('render-frame', config, frameNumber),
+    renderFrame: (config, frameNumber, settingsFile = null) => ipcRenderer.invoke('render-frame', config, frameNumber, settingsFile),
 
     // Project persistence
     saveProjectFile: (filePath, projectData) => ipcRenderer.invoke('save-project-file', filePath, projectData),

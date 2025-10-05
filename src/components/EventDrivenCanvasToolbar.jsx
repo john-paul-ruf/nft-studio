@@ -3,7 +3,7 @@
  * Eliminates ALL callback props by emitting events instead
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import CanvasToolbar from './canvas/CanvasToolbar.jsx';
 import { useServices } from '../contexts/ServiceContext.js';
 
@@ -20,7 +20,7 @@ export default function EventDrivenCanvasToolbar({
     isReadOnly = false,
     isProjectResuming = false
 }) {
-    const { eventBusService } = useServices();
+    const { eventBusService, pinSettingService } = useServices();
 
     // Get current resolution directly from ProjectState (single source of truth)
     const currentResolution = projectState ? projectState.getTargetResolution() : null;
@@ -32,6 +32,23 @@ export default function EventDrivenCanvasToolbar({
     const [currentThemeKey, setCurrentThemeKey] = useState('dark');
     const [zoomMenuAnchor, setZoomMenuAnchor] = useState(null);
     const [colorSchemeMenuAnchor, setColorSchemeMenuAnchor] = useState(null);
+    const [isPinned, setIsPinned] = useState(false);
+
+    // Subscribe to pin state changes
+    useEffect(() => {
+        if (!pinSettingService) return;
+
+        const handlePinStateChange = (data) => {
+            setIsPinned(data.isPinned);
+        };
+
+        const unsubscribe = eventBusService.subscribe('pin:state:changed', handlePinStateChange);
+        
+        // Initialize with current state
+        setIsPinned(pinSettingService.isPinned());
+
+        return unsubscribe;
+    }, [eventBusService, pinSettingService]);
 
     // Event-emitting callback converters
     const handleFrameChange = useCallback((frameIndex) => {
@@ -160,6 +177,12 @@ export default function EventDrivenCanvasToolbar({
         });
     }, [eventBusService]);
 
+    const handlePinToggle = useCallback(() => {
+        eventBusService.emit('toolbar:pin:toggle', { isPinned: !isPinned }, {
+            source: 'EventDrivenCanvasToolbar',
+            component: 'EventDrivenCanvasToolbar'
+        });
+    }, [eventBusService, isPinned]);
 
     const closeAllDropdowns = useCallback(() => {
         setZoomMenuAnchor(null);
@@ -210,8 +233,10 @@ export default function EventDrivenCanvasToolbar({
             onProjectSettings={handleProjectSettings}
             onEventBusMonitor={handleEventBusMonitor}
             onPluginManager={handlePluginManager}
-            isReadOnly={isReadOnly}
+            isReadOnly={isReadOnly || isPinned}
             isProjectResuming={isProjectResuming}
+            isPinned={isPinned}
+            onPinToggle={handlePinToggle}
         />
     );
 }

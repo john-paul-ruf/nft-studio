@@ -3,7 +3,7 @@
  * Eliminates ALL callback props by emitting events instead
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import EffectsPanel from './EffectsPanel.jsx';
 import { useServices } from '../contexts/ServiceContext.js';
 
@@ -16,7 +16,25 @@ export default function EventDrivenEffectsPanel({
     isReadOnly = false,
     refreshAvailableEffects
 }) {
-    const { eventBusService } = useServices();
+    const { eventBusService, pinSettingService } = useServices();
+    const [isPinned, setIsPinned] = useState(false);
+
+    // Subscribe to pin state changes
+    useEffect(() => {
+        // Initialize with current pin state
+        setIsPinned(pinSettingService.isPinned());
+
+        // Subscribe to pin state changes
+        const unsubscribe = eventBusService.subscribe(
+            'pin:state:changed',
+            (payload) => {
+                setIsPinned(payload.isPinned);
+            },
+            { component: 'EventDrivenEffectsPanel' }
+        );
+
+        return unsubscribe;
+    }, [eventBusService, pinSettingService]);
 
     // Event-emitting callback converters
     const handleEffectDelete = useCallback((effectIndex) => {
@@ -114,7 +132,7 @@ export default function EventDrivenEffectsPanel({
             effectsLoaded={effectsLoaded}
             currentTheme={currentTheme}
             projectState={projectState}
-            isReadOnly={isReadOnly}
+            isReadOnly={isReadOnly || isPinned}
             refreshAvailableEffects={refreshAvailableEffects}
         />
     );

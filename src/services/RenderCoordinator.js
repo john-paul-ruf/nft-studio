@@ -1,6 +1,7 @@
 import electron from 'electron';
 const { BrowserWindow } = electron;
 import defaultLogger from '../main/utils/logger.js';
+import { promises as fs } from 'fs';
 
 /**
  * RenderCoordinator - Handles render operations and coordination
@@ -38,25 +39,70 @@ export class RenderCoordinator {
      * @param {number} frameNumber - Frame to render
      * @param {number} totalFrames - Total frames in project
      * @param {string} projectName - Project name for logging
+     * @param {string|null} settingsFile - Optional settings file path for pinned rendering
+     * @param {string|null} outputDirectory - Output directory for settings files and frames
      * @returns {Promise<Object>} Render result with buffer
      */
-    async renderFrame(project, frameNumber, totalFrames, projectName) {
-        this.logger.info('Starting frame render', { frameNumber, projectName });
+    async renderFrame(project, frameNumber, totalFrames, projectName, settingsFile = null, outputDirectory = null) {
+        this.logger.info('Starting frame render', { frameNumber, projectName, settingsFile, outputDirectory });
 
         try {
             const startTime = Date.now();
+
+            // If no settings file provided, generate one before rendering (for potential pinning)
+            let effectiveSettingsFile = settingsFile;
+            if (!settingsFile && project && typeof project.generateSettingsFile === 'function') {
+                try {
+                    const timestamp = Date.now();
+                    
+                    // Create working directory first
+                    const workingDirectory = outputDirectory 
+                        ? `${outputDirectory}/${projectName}-frame-${frameNumber}-${timestamp}/`
+                        : `${await this.getTempDirectory()}/${projectName}-frame-${frameNumber}-${timestamp}/`;
+                    
+                    // Ensure working directory exists
+                    await fs.mkdir(workingDirectory, { recursive: true });
+                    
+                    // Create settings directory INSIDE the working directory
+                    const settingsDir = `${workingDirectory}settings`;
+                    await fs.mkdir(settingsDir, { recursive: true });
+                    
+                    // Save settings file in the working directory's settings folder
+                    effectiveSettingsFile = `${settingsDir}/${projectName}-frame-${frameNumber}-settings.json`;
+                    
+                    // Generate settings object and write to file
+                    const settingsObject = await project.generateSettingsFile({
+                        numberOfFrame: totalFrames,
+                        finalFileName: `${projectName}-frame-${frameNumber}`,
+                        workingDirectory: workingDirectory
+                    });
+                    await fs.writeFile(effectiveSettingsFile, JSON.stringify(settingsObject));
+                    
+                    this.logger.info('Generated settings file for frame', { settingsFile: effectiveSettingsFile });
+                } catch (error) {
+                    this.logger.warn('Failed to generate settings file, continuing without it', error);
+                    effectiveSettingsFile = null;
+                }
+            }
 
             // Emit progress event
             this.emitProgressEvent('frameStarted', {
                 frameNumber,
                 totalFrames,
-                projectName
+                projectName,
+                isPinned: !!settingsFile
             });
 
-            // Generate single frame
-            const buffer = await project.generateSingleFrame(frameNumber, totalFrames, true);
+            // Generate single frame (with optional settings file for pin mode)
+            // Note: generateSingleFrame signature is (frameNumber, totalFrames, returnAsBuffer, outputDirectory, settingsFile)
+            const result = await project.generateSingleFrame(frameNumber, totalFrames, true, null, effectiveSettingsFile);
 
             const renderTime = Date.now() - startTime;
+            
+            // Extract buffer and settings file from result
+            // Backend now returns: { buffer: Buffer, settingsFile: string }
+            const buffer = result.buffer || result; // Fallback for old format
+            const generatedSettingsFile = result.settingsFile || effectiveSettingsFile;
             
             // Calculate progress - handle 0-indexed frames
             const framesCompleted = frameNumber + 1;
@@ -68,14 +114,20 @@ export class RenderCoordinator {
                 totalFrames,
                 renderTime,
                 progress,
-                projectName
+                projectName,
+                settingsFile: generatedSettingsFile,
+                isPinned: !!settingsFile
             });
 
             console.log(`✅ Frame ${frameNumber}/${totalFrames} (${renderTime}ms)`);
+            if (generatedSettingsFile) {
+                console.log(`📄 Settings file: ${generatedSettingsFile}`);
+            }
 
             return {
                 success: true,
                 frameBuffer: buffer,
+                settingsFile: generatedSettingsFile,
                 frameNumber: frameNumber,
                 renderTime
             };
@@ -101,14 +153,23 @@ export class RenderCoordinator {
 
     /**
      * Start render loop - continuously generates NEW random loops until stopped
+     * 
+     * USE THIS METHOD FOR:
+     * - Starting a fresh render loop with current project settings
+     * - Starting a pinned render loop (pass settingsFile parameter with pinned settings)
+     * 
+     * DO NOT USE FOR:
+     * - Resuming an interrupted render (use startResumeLoop instead)
+     * 
      * @param {Object} project - Configured project instance
      * @param {Object} projectState - Project state instance
+     * @param {string|null} settingsFile - Optional pinned settings file for applying saved effects
      * @returns {Promise<Object>} Render loop result
      */
-    async startRenderLoop(project, projectState) {
+    async startRenderLoop(project, projectState, settingsFile = null) {
         const config = projectState.getState();
         
-        console.log('🔥 RenderCoordinator.startRenderLoop() called for NEW random loop generation');
+        console.log('🔥 RenderCoordinator.startRenderLoop() called for NEW random loop generation', { settingsFile });
         this.logger.header('Starting New Random Loop Generation');
 
         try {
@@ -154,10 +215,10 @@ export class RenderCoordinator {
             this.setupWorkerTerminationListeners(workerId, loopId);
 
             // Start the continuous random loop generation in background
-            this.runRandomLoopGeneration(project, eventBus, loopId, workerId, projectState);
+            this.runRandomLoopGeneration(project, eventBus, loopId, workerId, projectState, settingsFile);
 
-            this.logger.success('New random loop generation started');
-            return { success: true, message: 'New random loop generation started', loopId, workerId };
+            this.logger.success('New random loop generation started', { settingsFile });
+            return { success: true, message: 'New random loop generation started', loopId, workerId, isPinned: !!settingsFile };
 
         } catch (error) {
             this.logger.error('Random loop generation failed', error);
@@ -166,20 +227,42 @@ export class RenderCoordinator {
     }
 
     /**
-     * Start resume loop - resumes an existing project from settings
+     * Start resume loop - resumes an INTERRUPTED render from where it left off
+     * 
+     * USE THIS METHOD FOR:
+     * - Resuming an interrupted render that has partial frames completed
+     * - Continuing a render that was stopped/crashed midway
+     * 
+     * DO NOT USE FOR:
+     * - Starting a fresh render with pinned settings (use startRenderLoop with settingsFile instead)
+     * - Starting a new render loop (use startRenderLoop instead)
+     * 
+     * NOTE: The settingsFile parameter is DEPRECATED for this method.
+     * For pinned rendering, use startRenderLoop with the pinned settings file.
+     * 
      * @param {Object} project - Project instance (can be null for resume)
      * @param {Object} projectState - Project state instance
+     * @param {string|null} settingsFile - DEPRECATED - use startRenderLoop for pinned rendering
      * @returns {Promise<Object>} Resume result
      */
-    async startResumeLoop(project, projectState) {
+    async startResumeLoop(project, projectState, settingsFile = null) {
         const config = projectState.getState();
+
+        // If a settingsFile is provided for pinned rendering, redirect to the correct method
+        if (settingsFile) {
+            this.logger.warn('startResumeLoop called with pinned settings file. Redirecting to startRenderLoop...');
+            this.logger.info('For pinned rendering, use startRenderLoop with the settingsFile parameter');
+            // Automatically redirect to the correct method
+            return this.startRenderLoop(project, projectState, settingsFile);
+        }
 
         // Validate this is actually a resumed project
         if (!config.isResumed || !config.settingsFilePath) {
             throw new Error('startResumeLoop called on non-resumed project. Use startRenderLoop for new projects.');
         }
 
-        console.log('🔄 RenderCoordinator.startResumeLoop() called for project resume from:', config.settingsFilePath);
+        const effectiveSettingsFile = config.settingsFilePath;
+        console.log('🔄 RenderCoordinator.startResumeLoop() called for project resume from:', effectiveSettingsFile);
         this.logger.header('Starting Project Resume');
 
         try {
@@ -224,7 +307,7 @@ export class RenderCoordinator {
             this.runProjectResume(project, eventBus, loopId, workerId, projectState);
 
             this.logger.success('Project resume started');
-            return { success: true, message: 'Project resume started', loopId, workerId };
+            return { success: true, message: 'Project resume started', loopId, workerId, isPinned: false };
 
         } catch (error) {
             this.logger.error('Project resume failed', error);
@@ -357,6 +440,80 @@ export class RenderCoordinator {
         };
     }
 
+    /**
+     * Capture current settings for pin mode
+     * Exports the current project settings to a file in the output directory
+     * @param {Object} project - Configured project instance
+     * @param {string|null} outputDirectory - Output directory for settings file
+     * @returns {Promise<Object>} Capture result with settings file path
+     */
+    async captureSettingsForPin(project, outputDirectory = null) {
+        this.logger.info('Capturing settings for pin mode', { outputDirectory });
+
+        try {
+            // Check if project has generateSettingsFile method (new method in my-nft-gen)
+            if (!project || typeof project.generateSettingsFile !== 'function') {
+                throw new Error('Project does not support settings file generation');
+            }
+
+            // Generate settings file path in output directory/settings or temp
+            const timestamp = Date.now();
+            const settingsDir = outputDirectory 
+                ? `${outputDirectory}/settings`
+                : await this.getTempDirectory();
+            
+            // Ensure settings directory exists
+            if (outputDirectory) {
+                await fs.mkdir(settingsDir, { recursive: true });
+            }
+            
+            const settingsFilePath = `${settingsDir}/pin-settings-${timestamp}.json`;
+            const workingDirectory = outputDirectory 
+                ? `${outputDirectory}/pin-${project.projectName}-${timestamp}/`
+                : `${await this.getTempDirectory()}/pin-${project.projectName}-${timestamp}/`;
+
+            // Ensure working directory exists
+            await fs.mkdir(workingDirectory, { recursive: true });
+
+            // Generate settings object and write to file
+            const settingsObject = await project.generateSettingsFile({
+                workingDirectory: workingDirectory
+            });
+            await fs.writeFile(settingsFilePath, JSON.stringify(settingsObject));
+
+            this.logger.success('Settings captured for pin mode', { settingsFilePath });
+
+            return {
+                success: true,
+                settingsFilePath,
+                timestamp
+            };
+
+        } catch (error) {
+            this.logger.error('Failed to capture settings for pin mode', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Get temporary directory for settings files
+     * @returns {Promise<string>} Temporary directory path
+     * @private
+     */
+    async getTempDirectory() {
+        // Use electron's app.getPath('temp') or fallback to system temp
+        if (typeof window !== 'undefined' && window.api && window.api.getTempPath) {
+            return await window.api.getTempPath();
+        }
+        
+        // Fallback to a default temp location
+        const os = await import('os');
+        return os.tmpdir();
+    }
+
     // Private helper methods
 
     /**
@@ -366,15 +523,138 @@ export class RenderCoordinator {
      * @param {string} loopId - Unique loop identifier
      * @param {string} workerId - Unique worker identifier
      * @param {Object} projectState - Project state instance
+     * @param {string|null} settingsFile - Optional settings file path for pinned rendering
      * @private
      */
-    async runRandomLoopGeneration(project, eventBus, loopId, workerId, projectState) {
+    async runRandomLoopGeneration(project, eventBus, loopId, workerId, projectState, settingsFile = null) {
         try {
             this.logger.info(`Starting generateRandomLoop for loop: ${loopId}, worker: ${workerId}`);
 
-            // Get totalFrames from project state
+            // Get totalFrames and outputDirectory from project state
             const config = projectState.getState();
             const totalFrames = config.numFrames || 100;
+            const outputDirectory = config.outputDirectory;
+
+            // Handle pinned settings file if provided
+            let effectiveSettingsFile = settingsFile;
+            if (settingsFile) {
+                // Apply pinned settings to the project
+                try {
+                    this.logger.info('Applying pinned settings to project for render loop');
+                    const settingsContent = await fs.readFile(settingsFile, 'utf8');
+                    const settingsObject = JSON.parse(settingsContent);
+                    
+                    // Extract effect configuration from pinned settings
+                    if (settingsObject.settings && settingsObject.settings.projectConfig) {
+                        const pinnedConfig = settingsObject.settings.projectConfig;
+                        
+                        // Extract and clean the effect list
+                        if (pinnedConfig.effectList) {
+                            // Deep clone to avoid modifying original
+                            const cleanedEffectList = JSON.parse(JSON.stringify(pinnedConfig.effectList));
+                            
+                            // Remove any file path references from effects
+                            const removeFilePaths = (obj) => {
+                                if (!obj || typeof obj !== 'object') return obj;
+                                if (Array.isArray(obj)) {
+                                    return obj.map(item => removeFilePaths(item));
+                                }
+                                const cleaned = {};
+                                for (const key in obj) {
+                                    const value = obj[key];
+                                    // Skip file path properties
+                                    if (typeof value === 'string' && 
+                                        (value.includes('.json') || value.includes('frame-'))) {
+                                        continue;
+                                    }
+                                    cleaned[key] = typeof value === 'object' ? removeFilePaths(value) : value;
+                                }
+                                return cleaned;
+                            };
+                            
+                            // Apply cleaned effects to project
+                            project.effectList = removeFilePaths(cleanedEffectList);
+                            this.logger.info('Applied cleaned effect list from pinned settings');
+                        }
+                        
+                        // Apply resolution and frame count
+                        if (pinnedConfig.outputResolution) {
+                            project.outputResolution = pinnedConfig.outputResolution;
+                        }
+                        if (pinnedConfig.numberOfFrame) {
+                            project.numberOfFrame = pinnedConfig.numberOfFrame;
+                        }
+                    }
+                    
+                    // Set fresh working directory for pinned render
+                    const timestamp = Date.now();
+                    const workingDirectory = outputDirectory 
+                        ? `${outputDirectory}/pinned-loop-${timestamp}/`
+                        : `${await this.getTempDirectory()}/pinned-loop-${timestamp}/`;
+                    
+                    await fs.mkdir(workingDirectory, { recursive: true });
+                    project.workingDirectory = workingDirectory;
+                    
+                    // Create settings directory inside working directory and copy pinned settings
+                    const settingsDir = `${workingDirectory}settings`;
+                    await fs.mkdir(settingsDir, { recursive: true });
+                    
+                    // Save the cleaned settings to the working directory
+                    effectiveSettingsFile = `${settingsDir}/pinned-settings-${timestamp}.json`;
+                    const cleanedSettings = {
+                        settings: {
+                            projectConfig: {
+                                effectList: project.effectList,
+                                outputResolution: project.outputResolution,
+                                numberOfFrame: project.numberOfFrame
+                            }
+                        }
+                    };
+                    await fs.writeFile(effectiveSettingsFile, JSON.stringify(cleanedSettings));
+                    
+                    this.logger.info('Configured project with pinned settings for render loop', {
+                        workingDirectory,
+                        settingsFile: effectiveSettingsFile
+                    });
+                    
+                } catch (error) {
+                    this.logger.error('Failed to apply pinned settings', error);
+                    throw error;
+                }
+                
+            } else if (project && typeof project.generateSettingsFile === 'function') {
+                // Generate new settings file if not pinned
+                try {
+                    const timestamp = Date.now();
+                    
+                    // Create the working directory first
+                    const workingDirectory = outputDirectory 
+                        ? `${outputDirectory}/loop-${project.projectName}-${timestamp}/`
+                        : `${await this.getTempDirectory()}/loop-${project.projectName}-${timestamp}/`;
+                    
+                    // Ensure working directory exists
+                    await fs.mkdir(workingDirectory, { recursive: true });
+                    
+                    // Create settings directory INSIDE the working directory
+                    const settingsDir = `${workingDirectory}settings`;
+                    await fs.mkdir(settingsDir, { recursive: true });
+                    
+                    // Save settings file in the working directory's settings folder
+                    effectiveSettingsFile = `${settingsDir}/loop-settings-${timestamp}.json`;
+                    
+                    // Generate settings object and write to file
+                    const settingsObject = await project.generateSettingsFile({
+                        numberOfFrame: totalFrames,
+                        workingDirectory: workingDirectory
+                    });
+                    await fs.writeFile(effectiveSettingsFile, JSON.stringify(settingsObject));
+                    
+                    this.logger.info('Generated settings file for loop', { settingsFile: effectiveSettingsFile });
+                } catch (error) {
+                    this.logger.warn('Failed to generate settings file for loop, continuing without it', error);
+                    effectiveSettingsFile = null;
+                }
+            }
 
             // Emit render loop start event
             if (eventBus) {
@@ -383,7 +663,9 @@ export class RenderCoordinator {
                     projectName: project.projectName,
                     loopId,
                     workerId,
-                    totalFrames
+                    totalFrames,
+                    settingsFile: effectiveSettingsFile,
+                    isPinned: !!settingsFile
                 });
             }
 
@@ -393,7 +675,9 @@ export class RenderCoordinator {
                 projectName: project.projectName,
                 loopId,
                 workerId,
-                totalFrames
+                totalFrames,
+                settingsFile: effectiveSettingsFile,
+                isPinned: !!settingsFile
             });
 
             // Check if loop was terminated before starting
@@ -481,17 +765,59 @@ export class RenderCoordinator {
         try {
             const config = projectState.getState();
             const totalFrames = config.numFrames || 100;
-            this.logger.info(`Starting ResumeProject for loop: ${loopId}, worker: ${workerId}, settings: ${config.settingsFilePath}`);
+            const outputDirectory = config.outputDirectory;
+            
+            // Use the settings file from the config (for true resume operations)
+            const effectiveSettingsFile = config.settingsFilePath;
+            
+            this.logger.info(`Starting ResumeProject for loop: ${loopId}, worker: ${workerId}, settings: ${effectiveSettingsFile}`);
+
+            // Generate settings file before resuming if not provided (for potential pinning)
+            if (!effectiveSettingsFile && project && typeof project.generateSettingsFile === 'function') {
+                try {
+                    const timestamp = Date.now();
+                    const settingsDir = outputDirectory 
+                        ? `${outputDirectory}/settings`
+                        : await this.getTempDirectory();
+                    
+                    // Ensure settings directory exists
+                    if (outputDirectory) {
+                        await fs.mkdir(settingsDir, { recursive: true });
+                    }
+                    
+                    const generatedSettingsFile = `${settingsDir}/resume-settings-${timestamp}.json`;
+                    const workingDirectory = outputDirectory 
+                        ? `${outputDirectory}/resume-${project.projectName}-${timestamp}/`
+                        : `${await this.getTempDirectory()}/resume-${project.projectName}-${timestamp}/`;
+                    
+                    // Ensure working directory exists
+                    await fs.mkdir(workingDirectory, { recursive: true });
+                    
+                    // Generate settings object and write to file
+                    const settingsObject = await project.generateSettingsFile({
+                        numberOfFrame: totalFrames,
+                        workingDirectory: workingDirectory
+                    });
+                    await fs.writeFile(generatedSettingsFile, JSON.stringify(settingsObject));
+                    
+                    this.logger.info('Generated settings file for resume', { settingsFile: generatedSettingsFile });
+                    // Update config with generated settings file
+                    config.settingsFilePath = generatedSettingsFile;
+                } catch (error) {
+                    this.logger.warn('Failed to generate settings file for resume, continuing without it', error);
+                }
+            }
 
             // Emit project resume start event
             if (eventBus) {
                 eventBus.emit('project.resume.start', {
                     timestamp: Date.now(),
                     projectName: project?.projectName || 'Unknown',
-                    settingsFilePath: config.settingsFilePath,
+                    settingsFilePath: effectiveSettingsFile,
                     loopId,
                     workerId,
-                    totalFrames
+                    totalFrames,
+                    isPinned: !!settingsFile
                 });
             }
 
@@ -499,10 +825,11 @@ export class RenderCoordinator {
             this.emitProgressEvent('project.resume.start', {
                 timestamp: Date.now(),
                 projectName: project?.projectName || 'Unknown',
-                settingsFilePath: config.settingsFilePath,
+                settingsFilePath: effectiveSettingsFile,
                 loopId,
                 workerId,
-                totalFrames
+                totalFrames,
+                isPinned: false
             });
 
             // Check if loop was terminated before starting
@@ -671,18 +998,23 @@ export class RenderCoordinator {
 
             try {
                 const config = projectState.getState();
+                
+                // Get the settings file from config for true resume
+                const effectiveSettingsFile = config.settingsFilePath;
 
-                if (!config.settingsFilePath) {
+                if (!effectiveSettingsFile) {
                     throw new Error('No settings file path provided for project resume');
                 }
 
-                this.logger.info(`Using ResumeProject with settings: ${config.settingsFilePath}`);
-
+                // This method now only handles true resume operations
+                // Pinned rendering is handled by startRenderLoop
+                this.logger.info(`Using ResumeProject for project resume with settings: ${effectiveSettingsFile}`);
+                
                 // Import ResumeProject function from my-nft-gen
                 const { ResumeProject } = await import('my-nft-gen/src/app/ResumeProject.js');
 
                 // Use ResumeProject for resumed projects
-                resumePromise = ResumeProject(config.settingsFilePath, {
+                resumePromise = ResumeProject(effectiveSettingsFile, {
                     project,
                     eventCategories: ['PROGRESS', 'COMPLETION', 'ERROR'],
                     eventCallback: (data) => {
@@ -695,7 +1027,7 @@ export class RenderCoordinator {
 
                 const terminationPromise = setupTerminationListener();
 
-                // Race between resume completion and termination request
+                // Race between operation completion and termination request
                 const result = await Promise.race([
                     resumePromise.then(() => 'completed'),
                     terminationPromise
@@ -714,7 +1046,7 @@ export class RenderCoordinator {
                 }
 
             } catch (error) {
-                this.logger.error('Project resume failed:', error);
+                this.logger.error('Operation failed:', error);
                 reject(error);
             } finally {
                 // Clean up the termination listener

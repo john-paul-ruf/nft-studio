@@ -34,7 +34,9 @@ import {
     Redo,
     FileUpload,
     BugReport,
-    Extension
+    Extension,
+    PushPin,
+    PushPinOutlined
 } from '@mui/icons-material';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import ResolutionMapper from '../../utils/ResolutionMapper.js';
@@ -81,7 +83,9 @@ export default function CanvasToolbar({
     onEventBusMonitor,
     onPluginManager,
     isReadOnly = false,
-    isProjectResuming = false
+    isProjectResuming = false,
+    isPinned = false,
+    onPinToggle
 
 }) {
     // Use passed resolution value (single source of truth)
@@ -445,6 +449,38 @@ export default function CanvasToolbar({
                     </Menu>
                 </Box>
 
+                {/* Pin Button */}
+                <Tooltip title={isPinned ? "Unpin Settings (Exit Audit Mode)" : "Pin Settings (Enter Audit Mode)"}>
+                    <span>
+                        <IconButton
+                            size="small"
+                            onClick={onPinToggle}
+                            disabled={isRendering || isProjectResuming}
+                            sx={{
+                                color: isPinned ? 'warning.main' : 'text.primary',
+                                backgroundColor: isPinned ? 'warning.dark' : 'transparent',
+                                '&:hover': {
+                                    backgroundColor: isPinned ? 'warning.main' : 'primary.main',
+                                    color: 'white',
+                                },
+                                transition: 'all 0.2s ease',
+                                ...(isPinned && {
+                                    animation: 'pulse 2s ease-in-out infinite',
+                                    '@keyframes pulse': {
+                                        '0%, 100%': {
+                                            opacity: 1,
+                                        },
+                                        '50%': {
+                                            opacity: 0.7,
+                                        },
+                                    },
+                                })
+                            }}
+                        >
+                            {isPinned ? <PushPin /> : <PushPinOutlined />}
+                        </IconButton>
+                    </span>
+                </Tooltip>
 
                 <Box sx={{ flexGrow: 1 }} />
 
