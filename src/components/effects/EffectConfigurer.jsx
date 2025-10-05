@@ -97,10 +97,14 @@ function EffectConfigurer({
     // and that we pick up scaled positions after resolution changes
     useEffect(() => {
         if (initialConfig && Object.keys(initialConfig).length > 0) {
-            setEffectConfig(initialConfig);
-            configRef.current = initialConfig;
-            // Mark that we're using initialConfig, so we don't load defaults
-            defaultsLoadedForEffect.current = selectedEffect?.registryKey;
+            // Deep comparison to avoid unnecessary updates
+            const configChanged = JSON.stringify(initialConfig) !== JSON.stringify(configRef.current);
+            if (configChanged) {
+                setEffectConfig(initialConfig);
+                configRef.current = initialConfig;
+                // Mark that we're using initialConfig, so we don't load defaults
+                defaultsLoadedForEffect.current = selectedEffect?.registryKey;
+            }
         } else if (!initialConfig || Object.keys(initialConfig).length === 0) {
             // Reset when switching to a new effect without initialConfig
             setEffectConfig({});
@@ -187,33 +191,36 @@ function EffectConfigurer({
             ...configRef.current,
             [fieldName]: fieldValue
         };
-        
+
         // Update local state
         setEffectConfig(updatedConfig);
         configRef.current = updatedConfig;
-        
+
         // Validate configuration using EffectFormValidator
         if (schemaRef.current) {
             const validation = services.validator.validateConfiguration(updatedConfig, schemaRef.current);
             setValidationErrors(validation.errors);
             setIsConfigComplete(validation.isComplete);
         }
-        
-        // Apply center defaults using EffectConfigurationManager
-        const configWithDefaults = services.configManager.applyCenterDefaults(updatedConfig, projectState);
-        
+
+        // Determine if this is a new effect (no initialConfig means new)
+        const isNewEffect = !initialConfig || Object.keys(initialConfig).length === 0;
+
+        // Apply center defaults using EffectConfigurationManager (only for new effects)
+        const configWithDefaults = services.configManager.applyCenterDefaults(updatedConfig, projectState, isNewEffect);
+
         // Process configuration change using EffectConfigurationManager
         services.configManager.processConfigurationChange(configWithDefaults, selectedEffect, onConfigChange);
-        
+
         // Coordinate event emission using EffectEventCoordinator
         services.eventCoordinator.coordinateConfigurationChange(
-            configWithDefaults, 
-            selectedEffect, 
+            configWithDefaults,
+            selectedEffect,
             onConfigChange,
             { fieldName, fieldValue, source: 'user-input', timestamp: Date.now() }
         );
-        
-    }, [selectedEffect, projectState, onConfigChange, services]);
+
+    }, [selectedEffect, projectState, onConfigChange, services, initialConfig]);
 
     // Configuration change handler with service coordination (for bulk updates)
     const handleConfigurationChange = useCallback((newConfig, metadata = {}) => {
@@ -221,29 +228,32 @@ function EffectConfigurer({
         // Update local state
         setEffectConfig(newConfig);
         configRef.current = newConfig;
-        
+
         // Validate configuration using EffectFormValidator
         if (schemaRef.current) {
             const validation = services.validator.validateConfiguration(newConfig, schemaRef.current);
             setValidationErrors(validation.errors);
             setIsConfigComplete(validation.isComplete);
         }
-        
-        // Apply center defaults using EffectConfigurationManager
-        const configWithDefaults = services.configManager.applyCenterDefaults(newConfig, projectState);
-        
+
+        // Determine if this is a new effect (no initialConfig means new)
+        const isNewEffect = !initialConfig || Object.keys(initialConfig).length === 0;
+
+        // Apply center defaults using EffectConfigurationManager (only for new effects)
+        const configWithDefaults = services.configManager.applyCenterDefaults(newConfig, projectState, isNewEffect);
+
         // Process configuration change using EffectConfigurationManager
         services.configManager.processConfigurationChange(configWithDefaults, selectedEffect, onConfigChange);
-        
+
         // Coordinate event emission using EffectEventCoordinator
         services.eventCoordinator.coordinateConfigurationChange(
-            configWithDefaults, 
-            selectedEffect, 
+            configWithDefaults,
+            selectedEffect,
             onConfigChange,
             { ...metadata, source: 'user-input', timestamp: Date.now() }
         );
-        
-    }, [selectedEffect, projectState, onConfigChange, services]);
+
+    }, [selectedEffect, projectState, onConfigChange, services, initialConfig]);
 
     // Effect addition handler with service coordination
     const handleAddEffect = useCallback(() => {

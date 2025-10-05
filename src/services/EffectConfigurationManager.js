@@ -98,13 +98,21 @@ export class EffectConfigurationManager {
      * Apply center position defaults to configuration
      * @param {Object} config - Configuration to process
      * @param {Object} projectState - Project state with resolution info
+     * @param {boolean} isNewEffect - Whether this is a new effect being added (not an edit)
      * @returns {Object} Configuration with center positions applied
      */
-    applyCenterDefaults(config, projectState) {
+    applyCenterDefaults(config, projectState, isNewEffect = false) {
         const startTime = performance.now();
-        
+
         try {
-            this.logger.log('🎯 EffectConfigurationManager: Applying center defaults', {
+            // Only apply center defaults for new effects that don't have position values yet
+            // For existing effects being edited, return the config as-is
+            if (!isNewEffect) {
+                this.logger.log('🎯 EffectConfigurationManager: Skipping center defaults (editing existing effect)');
+                return config;
+            }
+
+            this.logger.log('🎯 EffectConfigurationManager: Applying center defaults for new effect', {
                 config: config,
                 projectState: projectState,
                 hasTargetResolution: !!projectState?.targetResolution,
@@ -112,7 +120,7 @@ export class EffectConfigurationManager {
             });
 
             const result = CenterUtils.detectAndApplyCenter(config, projectState);
-            
+
             const configurationTime = performance.now() - startTime;
             this.configMetrics.configurationTime += configurationTime;
             this.configMetrics.centerPositionsApplied++;
@@ -125,7 +133,7 @@ export class EffectConfigurationManager {
             });
 
             return result;
-            
+
         } catch (error) {
             this.logger.error('❌ EffectConfigurationManager: Failed to apply center defaults:', error);
             return config; // Return original config on error

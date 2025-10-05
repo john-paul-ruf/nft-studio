@@ -167,7 +167,6 @@ class EffectRegistryService {
                 finalImage: Object.keys(EffectRegistry.getByCategoryGlobal(EffectCategories.FINAL_IMAGE))
             };
             
-            console.log('🔍 Registry Debug Info:', debug);
             return debug;
         } catch (error) {
             console.error('❌ Failed to debug registry:', error);

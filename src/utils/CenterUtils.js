@@ -57,7 +57,8 @@ export class CenterUtils {
         }
 
         const dimensions = this.getResolutionDimensions(resolutionInfo);
-        return this.applyCenterOverride(config, dimensions.width, dimensions.height, resolutionInfo);
+        // Only apply center defaults to fields that don't have values yet
+        return this.applyCenterDefaults(config, dimensions.width, dimensions.height, resolutionInfo);
     }
 
     /**
@@ -220,42 +221,23 @@ export class CenterUtils {
      * @returns {boolean} True if field appears to be a center field
      */
     static isCenterField(fieldName, defaultValue = null, resolutionInfo = null) {
-        // Check field name
+        // Check field name - ONLY fields explicitly named "center" should auto-center
         const name = (fieldName || '').toLowerCase();
-        if (name.includes('center') || name === 'center') {
+
+        // Only apply center logic to fields explicitly named "center" or containing "center"
+        // but NOT to regular position fields like "position", "startPosition", "endPosition"
+        if (name === 'center' || (name.includes('center') && !name.includes('position'))) {
             return true;
         }
 
-        // Check if default value appears to be a center position
-        if (defaultValue && typeof defaultValue === 'object') {
-            // Convert resolutionInfo to currentResolutionInfo format if provided
-            let currentResolutionInfo = null;
-            if (resolutionInfo) {
-                const dimensions = this.getResolutionDimensions(resolutionInfo);
-                currentResolutionInfo = {
-                    width: dimensions.width,
-                    height: dimensions.height
-                };
-            }
-
-            // For point2d format
-            if (typeof defaultValue.x === 'number' && typeof defaultValue.y === 'number') {
-                return this.isCenterPosition(defaultValue.x, defaultValue.y, currentResolutionInfo);
-            }
-
-            // For position objects
-            if (defaultValue.name === 'position' &&
-                typeof defaultValue.x === 'number' && typeof defaultValue.y === 'number') {
-                return this.isCenterPosition(defaultValue.x, defaultValue.y, currentResolutionInfo);
-            }
-
-            // For arc-path objects (check center property)
-            if (defaultValue.name === 'arc-path' && defaultValue.center &&
-                typeof defaultValue.center.x === 'number' && typeof defaultValue.center.y === 'number') {
-                return this.isCenterPosition(defaultValue.center.x, defaultValue.center.y, currentResolutionInfo);
-            }
+        // For arc-path objects, only the center property should auto-center
+        if (defaultValue && defaultValue.name === 'arc-path' && defaultValue.center) {
+            // This is specifically for the center property of arc-path
+            return true;
         }
 
+        // Regular position fields should NOT auto-center, even if they happen to be at center
+        // This includes: position, startPosition, endPosition, targetPosition, etc.
         return false;
     }
 
@@ -328,7 +310,53 @@ export class CenterUtils {
     }
 
     /**
-     * Apply center position overrides to a config object
+     * Apply center defaults only to fields that don't have values yet
+     * @param {Object} config - Configuration object to process
+     * @param {number} width - Target canvas width
+     * @param {number} height - Target canvas height
+     * @param {Object} resolutionInfo - Current resolution information
+     * @returns {Object} Configuration with center defaults applied
+     */
+    static applyCenterDefaults(config, width, height, resolutionInfo = null) {
+        if (!config || typeof config !== 'object') {
+            return config;
+        }
+
+        const center = this.getCenterPosition(width, height);
+        const updatedConfig = { ...config };
+
+        // Only apply center to fields that are explicitly center fields AND don't have values yet
+        Object.keys(updatedConfig).forEach(key => {
+            const value = updatedConfig[key];
+
+            // Skip if field already has a value
+            if (value !== null && value !== undefined) {
+                // For objects, check if they have actual coordinate values
+                if (typeof value === 'object' && !Array.isArray(value)) {
+                    // If it has x,y coordinates that aren't default (0,0), skip it
+                    if ((value.x !== undefined && value.x !== 0) || (value.y !== undefined && value.y !== 0)) {
+                        console.log(`⏸️ CenterUtils: Skipping field '${key}' - already has position values`);
+                        return;
+                    }
+                } else {
+                    // Non-object values that aren't null/undefined should be kept as-is
+                    return;
+                }
+            }
+
+            // Only apply center to fields with "center" in the name
+            const fieldName = key.toLowerCase();
+            if (fieldName === 'center' || (fieldName.includes('center') && !fieldName.includes('position'))) {
+                updatedConfig[key] = this.applyCenterToValue(value || {}, center);
+                console.log(`🎯 CenterUtils: Applied center defaults to field '${key}':`, updatedConfig[key]);
+            }
+        });
+
+        return updatedConfig;
+    }
+
+    /**
+     * Apply center position overrides to a config object (legacy - for backward compatibility)
      * @param {Object} config - Configuration object to process
      * @param {number} width - Target canvas width
      * @param {number} height - Target canvas height
