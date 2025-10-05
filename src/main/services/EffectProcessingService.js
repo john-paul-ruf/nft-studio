@@ -85,9 +85,8 @@ class EffectProcessingService {
 
                 // Process attached secondary effects - single source of truth
                 const possibleSecondaryEffects = [];
-                const secondaryEffects = effect.attachedEffects?.secondary || [];
 
-                for (const secondaryEffect of secondaryEffects) {
+                for (const secondaryEffect of effect.secondaryEffects) {
                     const secondaryEffectName = secondaryEffect.registryKey;
                     const SecondaryEffectClass = EffectRegistry.getGlobal(secondaryEffectName);
                     if (SecondaryEffectClass) {
@@ -104,9 +103,7 @@ class EffectProcessingService {
                 }
 
                 // Process attached keyframe effects as special secondary effects
-                const keyframeEffects = effect.attachedEffects?.keyFrame || [];
-
-                for (const keyframeEffect of keyframeEffects) {
+                for (const keyframeEffect of effect.keyframeEffects) {
                     const keyframeEffectName = keyframeEffect.registryKey;
                     const KeyframeEffectClass = EffectRegistry.getGlobal(keyframeEffectName);
                     if (KeyframeEffectClass) {
@@ -169,7 +166,6 @@ class EffectProcessingService {
                     hasEffect: !!layerConfig.Effect,
                     hasConfig: !!layerConfig.currentEffectConfig,
                     secondaryEffectsCount: possibleSecondaryEffects.length,
-                    keyframeEffectsCount: keyframeEffects.length,
                     note: 'Keyframe effects are now included in secondaryEffectsCount'
                 });
                 allPrimaryEffects.push(layerConfig);
