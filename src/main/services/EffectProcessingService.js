@@ -14,7 +14,7 @@ class EffectProcessingService {
      */
 
     static async processEffects(effects, myNftGenPath) {
-        const { default: EffectRegistryService } = await import('./EffectRegistryService.js');
+        const {default: EffectRegistryService} = await import('./EffectRegistryService.js');
         const registryService = new EffectRegistryService();
         const EffectRegistry = await registryService.getEffectRegistry();
         const ConfigRegistry = await registryService.getConfigRegistry();
@@ -73,36 +73,40 @@ class EffectProcessingService {
                 // Process attached secondary effects - single source of truth
                 const possibleSecondaryEffects = [];
 
-                for (const secondaryEffect of effect.secondaryEffects) {
-                    const secondaryEffectName = secondaryEffect.registryKey;
-                    const SecondaryEffectClass = EffectRegistry.getGlobal(secondaryEffectName);
-                    if (SecondaryEffectClass) {
-                        const secondaryConfigInstance = await this.createConfigInstance(secondaryEffect, myNftGenPath);
+                if (effect.secondaryEffects?.length > 0) {
+                    for (const secondaryEffect of effect.secondaryEffects) {
+                        const secondaryEffectName = secondaryEffect.registryKey;
+                        const SecondaryEffectClass = EffectRegistry.getGlobal(secondaryEffectName);
+                        if (SecondaryEffectClass) {
+                            const secondaryConfigInstance = await this.createConfigInstance(secondaryEffect, myNftGenPath);
 
-                        const secondaryLayerConfig = new LayerConfig({
-                            name: secondaryEffectName,
-                            effect: SecondaryEffectClass,
-                            percentChance: 100,
-                            currentEffectConfig: secondaryConfigInstance,
-                        });
-                        possibleSecondaryEffects.push(secondaryLayerConfig);
+                            const secondaryLayerConfig = new LayerConfig({
+                                name: secondaryEffectName,
+                                effect: SecondaryEffectClass,
+                                percentChance: 100,
+                                currentEffectConfig: secondaryConfigInstance,
+                            });
+                            possibleSecondaryEffects.push(secondaryLayerConfig);
+                        }
                     }
                 }
 
-                // Process attached keyframe effects as special secondary effects
-                for (const secondaryEffect of effect.keyframeEffects) {
-                    const secondaryEffectName = secondaryEffect.registryKey;
-                    const SecondaryEffectClass = EffectRegistry.getGlobal(secondaryEffectName);
-                    if (SecondaryEffectClass) {
-                        const secondaryConfigInstance = await this.createConfigInstance(secondaryEffect, myNftGenPath);
+                if (effect.keyframeEffects?.length > 0) {
+                    // Process attached keyframe effects as special secondary effects
+                    for (const secondaryEffect of effect.keyframeEffects) {
+                        const secondaryEffectName = secondaryEffect.registryKey;
+                        const SecondaryEffectClass = EffectRegistry.getGlobal(secondaryEffectName);
+                        if (SecondaryEffectClass) {
+                            const secondaryConfigInstance = await this.createConfigInstance(secondaryEffect, myNftGenPath);
 
-                        const secondaryLayerConfig = new LayerConfig({
-                            name: secondaryEffectName,
-                            effect: SecondaryEffectClass,
-                            percentChance: 100,
-                            currentEffectConfig: secondaryConfigInstance,
-                        });
-                        possibleSecondaryEffects.push(secondaryLayerConfig);
+                            const secondaryLayerConfig = new LayerConfig({
+                                name: secondaryEffectName,
+                                effect: SecondaryEffectClass,
+                                percentChance: 100,
+                                currentEffectConfig: secondaryConfigInstance,
+                            });
+                            possibleSecondaryEffects.push(secondaryLayerConfig);
+                        }
                     }
                 }
 
@@ -141,7 +145,7 @@ class EffectProcessingService {
         let hydratedConfig;
         try {
             // Try ConfigReconstructor first for proper config reconstruction from my-nft-gen
-            const { ConfigReconstructor } = await import('my-nft-gen/src/core/ConfigReconstructor.js');
+            const {ConfigReconstructor} = await import('my-nft-gen/src/core/ConfigReconstructor.js');
             const effectName = effect.registryKey;
             hydratedConfig = await ConfigReconstructor.reconstruct(effectName, userConfig);
 
@@ -167,7 +171,7 @@ class EffectProcessingService {
         }
 
         try {
-            const { default: EffectRegistryService } = await import('./EffectRegistryService.js');
+            const {default: EffectRegistryService} = await import('./EffectRegistryService.js');
             const registryService = new EffectRegistryService();
 
             // Ensure effects are registered with configs linked
@@ -232,10 +236,10 @@ class EffectProcessingService {
      */
     static async reconstructColorPickers(config, originalConfig, effectName) {
         try {
-            const { ColorPicker } = await import('my-nft-gen/src/core/layer/configType/ColorPicker.js');
+            const {ColorPicker} = await import('my-nft-gen/src/core/layer/configType/ColorPicker.js');
 
             // Get the config class to introspect property types
-            const { default: EffectRegistryService } = await import('./EffectRegistryService.js');
+            const {default: EffectRegistryService} = await import('./EffectRegistryService.js');
             const registryService = new EffectRegistryService();
             const plugin = await registryService.getEffectWithConfig(effectName);
 
@@ -331,12 +335,12 @@ class EffectProcessingService {
      */
     static async reconstructPercentageRanges(config, originalConfig, effectName) {
         try {
-            const { PercentageRange } = await import('my-nft-gen/src/core/layer/configType/PercentageRange.js');
-            const { PercentageShortestSide } = await import('my-nft-gen/src/core/layer/configType/PercentageShortestSide.js');
-            const { PercentageLongestSide } = await import('my-nft-gen/src/core/layer/configType/PercentageLongestSide.js');
+            const {PercentageRange} = await import('my-nft-gen/src/core/layer/configType/PercentageRange.js');
+            const {PercentageShortestSide} = await import('my-nft-gen/src/core/layer/configType/PercentageShortestSide.js');
+            const {PercentageLongestSide} = await import('my-nft-gen/src/core/layer/configType/PercentageLongestSide.js');
 
             // Get the config class to introspect property types
-            const { default: EffectRegistryService } = await import('./EffectRegistryService.js');
+            const {default: EffectRegistryService} = await import('./EffectRegistryService.js');
             const registryService = new EffectRegistryService();
             const plugin = await registryService.getEffectWithConfig(effectName);
 
@@ -434,7 +438,7 @@ class EffectProcessingService {
         try {
             // First priority: Check user preferences for saved defaults
             if (typeof window !== 'undefined' && window.api) {
-                const { default: PreferencesService } = await import('../../services/PreferencesService.js');
+                const {default: PreferencesService} = await import('../../services/PreferencesService.js');
                 const userDefaults = await PreferencesService.getEffectDefaults(effectName);
 
                 if (userDefaults && userDefaults[fieldName]) {
@@ -497,7 +501,7 @@ class EffectProcessingService {
      */
     static async getConfigClassDefaults(effectName, fieldName) {
         try {
-            const { default: EffectRegistryService } = await import('./EffectRegistryService.js');
+            const {default: EffectRegistryService} = await import('./EffectRegistryService.js');
             const registryService = new EffectRegistryService();
             const ConfigRegistry = await registryService.getConfigRegistry();
 

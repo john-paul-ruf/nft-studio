@@ -24,6 +24,7 @@ import { PlayArrow, Settings, Schedule } from '@mui/icons-material';
 import EffectConfigurer from './EffectConfigurer.jsx';
 import BulkPositionQuickPick from './BulkPositionQuickPick.jsx';
 import PreferencesService from '../../services/PreferencesService.js';
+import ConfigIntrospector from '../../utils/ConfigIntrospector.js';
 
 const steps = ['Select Effect', 'Configure Effect', 'Set Keyframe Range'];
 
@@ -38,6 +39,7 @@ export default function BulkAddKeyframeModal({
     const [activeStep, setActiveStep] = useState(0);
     const [selectedEffect, setSelectedEffect] = useState(null);
     const [effectConfig, setEffectConfig] = useState(null);
+    const [configSchema, setConfigSchema] = useState(null);
     const [frameRange, setFrameRange] = useState([0, 10]);
     const [numEffects, setNumEffects] = useState(5);
     const [maxFrames, setMaxFrames] = useState(10);
@@ -81,7 +83,17 @@ export default function BulkAddKeyframeModal({
             registryKey: effect.registryKey || effect.name || effect.className
         };
         setSelectedEffect(effectWithRegistryKey);
-        
+
+        // Load the config schema for this effect
+        try {
+            const schema = await ConfigIntrospector.analyzeConfigClass(effectWithRegistryKey, projectState);
+            setConfigSchema(schema);
+            console.log('🎬 BulkAddKeyframeModal: Loaded config schema:', schema);
+        } catch (error) {
+            console.error('🎬 BulkAddKeyframeModal: Error loading config schema:', error);
+            setConfigSchema(null);
+        }
+
         // Initialize effectConfig with defaults (user preferences or effect defaults)
         try {
             // Try to get user-saved defaults first
@@ -236,7 +248,24 @@ export default function BulkAddKeyframeModal({
                                         if (positionFields.length > 0) {
                                             const updatedConfig = { ...effectConfig };
                                             positionFields.forEach(field => {
-                                                updatedConfig[field] = position;
+                                                // Check the field type from schema
+                                                const fieldSchema = configSchema?.fields?.find(f => f.name === field);
+                                                const fieldType = fieldSchema?.type;
+
+                                                // Format position based on field type
+                                                if (fieldType === 'point2d') {
+                                                    // For point2d, only use x and y (no name property)
+                                                    updatedConfig[field] = { x: position.x, y: position.y };
+                                                } else {
+                                                    // For position type or unknown, use the full position object
+                                                    updatedConfig[field] = position;
+                                                }
+
+                                                console.log('🎯 BulkAddKeyframeModal: Setting position field', {
+                                                    field,
+                                                    fieldType,
+                                                    value: updatedConfig[field]
+                                                });
                                             });
                                             handleConfigChange(updatedConfig);
                                         }
