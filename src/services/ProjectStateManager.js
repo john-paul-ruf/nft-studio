@@ -30,27 +30,19 @@ export default class ProjectStateManager {
 
         // Set up our own callback that chains with the existing one
         projectState.core.onUpdate = (newState) => {
-            console.log('🔄 ProjectStateManager: onUpdate callback triggered');
-            console.log('🔄 ProjectStateManager: New state effects count:', newState?.effects?.length || 0);
-            console.log('🔄 ProjectStateManager: Registered callbacks count:', this.updateCallbacks.size);
-            
             // First call the existing callback (persistence service auto-save)
             if (existingOnUpdate) {
-                console.log('🔄 ProjectStateManager: Calling existing onUpdate callback (persistence)');
                 existingOnUpdate(newState);
             }
 
             // Then notify all our registered callbacks
-            console.log('🔄 ProjectStateManager: Notifying registered callbacks...');
             this.updateCallbacks.forEach((callback, index) => {
                 try {
-                    console.log(`🔄 ProjectStateManager: Calling callback ${index + 1}/${this.updateCallbacks.size}`);
                     callback(newState);
                 } catch (error) {
                     console.error('Error in ProjectState update callback:', error);
                 }
             });
-            console.log('🔄 ProjectStateManager: All callbacks notified');
         };
     }
 

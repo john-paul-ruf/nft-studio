@@ -71,7 +71,6 @@ export default function EffectsPanel({
     const [bulkAddTargetIndex, setBulkAddTargetIndex] = useState(null);
 
     // Debug effects prop changes
-    console.log('📋 EffectsPanel: Component render - received effects:', effects?.length || 0, effects?.map(e => e.name || e.className) || []);
     const [expandedEffects, setExpandedEffects] = useState(new Set());
     const [secondaryEffects, setSecondaryEffects] = useState([]);
     const [keyframeEffects, setKeyframeEffects] = useState([]);
@@ -97,7 +96,6 @@ export default function EffectsPanel({
 
     // Event-driven Add Effect handler
     const handleAddEffectEvent = useCallback((effectName, effectType) => {
-        console.log('🔥 EffectsPanel: Emitting effect add event:', { effectName, effectType });
         eventBusService.emit('effectspanel:effect:add', {
             effectName,
             effectType
@@ -120,8 +118,6 @@ export default function EffectsPanel({
 
     // Specialty effects creation handler
     const handleCreateSpecialty = useCallback(async (specialtyData) => {
-        console.log('🌟 EffectsPanel: Creating specialty effects:', specialtyData);
-
         // Detect position property name from effect's default config
         const detectPositionProperty = (effectClass) => {
             const defaultConfig = effectClass.defaultConfig || {};
@@ -137,7 +133,6 @@ export default function EffectsPanel({
         };
 
         const positionPropertyName = detectPositionProperty(specialtyData.effectClass);
-        console.log('🌟 EffectsPanel: Detected position property name:', positionPropertyName);
 
         // Get effect configuration in priority order:
         // 1. Custom config from wizard (highest priority)
@@ -505,7 +500,7 @@ export default function EffectsPanel({
     };
 
     const renderKeyframeEffects = (effect, parentOriginalIndex) => {
-        const keyframeEffects = effect.attachedEffects?.keyFrame || [];
+        const keyframeEffects = effect.keyframeEffects || [];
         if (!keyframeEffects || keyframeEffects.length === 0) return null;
 
         return (
