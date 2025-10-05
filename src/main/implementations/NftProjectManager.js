@@ -351,53 +351,22 @@ class NftProjectManager {
         // Filter visible effects - consistent with RenderPipelineService
         const visibleEffects = config.effects.filter(effect => effect.visible !== false);
         
-        // DEBUG: Enhanced logging for effect processing
-        console.log('🔍 NftProjectManager: Effect processing debug:');
-        console.log('🔍 Total effects in config:', config.effects.length);
-        console.log('🔍 Effects details:', config.effects.map(e => ({
-            name: e.name || e.className || e.registryKey,
-            registryKey: e.registryKey,
-            visible: e.visible,
-            visibleCheck: e.visible !== false,
-            hasConfig: !!e.config,
-            configKeys: e.config ? Object.keys(e.config) : []
-        })));
-        
         if (visibleEffects.length === 0) {
             console.log('⚠️  No visible effects configured for project');
             return;
         }
-
-        const hiddenCount = config.effects.length - visibleEffects.length;
-        if (hiddenCount > 0) {
-            console.log(`🎭 Filtered out ${hiddenCount} hidden effects, processing ${visibleEffects.length} visible effects`);
-        }
-        
-        console.log('🔍 Visible effects to process:', visibleEffects.map(e => ({
-            name: e.name || e.className || e.registryKey,
-            registryKey: e.registryKey,
-            type: e.type || 'primary'
-        })));
 
         const myNftGenPath = path.resolve(process.cwd(), '../my-nft-gen');
         const { default: effectProcessor } = await import('../services/EffectProcessingService.js');
 
         // Group effects by type while maintaining order
         const primaryEffects = [];
-        const secondaryEffects = [];
-        const keyframeEffects = [];
         const finalEffects = [];
 
         // Categorize effects while preserving their order
         for (const effect of visibleEffects) {
             const effectType = effect.type || 'primary';
             switch (effectType) {
-                case 'secondary':
-                    secondaryEffects.push(effect);
-                    break;
-                case 'keyframe':
-                    keyframeEffects.push(effect);
-                    break;
                 case 'final':
                 case 'finalImage':
                     finalEffects.push(effect);
@@ -405,45 +374,18 @@ class NftProjectManager {
                 case 'primary':
                 default:
                     primaryEffects.push(effect);
-                    
-                    // Extract secondary effects from primary effects
-                    const secondaryEffectsArray = effect.secondaryEffects || effect.attachedEffects?.secondary || [];
-                    if (Array.isArray(secondaryEffectsArray) && secondaryEffectsArray.length > 0) {
-                        for (const secondaryEffect of secondaryEffectsArray) {
-                            secondaryEffects.push({
-                                ...secondaryEffect,
-                                type: 'secondary',
-                                parentEffectIndex: primaryEffects.length - 1
-                            });
-                        }
-                    }
                     break;
             }
         }
 
         // Process and add primary effects in order
         if (primaryEffects.length > 0) {
-            // Log keyframe effects for debugging
-            primaryEffects.forEach((effect, index) => {
-                const keyframeEffects = effect.attachedEffects?.keyFrame || [];
-                if (keyframeEffects.length > 0) {
-                    console.log(`🎬 Primary effect ${index} (${effect.name || effect.className}) has ${keyframeEffects.length} keyframe effects:`, 
-                        keyframeEffects.map(kf => `Frame ${kf.frame}: ${kf.registryKey}`));
-                }
-            });
-
             const processedEffects = await effectProcessor.processEffects(
                 primaryEffects,
                 myNftGenPath
             );
 
             for (const layerConfig of processedEffects) {
-                console.log('🎯 Adding primary effect to project:', {
-                    name: layerConfig.name,
-                    effectClass: layerConfig.Effect?.name || 'unknown',
-                    hasConfig: !!layerConfig.currentEffectConfig,
-                    secondaryEffectsCount: layerConfig.possibleSecondaryEffects?.length || 0
-                });
                 project.addPrimaryEffect({layerConfig});
             }
         }

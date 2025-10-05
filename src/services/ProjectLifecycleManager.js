@@ -51,12 +51,10 @@ export class ProjectLifecycleManager {
             const project = await this.createProjectInstance(projectState);
             
             // Create project settings
-            const settings = await this.createProjectSettings(project, projectState);
-            
+
             // Store the project for potential reuse
             this.activeProjects.set(config.projectName, {
                 project,
-                settings,
                 projectState
             });
 
@@ -65,7 +63,6 @@ export class ProjectLifecycleManager {
                 this.eventBus.emit('project:created', {
                     projectName: config.projectName,
                     projectPath: config.outputDirectory,
-                    settingsFile: JSON.stringify(settings),
                     timestamp: Date.now()
                 });
             }
@@ -75,9 +72,7 @@ export class ProjectLifecycleManager {
             return {
                 success: true,
                 project,
-                settings,
                 projectPath: config.outputDirectory,
-                settingsFile: JSON.stringify(settings),
             };
 
         } catch (error) {
@@ -269,58 +264,6 @@ export class ProjectLifecycleManager {
      * @param {ProjectState} projectState - ProjectState instance
      * @returns {Promise<Object>} Save result
      */
-    async saveProject(project, projectState) {
-        this.logger.info('Saving project state');
-        
-        try {
-            if (!project || !projectState) {
-                throw new Error('Both project and projectState are required for saving');
-            }
-
-            const config = projectState.getState();
-            
-            // Create settings if they don't exist
-            let settings;
-            const activeProject = this.activeProjects.get(config.projectName);
-            if (activeProject && activeProject.settings) {
-                settings = activeProject.settings;
-            } else {
-                settings = await this.createProjectSettings(project, projectState);
-            }
-
-
-            // Emit project saved event
-            if (this.eventBus) {
-                this.eventBus.emit('project:saved', {
-                    projectName: config.projectName,
-                    settingsFile: JSON.stringify(settings),
-                    timestamp: Date.now()
-                });
-            }
-
-            this.logger.success(`Project "${config.projectName}" saved successfully`);
-
-            return {
-                success: true,
-                settingsFile: JSON.stringify(settings),
-                projectPath: JSON.stringify(settings)
-            };
-
-        } catch (error) {
-            this.logger.error('Failed to save project', error);
-            
-            // Emit project save error event
-            if (this.eventBus) {
-                this.eventBus.emit('project:saveError', {
-                    projectName: projectState?.getState()?.projectName || 'Unknown',
-                    error: error.message,
-                    timestamp: Date.now()
-                });
-            }
-            
-            throw error;
-        }
-    }
 
     /**
      * Ensure input is a ProjectState instance
@@ -479,32 +422,6 @@ export class ProjectLifecycleManager {
      * @returns {Promise<Object>} Settings instance
      * @private
      */
-    async createProjectSettings(project, projectState) {
-        const projectConfig = projectState.getState();
-        const myNftGenPath = path.resolve(process.cwd(), '../my-nft-gen');
-
-        // Process effects into LayerConfig instances
-        const { default: effectProcessor } = await import('../main/services/EffectProcessingService.js');
-
-        // Extract primary effects from the effects array
-        let primaryEffects = [];
-
-        if (Array.isArray(projectConfig.effects)) {
-            // Filter only primary effects for settings
-            primaryEffects = projectConfig.effects.filter(e => !e.type || e.type === 'primary');
-        } else if (projectConfig.effects?.primary) {
-            // Backward compatibility
-            primaryEffects = projectConfig.effects.primary;
-        }
-
-        const allPrimaryEffects = await effectProcessor.processEffects(
-            primaryEffects,
-            myNftGenPath
-        );
-
-        const settings = new Settings(project, allPrimaryEffects);
-        return settings;
-    }
 
     /**
      * Build color scheme info from project config
