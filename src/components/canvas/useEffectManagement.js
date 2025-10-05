@@ -566,13 +566,6 @@ export default function useEffectManagement(projectState) {
     const getEditingEffectData = useCallback(() => {
         // Get fresh effects from ProjectState every time (ensures we get scaled values)
         const currentEffects = projectState.getState().effects || [];
-        console.log('🔍 getEditingEffectData called with:', {
-            editingEffect,
-            hasCurrentEffects: !!currentEffects.length,
-            effectsLength: currentEffects.length,
-            effectIndex: editingEffect?.effectIndex,
-            timestamp: Date.now()
-        });
 
         if (!editingEffect || !currentEffects[editingEffect.effectIndex]) {
             console.log('❌ getEditingEffectData: Returning null because no editingEffect or invalid index');
@@ -586,13 +579,6 @@ export default function useEffectManagement(projectState) {
             return mainEffect;
         } else if (editingEffect.effectType === 'secondary' && mainEffect.secondaryEffects && editingEffect.subIndex !== null) {
             const secondaryEffect = mainEffect.secondaryEffects[editingEffect.subIndex];
-            console.log('🔍 getEditingEffectData: Returning secondary effect:', secondaryEffect);
-            console.log('🔍 getEditingEffectData: Secondary effect details:', {
-                registryKey: secondaryEffect.registryKey,
-                config: secondaryEffect.config,
-                hasConfig: !!secondaryEffect.config,
-                configKeys: secondaryEffect.config ? Object.keys(secondaryEffect.config) : 'none'
-            });
 
             // CRITICAL: Secondary effect MUST have registryKey - no fallbacks
             if (!secondaryEffect.registryKey) {
@@ -607,18 +593,9 @@ export default function useEffectManagement(projectState) {
             };
         } else if (editingEffect.effectType === 'keyframe' && editingEffect.subIndex !== null) {
             // Use single source of truth for keyframe effects
-            const keyframeEffects = mainEffect.attachedEffects?.keyFrame || [];
+            const keyframeEffects = mainEffect.keyframeEffects || [];
             const keyframeEffect = keyframeEffects[editingEffect.subIndex];
             
-            console.log('🔍 getEditingEffectData: Returning keyframe effect:', keyframeEffect);
-            console.log('🔍 getEditingEffectData: Keyframe effect details:', {
-                registryKey: keyframeEffect?.registryKey,
-                config: keyframeEffect?.config,
-                hasConfig: !!keyframeEffect?.config,
-                configKeys: keyframeEffect?.config ? Object.keys(keyframeEffect.config) : 'none',
-                foundInAttachedEffects: !!mainEffect.attachedEffects?.keyFrame
-            });
-
             if (!keyframeEffect) {
                 console.error('❌ getEditingEffectData: Keyframe effect not found at index:', editingEffect.subIndex);
                 return null;
