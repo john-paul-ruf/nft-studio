@@ -141,6 +141,17 @@ class PluginHandlers {
             }
         });
 
+        ipcMain.handle('plugins:get-debug-log-path', async () => {
+            try {
+                const fileLogger = require('../utils/FileLogger');
+                const logPath = fileLogger.getLogPath();
+                return { success: true, logPath };
+            } catch (error) {
+                console.error('Failed to get debug log path:', error);
+                return { success: false, error: error.message };
+            }
+        });
+
         console.log('✅ Plugin IPC handlers registered');
     }
 

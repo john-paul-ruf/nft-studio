@@ -116,6 +116,28 @@ class SolidIpcHandlers {
     getServiceFactory() {
         return this.serviceFactory;
     }
+
+    /**
+     * Cleanup all resources
+     * Should be called when app is closing
+     */
+    async cleanup() {
+        try {
+            console.log('🧹 [SolidIpcHandlers] Starting cleanup...');
+
+            // Unregister all handlers
+            this.unregisterHandlers();
+
+            // Cleanup service factory
+            if (this.serviceFactory && this.serviceFactory.cleanup) {
+                await this.serviceFactory.cleanup();
+            }
+
+            console.log('✅ [SolidIpcHandlers] Cleanup complete');
+        } catch (error) {
+            console.error('❌ [SolidIpcHandlers] Cleanup error:', error);
+        }
+    }
 }
 
 export default SolidIpcHandlers;

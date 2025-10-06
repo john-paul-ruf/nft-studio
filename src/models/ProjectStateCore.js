@@ -42,6 +42,7 @@ export default class ProjectStateCore {
             effects: [],
             colorScheme: 'vapor-dreams',
             colorSchemeData: null,
+            backgroundColor: '#000000', // Default background color for Sharp rendering
             outputDirectory: null,
             renderStartFrame: 0,
             renderJumpFrames: 1

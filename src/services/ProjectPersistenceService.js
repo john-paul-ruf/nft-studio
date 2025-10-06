@@ -2,6 +2,8 @@
  * Service for handling project persistence and auto-saving
  * Manages saving ProjectState to files automatically
  */
+import ProjectState from '../models/ProjectState.js';
+
 export default class ProjectPersistenceService {
     constructor() {
         this.currentProjectState = null;
@@ -200,7 +202,6 @@ export default class ProjectPersistenceService {
      */
     async loadProject(filePath) {
         try {
-            const ProjectState = (await import('../models/ProjectState.js')).default;
             const projectState = await ProjectState.loadFromFile(filePath);
 
             // Get project directory using IPC

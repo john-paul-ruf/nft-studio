@@ -144,6 +144,27 @@ class ServiceFactory {
     getContainer() {
         return this.container;
     }
+
+    /**
+     * Cleanup all services
+     * Should be called when app is closing
+     */
+    async cleanup() {
+        try {
+            console.log('🧹 [ServiceFactory] Cleaning up services...');
+
+            // Cleanup effect registry service
+            const effectRegistry = this.container.resolve('effectRegistryService');
+            if (effectRegistry && effectRegistry.cleanup) {
+                await effectRegistry.cleanup();
+            }
+
+            // Add cleanup for other services as needed
+            console.log('✅ [ServiceFactory] Services cleaned up');
+        } catch (error) {
+            console.error('❌ [ServiceFactory] Cleanup error:', error);
+        }
+    }
 }
 
 // Export singleton instance

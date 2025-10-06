@@ -2,7 +2,9 @@
   <configuration default="false" name="run build" type="js.build_tools.npm" nameIsGenerated="true">
     <package-json value="$PROJECT_DIR$/package.json" />
     <command value="run" />
-    <scripts />
+    <scripts>
+      <script value="build" />
+    </scripts>
     <arguments value="build" />
     <node-interpreter value="project" />
     <envs />

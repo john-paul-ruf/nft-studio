@@ -4,6 +4,7 @@
  */
 
 import ResolutionMapper from '../utils/ResolutionMapper.js';
+import ColorSchemeService from './ColorSchemeService.js';
 
 export class RenderPipelineService {
     constructor() {
@@ -138,7 +139,6 @@ export class RenderPipelineService {
         // Otherwise, try to load color scheme by name
         else if (config.colorScheme) {
             try {
-                const ColorSchemeService = (await import('./ColorSchemeService.js')).default;
                 const fullScheme = await ColorSchemeService.getColorScheme(config.colorScheme);
                 if (fullScheme) {
                     // The backend expects 'colors' array - use lights as the main colors
@@ -187,6 +187,16 @@ export class RenderPipelineService {
         // Get orientation from ProjectState
         const isHorizontal = this.projectStateManager.getProjectState().getIsHorizontal();
 
+        // Determine backgroundColor - use from config, or derive from backgrounds array, or use default
+        let backgroundColor = config.backgroundColor || '#000000';
+        if (colorSchemeData && colorSchemeData.backgrounds && colorSchemeData.backgrounds.length > 0) {
+            // If no backgroundColor in config, use first background from color scheme
+            if (!config.backgroundColor) {
+                backgroundColor = colorSchemeData.backgrounds[0];
+                console.log('🎨 RenderPipelineService: Using backgroundColor from color scheme:', backgroundColor);
+            }
+        }
+
         // Prepare render config
         const renderConfig = {
             ...config,
@@ -196,7 +206,8 @@ export class RenderPipelineService {
             height: dimensions.h,
             renderStartFrame: selectedFrame,
             renderJumpFrames: config.numFrames + 1,
-            colorSchemeData: colorSchemeData
+            colorSchemeData: colorSchemeData,
+            backgroundColor: backgroundColor
         };
 
         // DEBUG: Log final render config
@@ -204,6 +215,7 @@ export class RenderPipelineService {
         console.log('🚀 Dimensions:', { width: dimensions.w, height: dimensions.h });
         console.log('🚀 Frame:', selectedFrame);
         console.log('🚀 Settings file:', settingsFile || 'none (unpinned)');
+        console.log('🚀 Background color:', backgroundColor);
         console.log('🚀 Effects count:', renderConfig.effects.length);
         console.log('🚀 Effects to render:', renderConfig.effects.map(e => e.registryKey || e.name || e.className));
 

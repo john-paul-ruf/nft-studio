@@ -12,7 +12,7 @@
  * - Configuration serialization
  */
 
-import { ConfigIntrospector } from '../utils/configIntrospector.js';
+import { ConfigIntrospector } from '../utils/ConfigIntrospector.js';
 import CenterUtils from '../utils/CenterUtils.js';
 import PreferencesService from './PreferencesService.js';
 

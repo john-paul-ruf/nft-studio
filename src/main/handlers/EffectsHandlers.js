@@ -1,4 +1,6 @@
 import { ipcMain } from 'electron';
+import { getAllFindValueAlgorithms } from 'my-nft-gen/src/core/math/findValue.js';
+import EffectRegistryService from '../services/EffectRegistryService.js';
 
 /**
  * Effects-specific IPC handlers
@@ -49,8 +51,6 @@ class EffectsHandlers {
 
         ipcMain.handle('get-findvalue-algorithms', async (event) => {
             try {
-                // Import the getAllFindValueAlgorithms function
-                const { getAllFindValueAlgorithms } = await import('my-nft-gen/src/core/math/findValue.js');
                 const algorithms = getAllFindValueAlgorithms();
                 return {
                     success: true,
@@ -94,8 +94,7 @@ class EffectsHandlers {
         ipcMain.handle('refresh-effect-registry', async (event, skipPluginReload = true) => {
             try {
                 // Refresh the effect registry (useful after loading plugins)
-                const EffectRegistryService = await import('../services/EffectRegistryService.js');
-                const registryService = new EffectRegistryService.default();
+                const registryService = new EffectRegistryService();
                 // Pass skipPluginReload=true by default when called from UI to prevent infinite loops
                 // The UI typically calls this after plugin:loaded events, so we don't need to reload plugins again
                 await registryService.refreshRegistry(skipPluginReload);
@@ -118,8 +117,7 @@ class EffectsHandlers {
 
         ipcMain.handle('debug-effect-registry', async (event) => {
             try {
-                const EffectRegistryService = await import('../services/EffectRegistryService.js');
-                const registryService = new EffectRegistryService.default();
+                const registryService = new EffectRegistryService();
                 const debugInfo = await registryService.debugRegistry();
                 
                 return {

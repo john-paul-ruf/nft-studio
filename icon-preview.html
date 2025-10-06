@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFT Studio - Cyberpunk Icon Preview</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 40px;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a0f1f 100%);
+            color: #00ffff;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            background: linear-gradient(90deg, #00ffff, #ff00ff, #00ffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+            from { text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff; }
+            to { text-shadow: 0 0 20px #ff00ff, 0 0 30px #ff00ff; }
+        }
+        
+        .icon-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            width: 100%;
+            margin: 40px auto;
+        }
+        
+        .icon-preview {
+            background: rgba(10, 10, 10, 0.8);
+            border: 2px solid;
+            border-image: linear-gradient(45deg, #00ffff, #ff00ff) 1;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .icon-preview::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .icon-preview:hover::before {
+            left: 100%;
+        }
+        
+        .icon-preview:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+        }
+        
+        .icon-preview img {
+            width: 100%;
+            height: auto;
+            max-width: 150px;
+            image-rendering: -webkit-optimize-contrast;
+        }
+        
+        .icon-label {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #00ffff;
+            opacity: 0.8;
+        }
+        
+        .icon-size {
+            font-size: 12px;
+            color: #ff00ff;
+            margin-top: 5px;
+        }
+        
+        .main-icon {
+            grid-column: span 2;
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 0, 255, 0.1));
+        }
+        
+        .features {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 30px;
+            background: rgba(10, 10, 10, 0.9);
+            border: 1px solid #00ffff;
+            border-radius: 10px;
+        }
+        
+        .features h2 {
+            color: #ff00ff;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .features ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .features li {
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+            position: relative;
+            padding-left: 30px;
+        }
+        
+        .features li::before {
+            content: '▶';
+            position: absolute;
+            left: 0;
+            color: #ff00ff;
+        }
+        
+        .tech-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0.03;
+            z-index: -1;
+            background-image: 
+                repeating-linear-gradient(0deg, #00ffff 0px, transparent 1px, transparent 60px, #00ffff 61px),
+                repeating-linear-gradient(90deg, #00ffff 0px, transparent 1px, transparent 60px, #00ffff 61px);
+        }
+    </style>
+</head>
+<body>
+    <div class="tech-grid"></div>
+    
+    <h1>NFT Studio Cyberpunk Icons</h1>
+    
+    <div class="icon-container">
+        <div class="icon-preview main-icon">
+            <img src="icons/icon.svg" alt="Main SVG Icon">
+            <div class="icon-label">Main Icon (SVG)</div>
+            <div class="icon-size">Scalable Vector with Animations</div>
+        </div>
+        
+        <div class="icon-preview">
+            <img src="icons/icon-512.png" alt="512x512 Icon">
+            <div class="icon-label">Application Icon</div>
+            <div class="icon-size">512x512 px</div>
+        </div>
+        
+        <div class="icon-preview">
+            <img src="icons/icon-256.png" alt="256x256 Icon">
+            <div class="icon-label">Large Icon</div>
+            <div class="icon-size">256x256 px</div>
+        </div>
+        
+        <div class="icon-preview">
+            <img src="icons/icon-128.png" alt="128x128 Icon">
+            <div class="icon-label">Medium Icon</div>
+            <div class="icon-size">128x128 px</div>
+        </div>
+        
+        <div class="icon-preview">
+            <img src="icons/icon-64.png" alt="64x64 Icon">
+            <div class="icon-label">Small Icon</div>
+            <div class="icon-size">64x64 px</div>
+        </div>
+        
+        <div class="icon-preview">
+            <img src="icons/icon-32.png" alt="32x32 Icon">
+            <div class="icon-label">Taskbar Icon</div>
+            <div class="icon-size">32x32 px</div>
+        </div>
+        
+        <div class="icon-preview">
+            <img src="icons/icon-16.png" alt="16x16 Icon">
+            <div class="icon-label">Tiny Icon</div>
+            <div class="icon-size">16x16 px</div>
+        </div>
+    </div>
+    
+    <div class="features">
+        <h2>Cyberpunk Design Features</h2>
+        <ul>
+            <li>Neon cyan and magenta gradient effects</li>
+            <li>Hexagonal frame with multiple layers</li>
+            <li>Circuit board patterns and connections</li>
+            <li>Glitch effect on NFT text</li>
+            <li>Animated scanning line (SVG only)</li>
+            <li>Matrix-style digital rain animation (SVG only)</li>
+            <li>Corner circuit elements with node indicators</li>
+            <li>Subtle background grid pattern</li>
+            <li>Monospace font for tech aesthetic</li>
+            <li>Multiple gradient overlays for depth</li>
+        </ul>
+    </div>
+    
+    <script>
+        // Add some cyberpunk interactivity
+        document.querySelectorAll('.icon-preview').forEach(el => {
+            el.addEventListener('click', function() {
+                this.style.animation = 'pulse 0.5s';
+                setTimeout(() => {
+                    this.style.animation = '';
+                }, 500);
+            });
+        });
+        
+        // Pulse animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.1); filter: brightness(1.5); }
+                100% { transform: scale(1); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

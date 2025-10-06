@@ -16,20 +16,27 @@
     "test:dependency": "node tests/the-one-runner-to-rule-them-all.js dependency",
     "test:workflow": "node tests/the-one-runner-to-rule-them-all.js workflow",
     "test:coverage": "node tests/the-one-runner-to-rule-them-all.js",
-    "start": "webpack && npm run copy:html && electron .",
-    "start:dev": "webpack --mode=development && npm run copy:html && electron .",
+    "start": "webpack && npm run copy:assets && electron .",
+    "start:dev": "webpack --mode=development && npm run copy:assets && electron .",
     "dev": "webpack --watch",
-    "build": "webpack --mode=production && npm run copy:html",
-    "copy:html": "cp dist/index.html dist/index.html 2>/dev/null || cp index.template.html dist/index.html && cp -r icons dist/ 2>/dev/null || true",
+    "build": "webpack --mode=production && npm run copy:assets",
+    "copy:assets": "node scripts/copy-assets.js",
+    "copy:html": "node scripts/copy-assets.js",
     "electron": "electron .",
     "rebuild": "electron-rebuild -f -w canvas && electron-rebuild -f -w sharp",
-    "clean:start": "rm -rf dist/ && webpack && npm run copy:html && electron .",
-    "clean:preferences": "rm -f \"$HOME/Library/Application Support/nft-studio/user-preferences.json\"",
+    "clean:start": "rm -rf dist/ && webpack && npm run copy:assets && electron .",
+    "clean:preferences": "node scripts/clean-preferences.js",
+    "postinstall": "electron-builder install-app-deps",
+    "generate-icons": "node scripts/generate-icons.js",
     "package": "npm run build && electron-builder",
     "package:mac": "npm run build && electron-builder --mac",
     "package:win": "npm run build && electron-builder --win",
     "package:linux": "npm run build && electron-builder --linux",
-    "dist": "npm run build && electron-builder --publish=never"
+    "dist": "npm run build && electron-builder --publish=never",
+    "verify:build": "node scripts/verify-build.js",
+    "test:builds": "node scripts/test-builds.js",
+    "test:plugins": "node scripts/test-plugin-loading.js",
+    "test:plugins:prod": "node scripts/test-plugin-loading.js --production"
   },
   "author": "john.paul.ruf",
   "license": "MIT",
@@ -75,6 +82,7 @@
       "src/context/**/*",
       "src/core/**/*",
       "src/data/**/*",
+      "src/effects/**/*",
       "!src/hooks/**/*",
       "src/interfaces",
       "src/main/**/*",
@@ -84,20 +92,31 @@
       "src/utils/**/*",
       "!*.md"
     ],
-    "extraResources": [
-      {
-        "from": "../my-nft-gen",
-        "to": "my-nft-gen",
-        "filter": ["**/*", "!node_modules"]
-      }
-    ],
     "mac": {
       "icon": "icons/icon.icns",
       "category": "public.app-category.graphics-design",
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
     },
     "dmg": {
+      "title": "NFT Studio Installer",
       "contents": [
         {
           "x": 130,
@@ -113,16 +132,57 @@
     },
     "win": {
       "icon": "icons/icon.ico",
-      "target": "nsis"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "icons/icon.ico",
+      "uninstallerIcon": "icons/icon.ico",
+      "installerHeaderIcon": "icons/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
     },
     "linux": {
-      "icon": "icons/icon.png",
+      "icon": "icons",
       "category": "Graphics",
-      "target": "AppImage"
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "snap",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "maintainer": "john.paul.ruf",
+      "synopsis": "NFT creation and editing studio",
+      "description": "A graphical interface for creating, editing, and rendering NFT projects"
     },
     "asar": true,
     "asarUnpack": [
@@ -131,8 +191,11 @@
       "node_modules/ffmpeg-static/package.json",
       "**/node_modules/sharp/**/*",
       "**/node_modules/@img/**/*",
-      "**/node_modules/canvas/**/*"
-    ]
+      "**/node_modules/canvas/**/*",
+      "**/node_modules/my-nft-gen/**/*"
+    ],
+    "compression": "maximum",
+    "npmRebuild": true,
+    "nodeGypRebuild": false
   }
 }
-

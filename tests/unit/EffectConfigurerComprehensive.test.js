@@ -61,7 +61,7 @@ export async function testEffectConfigurerConfigSchemaLoading(testEnv) {
     console.log('🧪 Testing EffectConfigurer config schema loading...');
     
     // Import ConfigIntrospector which is used for schema loading
-    const ConfigIntrospectorModule = await import('../../src/utils/configIntrospector.js');
+    const ConfigIntrospectorModule = await import('../../src/utils/ConfigIntrospector.js');
     const ConfigIntrospector = ConfigIntrospectorModule.ConfigIntrospector;
     
     if (!ConfigIntrospector) {

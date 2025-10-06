@@ -64,10 +64,13 @@ function createWindow () {
   }
 }
 
+// Store IPC handlers instance for cleanup
+let ipcHandlers = null
+
 // App event handlers
 app.whenReady().then(() => {
   // Create SOLID IPC handlers manager
-  const ipcHandlers = new SolidIpcHandlers()
+  ipcHandlers = new SolidIpcHandlers()
 
   // Register all IPC handlers using dependency injection
   ipcHandlers.registerHandlers()
@@ -82,4 +85,22 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') app.quit()
+})
+
+// Cleanup on app quit
+app.on('before-quit', async (event) => {
+  // Prevent default quit to allow cleanup
+  event.preventDefault()
+
+  try {
+    if (ipcHandlers) {
+      await ipcHandlers.cleanup()
+      ipcHandlers = null
+    }
+  } catch (error) {
+    SafeConsole.error('Error during cleanup:', error)
+  } finally {
+    // Actually quit after cleanup
+    app.exit(0)
+  }
 })

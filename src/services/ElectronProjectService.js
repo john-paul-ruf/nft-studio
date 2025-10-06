@@ -1,5 +1,7 @@
 // Since we're in the frontend, we'll create a simplified version without the interface dependency
 
+import PreferencesService from './PreferencesService.js';
+
 /**
  * Electron-specific implementation of project service
  * Follows Open/Closed Principle - open for extension, closed for modification
@@ -66,8 +68,7 @@ class ElectronProjectService {
      */
     async loadPreferences() {
         try {
-            const PreferencesService = await import('./PreferencesService.js');
-            return await PreferencesService.default.getPreferences();
+            return await PreferencesService.getPreferences();
         } catch (error) {
             console.error('Error loading preferences:', error);
             return this.getDefaultPreferences();
@@ -85,8 +86,7 @@ class ElectronProjectService {
                 return false;
             }
 
-            const PreferencesService = await import('./PreferencesService.js');
-            return await PreferencesService.default.savePreferences(preferences);
+            return await PreferencesService.savePreferences(preferences);
         } catch (error) {
             console.error('Error saving preferences:', error);
             return false;

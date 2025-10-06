@@ -1,4 +1,6 @@
 import { ipcMain } from 'electron';
+import path from 'path';
+import { pathToFileURL } from 'url';
 
 /**
  * Preview-specific IPC handlers
@@ -59,12 +61,14 @@ class PreviewHandlers {
      */
     async handleEffectPreview(params) {
         try {
-            const path = await import('path');
             const myNftGenPath = path.resolve(process.cwd(), '../my-nft-gen');
 
-            // Import required modules
-            const { Project } = await import(`file://${myNftGenPath}/src/app/Project.js`);
-            const { ColorScheme } = await import(`file://${myNftGenPath}/src/core/color/ColorScheme.js`);
+            // Import required modules using pathToFileURL for production compatibility
+            const projectUrl = pathToFileURL(path.join(myNftGenPath, 'src/app/Project.js')).href;
+            const colorSchemeUrl = pathToFileURL(path.join(myNftGenPath, 'src/core/color/ColorScheme.js')).href;
+            
+            const { Project } = await import(projectUrl);
+            const { ColorScheme } = await import(colorSchemeUrl);
             const EffectRegistry = await this.effectsManager.effectRegistryService.getEffectRegistry();
             const ConfigRegistry = await this.effectsManager.effectRegistryService.getConfigRegistry();
 
@@ -161,8 +165,12 @@ class PreviewHandlers {
      * @returns {Promise<Object>} Preview project
      */
     async createPreviewProject(projectSettings, myNftGenPath) {
-        const { Project } = await import(`file://${myNftGenPath}/src/app/Project.js`);
-        const { ColorScheme } = await import(`file://${myNftGenPath}/src/core/color/ColorScheme.js`);
+        // Use pathToFileURL for production compatibility
+        const projectUrl = pathToFileURL(path.join(myNftGenPath, 'src/app/Project.js')).href;
+        const colorSchemeUrl = pathToFileURL(path.join(myNftGenPath, 'src/core/color/ColorScheme.js')).href;
+        
+        const { Project } = await import(projectUrl);
+        const { ColorScheme } = await import(colorSchemeUrl);
 
         const colorScheme = new ColorScheme({
             name: projectSettings.colorScheme || 'preview',

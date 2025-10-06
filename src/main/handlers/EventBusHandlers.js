@@ -1,5 +1,7 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import defaultLogger from '../utils/logger.js';
+import { UnifiedEventBus } from 'my-nft-gen/src/core/events/UnifiedEventBus.js';
+import 'my-nft-gen/src/core/events/WorkerEventLogger.js';
 
 /**
  * IPC handlers for comprehensive EventBus monitoring
@@ -80,9 +82,6 @@ class EventBusHandlers {
 
         this.isMonitoring = true;
         this.logger.header('Starting Comprehensive Event Monitoring');
-
-        // Import UnifiedEventBus
-        const { UnifiedEventBus } = await import('my-nft-gen/src/core/events/UnifiedEventBus.js');
 
         // Create event bus with all debugging enabled
         this.eventBus = new UnifiedEventBus({
@@ -172,18 +171,8 @@ class EventBusHandlers {
     }
 
     monitorWorkerEvents() {
-        // Import worker event monitoring if available
-        import('my-nft-gen/src/core/events/WorkerEventLogger.js')
-            .then(({ WorkerEventLogger }) => {
-                // Enable all worker event logging
-                if (WorkerEventLogger) {
-                    this.logger.info('Enabling WorkerEventLogger monitoring');
-                    // This would need to be implemented in the worker module
-                }
-            })
-            .catch(err => {
-                this.logger.warn('WorkerEventLogger not available', err);
-            });
+        // Worker event logger already imported at module level
+        this.logger.info('Worker event monitoring enabled via static import');
     }
 
     captureEvent(eventName, data) {

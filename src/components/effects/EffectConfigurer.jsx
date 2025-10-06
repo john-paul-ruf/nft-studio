@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ConfigIntrospector } from '../../utils/configIntrospector.js';
+import { ConfigIntrospector } from '../../utils/ConfigIntrospector.js';
 import EffectAttachmentModal from './EffectAttachmentModal.jsx';
 import EffectFormRenderer from '../forms/EffectFormRenderer.jsx';
 import AttachedEffectsDisplay from '../forms/AttachedEffectsDisplay.jsx';

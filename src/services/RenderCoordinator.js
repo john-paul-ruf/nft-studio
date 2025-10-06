@@ -1,7 +1,10 @@
 import electron from 'electron';
-const { BrowserWindow } = electron;
+const { BrowserWindow, app } = electron;
 import defaultLogger from '../main/utils/logger.js';
 import { promises as fs } from 'fs';
+import os from 'os';
+import { UnifiedEventBus } from 'my-nft-gen/src/core/events/UnifiedEventBus.js';
+import loopTerminator from '../core/events/LoopTerminator.js';
 
 /**
  * RenderCoordinator - Handles render operations and coordination
@@ -173,12 +176,6 @@ export class RenderCoordinator {
         this.logger.header('Starting New Random Loop Generation');
 
         try {
-            // Import event bus for render loop monitoring
-            const { UnifiedEventBus } = await import('my-nft-gen/src/core/events/UnifiedEventBus.js');
-
-            // Import the loop terminator
-            const { default: loopTerminator } = await import('../core/events/LoopTerminator.js');
-
             // Create and configure event bus for render loop
             const eventBus = new UnifiedEventBus({
                 enableDebug: true,
@@ -266,12 +263,6 @@ export class RenderCoordinator {
         this.logger.header('Starting Project Resume');
 
         try {
-            // Import event bus for render loop monitoring
-            const { UnifiedEventBus } = await import('my-nft-gen/src/core/events/UnifiedEventBus.js');
-
-            // Import the loop terminator
-            const { default: loopTerminator } = await import('../core/events/LoopTerminator.js');
-
             // Create and configure event bus for resume
             const eventBus = new UnifiedEventBus({
                 enableDebug: true,
@@ -523,13 +514,16 @@ export class RenderCoordinator {
      * @private
      */
     async getTempDirectory() {
-        // Use electron's app.getPath('temp') or fallback to system temp
-        if (typeof window !== 'undefined' && window.api && window.api.getTempPath) {
-            return await window.api.getTempPath();
+        // Use electron's app.getPath('temp') if available (main process)
+        if (app && app.getPath) {
+            try {
+                return app.getPath('temp');
+            } catch (error) {
+                this.logger.warn('Failed to get Electron temp path, using OS temp', error);
+            }
         }
-        
-        // Fallback to a default temp location
-        const os = await import('os');
+
+        // Fallback to system temp directory
         return os.tmpdir();
     }
 

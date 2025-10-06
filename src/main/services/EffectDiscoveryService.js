@@ -1,3 +1,6 @@
+
+import SafeConsole from '../utils/SafeConsole.js';
+
 /**
  * EffectDiscoveryService
  * 
@@ -35,10 +38,17 @@ class EffectDiscoveryService {
      */
     async getAvailableEffects() {
         try {
+            SafeConsole.log('🔍 [EffectDiscoveryService] Getting available effects...');
             const effects = await this.effectRegistryService.getAllEffectsWithConfigs();
 
+            SafeConsole.log('🔍 [EffectDiscoveryService] Raw effects from registry:', {
+                primary: effects.primary.length,
+                secondary: effects.secondary.length,
+                finalImage: effects.finalImage.length
+            });
+
             // Return primary, secondary, and finalImage effects for the dropdown
-            return {
+            const result = {
                 primary: effects.primary.map(plugin => ({
                     name: plugin.name,
                     registryKey: plugin.name, // Preserve the original registry key
@@ -64,8 +74,16 @@ class EffectDiscoveryService {
                     configClassName: plugin.configClass ? plugin.configClass.name : (this.deriveClassName(plugin.name) + 'Config')
                 }))
             };
+            
+            SafeConsole.log('✅ [EffectDiscoveryService] Returning available effects:', {
+                primary: result.primary.length,
+                secondary: result.secondary.length,
+                finalImage: result.finalImage.length
+            });
+            
+            return result;
         } catch (error) {
-            console.error('Error getting available effects:', error);
+            SafeConsole.log('❌ [EffectDiscoveryService] Error getting available effects:', error);
             throw error;
         }
     }

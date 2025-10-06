@@ -3,7 +3,15 @@
  * Follows Single Responsibility Principle
  */
 
-import SafeConsole from '../utils/SafeConsole.js'
+import SafeConsole from '../utils/SafeConsole.js';
+import EffectRegistryService from './EffectRegistryService.js';
+import { LayerConfig } from 'my-nft-gen/src/core/layer/LayerConfig.js';
+import { ConfigReconstructor } from 'my-nft-gen/src/core/ConfigReconstructor.js';
+import { ColorPicker } from 'my-nft-gen/src/core/layer/configType/ColorPicker.js';
+import { PercentageRange } from 'my-nft-gen/src/core/layer/configType/PercentageRange.js';
+import { PercentageShortestSide } from 'my-nft-gen/src/core/layer/configType/PercentageShortestSide.js';
+import { PercentageLongestSide } from 'my-nft-gen/src/core/layer/configType/PercentageLongestSide.js';
+import PreferencesService from '../../services/PreferencesService.js';
 
 class EffectProcessingService {
     /**
@@ -14,24 +22,9 @@ class EffectProcessingService {
      */
 
     static async processEffects(effects, myNftGenPath) {
-        const {default: EffectRegistryService} = await import('./EffectRegistryService.js');
         const registryService = new EffectRegistryService();
         const EffectRegistry = await registryService.getEffectRegistry();
         const ConfigRegistry = await registryService.getConfigRegistry();
-
-        // Import LayerConfig directly from my-nft-gen
-        let LayerConfig;
-        try {
-            const LayerConfigModule = await import('my-nft-gen/src/core/layer/LayerConfig.js');
-            LayerConfig = LayerConfigModule.LayerConfig || LayerConfigModule.default;
-
-            if (!LayerConfig) {
-                throw new Error('LayerConfig not found in module export');
-            }
-        } catch (error) {
-            SafeConsole.error('Failed to import LayerConfig:', error);
-            throw new Error(`LayerConfig import failed: ${error.message}`);
-        }
 
         const allPrimaryEffects = [];
 
@@ -145,7 +138,6 @@ class EffectProcessingService {
         let hydratedConfig;
         try {
             // Try ConfigReconstructor first for proper config reconstruction from my-nft-gen
-            const {ConfigReconstructor} = await import('my-nft-gen/src/core/ConfigReconstructor.js');
             const effectName = effect.registryKey;
             hydratedConfig = await ConfigReconstructor.reconstruct(effectName, userConfig);
 
@@ -171,7 +163,6 @@ class EffectProcessingService {
         }
 
         try {
-            const {default: EffectRegistryService} = await import('./EffectRegistryService.js');
             const registryService = new EffectRegistryService();
 
             // Ensure effects are registered with configs linked
@@ -236,10 +227,7 @@ class EffectProcessingService {
      */
     static async reconstructColorPickers(config, originalConfig, effectName) {
         try {
-            const {ColorPicker} = await import('my-nft-gen/src/core/layer/configType/ColorPicker.js');
-
             // Get the config class to introspect property types
-            const {default: EffectRegistryService} = await import('./EffectRegistryService.js');
             const registryService = new EffectRegistryService();
             const plugin = await registryService.getEffectWithConfig(effectName);
 
@@ -335,12 +323,7 @@ class EffectProcessingService {
      */
     static async reconstructPercentageRanges(config, originalConfig, effectName) {
         try {
-            const {PercentageRange} = await import('my-nft-gen/src/core/layer/configType/PercentageRange.js');
-            const {PercentageShortestSide} = await import('my-nft-gen/src/core/layer/configType/PercentageShortestSide.js');
-            const {PercentageLongestSide} = await import('my-nft-gen/src/core/layer/configType/PercentageLongestSide.js');
-
             // Get the config class to introspect property types
-            const {default: EffectRegistryService} = await import('./EffectRegistryService.js');
             const registryService = new EffectRegistryService();
             const plugin = await registryService.getEffectWithConfig(effectName);
 
@@ -438,7 +421,6 @@ class EffectProcessingService {
         try {
             // First priority: Check user preferences for saved defaults
             if (typeof window !== 'undefined' && window.api) {
-                const {default: PreferencesService} = await import('../../services/PreferencesService.js');
                 const userDefaults = await PreferencesService.getEffectDefaults(effectName);
 
                 if (userDefaults && userDefaults[fieldName]) {
@@ -501,7 +483,6 @@ class EffectProcessingService {
      */
     static async getConfigClassDefaults(effectName, fieldName) {
         try {
-            const {default: EffectRegistryService} = await import('./EffectRegistryService.js');
             const registryService = new EffectRegistryService();
             const ConfigRegistry = await registryService.getConfigRegistry();
 
