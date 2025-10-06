@@ -121,7 +121,19 @@ class EventFilterService {
         if (lowerType.includes('buffer') || lowerType.includes('canvas') ||
             lowerType.includes('resource') || lowerType.includes('cache')) return 'RESOURCE';
 
-        // Error events
+        // Console events (check before ERROR to properly categorize console.error)
+        // Handle both browser console (console.*) and Node console (node.console.*)
+        if (lowerType.startsWith('console.') || lowerType.startsWith('node.console.')) {
+            // console.error should still be ERROR category
+            if (lowerType === 'console.error' || lowerType === 'node.console.error') return 'ERROR';
+            // Other console methods go to CONSOLE
+            return 'CONSOLE';
+        }
+        
+        // Node exceptions from main process
+        if (lowerType === 'node.exception') return 'ERROR';
+        
+        // Error events and exceptions
         if (lowerType.includes('error') || lowerType.includes('fail') ||
             lowerType.includes('exception') || lowerType.includes('crash')) return 'ERROR';
 

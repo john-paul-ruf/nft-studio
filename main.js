@@ -4,8 +4,13 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import SolidIpcHandlers from './src/main/modules/SolidIpcHandlers.js'
 import SafeConsole from './src/main/utils/SafeConsole.js'
+import NodeConsoleInterceptor from './src/main/utils/NodeConsoleInterceptor.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+// Start console interception IMMEDIATELY (before any other code runs)
+// This ensures we capture ALL console output from app startup
+NodeConsoleInterceptor.startIntercepting()
 
 // Handle EPIPE errors globally to prevent crashes
 process.on('uncaughtException', (error) => {
@@ -51,6 +56,9 @@ function createWindow () {
     }
   })
 
+  // Set main window for console interceptor (enables IPC forwarding)
+  NodeConsoleInterceptor.setMainWindow(mainWindow)
+
   // Load the index.html of the app
   if (process.env.NODE_ENV === 'development') {
     // In development, load from webpack dev server
@@ -62,6 +70,8 @@ function createWindow () {
     // In production, load the built file
     mainWindow.loadFile('dist/index.html')
   }
+  
+  return mainWindow
 }
 
 // Store IPC handlers instance for cleanup

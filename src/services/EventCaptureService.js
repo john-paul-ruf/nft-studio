@@ -9,7 +9,10 @@
  * - Event listener cleanup and unsubscription
  * - Event data normalization and transformation
  * - Event monitoring lifecycle management
+ * - Console and exception interception integration
  */
+
+import ConsoleInterceptorService from './ConsoleInterceptorService.js';
 
 class EventCaptureService {
     constructor() {
@@ -18,6 +21,7 @@ class EventCaptureService {
         this.eventBuffer = [];
         this.maxBufferSize = 1000;
         this.eventCallbacks = new Set();
+        this.consoleUnregister = null;
         
         // Start monitoring immediately on service creation (only in browser environment)
         if (typeof window !== 'undefined') {
@@ -124,7 +128,33 @@ class EventCaptureService {
         this.listeners.set('worker', workerHandler);
         this.listeners.set('eventbus', eventBusHandler);
         
+        // Set up console and exception interception
+        this.setupConsoleInterception();
+        
         console.log('✅ EventCaptureService: Persistent listeners established');
+    }
+    
+    /**
+     * Set up console and exception interception
+     */
+    setupConsoleInterception() {
+        // BROWSER CONSOLE INTERCEPTION DISABLED
+        // Node.js console (main process) is captured via NodeConsoleInterceptor in main.js
+        // Browser console interception causes feedback loops and is not needed
+        console.log('⚠️ EventCaptureService: Browser console interception DISABLED (Node console captured in main process)');
+        return;
+        
+        // Start console interception
+        ConsoleInterceptorService.startIntercepting();
+        
+        // Register callback to receive console events
+        this.consoleUnregister = ConsoleInterceptorService.registerCallback((eventData) => {
+            // Add to buffer and notify callbacks
+            this.addToBuffer(eventData);
+            this.notifyCallbacks(eventData);
+        });
+        
+        console.log('✅ EventCaptureService: Console interception established');
     }
     
     /**
@@ -251,6 +281,16 @@ class EventCaptureService {
                 this.listeners.delete('eventbus');
                 console.log('🧹 EventCaptureService: Removed event bus listener');
             }
+            
+            // Clean up console interception
+            if (this.consoleUnregister) {
+                this.consoleUnregister();
+                this.consoleUnregister = null;
+                console.log('🧹 EventCaptureService: Unregistered console callback');
+            }
+            
+            // Note: We don't stop ConsoleInterceptorService here as it should remain active
+            // for the lifetime of the application to capture all console activity
 
             // Stop monitoring on main process
             await window.api.stopEventMonitoring();
