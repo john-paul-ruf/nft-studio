@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import path from 'path';
 import { pathToFileURL } from 'url';
+import AsarFFmpegResolver from '../../utils/AsarFFmpegResolver.js';
 
 /**
  * Preview-specific IPC handlers
@@ -179,10 +180,14 @@ class PreviewHandlers {
             lights: projectSettings.lights || ['#FF0000', '#00FF00', '#0000FF']
         });
 
+        // Get FFmpeg configuration for current environment (dev/production)
+        const ffmpegConfig = await AsarFFmpegResolver.getFFmpegConfig();
+
         const resolution = { width: 800, height: 600 };
         return new Project({
             projectName: 'preview',
             colorScheme: colorScheme,
+            ffmpegConfig: ffmpegConfig, // FFmpeg configuration for ASAR compatibility
             neutrals: colorScheme.neutrals,
             backgrounds: colorScheme.backgrounds,
             lights: colorScheme.lights,

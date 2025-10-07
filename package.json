@@ -36,7 +36,10 @@
     "verify:build": "node scripts/verify-build.js",
     "test:builds": "node scripts/test-builds.js",
     "test:plugins": "node scripts/test-plugin-loading.js",
-    "test:plugins:prod": "node scripts/test-plugin-loading.js --production"
+    "test:plugins:prod": "node scripts/test-plugin-loading.js --production",
+    "test:ffmpeg": "electron scripts/test-ffmpeg-integration.js",
+    "test:ffmpeg:paths": "node scripts/test-ffmpeg-paths.js",
+    "test:ffmpeg:prod": "node scripts/test-production-paths.js"
   },
   "author": "john.paul.ruf",
   "license": "MIT",
@@ -186,13 +189,11 @@
     },
     "asar": true,
     "asarUnpack": [
-      "node_modules/ffmpeg-static/bin/${os}/${arch}/ffmpeg",
-      "node_modules/ffmpeg-static/index.js",
-      "node_modules/ffmpeg-static/package.json",
       "**/node_modules/sharp/**/*",
       "**/node_modules/@img/**/*",
       "**/node_modules/canvas/**/*",
-      "**/node_modules/my-nft-gen/**/*"
+      "**/node_modules/my-nft-gen/**/*",
+      "**/node_modules/ffmpeg-ffprobe-static/**/*"
     ],
     "compression": "maximum",
     "npmRebuild": true,

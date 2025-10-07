@@ -1,8 +1,9 @@
-import path from 'path';
+ import path from 'path';
 import ProjectState from '../models/ProjectState.js';
 import SettingsToProjectConverter from '../utils/SettingsToProjectConverter.js';
 import ResolutionMapper from '../utils/ResolutionMapper.js';
 import defaultLogger from '../main/utils/logger.js';
+import AsarFFmpegResolver from '../utils/AsarFFmpegResolver.js';
 
 // Module-level cache for my-nft-gen imports
 let _moduleCache = null;
@@ -408,6 +409,9 @@ export class ProjectLifecycleManager {
             ? this.pluginLifecycleManager.getPluginPaths() 
             : [];
 
+        // Get FFmpeg configuration for current environment (dev/production)
+        const ffmpegConfig = await AsarFFmpegResolver.getFFmpegConfig();
+
         // Load modules dynamically
         const { Project } = await _loadModules();
 
@@ -418,6 +422,7 @@ export class ProjectLifecycleManager {
             projectDirectory: projectDirectory,
             colorScheme: colorSchemeInfo.colorScheme,
             pluginPaths: pluginPaths, // Plugin paths from PluginLifecycleManager
+            ffmpegConfig: ffmpegConfig, // FFmpeg configuration for ASAR compatibility
             neutrals: colorSchemeInfo.neutrals,
             backgrounds: colorSchemeInfo.backgrounds,
             lights: colorSchemeInfo.lights,
