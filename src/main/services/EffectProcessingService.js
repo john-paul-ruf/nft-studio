@@ -5,13 +5,40 @@
 
 import SafeConsole from '../utils/SafeConsole.js';
 import EffectRegistryService from './EffectRegistryService.js';
-import { LayerConfig } from 'my-nft-gen/src/core/layer/LayerConfig.js';
-import { ConfigReconstructor } from 'my-nft-gen/src/core/ConfigReconstructor.js';
-import { ColorPicker } from 'my-nft-gen/src/core/layer/configType/ColorPicker.js';
-import { PercentageRange } from 'my-nft-gen/src/core/layer/configType/PercentageRange.js';
-import { PercentageShortestSide } from 'my-nft-gen/src/core/layer/configType/PercentageShortestSide.js';
-import { PercentageLongestSide } from 'my-nft-gen/src/core/layer/configType/PercentageLongestSide.js';
 import PreferencesService from '../../services/PreferencesService.js';
+
+// Cache for dynamically imported modules
+let _moduleCache = null;
+
+async function _loadModules() {
+    if (!_moduleCache) {
+        const [
+            { LayerConfig },
+            { ConfigReconstructor },
+            { ColorPicker },
+            { PercentageRange },
+            { PercentageShortestSide },
+            { PercentageLongestSide }
+        ] = await Promise.all([
+            import('my-nft-gen/src/core/layer/LayerConfig.js'),
+            import('my-nft-gen/src/core/ConfigReconstructor.js'),
+            import('my-nft-gen/src/core/layer/configType/ColorPicker.js'),
+            import('my-nft-gen/src/core/layer/configType/PercentageRange.js'),
+            import('my-nft-gen/src/core/layer/configType/PercentageShortestSide.js'),
+            import('my-nft-gen/src/core/layer/configType/PercentageLongestSide.js')
+        ]);
+        
+        _moduleCache = {
+            LayerConfig,
+            ConfigReconstructor,
+            ColorPicker,
+            PercentageRange,
+            PercentageShortestSide,
+            PercentageLongestSide
+        };
+    }
+    return _moduleCache;
+}
 
 class EffectProcessingService {
     /**
@@ -22,6 +49,7 @@ class EffectProcessingService {
      */
 
     static async processEffects(effects, myNftGenPath) {
+        const { LayerConfig } = await _loadModules();
         const registryService = new EffectRegistryService();
         const EffectRegistry = await registryService.getEffectRegistry();
         const ConfigRegistry = await registryService.getConfigRegistry();
@@ -128,6 +156,8 @@ class EffectProcessingService {
      * @returns {Promise<Object>} Configuration instance
      */
     static async createConfigInstance(effect, myNftGenPath) {
+        const { ConfigReconstructor } = await _loadModules();
+        
         // Always preserve user config as fallback
         const userConfig = effect.config || {};
 
@@ -277,6 +307,8 @@ class EffectProcessingService {
                 return false;
             };
 
+            const { ColorPicker } = await _loadModules();
+            
             // Iterate through config properties
             for (const [key, value] of Object.entries(config)) {
                 // Check if this property needs ColorPicker reconstruction

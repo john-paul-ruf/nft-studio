@@ -95,7 +95,7 @@
     "mac": {
       "icon": "icons/icon.icns",
       "category": "public.app-category.graphics-design",
-      "hardenedRuntime": false,
+      "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
       "target": [

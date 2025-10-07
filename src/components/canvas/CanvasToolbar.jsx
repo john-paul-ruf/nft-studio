@@ -109,11 +109,10 @@ export default function CanvasToolbar({
                     <DropdownMenu.Root>
                         <DropdownMenu.Trigger asChild>
                             <IconButton
-                                disabled={isRendering || isProjectResuming}
                                 size="small"
                                 sx={{
                                     color: 'primary.main',
-                                    backgroundColor: (isRendering || isProjectResuming) ? 'action.disabled' : 'transparent',
+                                    backgroundColor: 'transparent',
                                     '&:hover': {
                                         backgroundColor: 'primary.main',
                                         color: 'white',

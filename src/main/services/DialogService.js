@@ -1,4 +1,5 @@
 import { dialog } from 'electron';
+import SafeConsole from '../utils/SafeConsole.js';
 
 /**
  * Service responsible for dialog operations only
@@ -16,7 +17,7 @@ class DialogService {
             });
             return result;
         } catch (error) {
-            console.error('Error showing folder dialog:', error);
+            SafeConsole.error('Error showing folder dialog:', error);
             return { canceled: true };
         }
     }
@@ -40,7 +41,7 @@ class DialogService {
             const result = await dialog.showOpenDialog(dialogOptions);
             return result;
         } catch (error) {
-            console.error('Error showing file dialog:', error);
+            SafeConsole.error('Error showing file dialog:', error);
             return { canceled: true };
         }
     }
@@ -55,7 +56,7 @@ class DialogService {
             const result = await dialog.showSaveDialog(options);
             return result;
         } catch (error) {
-            console.error('Error showing save dialog:', error);
+            SafeConsole.error('Error showing save dialog:', error);
             return { canceled: true };
         }
     }

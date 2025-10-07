@@ -6,6 +6,7 @@ import PreviewHandlers from '../handlers/PreviewHandlers.js';
 import EventBusHandlers from '../handlers/EventBusHandlers.js';
 import ProjectPersistenceHandlers from '../handlers/ProjectPersistenceHandlers.js';
 import PluginHandlers from '../handlers/PluginHandlers.js';
+import SafeConsole from '../utils/SafeConsole.js';
 
 /**
  * SOLID-compliant IPC handlers manager
@@ -61,7 +62,7 @@ class SolidIpcHandlers {
         });
 
         this.handlers = [];
-        console.log('✅ All SOLID IPC handlers unregistered');
+        SafeConsole.log('✅ All SOLID IPC handlers unregistered');
     }
 
     /**
@@ -91,7 +92,7 @@ class SolidIpcHandlers {
 
         handler.register();
         this.handlers.push(handler);
-        console.log(`✅ Custom handler registered: ${handler.constructor.name}`);
+        SafeConsole.log(`✅ Custom handler registered: ${handler.constructor.name}`);
     }
 
     /**
@@ -105,7 +106,7 @@ class SolidIpcHandlers {
                 handler.unregister();
             }
             this.handlers.splice(index, 1);
-            console.log(`✅ Custom handler removed: ${handler.constructor.name}`);
+            SafeConsole.log(`✅ Custom handler removed: ${handler.constructor.name}`);
         }
     }
 
@@ -123,7 +124,7 @@ class SolidIpcHandlers {
      */
     async cleanup() {
         try {
-            console.log('🧹 [SolidIpcHandlers] Starting cleanup...');
+            SafeConsole.log('🧹 [SolidIpcHandlers] Starting cleanup...');
 
             // Unregister all handlers
             this.unregisterHandlers();
@@ -133,9 +134,9 @@ class SolidIpcHandlers {
                 await this.serviceFactory.cleanup();
             }
 
-            console.log('✅ [SolidIpcHandlers] Cleanup complete');
+            SafeConsole.log('✅ [SolidIpcHandlers] Cleanup complete');
         } catch (error) {
-            console.error('❌ [SolidIpcHandlers] Cleanup error:', error);
+            SafeConsole.error('❌ [SolidIpcHandlers] Cleanup error:', error);
         }
     }
 }

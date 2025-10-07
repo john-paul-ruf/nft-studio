@@ -1,7 +1,19 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import defaultLogger from '../utils/logger.js';
-import { UnifiedEventBus } from 'my-nft-gen/src/core/events/UnifiedEventBus.js';
-import 'my-nft-gen/src/core/events/WorkerEventLogger.js';
+
+// Module-level cache for my-nft-gen imports
+let _moduleCache = null;
+
+async function _loadModules() {
+    if (!_moduleCache) {
+        const [{ UnifiedEventBus }, _] = await Promise.all([
+            import('my-nft-gen/src/core/events/UnifiedEventBus.js'),
+            import('my-nft-gen/src/core/events/WorkerEventLogger.js')
+        ]);
+        _moduleCache = { UnifiedEventBus };
+    }
+    return _moduleCache;
+}
 
 /**
  * IPC handlers for comprehensive EventBus monitoring
@@ -82,6 +94,9 @@ class EventBusHandlers {
 
         this.isMonitoring = true;
         this.logger.header('Starting Comprehensive Event Monitoring');
+
+        // Load modules dynamically
+        const { UnifiedEventBus } = await _loadModules();
 
         // Create event bus with all debugging enabled
         this.eventBus = new UnifiedEventBus({

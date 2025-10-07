@@ -1,6 +1,17 @@
 import { ipcMain } from 'electron';
-import { getAllFindValueAlgorithms } from 'my-nft-gen/src/core/math/findValue.js';
 import EffectRegistryService from '../services/EffectRegistryService.js';
+import SafeConsole from '../utils/SafeConsole.js';
+
+// Module-level cache for my-nft-gen imports
+let _moduleCache = null;
+
+async function _loadModules() {
+    if (!_moduleCache) {
+        const { getAllFindValueAlgorithms } = await import('my-nft-gen/src/core/math/findValue.js');
+        _moduleCache = { getAllFindValueAlgorithms };
+    }
+    return _moduleCache;
+}
 
 /**
  * Effects-specific IPC handlers
@@ -36,7 +47,7 @@ class EffectsHandlers {
                     defaults: defaults || {}
                 };
             } catch (error) {
-                console.error('Error getting effect defaults via IPC:', error);
+                SafeConsole.error('Error getting effect defaults via IPC:', error);
                 return {
                     success: false,
                     error: error.message,
@@ -51,13 +62,14 @@ class EffectsHandlers {
 
         ipcMain.handle('get-findvalue-algorithms', async (event) => {
             try {
+                const { getAllFindValueAlgorithms } = await _loadModules();
                 const algorithms = getAllFindValueAlgorithms();
                 return {
                     success: true,
                     algorithms: algorithms
                 };
             } catch (error) {
-                console.error('Error getting FindValue algorithms via IPC:', error);
+                SafeConsole.error('Error getting FindValue algorithms via IPC:', error);
                 return {
                     success: false,
                     error: error.message,
@@ -82,7 +94,7 @@ class EffectsHandlers {
                     effects: effects
                 };
             } catch (error) {
-                console.error('Error getting available effects via IPC:', error);
+                SafeConsole.error('Error getting available effects via IPC:', error);
                 return {
                     success: false,
                     error: error.message,
@@ -107,7 +119,7 @@ class EffectsHandlers {
                     message: 'Effect registry refreshed successfully'
                 };
             } catch (error) {
-                console.error('Error refreshing effect registry via IPC:', error);
+                SafeConsole.error('Error refreshing effect registry via IPC:', error);
                 return {
                     success: false,
                     error: error.message
@@ -125,7 +137,7 @@ class EffectsHandlers {
                     debug: debugInfo
                 };
             } catch (error) {
-                console.error('Error debugging effect registry via IPC:', error);
+                SafeConsole.error('Error debugging effect registry via IPC:', error);
                 return {
                     success: false,
                     error: error.message

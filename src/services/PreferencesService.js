@@ -1,5 +1,6 @@
 // Use the exposed API from preload script instead of direct electron access
 import ResolutionMapper from '../utils/ResolutionMapper.js';
+import { safeConsoleError, safeConsoleLog } from '../utils/errorFormatter.js';
 
 /**
  * Service for managing user preferences that persist between runs
@@ -25,7 +26,7 @@ class PreferencesService {
                 return this.getDefaultPreferences();
             }
         } catch (error) {
-            console.error('Error loading preferences:', error);
+            safeConsoleError('Error loading preferences:', error);
             return this.getDefaultPreferences();
         }
     }
@@ -73,7 +74,7 @@ class PreferencesService {
 
             return result.success;
         } catch (error) {
-            console.error('Error saving preferences:', error);
+            safeConsoleError('Error saving preferences:', error);
             return false;
         }
     }
@@ -107,7 +108,7 @@ class PreferencesService {
 
             return true; // Already in favorites
         } catch (error) {
-            console.error('Error adding favorite color scheme:', error);
+            safeConsoleError('Error adding favorite color scheme:', error);
             return false;
         }
     }
@@ -133,7 +134,7 @@ class PreferencesService {
 
             return true; // Not in favorites
         } catch (error) {
-            console.error('Error removing favorite color scheme:', error);
+            safeConsoleError('Error removing favorite color scheme:', error);
             return false;
         }
     }
@@ -173,7 +174,7 @@ class PreferencesService {
             preferences.colorSchemes.defaultScheme = schemeId;
             return await this.savePreferences(preferences);
         } catch (error) {
-            console.error('Error setting default color scheme:', error);
+            safeConsoleError('Error setting default color scheme:', error);
             return false;
         }
     }
@@ -209,7 +210,7 @@ class PreferencesService {
 
         const saved = preferences.project?.lastProjectName;
         const result = (saved && saved.trim()) ? saved : this.getDefaultPreferences().project.lastProjectName;
-        console.log('🔍 getLastProjectName result:', result);
+        safeConsoleLog('🔍 getLastProjectName result:', result);
         return result;
     }
 
@@ -227,7 +228,7 @@ class PreferencesService {
 
         const saved = preferences.project?.lastArtist;
         const result = (saved && saved.trim()) ? saved : this.getDefaultPreferences().project.lastArtist;
-        console.log('🔍 getLastArtist result:', result);
+        safeConsoleLog('🔍 getLastArtist result:', result);
         return result;
     }
 
@@ -264,7 +265,7 @@ class PreferencesService {
 
             return await this.savePreferences(preferences);
         } catch (error) {
-            console.error('Error cleaning up preferences:', error);
+            safeConsoleError('Error cleaning up preferences:', error);
             return false;
         }
     }
@@ -283,7 +284,7 @@ class PreferencesService {
                 preferences.project = this.getDefaultPreferences().project;
             }
 
-            console.log('💾 Saving project info:', { projectName, artist, resolution, projectDirectory });
+            safeConsoleLog('💾 Saving project info:', { projectName, artist, resolution, projectDirectory });
 
             // Only update fields that are explicitly provided (not null)
             if (projectName !== null) {
@@ -301,7 +302,7 @@ class PreferencesService {
 
             return await this.savePreferences(preferences);
         } catch (error) {
-            console.error('Error saving last project info:', error);
+            safeConsoleError('Error saving last project info:', error);
             return false;
         }
     }
@@ -345,7 +346,7 @@ class PreferencesService {
             preferences.theme.selectedTheme = themeKey;
             return await this.savePreferences(preferences);
         } catch (error) {
-            console.error('Error saving selected theme:', error);
+            safeConsoleError('Error saving selected theme:', error);
             return false;
         }
     }
@@ -375,10 +376,10 @@ class PreferencesService {
             }
 
             preferences.effectDefaults[registryKey] = config;
-            console.log(`💾 Saving effect defaults for ${registryKey}:`, config);
+            safeConsoleLog(`💾 Saving effect defaults for ${registryKey}:`, config);
             return await this.savePreferences(preferences);
         } catch (error) {
-            console.error('Error saving effect defaults:', error);
+            safeConsoleError('Error saving effect defaults:', error);
             return false;
         }
     }
@@ -399,7 +400,7 @@ class PreferencesService {
 
             return true; // Already removed or doesn't exist
         } catch (error) {
-            console.error('Error removing effect defaults:', error);
+            safeConsoleError('Error removing effect defaults:', error);
             return false;
         }
     }

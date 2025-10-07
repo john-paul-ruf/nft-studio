@@ -16,6 +16,7 @@ import useEffectManagement from '../components/canvas/useEffectManagement.js';
 
 // New clean hooks
 import useRenderPipeline from '../hooks/useRenderPipeline.js';
+import { useNavigation } from '../hooks/useNavigation.js';
 import { useServices } from '../contexts/ServiceContext.js';
 import PreferencesService from '../services/PreferencesService.js';
 import ResolutionMapper from '../utils/ResolutionMapper.js';
@@ -52,6 +53,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
 
     // Services
     const { renderPipelineService, eventBusService } = useServices();
+    const { navigateToWizard } = useNavigation();
 
     // State management through services only
     const [projectState, setProjectState] = useState(() => projectStateManager.getProjectState());
@@ -281,8 +283,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
         const unsubscribeProjectNew = eventBusService.subscribe('project:new', (payload) => {
             console.log('🎨 Canvas: New project event received:', payload);
             // Navigate to project wizard or create new project
-            // This would typically navigate to a different route
-            window.location.href = '/wizard';
+            navigateToWizard();
         }, { component: 'Canvas' });
 
         const unsubscribeProjectOpen = eventBusService.subscribe('project:open', async (payload) => {

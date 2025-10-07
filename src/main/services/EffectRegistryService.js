@@ -1,12 +1,5 @@
 
 // Static imports for core modules
-import { PluginLoader } from 'my-nft-gen/src/core/plugins/PluginLoader.js';
-import { ConfigLinker } from 'my-nft-gen/src/core/registry/ConfigLinker.js';
-import { EnhancedEffectsRegistration } from 'my-nft-gen/src/core/registry/EnhancedEffectsRegistration.js';
-import { PluginRegistry } from 'my-nft-gen/src/core/registry/PluginRegistry.js';
-import { EffectCategories } from 'my-nft-gen/src/core/registry/EffectCategories.js';
-import { EffectRegistry } from 'my-nft-gen/src/core/registry/EffectRegistry.js';
-import { ConfigRegistry } from 'my-nft-gen/src/core/registry/ConfigRegistry.js';
 import { app, BrowserWindow } from 'electron';
 import { PluginManagerService } from '../../services/PluginManagerService.js';
 import SecurePluginLoader from './SecurePluginLoader.js';
@@ -14,15 +7,56 @@ import fs from 'fs/promises';
 import path from 'path';
 import { pathToFileURL } from 'url';
 import SafeConsole from "../utils/SafeConsole.js";
+// Note: my-nft-gen modules are dynamically imported in _loadModules() to avoid path resolution issues in production
 
 /**
  * Service responsible for effect registry operations only
  * Follows Single Responsibility Principle
  */
 class EffectRegistryService {
+
     constructor() {
         this.coreEffectsRegistered = false;
         this.securePluginLoader = null;
+        // Cache for dynamically imported modules
+        this._moduleCache = {};
+    }
+    
+    /**
+     * Lazy load my-nft-gen modules to avoid circular dependencies
+     */
+    async _loadModules() {
+        if (!this._moduleCache.loaded) {
+            const [
+                { PluginLoader },
+                { ConfigLinker },
+                { EnhancedEffectsRegistration },
+                { PluginRegistry },
+                { EffectCategories },
+                { EffectRegistry },
+                { ConfigRegistry }
+            ] = await Promise.all([
+                import('my-nft-gen/src/core/plugins/PluginLoader.js'),
+                import('my-nft-gen/src/core/registry/ConfigLinker.js'),
+                import('my-nft-gen/src/core/registry/EnhancedEffectsRegistration.js'),
+                import('my-nft-gen/src/core/registry/PluginRegistry.js'),
+                import('my-nft-gen/src/core/registry/EffectCategories.js'),
+                import('my-nft-gen/src/core/registry/EffectRegistry.js'),
+                import('my-nft-gen/src/core/registry/ConfigRegistry.js')
+            ]);
+            
+            this._moduleCache = {
+                PluginLoader,
+                ConfigLinker,
+                EnhancedEffectsRegistration,
+                PluginRegistry,
+                EffectCategories,
+                EffectRegistry,
+                ConfigRegistry,
+                loaded: true
+            };
+        }
+        return this._moduleCache;
     }
 
     /**
@@ -34,11 +68,59 @@ class EffectRegistryService {
             try {
                 SafeConsole.log('🔄 [EffectRegistryService] Starting core effects registration...');
                 
+                // Load modules dynamically
+                const { PluginLoader, ConfigLinker, EnhancedEffectsRegistration } = await this._loadModules();
+                
+                // CRITICAL: Pre-load base classes to avoid circular dependency issues
+                // This ensures LayerEffect and other base classes are fully initialized
+                // before any effects (core or plugin) try to extend them
+                SafeConsole.log('🔄 [EffectRegistryService] Pre-loading base classes...');
+                try {
+                    // Import base classes in dependency order
+                    await import('my-nft-gen/src/core/Settings.js');
+                    await import('my-nft-gen/src/core/layer/Layer.js');
+                    await import('my-nft-gen/src/core/layer/LayerEffect.js');
+                    await import('my-nft-gen/src/core/factory/canvas/Canvas2dFactory.js');
+                    await import('my-nft-gen/src/core/factory/layer/LayerFactory.js');
+                    
+                    // Add a small delay to ensure module initialization completes
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    SafeConsole.log('✅ [EffectRegistryService] Base classes pre-loaded');
+                } catch (preloadError) {
+                    SafeConsole.log('⚠️ [EffectRegistryService] Base class pre-load warning:', preloadError.message);
+                    // Continue anyway - this is just a precaution
+                }
+                
                 // Use the simpler PluginLoader approach that avoids validation issues
                 // Ensure effects are loaded
                 SafeConsole.log('🔄 [EffectRegistryService] Loading core effects...');
-                await PluginLoader.ensureEffectsLoaded();
-                SafeConsole.log('✅ [EffectRegistryService] Core effects loaded');
+                
+                // Try loading with retry logic for circular dependency issues
+                let coreEffectsLoaded = false;
+                let retryCount = 0;
+                const maxRetries = 3;
+                
+                while (!coreEffectsLoaded && retryCount < maxRetries) {
+                    try {
+                        await PluginLoader.ensureEffectsLoaded();
+                        coreEffectsLoaded = true;
+                        SafeConsole.log('✅ [EffectRegistryService] Core effects loaded');
+                    } catch (loadError) {
+                        retryCount++;
+                        if (loadError.message && loadError.message.includes('before initialization')) {
+                            SafeConsole.log(`⚠️ [EffectRegistryService] Circular dependency detected (attempt ${retryCount}/${maxRetries})`);
+                            if (retryCount < maxRetries) {
+                                SafeConsole.log(`   💡 Waiting ${retryCount * 200}ms before retry...`);
+                                await new Promise(resolve => setTimeout(resolve, retryCount * 200));
+                            } else {
+                                SafeConsole.log(`   ❌ Max retries reached, trying fallback method...`);
+                                throw loadError;
+                            }
+                        } else {
+                            throw loadError;
+                        }
+                    }
+                }
 
                 // Also try to link configs if possible
                 try {
@@ -65,6 +147,7 @@ class EffectRegistryService {
 
                 // Try the original enhanced registration as a fallback
                 try {
+                    const { EnhancedEffectsRegistration } = await this._loadModules();
                     await EnhancedEffectsRegistration.registerEffectsFromPackage('my-nft-effects-core');
 
                     this.coreEffectsRegistered = true;
@@ -83,6 +166,7 @@ class EffectRegistryService {
      */
     async logRegistryState() {
         try {
+            const { PluginRegistry, EffectCategories } = await this._loadModules();
             const primaryEffects = PluginRegistry.getByCategory(EffectCategories.PRIMARY);
             const secondaryEffects = PluginRegistry.getByCategory(EffectCategories.SECONDARY);
             const keyFrameEffects = PluginRegistry.getByCategory(EffectCategories.KEY_FRAME);
@@ -110,6 +194,7 @@ class EffectRegistryService {
      */
     async getEffectRegistry() {
         await this.ensureCoreEffectsRegistered();
+        const { EffectRegistry } = await this._loadModules();
         return EffectRegistry;
     }
 
@@ -119,6 +204,7 @@ class EffectRegistryService {
      */
     async getConfigRegistry() {
         await this.ensureCoreEffectsRegistered();
+        const { ConfigRegistry } = await this._loadModules();
         return ConfigRegistry;
     }
 
@@ -128,6 +214,7 @@ class EffectRegistryService {
      */
     async getAllEffects() {
         const EffectReg = await this.getEffectRegistry();
+        const { EffectCategories } = await this._loadModules();
 
         return {
             primary: EffectReg.getByCategoryGlobal(EffectCategories.PRIMARY),
@@ -153,6 +240,7 @@ class EffectRegistryService {
      */
     async getPluginRegistry() {
         await this.ensureCoreEffectsRegistered();
+        const { PluginRegistry } = await this._loadModules();
         return PluginRegistry;
     }
 
@@ -172,6 +260,7 @@ class EffectRegistryService {
      */
     async getAllEffectsWithConfigs() {
         const PluginReg = await this.getPluginRegistry();
+        const { EffectCategories } = await this._loadModules();
 
         const result = {
             primary: PluginReg.getByCategory(EffectCategories.PRIMARY),
@@ -214,6 +303,7 @@ class EffectRegistryService {
     async debugRegistry() {
         try {
             const EffectReg = await this.getEffectRegistry();
+            const { EffectCategories } = await this._loadModules();
             
             const debug = {
                 primary: Object.keys(EffectReg.getByCategoryGlobal(EffectCategories.PRIMARY)),
@@ -224,7 +314,7 @@ class EffectRegistryService {
             
             return debug;
         } catch (error) {
-            console.error('❌ Failed to debug registry:', error);
+            SafeConsole.error('❌ Failed to debug registry:', error);
             return { error: error.message };
         }
     }
@@ -235,6 +325,9 @@ class EffectRegistryService {
      */
     async loadPluginsForUI() {
         try {
+            // Load modules to ensure PluginLoader is available
+            const { PluginLoader } = await this._loadModules();
+            
             // Initialize secure plugin loader if not already done
             if (!this.securePluginLoader) {
                 this.securePluginLoader = new SecurePluginLoader();
@@ -262,88 +355,83 @@ class EffectRegistryService {
                             // Try PluginLoader first for development compatibility
                             let loadedSuccessfully = false;
 
-                            if (!app.isPackaged) {
-                                // In development, try the standard PluginLoader first
-                                try {
-                                    SafeConsole.log(`🔄 [EffectRegistryService] Attempting PluginLoader for: ${pluginInfo.name}`);
-                                    await PluginLoader.loadPlugin(pluginInfo.path);
-                                    SafeConsole.log(`✅ [EffectRegistryService] Plugin loaded via PluginLoader: ${pluginInfo.name}`);
-                                    loadedSuccessfully = true;
-                                } catch (loaderError) {
-                                    SafeConsole.log(`⚠️ [EffectRegistryService] PluginLoader failed, will use secure loader: ${loaderError.message}`);
+                            // Always try direct loading methods first (both in dev and production)
+                            // The secure loader should only be used as a last resort
+                            
+                            // Try the standard PluginLoader first
+                            try {
+                                SafeConsole.log(`🔄 [EffectRegistryService] Attempting PluginLoader for: ${pluginInfo.name}`);
+                                SafeConsole.log(`   Plugin path: ${pluginInfo.path}`);
+                                await PluginLoader.loadPlugin(pluginInfo.path);
+                                SafeConsole.log(`✅ [EffectRegistryService] Plugin loaded via PluginLoader: ${pluginInfo.name}`);
+                                loadedSuccessfully = true;
+                            } catch (loaderError) {
+                                SafeConsole.log(`⚠️ [EffectRegistryService] PluginLoader failed for ${pluginInfo.name}`);
+                                SafeConsole.log(`   Error name: ${loaderError.name}`);
+                                SafeConsole.log(`   Error message: ${loaderError.message}`);
+                                
+                                // Check for circular dependency error
+                                if (loaderError.message && loaderError.message.includes('before initialization')) {
+                                    SafeConsole.log(`   ⚠️ Circular dependency detected - this may be a timing issue`);
+                                    SafeConsole.log(`   💡 Retrying after a short delay...`);
+                                    
+                                    // Wait a bit longer and retry
+                                    await new Promise(resolve => setTimeout(resolve, 500));
+                                    
+                                    try {
+                                        await PluginLoader.loadPlugin(pluginInfo.path);
+                                        SafeConsole.log(`✅ [EffectRegistryService] Plugin loaded via PluginLoader (retry): ${pluginInfo.name}`);
+                                        loadedSuccessfully = true;
+                                    } catch (retryError) {
+                                        SafeConsole.log(`   ⚠️ Retry also failed, trying alternative method...`);
+                                    }
+                                }
+                                
+                                if (loaderError.stack) {
+                                    SafeConsole.log(`   Error stack: ${loaderError.stack}`);
+                                }
+                                
+                                // Try direct ES module import as a second attempt (if not already loaded)
+                                if (!loadedSuccessfully) {
+                                    try {
+                                        SafeConsole.log(`🔄 [EffectRegistryService] Attempting direct ES module import for: ${pluginInfo.name}`);
+                                        SafeConsole.log(`   Plugin path: ${pluginInfo.path}`);
+                                        await this.loadPluginAsESModule(pluginInfo.path);
+                                        SafeConsole.log(`✅ [EffectRegistryService] Plugin loaded via direct import: ${pluginInfo.name}`);
+                                        loadedSuccessfully = true;
+                                    } catch (importError) {
+                                        SafeConsole.log(`⚠️ [EffectRegistryService] Direct import failed for ${pluginInfo.name}`);
+                                        SafeConsole.log(`   Error name: ${importError.name}`);
+                                        SafeConsole.log(`   Error message: ${importError.message}`);
+                                        if (importError.stack) {
+                                            SafeConsole.log(`   Error stack: ${importError.stack}`);
+                                        }
+                                    }
                                 }
                             }
 
-                            // Use secure plugin loader if PluginLoader failed or in production
+                            // If all loading methods failed, log detailed error
                             if (!loadedSuccessfully) {
-                                SafeConsole.log(`🔒 [EffectRegistryService] Using secure plugin loader for: ${pluginInfo.name}`);
-                                SafeConsole.log(`🔒 [EffectRegistryService] Secure loader initialized: ${!!this.securePluginLoader}`);
-
-                                // Determine the actual plugin file
-                                let pluginFile = pluginInfo.path;
-                                const stats = await fs.stat(pluginInfo.path);
-
-                                if (stats.isDirectory()) {
-                                    // Look for main entry point
-                                    const possibleFiles = ['plugin.js', 'index.js', 'main.js'];
-                                    for (const file of possibleFiles) {
-                                        const testPath = path.join(pluginInfo.path, file);
-                                        try {
-                                            await fs.access(testPath);
-                                            pluginFile = testPath;
-                                            SafeConsole.log(`📁 [EffectRegistryService] Found plugin entry: ${file}`);
-                                            break;
-                                        } catch (e) {
-                                            // Continue to next file
-                                        }
-                                    }
-                                }
-
-                                // Load plugin in secure sandbox
-                                SafeConsole.log(`🔒 [EffectRegistryService] Calling securePluginLoader.loadPlugin for: ${pluginFile}`);
-                                const result = await this.securePluginLoader.loadPlugin(pluginFile);
-                                SafeConsole.log(`🔒 [EffectRegistryService] SecureLoader result:`, result);
-
-                                if (result.success) {
-                                    // Register the effects and configs from the sandbox
-                                    SafeConsole.log(`✅ [EffectRegistryService] Plugin loaded securely: ${pluginInfo.name}`);
-                                    SafeConsole.log(`   Effects: ${result.effects.length}, Configs: ${result.configs.length}`);
-
-                                    // Process the sandbox results and add to registries
-                                    for (const effect of result.effects) {
-                                        try {
-                                            // Create a safe wrapper for the effect
-                                            const SafeEffect = this.createSafeEffectWrapper(effect);
-                                            EffectRegistry.register(effect.name, SafeEffect, effect.category);
-                                            PluginRegistry.register({
-                                                name: effect.name,
-                                                category: effect.category,
-                                                effectClass: SafeEffect
-                                            });
-                                            SafeConsole.log(`   ✅ Registered effect: ${effect.name}`);
-                                        } catch (regError) {
-                                            SafeConsole.log(`   ❌ Failed to register effect ${effect.name}: ${regError.message}`);
-                                        }
-                                    }
-
-                                    for (const config of result.configs) {
-                                        try {
-                                            // Create a safe wrapper for the config
-                                            const SafeConfig = this.createSafeConfigWrapper(config);
-                                            ConfigRegistry.register(config.name, SafeConfig);
-                                            SafeConsole.log(`   ✅ Registered config: ${config.name}`);
-                                        } catch (regError) {
-                                            SafeConsole.log(`   ❌ Failed to register config ${config.name}: ${regError.message}`);
-                                        }
-                                    }
-                                } else {
-                                    SafeConsole.log(`❌ [EffectRegistryService] Secure loader failed for ${pluginInfo.name}: ${result.error}`);
-                                }
+                                SafeConsole.log(`❌ [EffectRegistryService] All plugin loading methods failed for: ${pluginInfo.name}`);
+                                SafeConsole.log(`   Plugin path: ${pluginInfo.path}`);
+                                SafeConsole.log(`   `);
+                                SafeConsole.log(`   💡 Troubleshooting tips:`);
+                                SafeConsole.log(`   1. Ensure the plugin has a valid 'register' function exported`);
+                                SafeConsole.log(`   2. Check that all dependencies (like my-nft-gen) are installed in the plugin directory`);
+                                SafeConsole.log(`   3. Verify the plugin's package.json has "type": "module"`);
+                                SafeConsole.log(`   4. Make sure the plugin file is named 'plugin.js', 'index.js', or 'main.js'`);
+                                SafeConsole.log(`   `);
+                                SafeConsole.log(`   Note: The secure sandbox loader has been disabled because it cannot`);
+                                SafeConsole.log(`   load plugins that require Node.js modules like my-nft-gen.`);
+                                SafeConsole.log(`   Plugins must be compatible with direct ES module loading.`);
                             }
                         } catch (error) {
                             SafeConsole.log(`❌ [EffectRegistryService] Failed to load plugin ${pluginInfo.name}:`, error);
                             SafeConsole.log(`   Plugin path: ${pluginInfo.path}`);
                             SafeConsole.log(`   Error: ${error.message}`);
+                            if (error.stack) {
+                                SafeConsole.log(`   Stack trace: ${error.stack}`);
+                            }
                         }
                     }
                 }
@@ -353,8 +441,71 @@ class EffectRegistryService {
                 SafeConsole.log('ℹ️ [EffectRegistryService] No plugins found to load');
             }
         } catch (error) {
-            console.error('❌ [EffectRegistryService] Failed to load plugins for UI:', error);
+            SafeConsole.log('❌ [EffectRegistryService] Failed to load plugins for UI:', error.message);
+            SafeConsole.log('   Error details:', error.stack || error.toString());
             // Don't throw - this is optional for UI display
+        }
+    }
+
+    /**
+     * Load a plugin as an ES module using Node.js native import
+     * @param {string} pluginPath - Path to plugin file or directory
+     * @returns {Promise<void>}
+     */
+    async loadPluginAsESModule(pluginPath) {
+        try {
+            // Load required modules first
+            const { EffectRegistry, PluginRegistry } = await this._loadModules();
+            
+            // Determine the actual plugin file
+            let pluginFile = pluginPath;
+            const stats = await fs.stat(pluginPath);
+
+            if (stats.isDirectory()) {
+                // Look for main entry point
+                const possibleFiles = ['plugin.js', 'index.js', 'main.js'];
+                let found = false;
+                for (const file of possibleFiles) {
+                    const testPath = path.join(pluginPath, file);
+                    try {
+                        await fs.access(testPath);
+                        pluginFile = testPath;
+                        SafeConsole.log(`📁 [EffectRegistryService] Found plugin entry: ${file}`);
+                        found = true;
+                        break;
+                    } catch (e) {
+                        // Continue to next file
+                    }
+                }
+                if (!found) {
+                    throw new Error(`No valid entry point found in plugin directory: ${pluginPath}`);
+                }
+            }
+
+            // Convert to file URL for ES module import
+            const pluginUrl = pathToFileURL(pluginFile).href;
+            SafeConsole.log(`📦 [EffectRegistryService] Importing ES module from: ${pluginUrl}`);
+
+            // Import the plugin module
+            const pluginModule = await import(pluginUrl);
+            SafeConsole.log(`✅ [EffectRegistryService] ES module imported successfully`);
+
+            // Check if plugin has a register function
+            if (pluginModule.register && typeof pluginModule.register === 'function') {
+                SafeConsole.log(`🔄 [EffectRegistryService] Calling plugin register function`);
+                await pluginModule.register(EffectRegistry, PluginRegistry);
+                SafeConsole.log(`✅ [EffectRegistryService] Plugin registered successfully`);
+            } else if (pluginModule.default && typeof pluginModule.default.register === 'function') {
+                // Try default export
+                SafeConsole.log(`🔄 [EffectRegistryService] Calling plugin register function (default export)`);
+                await pluginModule.default.register(EffectRegistry, PluginRegistry);
+                SafeConsole.log(`✅ [EffectRegistryService] Plugin registered successfully`);
+            } else {
+                throw new Error('Plugin does not export a register() function');
+            }
+        } catch (error) {
+            SafeConsole.log(`❌ [EffectRegistryService] Failed to load plugin as ES module: ${error.message}`);
+            throw error;
         }
     }
 
@@ -431,7 +582,10 @@ class EffectRegistryService {
      */
     async refreshRegistry(skipPluginReload = false) {
         try {
-            console.log('🔄 Refreshing effect registry...');
+            SafeConsole.log('🔄 Refreshing effect registry...');
+
+            // Load modules to ensure they're available
+            const { EffectCategories, ConfigLinker } = await this._loadModules();
 
             // Only reload plugins if not explicitly skipped
             // This prevents infinite loops when refreshRegistry is called from plugin:loaded events
@@ -443,24 +597,24 @@ class EffectRegistryService {
             // Force config linking again to pick up new plugins
             try {
                 await ConfigLinker.linkEffectsWithConfigs();
-                console.log('✅ Config linking completed');
+                SafeConsole.log('✅ Config linking completed');
             } catch (linkError) {
-                console.log('⚠️ Config linking skipped:', linkError.message);
+                SafeConsole.log('⚠️ Config linking skipped:', linkError.message);
             }
 
             // Log current registry state for debugging
             const EffectReg = await this.getEffectRegistry();
 
             const primaryEffects = EffectReg.getByCategoryGlobal(EffectCategories.PRIMARY);
-            console.log('📊 Primary effects in registry:', Object.keys(primaryEffects));
+            SafeConsole.log('📊 Primary effects in registry:', Object.keys(primaryEffects));
 
             // Emit a single event to notify UI that effects should be reloaded
             // This is better than emitting multiple plugin:loaded events
             await this.emitEffectsRefreshedEvent();
 
-            console.log('✅ Effect registry refreshed');
+            SafeConsole.log('✅ Effect registry refreshed');
         } catch (error) {
-            console.error('❌ Failed to refresh effect registry:', error);
+            SafeConsole.error('❌ Failed to refresh effect registry:', error);
             throw error;
         }
     }
@@ -481,13 +635,13 @@ class EffectRegistryService {
                 source: 'EffectRegistryService'
             };
 
-            console.log('📊 Emitting effects:refreshed event');
+            SafeConsole.log('📊 Emitting effects:refreshed event');
 
             windows.forEach(window => {
                 window.webContents.send('eventbus-message', event);
             });
         } catch (error) {
-            console.error('Failed to emit effects refreshed event:', error);
+            SafeConsole.error('Failed to emit effects refreshed event:', error);
         }
     }
 

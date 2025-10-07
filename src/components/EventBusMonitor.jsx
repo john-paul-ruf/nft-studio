@@ -130,7 +130,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
     // Set up event-driven worker event listeners
     useEffect(() => {
         if (open) {
-            let unsubscribeWorkerStarted, unsubscribeWorkerKilled, unsubscribeWorkerKillFailed, unsubscribeRenderLoopToggle, unsubscribeRenderLoopError;
+            let unsubscribeWorkerStarted, unsubscribeWorkerKilled, unsubscribeWorkerKillFailed, unsubscribeRenderLoopToggle, unsubscribeRenderLoopError, unsubscribeRenderLoopStart;
 
             // Import EventBusService and set up worker event listeners
             import('../services/EventBusService.js').then(({ default: EventBusService }) => {
@@ -146,6 +146,12 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                 unsubscribeRenderLoopError = EventBusService.subscribe('renderloop:error', (payload) => {
                     console.log('🎯 EventBusMonitor: Render loop error event received:', payload);
                     setIsRenderLoopActive(false);
+                }, { component: 'EventBusMonitor' });
+
+                // Listen for render.loop.start to ensure we catch loop starts
+                unsubscribeRenderLoopStart = EventBusService.subscribe('render.loop.start', (payload) => {
+                    console.log('🎯 EventBusMonitor: Render loop start event received:', payload);
+                    setIsRenderLoopActive(true);
                 }, { component: 'EventBusMonitor' });
 
                 // Listen for worker started events
@@ -209,6 +215,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                 if (unsubscribeWorkerKillFailed) unsubscribeWorkerKillFailed();
                 if (unsubscribeRenderLoopToggle) unsubscribeRenderLoopToggle();
                 if (unsubscribeRenderLoopError) unsubscribeRenderLoopError();
+                if (unsubscribeRenderLoopStart) unsubscribeRenderLoopStart();
             };
         }
     }, [open]);
@@ -245,11 +252,13 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
     };
 
     const stopRenderLoop = async () => {
-        if ((!renderProgress.isRendering && !isRenderLoopActive) || isStoppingRenderLoop) return;
+        // Allow stopping even if we think nothing is running (emergency stop)
+        if (isStoppingRenderLoop) return;
         
         setIsStoppingRenderLoop(true);
         try {
-            console.log('🛑 EventBusMonitor: Stopping render loop using new event-driven system');
+            const isActive = renderProgress.isRendering || isRenderLoopActive;
+            console.log(`🛑 EventBusMonitor: ${isActive ? 'Stopping active render loop' : 'Emergency stop - killing all workers'}`);
             
             // Try the new event-driven approach first
             try {
@@ -283,6 +292,13 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
             });
             // Also reset render loop status
             setIsRenderLoopActive(false);
+            
+            // Emit event to notify other components
+            import('../services/EventBusService.js').then(({ default: EventBusService }) => {
+                EventBusService.emit('renderloop:toggled', {
+                    isActive: false
+                }, { source: 'EventBusMonitor', reason: 'manual_stop' });
+            });
         } catch (error) {
             console.error('❌ EventBusMonitor: Failed to stop render loop:', error);
         } finally {
@@ -466,6 +482,22 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
 
     return (
         <>
+            {/* CSS Animation for pulsing indicator */}
+            <style>
+                {`
+                    @keyframes pulse {
+                        0%, 100% {
+                            opacity: 1;
+                            transform: scale(1);
+                        }
+                        50% {
+                            opacity: 0.5;
+                            transform: scale(1.2);
+                        }
+                    }
+                `}
+            </style>
+            
             {/* Main Dialog - Takes up most of the screen */}
             <Dialog 
                 open={open && !isMinimized} 
@@ -486,39 +518,62 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                 display: 'flex', 
                 alignItems: 'center', 
                 justifyContent: 'space-between',
-                bgcolor: '#2d2d2d',
+                bgcolor: (renderProgress.isRendering || isRenderLoopActive) ? '#3d2d2d' : '#2d2d2d',
                 color: '#cccccc',
                 px: 2,
                 py: 1,
-                borderBottom: '1px solid #1e1e1e'
+                borderBottom: '1px solid #1e1e1e',
+                transition: 'background-color 0.3s ease'
             }}>
-                <Typography sx={{ fontSize: '13px', fontWeight: 500 }}>
+                <Typography sx={{ fontSize: '13px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {(renderProgress.isRendering || isRenderLoopActive) && (
+                        <span style={{ 
+                            display: 'inline-block', 
+                            width: '8px', 
+                            height: '8px', 
+                            borderRadius: '50%', 
+                            backgroundColor: '#f44336',
+                            animation: 'pulse 1.5s ease-in-out infinite'
+                        }} />
+                    )}
                     Console ({events.length} events)
+                    {(renderProgress.isRendering || isRenderLoopActive) && (
+                        <span style={{ color: '#f44336', fontSize: '11px', fontWeight: 600 }}>
+                            • RENDERING
+                        </span>
+                    )}
                 </Typography>
 
                 <Box sx={{ display: 'flex', gap: 1 }}>
+                    {/* Kill Button - Always visible and enabled for emergency stops */}
+                    <Tooltip title={
+                        isStoppingRenderLoop 
+                            ? "Stopping..." 
+                            : (renderProgress.isRendering || isRenderLoopActive)
+                                ? "Stop Render Loop (Active)"
+                                : "Emergency Stop (Force kill all workers)"
+                    }>
+                        <IconButton 
+                            onClick={stopRenderLoop} 
+                            size="small"
+                            sx={{ 
+                                color: (renderProgress.isRendering || isRenderLoopActive) ? '#f44336' : '#ff9800',
+                                '&:hover': { bgcolor: '#3d3d3d' }
+                            }}
+                        >
+                            <Stop fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                    
                     <Tooltip title="Clear console">
                         <IconButton 
                             onClick={clearEvents}
                             size="small"
                             sx={{ color: '#cccccc', '&:hover': { bgcolor: '#3d3d3d' } }}
                         >
-                            Clear Console
+                            <Clear fontSize="small" />
                         </IconButton>
                     </Tooltip>
-                    
-                    {(renderProgress.isRendering || isRenderLoopActive) && (
-                        <Tooltip title={isStoppingRenderLoop ? "Stopping..." : "Stop Render Loop"}>
-                            <IconButton 
-                                onClick={stopRenderLoop} 
-                                size="small"
-                                disabled={isStoppingRenderLoop}
-                                sx={{ color: '#f44336', '&:hover': { bgcolor: '#3d3d3d' } }}
-                            >
-                                <Stop fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
-                    )}
                     
                     <Tooltip title="Close">
                         <IconButton 

@@ -14,6 +14,9 @@ import NftEffectsManager from '../implementations/NftEffectsManager.js';
 import NftProjectManager from '../implementations/NftProjectManager.js';
 import ConsoleLogger from '../implementations/ConsoleLogger.js';
 
+// Utils
+import SafeConsole from '../utils/SafeConsole.js';
+
 /**
  * Service Factory
  * Implements Dependency Inversion Principle
@@ -37,9 +40,9 @@ class ServiceFactory {
             const service = new EffectRegistryService();
             // Ensure core effects and plugins are loaded immediately
             service.ensureCoreEffectsRegistered().then(() => {
-                console.log('✅ Effect registry initialized with plugins');
+                SafeConsole.log('✅ Effect registry initialized with plugins');
             }).catch(error => {
-                console.error('⚠️ Failed to initialize effect registry:', error);
+                SafeConsole.error('⚠️ Failed to initialize effect registry:', error);
             });
             return service;
         });
@@ -151,7 +154,7 @@ class ServiceFactory {
      */
     async cleanup() {
         try {
-            console.log('🧹 [ServiceFactory] Cleaning up services...');
+            SafeConsole.log('🧹 [ServiceFactory] Cleaning up services...');
 
             // Cleanup effect registry service
             const effectRegistry = this.container.resolve('effectRegistryService');
@@ -160,9 +163,9 @@ class ServiceFactory {
             }
 
             // Add cleanup for other services as needed
-            console.log('✅ [ServiceFactory] Services cleaned up');
+            SafeConsole.log('✅ [ServiceFactory] Services cleaned up');
         } catch (error) {
-            console.error('❌ [ServiceFactory] Cleanup error:', error);
+            SafeConsole.error('❌ [ServiceFactory] Cleanup error:', error);
         }
     }
 }

@@ -4,12 +4,32 @@
  */
 class SafeConsole {
     /**
+     * Format error objects to extract meaningful information
+     * Error objects don't serialize to JSON properly
+     * @param {*} arg - Argument to format
+     * @returns {*} Formatted argument
+     */
+    static formatArg(arg) {
+        if (arg instanceof Error) {
+            return {
+                message: arg.message || 'No error message',
+                name: arg.name || 'Error',
+                code: arg.code,
+                stack: arg.stack ? arg.stack.split('\n').slice(0, 4).join('\n') : undefined
+            };
+        }
+        return arg;
+    }
+
+    /**
      * Safe console.log wrapper
      * @param {...any} args - Arguments to log
      */
     static log(...args) {
         try {
-            console.log(...args);
+            // Format error objects before logging
+            const formattedArgs = args.map(arg => SafeConsole.formatArg(arg));
+            console.log(...formattedArgs);
         } catch (error) {
             // Silently ignore EPIPE and other console errors
             // These typically occur when stdout is closed or piped
@@ -30,7 +50,9 @@ class SafeConsole {
      */
     static error(...args) {
         try {
-            console.error(...args);
+            // Format error objects before logging
+            const formattedArgs = args.map(arg => SafeConsole.formatArg(arg));
+            console.error(...formattedArgs);
         } catch (error) {
             // Silently ignore console errors
         }
@@ -42,7 +64,9 @@ class SafeConsole {
      */
     static warn(...args) {
         try {
-            console.warn(...args);
+            // Format error objects before logging
+            const formattedArgs = args.map(arg => SafeConsole.formatArg(arg));
+            console.warn(...formattedArgs);
         } catch (error) {
             // Silently ignore console errors
         }
@@ -54,7 +78,9 @@ class SafeConsole {
      */
     static info(...args) {
         try {
-            console.info(...args);
+            // Format error objects before logging
+            const formattedArgs = args.map(arg => SafeConsole.formatArg(arg));
+            console.info(...formattedArgs);
         } catch (error) {
             // Silently ignore console errors
         }
@@ -66,7 +92,9 @@ class SafeConsole {
      */
     static debug(...args) {
         try {
-            console.debug(...args);
+            // Format error objects before logging
+            const formattedArgs = args.map(arg => SafeConsole.formatArg(arg));
+            console.debug(...formattedArgs);
         } catch (error) {
             // Silently ignore console errors
         }

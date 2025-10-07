@@ -87,7 +87,28 @@ class ConsoleLogger {
             hour12: true
         });
         console.log(`❌ [${timestamp}] ${message}`);
-        if (error) console.log('   💥 Error:', error);
+        if (error) {
+            // Format Error objects to show their properties
+            const formattedError = this.formatError(error);
+            console.log('   💥 Error:', formattedError);
+        }
+    }
+
+    /**
+     * Format Error objects to extract their properties
+     * @param {*} error - Error object or any value
+     * @returns {*} Formatted error or original value
+     */
+    formatError(error) {
+        if (error instanceof Error) {
+            return {
+                message: error.message,
+                name: error.name,
+                code: error.code,
+                stack: error.stack
+            };
+        }
+        return error;
     }
 
     /**

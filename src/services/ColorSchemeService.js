@@ -1,5 +1,6 @@
 import { predefinedColorSchemes } from '../data/colorSchemes.js';
 import PreferencesService from './PreferencesService.js';
+import { safeConsoleError } from '../utils/errorFormatter.js';
 
 // Use the exposed API from preload script instead of direct electron access
 
@@ -21,7 +22,7 @@ class ColorSchemeService {
                 ...customSchemes
             };
         } catch (error) {
-            console.error('Error loading color schemes:', error);
+            safeConsoleError('Error loading color schemes:', error);
             return predefinedColorSchemes;
         }
     }
@@ -149,7 +150,7 @@ class ColorSchemeService {
             return true;
 
         } catch (error) {
-            console.error('Error saving custom color scheme:', error);
+            safeConsoleError('Error saving custom color scheme:', error);
             return false;
         }
     }
@@ -172,7 +173,7 @@ class ColorSchemeService {
             return true;
 
         } catch (error) {
-            console.error('Error deleting custom color scheme:', error);
+            safeConsoleError('Error deleting custom color scheme:', error);
             return false;
         }
     }
@@ -192,7 +193,7 @@ class ColorSchemeService {
                 return {};
             }
         } catch (error) {
-            console.error('Error loading custom schemes:', error);
+            safeConsoleError('Error loading custom schemes:', error);
             return {};
         }
     }

@@ -1,6 +1,7 @@
 /**
  * Dynamic schema generator that introspects config classes to build UI forms
  */
+import { safeConsoleError, safeConsoleLog } from './errorFormatter.js';
 
 export class SchemaGenerator {
     /**
@@ -27,7 +28,7 @@ export class SchemaGenerator {
 
             return schema;
         } catch (error) {
-            console.error(`Error generating schema for ${ConfigClass.name}:`, error);
+            safeConsoleError(`Error generating schema for ${ConfigClass.name}:`, error);
             return { fields: [] };
         }
     }
@@ -83,7 +84,7 @@ export class SchemaGenerator {
                 field.default = value;
             }
             else if (this.isPercentageRange(value)) {
-                console.log(`🎯 Detected PercentageRange field: ${name}`, value);
+                safeConsoleLog(`🎯 Detected PercentageRange field: ${name}`, value);
                 field.type = 'percentagerange';
                 field.default = value;
             }
@@ -151,9 +152,9 @@ export class SchemaGenerator {
      * Check if object represents a PercentageRange (has min/max percentage properties)
      */
     static isPercentageRange(value) {
-        console.log(`🔍 Checking isPercentageRange:`, value);
+        safeConsoleLog(`🔍 Checking isPercentageRange:`, value);
         if (!value || typeof value !== 'object') {
-            console.log(`❌ Not object:`, typeof value);
+            safeConsoleLog(`❌ Not object:`, typeof value);
             return false;
         }
 
@@ -246,10 +247,10 @@ export class SchemaGenerator {
      */
     static async generateSchemaFromModule(modulePath) {
         try {
-            console.log(`Would dynamically load schema from: ${modulePath}`);
+            safeConsoleLog(`Would dynamically load schema from: ${modulePath}`);
             return { fields: [] };
         } catch (error) {
-            console.error(`Error loading config from ${modulePath}:`, error);
+            safeConsoleError(`Error loading config from ${modulePath}:`, error);
             return { fields: [] };
         }
     }

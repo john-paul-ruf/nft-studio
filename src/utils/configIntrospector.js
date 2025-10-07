@@ -1,4 +1,5 @@
 // Use the exposed API from preload script instead of direct electron access
+import { safeConsoleError, safeConsoleLog } from './errorFormatter.js';
 
 /**
  * Configuration Introspector
@@ -16,7 +17,7 @@ class ConfigIntrospector {
         try {
             // Use the actual effect name from the registry (name field, not className)
             // The name should match what's registered in the plugin registry
-            console.log('🔍 Introspecting config for effect:', {
+            safeConsoleLog('🔍 Introspecting config for effect:', {
                 name: effectMetadata.name,
                 className: effectMetadata.className
             });
@@ -35,23 +36,23 @@ class ConfigIntrospector {
 
             if (result.success) {
                 // Use the default instance as the source of truth for UI fields
-                console.log('Config introspection result:', result);
-                console.log('Default instance properties:', Object.keys(result.defaultInstance));
-                console.log('Using default config instance for UI generation:', result.defaultInstance);
+                safeConsoleLog('Config introspection result:', result);
+                safeConsoleLog('Default instance properties:', Object.keys(result.defaultInstance));
+                safeConsoleLog('Using default config instance for UI generation:', result.defaultInstance);
 
                 const schema = this.convertDefaultInstanceToSchema(result.defaultInstance);
-                console.log('Generated schema fields:', schema.fields.map(f => ({name: f.name, type: f.type})));
+                safeConsoleLog('Generated schema fields:', schema.fields.map(f => ({name: f.name, type: f.type})));
 
                 // Keep the default instance for initialization
                 schema.defaultInstance = result.defaultInstance;
 
                 return schema;
             } else {
-                console.error('Config introspection failed:', result.error);
+                safeConsoleError('Config introspection failed:', result.error);
                 throw new Error(`Config introspection failed: ${result.error}`);
             }
         } catch (error) {
-            console.error('Error analyzing config class:', error);
+            safeConsoleError('Error analyzing config class:', error);
             throw error;
         }
     }
@@ -67,11 +68,11 @@ class ConfigIntrospector {
         for (const [name, value] of Object.entries(defaultInstance)) {
             // Skip metadata properties that shouldn't be editable
             if (name.startsWith('__') && name.endsWith('__')) {
-                console.log(`Skipping metadata property: ${name}`);
+                safeConsoleLog(`Skipping metadata property: ${name}`);
                 continue;
             }
             if (name === '__className') {
-                console.log(`Skipping __className metadata property`);
+                safeConsoleLog(`Skipping __className metadata property`);
                 continue;
             }
 
@@ -80,7 +81,7 @@ class ConfigIntrospector {
             fields.push(field);
         }
 
-        console.log(`Generated ${fields.length} UI fields from default config instance`);
+        safeConsoleLog(`Generated ${fields.length} UI fields from default config instance`);
         return { fields };
     }
 
@@ -98,7 +99,7 @@ class ConfigIntrospector {
             fields.push(field);
         }
 
-        console.log(`Generated ${fields.length} UI fields from ${Object.keys(properties).length} properties`);
+        safeConsoleLog(`Generated ${fields.length} UI fields from ${Object.keys(properties).length} properties`);
         return { fields };
     }
 
@@ -293,7 +294,7 @@ class ConfigIntrospector {
                                 }
                             } else if (value && (value.lower === '[Function]' || value.upper === '[Function]')) {
                                 // After IPC serialization, functions become "[Function]" strings
-                                console.log('PercentageRange with serialized functions, using defaults');
+                                safeConsoleLog('PercentageRange with serialized functions, using defaults');
                                 defaultValue = { lower: 0.1, upper: 0.9 };
                             } else if (value && value.__className) {
                                 // Remove className metadata from the default value
@@ -351,7 +352,7 @@ class ConfigIntrospector {
                             // Check for Point2D structure (x, y properties)
                             if (value.hasOwnProperty('x') && value.hasOwnProperty('y') &&
                                 typeof value.x === 'number' && typeof value.y === 'number') {
-                                console.log(`Detected Point2D structure for field: ${name}`, value);
+                                safeConsoleLog(`Detected Point2D structure for field: ${name}`, value);
 
                                 // For center-like properties, default to position type
                                 const isCenter = name.toLowerCase().includes('center') ||
@@ -405,7 +406,7 @@ class ConfigIntrospector {
                 // Final fallback: Check for Point2D structure even without className
                 if (value.hasOwnProperty('x') && value.hasOwnProperty('y') &&
                     typeof value.x === 'number' && typeof value.y === 'number') {
-                    console.log(`Fallback detected Point2D structure for field: ${name}`, value);
+                    safeConsoleLog(`Fallback detected Point2D structure for field: ${name}`, value);
 
                     // For center-like properties, default to position type
                     const isCenter = name.toLowerCase().includes('center') ||

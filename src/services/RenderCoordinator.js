@@ -3,8 +3,18 @@ const { BrowserWindow, app } = electron;
 import defaultLogger from '../main/utils/logger.js';
 import { promises as fs } from 'fs';
 import os from 'os';
-import { UnifiedEventBus } from 'my-nft-gen/src/core/events/UnifiedEventBus.js';
 import loopTerminator from '../core/events/LoopTerminator.js';
+
+// Module-level cache for my-nft-gen imports
+let _moduleCache = null;
+
+async function _loadModules() {
+    if (!_moduleCache) {
+        const { UnifiedEventBus } = await import('my-nft-gen/src/core/events/UnifiedEventBus.js');
+        _moduleCache = { UnifiedEventBus };
+    }
+    return _moduleCache;
+}
 
 /**
  * RenderCoordinator - Handles render operations and coordination
@@ -176,6 +186,9 @@ export class RenderCoordinator {
         this.logger.header('Starting New Random Loop Generation');
 
         try {
+            // Load modules dynamically
+            const { UnifiedEventBus } = await _loadModules();
+
             // Create and configure event bus for render loop
             const eventBus = new UnifiedEventBus({
                 enableDebug: true,
@@ -263,6 +276,9 @@ export class RenderCoordinator {
         this.logger.header('Starting Project Resume');
 
         try {
+            // Load modules dynamically
+            const { UnifiedEventBus } = await _loadModules();
+
             // Create and configure event bus for resume
             const eventBus = new UnifiedEventBus({
                 enableDebug: true,

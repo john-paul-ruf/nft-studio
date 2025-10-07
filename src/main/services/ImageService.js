@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import SafeConsole from '../utils/SafeConsole.js';
 
 /**
  * Service responsible for image operations only
@@ -23,7 +24,7 @@ class ImageService {
                 data: `data:${mimeType};base64,${base64Image}`
             };
         } catch (error) {
-            console.error('Error reading image:', error);
+            SafeConsole.error('Error reading image:', error);
             return {
                 success: false,
                 error: error.message

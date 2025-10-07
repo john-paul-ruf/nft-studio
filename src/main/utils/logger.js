@@ -56,7 +56,11 @@ const logger = {
             hour12: true
         });
         console.log(`❌ [${timestamp}] ${message}`);
-        if (error) console.log('   💥 Error:', error);
+        if (error) {
+            // Format error object to extract meaningful information
+            const errorInfo = logger.formatError(error);
+            console.log('   💥 Error:', errorInfo);
+        }
     },
 
     event: (eventName, data = null) => {
@@ -241,6 +245,64 @@ const logger = {
         }
 
         return totalMs;
+    },
+
+    /**
+     * Format error object to extract meaningful information
+     * Error objects don't serialize to JSON properly, so we need to extract their properties
+     * @param {Error|Object|string} error - Error to format
+     * @returns {Object|string} Formatted error information
+     */
+    formatError: (error) => {
+        // If it's already a string, return it
+        if (typeof error === 'string') {
+            return error;
+        }
+
+        // If it's null or undefined
+        if (!error) {
+            return 'Unknown error';
+        }
+
+        // If it's an Error object or error-like object
+        if (error instanceof Error || (error.message !== undefined)) {
+            const errorInfo = {
+                message: error.message || 'No error message',
+                name: error.name || 'Error',
+            };
+
+            // Add error code if present
+            if (error.code) {
+                errorInfo.code = error.code;
+            }
+
+            // Add stack trace (first 3 lines for brevity)
+            if (error.stack) {
+                const stackLines = error.stack.split('\n').slice(0, 4);
+                errorInfo.stack = stackLines.join('\n');
+            }
+
+            // Add any custom properties
+            const customProps = Object.keys(error).filter(
+                key => !['message', 'name', 'stack', 'code'].includes(key)
+            );
+            if (customProps.length > 0) {
+                errorInfo.details = {};
+                customProps.forEach(key => {
+                    errorInfo.details[key] = error[key];
+                });
+            }
+
+            return errorInfo;
+        }
+
+        // If it's a plain object, return it as-is
+        if (typeof error === 'object') {
+            return error;
+        }
+
+        // Fallback: convert to string
+        return String(error);
     }
 };
 

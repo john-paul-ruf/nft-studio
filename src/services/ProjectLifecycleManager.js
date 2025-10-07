@@ -4,9 +4,24 @@ import SettingsToProjectConverter from '../utils/SettingsToProjectConverter.js';
 import ResolutionMapper from '../utils/ResolutionMapper.js';
 import defaultLogger from '../main/utils/logger.js';
 
-import { Project } from 'my-nft-gen/src/app/Project.js';
-import { ColorScheme } from 'my-nft-gen/src/core/color/ColorScheme.js';
-import { Settings } from 'my-nft-gen/src/core/Settings.js';
+// Module-level cache for my-nft-gen imports
+let _moduleCache = null;
+
+async function _loadModules() {
+    if (!_moduleCache) {
+        const [
+            { Project },
+            { ColorScheme },
+            { Settings }
+        ] = await Promise.all([
+            import('my-nft-gen/src/app/Project.js'),
+            import('my-nft-gen/src/core/color/ColorScheme.js'),
+            import('my-nft-gen/src/core/Settings.js')
+        ]);
+        _moduleCache = { Project, ColorScheme, Settings };
+    }
+    return _moduleCache;
+}
 
 /**
  * ProjectLifecycleManager - Handles project creation, loading, and saving operations
@@ -393,6 +408,9 @@ export class ProjectLifecycleManager {
             ? this.pluginLifecycleManager.getPluginPaths() 
             : [];
 
+        // Load modules dynamically
+        const { Project } = await _loadModules();
+
         // Create the project instance
         const project = new Project({
             artist: projectConfig.artist || 'NFT Studio User',
@@ -445,8 +463,8 @@ export class ProjectLifecycleManager {
         // Strict validation - fail fast if data is incomplete
         this.validateColorSchemeData(colorSchemeData);
 
-        // Import ColorScheme
-        const { ColorScheme } = await import('my-nft-gen/src/core/color/ColorScheme.js');
+        // Load modules dynamically
+        const { ColorScheme } = await _loadModules();
 
         // Create ColorScheme instance
         const colorScheme = new ColorScheme({

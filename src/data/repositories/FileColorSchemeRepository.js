@@ -1,4 +1,5 @@
 import IColorSchemeRepository from '../interfaces/IColorSchemeRepository.js';
+import { safeConsoleError, safeConsoleWarn } from '../../utils/errorFormatter.js';
 
 /**
  * File-based color scheme repository implementation
@@ -24,7 +25,7 @@ class FileColorSchemeRepository extends IColorSchemeRepository {
                 ...customSchemes
             };
         } catch (error) {
-            console.error('Error loading color schemes:', error);
+            safeConsoleError('Error loading color schemes:', error);
             return this.predefinedSchemes;
         }
     }
@@ -48,7 +49,7 @@ class FileColorSchemeRepository extends IColorSchemeRepository {
         try {
             // Don't allow overwriting predefined schemes
             if (this.predefinedSchemes[colorScheme.id]) {
-                console.warn(`Cannot overwrite predefined color scheme: ${colorScheme.id}`);
+                safeConsoleWarn(`Cannot overwrite predefined color scheme: ${colorScheme.id}`);
                 return false;
             }
 
@@ -68,7 +69,7 @@ class FileColorSchemeRepository extends IColorSchemeRepository {
 
             return await this.saveCustomSchemes(customSchemes);
         } catch (error) {
-            console.error('Error saving color scheme:', error);
+            safeConsoleError('Error saving color scheme:', error);
             return false;
         }
     }
@@ -82,21 +83,21 @@ class FileColorSchemeRepository extends IColorSchemeRepository {
         try {
             // Don't allow deletion of predefined schemes
             if (this.predefinedSchemes[schemeId]) {
-                console.warn(`Cannot delete predefined color scheme: ${schemeId}`);
+                safeConsoleWarn(`Cannot delete predefined color scheme: ${schemeId}`);
                 return false;
             }
 
             const customSchemes = await this.loadCustomSchemes();
 
             if (!customSchemes[schemeId]) {
-                console.warn(`Color scheme not found: ${schemeId}`);
+                safeConsoleWarn(`Color scheme not found: ${schemeId}`);
                 return false;
             }
 
             delete customSchemes[schemeId];
             return await this.saveCustomSchemes(customSchemes);
         } catch (error) {
-            console.error('Error deleting color scheme:', error);
+            safeConsoleError('Error deleting color scheme:', error);
             return false;
         }
     }
@@ -124,7 +125,7 @@ class FileColorSchemeRepository extends IColorSchemeRepository {
                 return {};
             }
         } catch (error) {
-            console.error('Error loading custom schemes:', error);
+            safeConsoleError('Error loading custom schemes:', error);
             return {};
         }
     }
@@ -142,7 +143,7 @@ class FileColorSchemeRepository extends IColorSchemeRepository {
             );
             return result.success;
         } catch (error) {
-            console.error('Error saving custom schemes:', error);
+            safeConsoleError('Error saving custom schemes:', error);
             return false;
         }
     }

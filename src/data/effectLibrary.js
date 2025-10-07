@@ -1,4 +1,5 @@
 // Remove the electron import since we'll use window.api
+import { safeConsoleError } from '../utils/errorFormatter.js';
 
 /**
  * Dynamic effect library that discovers effects from the file system
@@ -29,11 +30,11 @@ export class EffectLibrary {
                 this._cacheTimestamp = now;
                 return result.effects;
             } else {
-                console.error('Failed to discover effects:', result.error);
+                safeConsoleError('Failed to discover effects:', result.error);
                 return this._getFallbackEffects();
             }
         } catch (error) {
-            console.error('Error fetching available effects:', error);
+            safeConsoleError('Error fetching available effects:', error);
             return this._getFallbackEffects();
         }
     }
@@ -61,11 +62,11 @@ export class EffectLibrary {
             if (result.success) {
                 return result.metadata;
             } else {
-                console.error('Failed to get effect metadata:', result.error);
+                safeConsoleError('Failed to get effect metadata:', result.error);
                 return null;
             }
         } catch (error) {
-            console.error('Error fetching effect metadata:', error);
+            safeConsoleError('Error fetching effect metadata:', error);
             return null;
         }
     }
@@ -80,7 +81,7 @@ export class EffectLibrary {
             const result = await window.api.validateEffect(effectMetadata);
             return result.success ? result.isValid : false;
         } catch (error) {
-            console.error('Error validating effect:', error);
+            safeConsoleError('Error validating effect:', error);
             return false;
         }
     }

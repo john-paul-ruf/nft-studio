@@ -1,6 +1,7 @@
 import path from 'path';
 import FileSystemService from './FileSystemService.js';
 import ImageService from './ImageService.js';
+import SafeConsole from '../utils/SafeConsole.js';
 
 /**
  * Service responsible for frame-related operations only
@@ -56,7 +57,7 @@ class FrameService {
                 framesDirectory: framesDir
             };
         } catch (error) {
-            console.error('Error listing completed frames:', error);
+            SafeConsole.error('Error listing completed frames:', error);
             return {
                 success: false,
                 error: error.message,
