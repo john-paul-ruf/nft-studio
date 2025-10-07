@@ -290,3 +290,4 @@ AsarFFmpegResolver._instance = null;
 
 // Export singleton instance as default and class for testing
 export default AsarFFmpegResolver.getInstance();
+export { AsarFFmpegResolver };

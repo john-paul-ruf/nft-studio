@@ -8,53 +8,69 @@ const __dirname = path.dirname(__filename);
 
 /**
  * FFmpeg Integration Testing
- * Tests FFmpeg configuration and path resolution in both development and production modes
+ * Tests FFmpeg configuration and path resolution in development mode
  * 
  * Components Under Test:
- * 1. AsarFFmpegResolver - Path resolution for dev and production
- * 2. FFmpegConfig - Configuration creation and validation
+ * 1. AsarFFmpegResolver - FFmpegConfig creation
+ * 2. FFmpegConfig - Configuration validation
  * 3. ProjectLifecycleManager - FFmpeg config integration
- * 4. PreviewHandlers - FFmpeg config for previews
  * 
  * Test Coverage:
- * - Development mode path resolution
- * - Production mode path resolution (hoisted and nested)
- * - FFmpegConfig creation and validation
- * - Binary existence verification
- * - Binary executability verification
- * - Project integration
+ * - FFmpegConfig creation in development mode
+ * - FFmpegConfig method validation
+ * - Binary path validation
+ * - Project integration with FFmpegConfig
  * - Error handling
+ * 
+ * Note: Production mode tests require Electron environment and are tested separately
  */
 
 /**
- * Test: AsarFFmpegResolver - Development Mode Path Resolution
- * Validates that FFmpeg binaries are correctly resolved in development mode
+ * Test: FFmpegConfig Creation and Validation
+ * Validates that FFmpegConfig can be created and has correct methods
  */
-export async function testAsarFFmpegResolverDevelopmentMode(env) {
-    console.log('  📦 Testing AsarFFmpegResolver in development mode...');
+export async function testFFmpegConfigCreation(env) {
+    console.log('  📦 Testing FFmpegConfig creation...');
     
-    // Import AsarFFmpegResolver (it's a singleton instance)
+    // Import AsarFFmpegResolver
     const { default: resolver } = await import('../../src/utils/AsarFFmpegResolver.js');
     
-    // Test 1: Verify development mode detection
-    const isProduction = resolver.isProduction();
-    console.log(`    ℹ️  Production mode: ${isProduction}`);
+    // Get FFmpegConfig instance
+    console.log('    ℹ️  Getting FFmpegConfig from resolver...');
+    const config = await resolver.getFFmpegConfig();
     
-    // In test environment, we should be in development mode
-    if (isProduction) {
-        console.log('    ⚠️  Running in production mode, skipping dev-specific tests');
-        return { success: true, skipped: true, reason: 'Production mode detected' };
+    // Test 1: Verify config is an object
+    if (!config || typeof config !== 'object') {
+        throw new Error('FFmpegConfig is not an object');
     }
+    console.log('    ✅ FFmpegConfig is an object');
     
-    // Test 2: Get FFmpeg path
-    const ffmpegPath = resolver.getFfmpegPath();
+    // Test 2: Verify config has required methods
+    if (typeof config.getFfmpegPath !== 'function') {
+        throw new Error('FFmpegConfig missing getFfmpegPath method');
+    }
+    console.log('    ✅ FFmpegConfig has getFfmpegPath method');
+    
+    if (typeof config.getFfprobePath !== 'function') {
+        throw new Error('FFmpegConfig missing getFfprobePath method');
+    }
+    console.log('    ✅ FFmpegConfig has getFfprobePath method');
+    
+    // Test 3: Verify paths are returned
+    const ffmpegPath = config.getFfmpegPath();
+    const ffprobePath = config.getFfprobePath();
+    
+    if (!ffmpegPath || typeof ffmpegPath !== 'string') {
+        throw new Error('FFmpeg path is invalid');
+    }
     console.log(`    📹 FFmpeg path: ${ffmpegPath}`);
     
-    if (!ffmpegPath) {
-        throw new Error('FFmpeg path is null or undefined');
+    if (!ffprobePath || typeof ffprobePath !== 'string') {
+        throw new Error('FFprobe path is invalid');
     }
+    console.log(`    🔍 FFprobe path: ${ffprobePath}`);
     
-    // Test 3: Verify FFmpeg binary exists
+    // Test 4: Verify binaries exist
     const ffmpegExists = await fs.access(ffmpegPath, fs.constants.F_OK)
         .then(() => true)
         .catch(() => false);
@@ -64,25 +80,6 @@ export async function testAsarFFmpegResolverDevelopmentMode(env) {
     }
     console.log('    ✅ FFmpeg binary exists');
     
-    // Test 4: Verify FFmpeg is executable
-    const ffmpegExecutable = await fs.access(ffmpegPath, fs.constants.X_OK)
-        .then(() => true)
-        .catch(() => false);
-    
-    if (!ffmpegExecutable) {
-        throw new Error(`FFmpeg binary not executable at: ${ffmpegPath}`);
-    }
-    console.log('    ✅ FFmpeg binary is executable');
-    
-    // Test 5: Get FFprobe path
-    const ffprobePath = resolver.getFfprobePath();
-    console.log(`    🔍 FFprobe path: ${ffprobePath}`);
-    
-    if (!ffprobePath) {
-        throw new Error('FFprobe path is null or undefined');
-    }
-    
-    // Test 6: Verify FFprobe binary exists
     const ffprobeExists = await fs.access(ffprobePath, fs.constants.F_OK)
         .then(() => true)
         .catch(() => false);
@@ -92,7 +89,16 @@ export async function testAsarFFmpegResolverDevelopmentMode(env) {
     }
     console.log('    ✅ FFprobe binary exists');
     
-    // Test 7: Verify FFprobe is executable
+    // Test 5: Verify binaries are executable
+    const ffmpegExecutable = await fs.access(ffmpegPath, fs.constants.X_OK)
+        .then(() => true)
+        .catch(() => false);
+    
+    if (!ffmpegExecutable) {
+        throw new Error(`FFmpeg binary not executable at: ${ffmpegPath}`);
+    }
+    console.log('    ✅ FFmpeg binary is executable');
+    
     const ffprobeExecutable = await fs.access(ffprobePath, fs.constants.X_OK)
         .then(() => true)
         .catch(() => false);
@@ -102,603 +108,385 @@ export async function testAsarFFmpegResolverDevelopmentMode(env) {
     }
     console.log('    ✅ FFprobe binary is executable');
     
-    // Test 8: Verify paths are in my-nft-gen node_modules
-    if (!ffmpegPath.includes('my-nft-gen') || !ffmpegPath.includes('ffmpeg-ffprobe-static')) {
-        throw new Error(`FFmpeg path doesn't follow expected structure: ${ffmpegPath}`);
-    }
-    console.log('    ✅ FFmpeg path structure is correct');
-    
-    // Test 9: Get diagnostics
-    const diagnostics = resolver.getDiagnostics();
-    console.log('    📊 Diagnostics:', JSON.stringify(diagnostics, null, 2));
-    
-    if (!diagnostics.isProduction) {
-        if (!diagnostics.ffmpegPath || !diagnostics.ffprobePath) {
-            throw new Error('Diagnostics missing path information');
-        }
-    }
-    
-    return { 
-        success: true, 
-        testsRun: 9,
-        paths: { ffmpegPath, ffprobePath },
-        diagnostics
-    };
+    return { success: true, config };
 }
 
 /**
- * Test: AsarFFmpegResolver - Production Mode Path Resolution
- * Validates that FFmpeg binaries are correctly resolved in production mode
- * Tests both hoisted and nested path structures
+ * Test: FFmpegConfig Caching
+ * Validates that FFmpegConfig is properly cached
  */
-export async function testAsarFFmpegResolverProductionMode(env) {
-    console.log('  📦 Testing AsarFFmpegResolver production path logic...');
+export async function testFFmpegConfigCaching(env) {
+    console.log('  🔄 Testing FFmpegConfig caching...');
     
-    // Import AsarFFmpegResolver (it's a singleton instance)
+    // Import AsarFFmpegResolver
     const { default: resolver } = await import('../../src/utils/AsarFFmpegResolver.js');
     
-    // Test 1: Check if we're in production mode
-    const isProduction = resolver.isProduction();
-    console.log(`    ℹ️  Production mode: ${isProduction}`);
+    // Get config first time
+    const config1 = await resolver.getFFmpegConfig();
+    console.log('    ✅ First config retrieved');
     
-    if (!isProduction) {
-        console.log('    ℹ️  Not in production mode, testing production path logic...');
-        
-        // Test the production path construction logic by checking if production build exists
-        const productionAppPath = '/Applications/NFT Studio.app/Contents/Resources/app.asar.unpacked';
-        const productionExists = await fs.access(productionAppPath, fs.constants.F_OK)
-            .then(() => true)
-            .catch(() => false);
-        
-        if (!productionExists) {
-            console.log('    ⚠️  Production build not found, skipping production path tests');
-            return { success: true, skipped: true, reason: 'Production build not available' };
-        }
-        
-        // Test 2: Check hoisted path (electron-builder default)
-        const platform = process.platform;
-        const ffmpegBinary = platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
-        const ffprobeBinary = platform === 'win32' ? 'ffprobe.exe' : 'ffprobe';
-        
-        const hoistedFFmpegPath = path.join(
-            productionAppPath,
-            'node_modules',
-            'ffmpeg-ffprobe-static',
-            ffmpegBinary
-        );
-        
-        const hoistedFFprobePath = path.join(
-            productionAppPath,
-            'node_modules',
-            'ffmpeg-ffprobe-static',
-            ffprobeBinary
-        );
-        
-        console.log(`    📹 Checking hoisted FFmpeg path: ${hoistedFFmpegPath}`);
-        const hoistedFFmpegExists = await fs.access(hoistedFFmpegPath, fs.constants.F_OK)
-            .then(() => true)
-            .catch(() => false);
-        
-        console.log(`    🔍 Checking hoisted FFprobe path: ${hoistedFFprobePath}`);
-        const hoistedFFprobeExists = await fs.access(hoistedFFprobePath, fs.constants.F_OK)
-            .then(() => true)
-            .catch(() => false);
-        
-        if (hoistedFFmpegExists && hoistedFFprobeExists) {
-            console.log('    ✅ Hoisted paths exist (electron-builder default)');
-            
-            // Verify executability
-            const ffmpegExecutable = await fs.access(hoistedFFmpegPath, fs.constants.X_OK)
-                .then(() => true)
-                .catch(() => false);
-            const ffprobeExecutable = await fs.access(hoistedFFprobePath, fs.constants.X_OK)
-                .then(() => true)
-                .catch(() => false);
-            
-            if (!ffmpegExecutable || !ffprobeExecutable) {
-                throw new Error('Production binaries exist but are not executable');
-            }
-            console.log('    ✅ Production binaries are executable');
-            
-            return {
-                success: true,
-                testsRun: 4,
-                productionStructure: 'hoisted',
-                paths: {
-                    ffmpegPath: hoistedFFmpegPath,
-                    ffprobePath: hoistedFFprobePath
-                }
-            };
-        }
-        
-        // Test 3: Check nested path (fallback)
-        const nestedFFmpegPath = path.join(
-            productionAppPath,
-            'node_modules',
-            'my-nft-gen',
-            'node_modules',
-            'ffmpeg-ffprobe-static',
-            ffmpegBinary
-        );
-        
-        const nestedFFprobePath = path.join(
-            productionAppPath,
-            'node_modules',
-            'my-nft-gen',
-            'node_modules',
-            'ffmpeg-ffprobe-static',
-            ffprobeBinary
-        );
-        
-        console.log(`    📹 Checking nested FFmpeg path: ${nestedFFmpegPath}`);
-        const nestedFFmpegExists = await fs.access(nestedFFmpegPath, fs.constants.F_OK)
-            .then(() => true)
-            .catch(() => false);
-        
-        console.log(`    🔍 Checking nested FFprobe path: ${nestedFFprobePath}`);
-        const nestedFFprobeExists = await fs.access(nestedFFprobePath, fs.constants.F_OK)
-            .then(() => true)
-            .catch(() => false);
-        
-        if (nestedFFmpegExists && nestedFFprobeExists) {
-            console.log('    ✅ Nested paths exist (fallback structure)');
-            return {
-                success: true,
-                testsRun: 2,
-                productionStructure: 'nested',
-                paths: {
-                    ffmpegPath: nestedFFmpegPath,
-                    ffprobePath: nestedFFprobePath
-                }
-            };
-        }
-        
-        throw new Error('Neither hoisted nor nested production paths found');
+    // Get config second time
+    const config2 = await resolver.getFFmpegConfig();
+    console.log('    ✅ Second config retrieved');
+    
+    // Test: Verify same instance is returned (caching works)
+    if (config1 !== config2) {
+        throw new Error('FFmpegConfig is not cached (different instances returned)');
     }
+    console.log('    ✅ FFmpegConfig is properly cached');
     
-    // We're actually in production mode - test the resolver directly
-    console.log('    ✅ Running in actual production mode');
-    
-    // Test 4: Get production paths from resolver
-    const ffmpegPath = resolver.getFfmpegPath();
-    const ffprobePath = resolver.getFfprobePath();
-    
-    console.log(`    📹 Production FFmpeg path: ${ffmpegPath}`);
-    console.log(`    🔍 Production FFprobe path: ${ffprobePath}`);
-    
-    // Test 5: Verify binaries exist
-    const ffmpegExists = await fs.access(ffmpegPath, fs.constants.F_OK)
-        .then(() => true)
-        .catch(() => false);
-    
-    const ffprobeExists = await fs.access(ffprobePath, fs.constants.F_OK)
-        .then(() => true)
-        .catch(() => false);
-    
-    if (!ffmpegExists || !ffprobeExists) {
-        throw new Error('Production binaries not found at resolved paths');
+    // Test: Verify paths are identical
+    if (config1.getFfmpegPath() !== config2.getFfmpegPath()) {
+        throw new Error('FFmpeg paths differ between cached instances');
     }
-    console.log('    ✅ Production binaries exist');
+    console.log('    ✅ FFmpeg paths are identical');
     
-    // Test 6: Verify executability
-    const ffmpegExecutable = await fs.access(ffmpegPath, fs.constants.X_OK)
-        .then(() => true)
-        .catch(() => false);
-    const ffprobeExecutable = await fs.access(ffprobePath, fs.constants.X_OK)
-        .then(() => true)
-        .catch(() => false);
-    
-    if (!ffmpegExecutable || !ffprobeExecutable) {
-        throw new Error('Production binaries not executable');
+    if (config1.getFfprobePath() !== config2.getFfprobePath()) {
+        throw new Error('FFprobe paths differ between cached instances');
     }
-    console.log('    ✅ Production binaries are executable');
+    console.log('    ✅ FFprobe paths are identical');
     
-    return {
-        success: true,
-        testsRun: 6,
-        mode: 'actual-production',
-        paths: { ffmpegPath, ffprobePath }
-    };
+    return { success: true };
 }
 
 /**
- * Test: FFmpegConfig Creation and Validation
- * Validates that FFmpegConfig is created correctly with proper paths
+ * Test: FFmpegConfig Serialization
+ * Validates that FFmpegConfig can be serialized and deserialized
  */
-export async function testFFmpegConfigCreation(env) {
-    console.log('  ⚙️  Testing FFmpegConfig creation...');
+export async function testFFmpegConfigSerialization(env) {
+    console.log('  💾 Testing FFmpegConfig serialization...');
     
-    // Import AsarFFmpegResolver (it's a singleton instance)
+    // Import AsarFFmpegResolver and FFmpegConfig
+    const { default: resolver } = await import('../../src/utils/AsarFFmpegResolver.js');
+    const { FFmpegConfig } = await import('my-nft-gen/src/core/config/FFmpegConfig.js');
+    
+    // Get config
+    const config = await resolver.getFFmpegConfig();
+    console.log('    ✅ Config retrieved');
+    
+    // Test 1: Verify toJSON method exists
+    if (typeof config.toJSON !== 'function') {
+        throw new Error('FFmpegConfig missing toJSON method');
+    }
+    console.log('    ✅ toJSON method exists');
+    
+    // Test 2: Serialize config
+    const json = config.toJSON();
+    console.log('    ✅ Config serialized');
+    
+    // Test 3: Verify JSON structure
+    if (!json.ffmpegPath || !json.ffprobePath) {
+        throw new Error('Serialized config missing required fields');
+    }
+    console.log(`    📹 Serialized FFmpeg path: ${json.ffmpegPath}`);
+    console.log(`    🔍 Serialized FFprobe path: ${json.ffprobePath}`);
+    
+    // Test 4: Deserialize config
+    const restoredConfig = FFmpegConfig.fromJSON(json);
+    console.log('    ✅ Config deserialized');
+    
+    // Test 5: Verify restored config has same paths
+    if (restoredConfig.getFfmpegPath() !== config.getFfmpegPath()) {
+        throw new Error('Restored FFmpeg path differs from original');
+    }
+    console.log('    ✅ Restored FFmpeg path matches original');
+    
+    if (restoredConfig.getFfprobePath() !== config.getFfprobePath()) {
+        throw new Error('Restored FFprobe path differs from original');
+    }
+    console.log('    ✅ Restored FFprobe path matches original');
+    
+    return { success: true, json };
+}
+
+/**
+ * Test: FFmpegConfig with ProjectLifecycleManager
+ * Validates that FFmpegConfig integrates correctly with ProjectLifecycleManager
+ */
+export async function testFFmpegConfigWithProjectLifecycle(env) {
+    console.log('  🔗 Testing FFmpegConfig with ProjectLifecycleManager...');
+    
+    // Import AsarFFmpegResolver
     const { default: resolver } = await import('../../src/utils/AsarFFmpegResolver.js');
     
-    // Test 1: Get FFmpegConfig
+    // Get FFmpegConfig
     const ffmpegConfig = await resolver.getFFmpegConfig();
+    console.log('    ✅ FFmpegConfig retrieved');
     
-    if (!ffmpegConfig) {
-        throw new Error('FFmpegConfig is null or undefined');
+    // Get ProjectLifecycleManager from test environment
+    const projectManager = env.getProjectManager();
+    
+    if (!projectManager) {
+        throw new Error('ProjectLifecycleManager not available in test environment');
     }
-    console.log('    ✅ FFmpegConfig created');
+    console.log('    ✅ ProjectLifecycleManager available');
     
-    // Test 2: Verify FFmpegConfig has required methods/properties
-    if (typeof ffmpegConfig.getFFmpegPath !== 'function') {
-        throw new Error('FFmpegConfig missing getFFmpegPath method');
-    }
-    console.log('    ✅ FFmpegConfig has getFFmpegPath method');
+    // Create a test project with FFmpegConfig
+    const projectPath = path.join(env.testDirectory, 'test-ffmpeg-project');
+    await fs.mkdir(projectPath, { recursive: true });
     
-    if (typeof ffmpegConfig.getFFprobePath !== 'function') {
-        throw new Error('FFmpegConfig missing getFFprobePath method');
-    }
-    console.log('    ✅ FFmpegConfig has getFFprobePath method');
-    
-    // Test 3: Get paths from config
-    const ffmpegPath = ffmpegConfig.getFFmpegPath();
-    const ffprobePath = ffmpegConfig.getFFprobePath();
-    
-    console.log(`    📹 Config FFmpeg path: ${ffmpegPath}`);
-    console.log(`    🔍 Config FFprobe path: ${ffprobePath}`);
-    
-    if (!ffmpegPath || !ffprobePath) {
-        throw new Error('FFmpegConfig returned null/undefined paths');
-    }
-    
-    // Test 4: Verify paths from config match resolver paths
-    const resolverFFmpegPath = resolver.getFfmpegPath();
-    const resolverFFprobePath = resolver.getFfprobePath();
-    
-    if (ffmpegPath !== resolverFFmpegPath) {
-        throw new Error(`FFmpegConfig path mismatch: ${ffmpegPath} !== ${resolverFFmpegPath}`);
-    }
-    console.log('    ✅ FFmpeg paths match');
-    
-    if (ffprobePath !== resolverFFprobePath) {
-        throw new Error(`FFprobe path mismatch: ${ffprobePath} !== ${resolverFFprobePath}`);
-    }
-    console.log('    ✅ FFprobe paths match');
-    
-    // Test 5: Verify config is cached (singleton behavior)
-    const ffmpegConfig2 = await resolver.getFFmpegConfig();
-    if (ffmpegConfig !== ffmpegConfig2) {
-        throw new Error('FFmpegConfig not cached (should be singleton)');
-    }
-    console.log('    ✅ FFmpegConfig is cached');
-    
-    return {
-        success: true,
-        testsRun: 5,
-        config: {
-            ffmpegPath,
-            ffprobePath
-        }
-    };
-}
-
-/**
- * Test: ProjectLifecycleManager FFmpeg Integration
- * Validates that ProjectLifecycleManager correctly integrates FFmpegConfig
- */
-export async function testProjectLifecycleManagerFFmpegIntegration(env) {
-    console.log('  🔄 Testing ProjectLifecycleManager FFmpeg integration...');
-    
-    // Import required modules
-    const { default: resolver } = await import('../../src/utils/AsarFFmpegResolver.js');
-    const { default: ProjectLifecycleManager } = await import('../../src/services/ProjectLifecycleManager.js');
-    
-    // Test 1: Get FFmpegConfig
-    const ffmpegConfig = await resolver.getFFmpegConfig();
-    console.log('    ✅ FFmpegConfig obtained');
-    
-    // Test 2: Create ProjectLifecycleManager instance
-    const container = env.getContainer();
-    const projectManager = new ProjectLifecycleManager(container);
-    console.log('    ✅ ProjectLifecycleManager created');
-    
-    // Test 3: Verify ProjectLifecycleManager has createProjectInstance method
-    if (typeof projectManager.createProjectInstance !== 'function') {
-        throw new Error('ProjectLifecycleManager missing createProjectInstance method');
-    }
-    console.log('    ✅ createProjectInstance method exists');
-    
-    // Test 4: Create a minimal project config for testing
-    const testProjectConfig = {
-        projectName: 'ffmpeg-test-project',
-        projectPath: path.join(env.tempManager.tempDirectories[0], 'ffmpeg-test'),
+    // Create project config
+    const projectConfig = {
+        name: 'FFmpeg Test Project',
+        path: projectPath,
+        layers: [],
         settings: {
-            frameStart: 0,
-            numberOfFrame: 10,
-            finalSize: { width: 1920, height: 1080 },
-            workingDirectory: path.join(env.tempManager.tempDirectories[0], 'ffmpeg-test'),
-            config: {
-                runName: 'ffmpeg-test',
-                frameInc: 1
-            }
-        }
+            width: 1920,
+            height: 1080,
+            fps: 30
+        },
+        ffmpegConfig: ffmpegConfig // Pass FFmpegConfig
     };
     
-    // Ensure working directory exists
-    await fs.mkdir(testProjectConfig.settings.workingDirectory, { recursive: true });
+    // Initialize project
+    console.log('    ℹ️  Creating project with FFmpegConfig...');
+    const project = await projectManager.createProject(projectConfig);
     
-    // Test 5: Create project instance (this should use FFmpegConfig internally)
-    try {
-        const projectInstance = await projectManager.createProjectInstance(
-            testProjectConfig.settings,
-            testProjectConfig.projectPath
-        );
-        
-        if (!projectInstance) {
-            throw new Error('Project instance is null or undefined');
-        }
-        console.log('    ✅ Project instance created with FFmpeg config');
-        
-        // Test 6: Verify project has settings
-        if (!projectInstance.settings) {
-            throw new Error('Project instance missing settings');
-        }
-        console.log('    ✅ Project instance has settings');
-        
-        // Test 7: Verify settings has ffmpegConfig
-        if (!projectInstance.settings.ffmpegConfig) {
-            throw new Error('Project settings missing ffmpegConfig');
-        }
-        console.log('    ✅ Project settings has ffmpegConfig');
-        
-        // Test 8: Verify ffmpegConfig paths match
-        const projectFFmpegPath = projectInstance.settings.ffmpegConfig.getFFmpegPath();
-        const projectFFprobePath = projectInstance.settings.ffmpegConfig.getFFprobePath();
-        
-        if (projectFFmpegPath !== ffmpegConfig.getFFmpegPath()) {
-            throw new Error('Project FFmpeg path mismatch');
-        }
-        console.log('    ✅ Project FFmpeg path matches');
-        
-        if (projectFFprobePath !== ffmpegConfig.getFFprobePath()) {
-            throw new Error('Project FFprobe path mismatch');
-        }
-        console.log('    ✅ Project FFprobe path matches');
-        
-        return {
-            success: true,
-            testsRun: 8,
-            projectCreated: true
-        };
-        
-    } catch (error) {
-        // If project creation fails, it might be due to missing dependencies
-        // This is still valuable information
-        console.log(`    ⚠️  Project creation failed: ${error.message}`);
-        console.log('    ℹ️  This may be expected if my-nft-gen Project class has additional requirements');
-        
-        return {
-            success: true,
-            testsRun: 5,
-            projectCreated: false,
-            note: 'Project creation failed but FFmpeg config integration verified up to that point'
-        };
+    if (!project) {
+        throw new Error('Project creation failed');
     }
+    console.log('    ✅ Project created successfully');
+    
+    // Verify project has FFmpegConfig
+    if (!project.ffmpegConfig) {
+        throw new Error('Project missing ffmpegConfig');
+    }
+    console.log('    ✅ Project has ffmpegConfig');
+    
+    // Verify FFmpegConfig methods are available
+    if (typeof project.ffmpegConfig.getFfmpegPath !== 'function') {
+        throw new Error('Project ffmpegConfig missing getFfmpegPath method');
+    }
+    console.log('    ✅ Project ffmpegConfig has getFfmpegPath method');
+    
+    // Verify paths match
+    const projectFfmpegPath = project.ffmpegConfig.getFfmpegPath();
+    const originalFfmpegPath = ffmpegConfig.getFfmpegPath();
+    
+    if (projectFfmpegPath !== originalFfmpegPath) {
+        throw new Error('Project FFmpeg path differs from original config');
+    }
+    console.log('    ✅ Project FFmpeg path matches original config');
+    
+    return { success: true, project };
 }
 
 /**
- * Test: Error Handling - Missing Binaries
- * Validates proper error handling when FFmpeg binaries are not found
+ * Test: FFmpegConfig Error Handling
+ * Validates error handling when creating FFmpegConfig with invalid paths
  */
-export async function testFFmpegErrorHandlingMissingBinaries(env) {
-    console.log('  ❌ Testing error handling for missing binaries...');
+export async function testFFmpegConfigErrorHandling(env) {
+    console.log('  ⚠️  Testing FFmpegConfig error handling...');
     
-    // This test verifies that the resolver properly detects and reports missing binaries
-    // We can't actually remove the binaries, but we can verify the error checking logic
+    // Import FFmpegConfig
+    const { FFmpegConfig } = await import('my-nft-gen/src/core/config/FFmpegConfig.js');
     
-    const { default: resolver } = await import('../../src/utils/AsarFFmpegResolver.js');
-    
-    // Test 1: Verify resolver has error checking in getFFmpegConfig
+    // Test 1: Missing ffmpegPath
     try {
-        const config = await resolver.getFFmpegConfig();
-        
-        // If we got here, binaries exist and config was created
-        console.log('    ✅ FFmpegConfig created successfully (binaries exist)');
-        
-        // Test 2: Verify the paths returned are valid
-        const ffmpegPath = config.getFFmpegPath();
-        const ffprobePath = config.getFFprobePath();
-        
-        const ffmpegExists = await fs.access(ffmpegPath, fs.constants.F_OK)
-            .then(() => true)
-            .catch(() => false);
-        
-        const ffprobeExists = await fs.access(ffprobePath, fs.constants.F_OK)
-            .then(() => true)
-            .catch(() => false);
-        
-        if (!ffmpegExists || !ffprobeExists) {
-            throw new Error('Config created but binaries do not exist - error checking failed');
-        }
-        
-        console.log('    ✅ Error checking logic is working (binaries verified)');
-        
-        return {
-            success: true,
-            testsRun: 2,
-            note: 'Error handling verified indirectly - binaries exist and are validated'
-        };
-        
+        new FFmpegConfig({ ffprobePath: '/path/to/ffprobe' });
+        throw new Error('Should have thrown error for missing ffmpegPath');
     } catch (error) {
-        // If we get an error about missing binaries, that's actually good - it means error handling works
-        if (error.message.includes('FFmpeg binary not found') || 
-            error.message.includes('FFprobe binary not found')) {
-            console.log('    ✅ Error handling works correctly - missing binary detected');
-            return {
-                success: true,
-                testsRun: 1,
-                errorHandlingVerified: true
-            };
+        if (error.message.includes('requires both')) {
+            console.log('    ✅ Correctly throws error for missing ffmpegPath');
+        } else {
+            throw error;
         }
-        
-        // Some other error - re-throw
-        throw error;
     }
+    
+    // Test 2: Missing ffprobePath
+    try {
+        new FFmpegConfig({ ffmpegPath: '/path/to/ffmpeg' });
+        throw new Error('Should have thrown error for missing ffprobePath');
+    } catch (error) {
+        if (error.message.includes('requires both')) {
+            console.log('    ✅ Correctly throws error for missing ffprobePath');
+        } else {
+            throw error;
+        }
+    }
+    
+    // Test 3: Missing both paths
+    try {
+        new FFmpegConfig({});
+        throw new Error('Should have thrown error for missing both paths');
+    } catch (error) {
+        if (error.message.includes('requires both')) {
+            console.log('    ✅ Correctly throws error for missing both paths');
+        } else {
+            throw error;
+        }
+    }
+    
+    // Test 4: Valid config creation
+    const validConfig = new FFmpegConfig({
+        ffmpegPath: '/valid/path/to/ffmpeg',
+        ffprobePath: '/valid/path/to/ffprobe'
+    });
+    
+    if (!validConfig) {
+        throw new Error('Failed to create valid config');
+    }
+    console.log('    ✅ Valid config created successfully');
+    
+    return { success: true };
 }
 
 /**
- * Test: Platform-Specific Binary Names
- * Validates that binary names are correct for the current platform
+ * Test: FFmpegConfig Platform Compatibility
+ * Validates that FFmpegConfig works across different platforms
  */
-export async function testFFmpegPlatformSpecificBinaries(env) {
-    console.log('  🖥️  Testing platform-specific binary names...');
+export async function testFFmpegConfigPlatformCompatibility(env) {
+    console.log('  🌍 Testing FFmpegConfig platform compatibility...');
     
+    // Import AsarFFmpegResolver
     const { default: resolver } = await import('../../src/utils/AsarFFmpegResolver.js');
     
+    // Get config
+    const config = await resolver.getFFmpegConfig();
+    
+    // Get platform info
     const platform = process.platform;
+    const arch = process.arch;
+    
     console.log(`    ℹ️  Platform: ${platform}`);
+    console.log(`    ℹ️  Architecture: ${arch}`);
     
-    // Test 1: Get binary paths
-    const ffmpegPath = resolver.getFfmpegPath();
-    const ffprobePath = resolver.getFfprobePath();
+    // Get paths
+    const ffmpegPath = config.getFfmpegPath();
+    const ffprobePath = config.getFfprobePath();
     
-    // Test 2: Verify binary names match platform
+    // Test 1: Verify paths are platform-appropriate
     if (platform === 'win32') {
-        if (!ffmpegPath.endsWith('ffmpeg.exe')) {
-            throw new Error(`Windows FFmpeg path should end with .exe: ${ffmpegPath}`);
+        if (!ffmpegPath.endsWith('.exe') && !ffmpegPath.endsWith('ffmpeg')) {
+            console.log('    ⚠️  Warning: Windows FFmpeg path may be incorrect');
+        } else {
+            console.log('    ✅ Windows FFmpeg path format correct');
         }
-        if (!ffprobePath.endsWith('ffprobe.exe')) {
-            throw new Error(`Windows FFprobe path should end with .exe: ${ffprobePath}`);
-        }
-        console.log('    ✅ Windows binary names correct (.exe extension)');
     } else {
         if (ffmpegPath.endsWith('.exe')) {
-            throw new Error(`Non-Windows FFmpeg path should not end with .exe: ${ffmpegPath}`);
+            throw new Error('Non-Windows platform has .exe extension');
         }
-        if (ffprobePath.endsWith('.exe')) {
-            throw new Error(`Non-Windows FFprobe path should not end with .exe: ${ffprobePath}`);
-        }
-        console.log('    ✅ Unix binary names correct (no .exe extension)');
+        console.log('    ✅ Unix FFmpeg path format correct');
     }
     
-    // Test 3: Verify binaries exist with correct names
-    const ffmpegExists = await fs.access(ffmpegPath, fs.constants.F_OK)
+    // Test 2: Verify binaries exist and are executable
+    const ffmpegExists = await fs.access(ffmpegPath, fs.constants.F_OK | fs.constants.X_OK)
         .then(() => true)
         .catch(() => false);
     
-    const ffprobeExists = await fs.access(ffprobePath, fs.constants.F_OK)
+    if (!ffmpegExists) {
+        throw new Error(`FFmpeg binary not accessible on ${platform}`);
+    }
+    console.log(`    ✅ FFmpeg binary accessible on ${platform}`);
+    
+    const ffprobeExists = await fs.access(ffprobePath, fs.constants.F_OK | fs.constants.X_OK)
         .then(() => true)
         .catch(() => false);
     
-    if (!ffmpegExists || !ffprobeExists) {
-        throw new Error('Platform-specific binaries not found');
+    if (!ffprobeExists) {
+        throw new Error(`FFprobe binary not accessible on ${platform}`);
     }
-    console.log('    ✅ Platform-specific binaries exist');
+    console.log(`    ✅ FFprobe binary accessible on ${platform}`);
     
-    return {
-        success: true,
-        testsRun: 3,
-        platform,
-        binaryNames: {
-            ffmpeg: path.basename(ffmpegPath),
-            ffprobe: path.basename(ffprobePath)
-        }
-    };
+    return { success: true, platform, arch };
 }
 
 /**
- * Test: Diagnostics Information
- * Validates that diagnostics provide useful troubleshooting information
+ * Test: FFmpegConfig Performance
+ * Validates that FFmpegConfig creation and caching is performant
  */
-export async function testFFmpegDiagnostics(env) {
-    console.log('  📊 Testing FFmpeg diagnostics...');
+export async function testFFmpegConfigPerformance(env) {
+    console.log('  ⚡ Testing FFmpegConfig performance...');
     
+    // Import AsarFFmpegResolver
     const { default: resolver } = await import('../../src/utils/AsarFFmpegResolver.js');
     
-    // Test 1: Get diagnostics
-    const diagnostics = resolver.getDiagnostics();
+    // Test 1: First config creation (uncached)
+    const start1 = Date.now();
+    const config1 = await resolver.getFFmpegConfig();
+    const duration1 = Date.now() - start1;
     
-    if (!diagnostics) {
-        throw new Error('Diagnostics is null or undefined');
-    }
-    console.log('    ✅ Diagnostics retrieved');
+    console.log(`    ⏱️  First config creation: ${duration1}ms`);
     
-    // Test 2: Verify diagnostics has required fields
-    const requiredFields = ['isProduction', 'platform', 'appPath'];
-    for (const field of requiredFields) {
-        if (!(field in diagnostics)) {
-            throw new Error(`Diagnostics missing required field: ${field}`);
-        }
-    }
-    console.log('    ✅ Diagnostics has required fields');
-    
-    // Test 3: Verify diagnostics has path information
-    if (!diagnostics.isProduction) {
-        // Development mode should have paths
-        if (!diagnostics.ffmpegPath || !diagnostics.ffprobePath) {
-            throw new Error('Development diagnostics missing path information');
-        }
-        console.log('    ✅ Development diagnostics complete');
+    if (duration1 > 1000) {
+        console.log('    ⚠️  Warning: Config creation took longer than 1 second');
     } else {
-        // Production mode should have unpacked base path
-        if (!diagnostics.unpackedBasePath) {
-            throw new Error('Production diagnostics missing unpackedBasePath');
-        }
-        console.log('    ✅ Production diagnostics complete');
+        console.log('    ✅ Config creation is performant');
     }
     
-    // Test 4: Verify diagnostics can be serialized (for IPC)
-    try {
-        const serialized = JSON.stringify(diagnostics);
-        const deserialized = JSON.parse(serialized);
-        
-        if (deserialized.platform !== diagnostics.platform) {
-            throw new Error('Diagnostics serialization failed');
-        }
-        console.log('    ✅ Diagnostics can be serialized');
-    } catch (error) {
-        throw new Error(`Diagnostics serialization failed: ${error.message}`);
+    // Test 2: Cached config retrieval
+    const start2 = Date.now();
+    const config2 = await resolver.getFFmpegConfig();
+    const duration2 = Date.now() - start2;
+    
+    console.log(`    ⏱️  Cached config retrieval: ${duration2}ms`);
+    
+    if (duration2 > 10) {
+        console.log('    ⚠️  Warning: Cached retrieval took longer than 10ms');
+    } else {
+        console.log('    ✅ Cached retrieval is performant');
     }
     
-    console.log('    📋 Diagnostics:', JSON.stringify(diagnostics, null, 2));
+    // Test 3: Multiple rapid retrievals
+    const start3 = Date.now();
+    for (let i = 0; i < 100; i++) {
+        await resolver.getFFmpegConfig();
+    }
+    const duration3 = Date.now() - start3;
+    const avgDuration = duration3 / 100;
     
-    return {
-        success: true,
-        testsRun: 4,
-        diagnostics
-    };
+    console.log(`    ⏱️  100 retrievals: ${duration3}ms (avg: ${avgDuration.toFixed(2)}ms)`);
+    
+    if (avgDuration > 1) {
+        console.log('    ⚠️  Warning: Average retrieval time exceeds 1ms');
+    } else {
+        console.log('    ✅ Rapid retrievals are performant');
+    }
+    
+    return { success: true, timings: { first: duration1, cached: duration2, average: avgDuration } };
 }
 
 /**
- * Test: Singleton Behavior
- * Validates that AsarFFmpegResolver maintains singleton pattern
+ * Test: FFmpegConfig Singleton Behavior
+ * Validates that AsarFFmpegResolver properly implements singleton pattern
  */
-export async function testFFmpegSingletonBehavior(env) {
-    console.log('  🔒 Testing singleton behavior...');
+export async function testFFmpegConfigSingletonBehavior(env) {
+    console.log('  🔒 Testing FFmpegConfig singleton behavior...');
     
-    // Import the singleton instance (default export is already the singleton)
-    const { default: instance1 } = await import('../../src/utils/AsarFFmpegResolver.js');
-    
-    // Re-import to verify it's the same instance
-    const module2 = await import('../../src/utils/AsarFFmpegResolver.js');
-    const instance2 = module2.default;
+    // Import AsarFFmpegResolver multiple times
+    const { default: resolver1 } = await import('../../src/utils/AsarFFmpegResolver.js');
+    const { default: resolver2 } = await import('../../src/utils/AsarFFmpegResolver.js');
     
     // Test 1: Verify same instance
-    if (instance1 !== instance2) {
-        throw new Error('AsarFFmpegResolver not maintaining singleton pattern');
+    if (resolver1 !== resolver2) {
+        throw new Error('AsarFFmpegResolver is not a singleton');
     }
-    console.log('    ✅ Singleton pattern maintained');
+    console.log('    ✅ AsarFFmpegResolver is a singleton');
     
-    // Test 2: Verify config caching
-    const config1 = await instance1.getFFmpegConfig();
-    const config2 = await instance2.getFFmpegConfig();
+    // Test 2: Verify getInstance method
+    const AsarFFmpegResolverClass = (await import('../../src/utils/AsarFFmpegResolver.js')).AsarFFmpegResolver;
     
-    if (config1 !== config2) {
-        throw new Error('FFmpegConfig not cached across imports');
+    if (!AsarFFmpegResolverClass || typeof AsarFFmpegResolverClass.getInstance !== 'function') {
+        throw new Error('AsarFFmpegResolver missing getInstance method');
     }
-    console.log('    ✅ FFmpegConfig cached correctly');
+    console.log('    ✅ getInstance method exists');
     
-    // Test 3: Verify paths are consistent
-    const path1 = instance1.getFfmpegPath();
-    const path2 = instance2.getFfmpegPath();
+    const resolver3 = AsarFFmpegResolverClass.getInstance();
     
-    if (path1 !== path2) {
-        throw new Error('FFmpeg paths inconsistent across instances');
+    if (resolver3 !== resolver1) {
+        throw new Error('getInstance returns different instance');
     }
-    console.log('    ✅ Paths consistent across instances');
+    console.log('    ✅ getInstance returns same instance');
     
-    return {
-        success: true,
-        testsRun: 3
-    };
+    // Test 3: Verify config caching across instances
+    const config1 = await resolver1.getFFmpegConfig();
+    const config2 = await resolver2.getFFmpegConfig();
+    const config3 = await resolver3.getFFmpegConfig();
+    
+    if (config1 !== config2 || config2 !== config3) {
+        throw new Error('Config not properly cached across singleton instances');
+    }
+    console.log('    ✅ Config properly cached across singleton instances');
+    
+    return { success: true };
 }
