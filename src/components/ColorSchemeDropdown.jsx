@@ -481,8 +481,9 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true,
                     border: '1px solid #333',
                     borderRadius: '6px',
                     marginTop: '4px',
-                    maxHeight: '400px',
-                    overflow: 'auto',
+                    maxHeight: 'calc(100vh - 50px)',
+                    overflowY: 'auto',
+                    overflowX: 'hidden',
                     zIndex: 1000,
                     boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
                 }}>

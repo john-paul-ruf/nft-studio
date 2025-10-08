@@ -1235,7 +1235,11 @@ function AddEffectDropdown({
                             borderRadius: '6px',
                             boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.2)',
                             padding: '4px',
-                            minWidth: '200px',
+                            width: '100%',
+                            minWidth: '300px',
+                            maxHeight: 'calc(100vh - 150px)',
+                            overflowY: 'auto',
+                            overflowX: 'hidden',
                             zIndex: 9999,
                         }}
                     >
@@ -1336,9 +1340,11 @@ function EffectSubmenu({
                         borderRadius: '6px',
                         boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.2)',
                         padding: '4px',
-                        minWidth: '220px',
-                        maxHeight: '300px',
+                        width: '100%',
+                        minWidth: '300px',
+                        maxHeight: 'calc(100vh - 150px)',
                         overflowY: 'auto',
+                        overflowX: 'hidden',
                         zIndex: 10000,
                     }}
                 >

@@ -425,10 +425,11 @@ export default function CanvasToolbar({
                         }}
                         sx={{
                             '& .MuiPaper-root': {
-                                minWidth: '600px',
-                                maxWidth: '700px',
-                                maxHeight: '400px',
-                                overflow: 'auto',
+                                width: '500px',
+                                minWidth: '500px',
+                                maxHeight: 'calc(100vh - 100px)',
+                                overflowY: 'auto',
+                                overflowX: 'hidden',
                                 mt: 1
                             }
                         }}
