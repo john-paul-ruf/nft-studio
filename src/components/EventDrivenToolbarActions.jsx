@@ -40,6 +40,9 @@ export default function EventDrivenToolbarActions({ projectState }) {
                 const command = new ChangeResolutionCommand(projectState, payload.resolution);
                 commandService.execute(command);
 
+                // Clear render result so canvas goes black until new render
+                renderPipelineService.clearRenderResult();
+
                 console.log('✅ EventDrivenToolbarActions: Resolution command executed - ProjectState handled auto-scaling');
             },
             { component: 'EventDrivenToolbarActions' }
@@ -52,6 +55,9 @@ export default function EventDrivenToolbarActions({ projectState }) {
                 console.log('🔥 EventDrivenToolbarActions: Orientation toggle event');
                 const command = new ToggleOrientationCommand(projectState);
                 const result = commandService.execute(command);
+
+                // Clear render result so canvas goes black until new render
+                renderPipelineService.clearRenderResult();
 
                 console.log('✅ EventDrivenToolbarActions: Orientation command executed - ProjectState handled auto-scaling');
             },

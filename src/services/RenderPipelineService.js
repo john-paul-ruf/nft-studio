@@ -353,6 +353,18 @@ export class RenderPipelineService {
     }
 
     /**
+     * Clear the current render result
+     * Used when dimensions change (orientation/resolution) to show black canvas
+     */
+    clearRenderResult() {
+        console.log('🧹 RenderPipeline: Clearing render result');
+        this.renderResult = null;
+        
+        // Notify all callbacks that render result has been cleared
+        this.notifyRenderComplete(null);
+    }
+
+    /**
      * Cleanup and destroy the service
      */
     destroy() {
