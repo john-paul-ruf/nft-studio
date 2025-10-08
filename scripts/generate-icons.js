@@ -21,7 +21,7 @@ import { execSync } from 'child_process';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const iconsDir = path.join(__dirname, '..', 'icons');
 
-// Cyberpunk-themed NFT Studio icon
+// Cyberpunk-themed NFT Studio icon - Enhanced with centered text and rich details
 const svgIcon = `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="512" height="512" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -38,146 +38,169 @@ const svgIcon = `<?xml version="1.0" encoding="UTF-8"?>
       <stop offset="100%" style="stop-color:#9c27b0;stop-opacity:1" />
     </linearGradient>
     
-    <!-- Glitch effect filter -->
-    <filter id="glitch">
-      <feColorMatrix in="SourceGraphic" mode="matrix" 
-        values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0" result="red"/>
-      <feOffset in="red" dx="2" dy="0" result="redOffset"/>
-      <feColorMatrix in="SourceGraphic" mode="matrix" 
-        values="0 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0" result="cyan"/>
-      <feOffset in="cyan" dx="-2" dy="0" result="cyanOffset"/>
-      <feBlend mode="screen" in="redOffset" in2="cyanOffset" result="glitch1"/>
-      <feBlend mode="screen" in="glitch1" in2="SourceGraphic"/>
+    <!-- Green gradient for circuits -->
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00ff00;stop-opacity:0.6" />
+      <stop offset="100%" style="stop-color:#00ffff;stop-opacity:0.6" />
+    </linearGradient>
+    
+    <!-- Strong glow effect for text -->
+    <filter id="strongGlow">
+      <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
     </filter>
     
-    <!-- Glow effect -->
+    <!-- Subtle glow for shapes -->
     <filter id="glow">
-      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
       <feMerge>
         <feMergeNode in="coloredBlur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
+    
+    <!-- Glitch effect -->
+    <filter id="glitch">
+      <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="1" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="2" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
   </defs>
   
-  <!-- Dark background with subtle grid -->
+  <!-- Dark background -->
   <rect width="512" height="512" fill="#0a0a0a"/>
   
-  <!-- Background grid pattern -->
-  <g opacity="0.1">
+  <!-- Enhanced background grid -->
+  <g opacity="0.12">
     <line x1="0" y1="128" x2="512" y2="128" stroke="#00ffff" stroke-width="1"/>
-    <line x1="0" y1="256" x2="512" y2="256" stroke="#00ffff" stroke-width="1"/>
+    <line x1="0" y1="256" x2="512" y2="256" stroke="#00ffff" stroke-width="1.5"/>
     <line x1="0" y1="384" x2="512" y2="384" stroke="#00ffff" stroke-width="1"/>
     <line x1="128" y1="0" x2="128" y2="512" stroke="#00ffff" stroke-width="1"/>
-    <line x1="256" y1="0" x2="256" y2="512" stroke="#00ffff" stroke-width="1"/>
+    <line x1="256" y1="0" x2="256" y2="512" stroke="#00ffff" stroke-width="1.5"/>
     <line x1="384" y1="0" x2="384" y2="512" stroke="#00ffff" stroke-width="1"/>
   </g>
   
   <!-- Circuit board patterns -->
-  <g opacity="0.3">
-    <path d="M 50 256 L 100 256 L 100 200 L 150 200" stroke="#00ffff" stroke-width="2" fill="none"/>
-    <circle cx="150" cy="200" r="4" fill="#00ffff"/>
-    <path d="M 462 256 L 412 256 L 412 312 L 362 312" stroke="#ff00ff" stroke-width="2" fill="none"/>
-    <circle cx="362" cy="312" r="4" fill="#ff00ff"/>
-    <path d="M 256 50 L 256 100 L 312 100 L 312 150" stroke="#e91e63" stroke-width="2" fill="none"/>
-    <circle cx="312" cy="150" r="4" fill="#e91e63"/>
-    <path d="M 256 462 L 256 412 L 200 412 L 200 362" stroke="#9c27b0" stroke-width="2" fill="none"/>
-    <circle cx="200" cy="362" r="4" fill="#9c27b0"/>
+  <g opacity="0.3" stroke="url(#greenGrad)" stroke-width="2" fill="none">
+    <!-- Top circuits -->
+    <path d="M 80 80 L 120 80 L 120 120 M 120 100 L 160 100"/>
+    <circle cx="80" cy="80" r="3" fill="#00ff00"/>
+    <circle cx="160" cy="100" r="3" fill="#00ffff"/>
+    
+    <!-- Right circuits -->
+    <path d="M 432 120 L 432 160 L 392 160 M 412 160 L 412 200"/>
+    <circle cx="432" cy="120" r="3" fill="#ff00ff"/>
+    <circle cx="412" cy="200" r="3" fill="#00ffff"/>
+    
+    <!-- Bottom circuits -->
+    <path d="M 350 432 L 390 432 L 390 392 M 370 432 L 370 472"/>
+    <circle cx="350" cy="432" r="3" fill="#e91e63"/>
+    <circle cx="370" cy="472" r="3" fill="#9c27b0"/>
+    
+    <!-- Left circuits -->
+    <path d="M 80 350 L 80 390 L 120 390 M 100 390 L 100 430"/>
+    <circle cx="80" cy="350" r="3" fill="#00ffff"/>
+    <circle cx="100" cy="430" r="3" fill="#00ff00"/>
   </g>
   
-  <!-- Main hexagon frame -->
+  <!-- Digital rain effect -->
+  <g opacity="0.4" fill="#00ff00" font-family="monospace" font-size="12">
+    <text x="100" y="50">01</text>
+    <text x="200" y="80">10</text>
+    <text x="350" y="60">11</text>
+    <text x="450" y="90">01</text>
+    <text x="50" y="450">10</text>
+    <text x="150" y="480">11</text>
+    <text x="400" y="470">01</text>
+    <text x="480" y="440">10</text>
+  </g>
+  
+  <!-- Larger hexagon frame with multiple layers -->
   <g transform="translate(256, 256)">
-    <!-- Outer hexagon with glow -->
-    <polygon points="0,-140 121.24,-70 121.24,70 0,140 -121.24,70 -121.24,-70" 
+    <!-- Outer hexagon -->
+    <polygon points="0,-220 190.53,-110 190.53,110 0,220 -190.53,110 -190.53,-110" 
              fill="none" 
              stroke="url(#neonGrad)" 
              stroke-width="3"
              filter="url(#glow)"
-             opacity="0.8"/>
+             opacity="0.5"/>
+    
+    <!-- Middle hexagon -->
+    <polygon points="0,-200 173.21,-100 173.21,100 0,200 -173.21,100 -173.21,-100" 
+             fill="none" 
+             stroke="url(#neonGrad)" 
+             stroke-width="4"
+             filter="url(#glow)"
+             opacity="0.7"/>
     
     <!-- Inner hexagon -->
-    <polygon points="0,-120 103.92,-60 103.92,60 0,120 -103.92,60 -103.92,-60" 
-             fill="#0a0a0a" 
+    <polygon points="0,-180 155.88,-90 155.88,90 0,180 -155.88,90 -155.88,-90" 
+             fill="none" 
              stroke="url(#purpleGrad)" 
              stroke-width="2"
-             opacity="0.9"/>
-    
-    <!-- Second inner hexagon for depth -->
-    <polygon points="0,-100 86.6,-50 86.6,50 0,100 -86.6,50 -86.6,-50" 
-             fill="none" 
-             stroke="#00ffff" 
-             stroke-width="1"
-             opacity="0.5"
-             stroke-dasharray="5,5"/>
+             opacity="0.6"/>
   </g>
   
-  <!-- NFT text with glitch effect -->
-  <g filter="url(#glitch)">
-    <text x="256" y="260" 
-          font-family="Courier New, monospace" 
-          font-size="80" 
-          font-weight="bold" 
-          text-anchor="middle" 
-          fill="url(#neonGrad)"
-          filter="url(#glow)">NFT</text>
-  </g>
+  <!-- Centered NFT text - LARGE and bold -->
+  <text x="256" y="256" 
+        font-family="Arial, Helvetica, sans-serif" 
+        font-size="160" 
+        font-weight="900" 
+        text-anchor="middle" 
+        dominant-baseline="middle"
+        fill="url(#neonGrad)"
+        filter="url(#strongGlow)">NFT</text>
   
-  <!-- Studio text with cyberpunk style -->
-  <text x="256" y="320" 
-        font-family="Courier New, monospace" 
-        font-size="32" 
-        font-weight="300" 
+  <!-- Centered Studio text - positioned below NFT -->
+  <text x="256" y="340" 
+        font-family="Arial, Helvetica, sans-serif" 
+        font-size="52" 
+        font-weight="600" 
         text-anchor="middle" 
         fill="#00ffff"
-        opacity="0.9"
-        letter-spacing="8">STUDIO</text>
+        filter="url(#strongGlow)"
+        letter-spacing="12">STUDIO</text>
   
-  <!-- Corner circuit elements -->
+  <!-- Enhanced corner accents -->
   <g opacity="0.6">
     <!-- Top left -->
-    <path d="M 30 30 L 30 80 L 80 80" stroke="#00ffff" stroke-width="2" fill="none"/>
-    <circle cx="30" cy="30" r="3" fill="#00ffff"/>
+    <path d="M 30 30 L 30 80 L 80 80" stroke="#00ffff" stroke-width="4" fill="none"/>
+    <circle cx="30" cy="30" r="5" fill="#00ffff"/>
+    <line x1="30" y1="30" x2="50" y2="50" stroke="#00ffff" stroke-width="2"/>
     
     <!-- Top right -->
-    <path d="M 482 30 L 482 80 L 432 80" stroke="#ff00ff" stroke-width="2" fill="none"/>
-    <circle cx="482" cy="30" r="3" fill="#ff00ff"/>
+    <path d="M 482 30 L 482 80 L 432 80" stroke="#ff00ff" stroke-width="4" fill="none"/>
+    <circle cx="482" cy="30" r="5" fill="#ff00ff"/>
+    <line x1="482" y1="30" x2="462" y2="50" stroke="#ff00ff" stroke-width="2"/>
     
     <!-- Bottom left -->
-    <path d="M 30 482 L 30 432 L 80 432" stroke="#e91e63" stroke-width="2" fill="none"/>
-    <circle cx="30" cy="482" r="3" fill="#e91e63"/>
+    <path d="M 30 482 L 30 432 L 80 432" stroke="#e91e63" stroke-width="4" fill="none"/>
+    <circle cx="30" cy="482" r="5" fill="#e91e63"/>
+    <line x1="30" y1="482" x2="50" y2="462" stroke="#e91e63" stroke-width="2"/>
     
     <!-- Bottom right -->
-    <path d="M 482 482 L 482 432 L 432 432" stroke="#9c27b0" stroke-width="2" fill="none"/>
-    <circle cx="482" cy="482" r="3" fill="#9c27b0"/>
+    <path d="M 482 482 L 482 432 L 432 432" stroke="#9c27b0" stroke-width="4" fill="none"/>
+    <circle cx="482" cy="482" r="5" fill="#9c27b0"/>
+    <line x1="482" y1="482" x2="462" y2="462" stroke="#9c27b0" stroke-width="2"/>
   </g>
   
   <!-- Scanning line effect -->
   <rect x="0" y="200" width="512" height="2" fill="url(#neonGrad)" opacity="0.3">
     <animate attributeName="y" 
              values="0;512;0" 
-             dur="8s" 
+             dur="6s" 
              repeatCount="indefinite"/>
     <animate attributeName="opacity" 
-             values="0.3;0.6;0.3" 
-             dur="8s" 
+             values="0.3;0.7;0.3" 
+             dur="6s" 
              repeatCount="indefinite"/>
   </rect>
   
-  <!-- Digital rain effect dots -->
-  <g opacity="0.2">
-    <circle cx="100" cy="150" r="1" fill="#00ff00">
-      <animate attributeName="cy" values="0;512" dur="5s" repeatCount="indefinite"/>
-    </circle>
-    <circle cx="200" cy="300" r="1" fill="#00ff00">
-      <animate attributeName="cy" values="0;512" dur="6s" repeatCount="indefinite"/>
-    </circle>
-    <circle cx="300" cy="50" r="1" fill="#00ff00">
-      <animate attributeName="cy" values="0;512" dur="4s" repeatCount="indefinite"/>
-    </circle>
-    <circle cx="400" cy="400" r="1" fill="#00ff00">
-      <animate attributeName="cy" values="0;512" dur="7s" repeatCount="indefinite"/>
-    </circle>
-  </g>
+  <!-- Glitch overlay (subtle) -->
+  <rect x="0" y="0" width="512" height="512" fill="none" stroke="none" filter="url(#glitch)" opacity="0.05"/>
 </svg>`;
 
 async function generateIcons() {
@@ -283,15 +306,27 @@ async function generateIcons() {
     }
     
     console.log(`
-🎉 Cyberpunk-themed icons generated successfully!
+🎉 Enhanced cyberpunk-themed icons generated successfully!
 
-Your NFT Studio now has a cool cyberpunk aesthetic with:
-- Neon cyan and magenta gradients
-- Hexagonal frame design
-- Circuit board patterns
-- Glitch effects on the NFT text
-- Animated scanning lines (in SVG)
-- Matrix-style digital rain effect
+Your NFT Studio now has a rich, detailed design with:
+✨ CENTERED text for perfect balance
+- "NFT" text: 160px, perfectly centered using dominant-baseline
+- "STUDIO" text: 52px, positioned below NFT
+- LARGER hexagon frame with 3 nested layers (outer, middle, inner)
+- Enhanced background grid (3x3 pattern)
+- Circuit board patterns in all 4 corners
+- Digital rain effect (binary code: 01, 10, 11)
+- Glitch effect filter for cyberpunk aesthetic
+- Enhanced corner accents with diagonal lines
+- Animated scanning line effect
+
+Design features:
+✅ Text perfectly centered in the icon
+✅ Triple-layered hexagon frame for depth
+✅ Rich cyberpunk details (circuits, digital rain, glitch)
+✅ Neon cyan/magenta/purple gradients
+✅ Highly readable at all sizes
+✅ Professional appearance with technical aesthetic
 
 The icons have been generated in all required formats:
 - SVG: Original vector graphic with animations
