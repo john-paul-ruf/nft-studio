@@ -39,6 +39,111 @@ import {
     Refresh
 } from '@mui/icons-material';
 
+// Helper component for rendering grouped effects in context menus
+function GroupedContextMenuEffects({ effects, onSelect, theme, itemStyles }) {
+    const [expandedAuthors, setExpandedAuthors] = React.useState(new Set());
+
+    // Group effects by author
+    const groupedEffects = React.useMemo(() => {
+        const groups = {};
+        effects.forEach(effect => {
+            const author = effect.author || 'NFT Studio';
+            if (!groups[author]) {
+                groups[author] = [];
+            }
+            groups[author].push(effect);
+        });
+        return groups;
+    }, [effects]);
+
+    const authorNames = Object.keys(groupedEffects).sort();
+
+    const toggleAuthor = (authorName, e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const newExpanded = new Set(expandedAuthors);
+        if (newExpanded.has(authorName)) {
+            newExpanded.delete(authorName);
+        } else {
+            newExpanded.add(authorName);
+        }
+        setExpandedAuthors(newExpanded);
+    };
+
+    return (
+        <>
+            {authorNames.map((authorName) => {
+                const authorEffects = groupedEffects[authorName];
+                const isExpanded = expandedAuthors.has(authorName);
+
+                return (
+                    <React.Fragment key={authorName}>
+                        {/* Author Group Header */}
+                        <div
+                            onClick={(e) => toggleAuthor(authorName, e)}
+                            style={{
+                                ...itemStyles,
+                                fontWeight: 600,
+                                fontSize: '12px',
+                                color: theme.palette.text.secondary,
+                                backgroundColor: theme.palette.mode === 'dark' 
+                                    ? 'rgba(255, 255, 255, 0.05)' 
+                                    : 'rgba(0, 0, 0, 0.03)',
+                                cursor: 'pointer',
+                                userSelect: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                marginBottom: '2px'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = theme.palette.mode === 'dark' 
+                                    ? 'rgba(255, 255, 255, 0.08)' 
+                                    : 'rgba(0, 0, 0, 0.05)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = theme.palette.mode === 'dark' 
+                                    ? 'rgba(255, 255, 255, 0.05)' 
+                                    : 'rgba(0, 0, 0, 0.03)';
+                            }}
+                        >
+                            <ChevronRight 
+                                sx={{ 
+                                    fontSize: 14,
+                                    transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                                    transition: 'transform 0.2s'
+                                }} 
+                            />
+                            <span>{authorName}</span>
+                            <span style={{ 
+                                marginLeft: 'auto', 
+                                fontSize: '10px',
+                                opacity: 0.7
+                            }}>
+                                ({authorEffects.length})
+                            </span>
+                        </div>
+
+                        {/* Author Effects (collapsible) */}
+                        {isExpanded && authorEffects.map((effect, index) => (
+                            <ContextMenu.Item
+                                key={index}
+                                style={{
+                                    ...itemStyles,
+                                    paddingLeft: '32px'
+                                }}
+                                onSelect={() => onSelect(effect)}
+                            >
+                                {effect.displayName || effect.name}
+                            </ContextMenu.Item>
+                        ))}
+                    </React.Fragment>
+                );
+            })}
+        </>
+    );
+}
+
 export default function EffectsPanel({
     effects,
     onEffectDelete,
@@ -751,15 +856,12 @@ export default function EffectsPanel({
                                                 No secondary effects available
                                             </ContextMenu.Item>
                                         ) : (
-                                            secondaryEffects.map((secondaryEffect, index) => (
-                                                <ContextMenu.Item
-                                                    key={index}
-                                                    style={itemStyles}
-                                                    onSelect={() => onEffectAddSecondary && onEffectAddSecondary(secondaryEffect.name || secondaryEffect.className, 'secondary', originalIndex)}
-                                                >
-                                                    {secondaryEffect.displayName || secondaryEffect.name}
-                                                </ContextMenu.Item>
-                                            ))
+                                            <GroupedContextMenuEffects
+                                                effects={secondaryEffects}
+                                                onSelect={(secondaryEffect) => onEffectAddSecondary && onEffectAddSecondary(secondaryEffect.name || secondaryEffect.className, 'secondary', originalIndex)}
+                                                theme={theme}
+                                                itemStyles={itemStyles}
+                                            />
                                         )}
                                     </ContextMenu.SubContent>
                                 </ContextMenu.Portal>
@@ -790,15 +892,12 @@ export default function EffectsPanel({
                                                 No keyframe effects available
                                             </ContextMenu.Item>
                                         ) : (
-                                            keyframeEffects.map((keyframeEffect, index) => (
-                                                <ContextMenu.Item
-                                                    key={index}
-                                                    style={itemStyles}
-                                                    onSelect={() => onEffectAddKeyframe && onEffectAddKeyframe(keyframeEffect.name || keyframeEffect.className, 'keyframe', originalIndex)}
-                                                >
-                                                    {keyframeEffect.displayName || keyframeEffect.name} at frame
-                                                </ContextMenu.Item>
-                                            ))
+                                            <GroupedContextMenuEffects
+                                                effects={keyframeEffects}
+                                                onSelect={(keyframeEffect) => onEffectAddKeyframe && onEffectAddKeyframe(keyframeEffect.name || keyframeEffect.className, 'keyframe', originalIndex)}
+                                                theme={theme}
+                                                itemStyles={itemStyles}
+                                            />
                                         )}
                                     </ContextMenu.SubContent>
                                 </ContextMenu.Portal>
@@ -1313,6 +1412,33 @@ function EffectSubmenu({
     setAddEffectMenuOpen,
     onOpenSpecialty
 }) {
+    const [expandedAuthors, setExpandedAuthors] = React.useState(new Set());
+
+    // Group effects by author
+    const groupedEffects = React.useMemo(() => {
+        const groups = {};
+        effects.forEach(effect => {
+            const author = effect.author || 'NFT Studio';
+            if (!groups[author]) {
+                groups[author] = [];
+            }
+            groups[author].push(effect);
+        });
+        return groups;
+    }, [effects]);
+
+    const authorNames = Object.keys(groupedEffects).sort();
+
+    const toggleAuthor = (authorName) => {
+        const newExpanded = new Set(expandedAuthors);
+        if (newExpanded.has(authorName)) {
+            newExpanded.delete(authorName);
+        } else {
+            newExpanded.add(authorName);
+        }
+        setExpandedAuthors(newExpanded);
+    };
+
     return (
         <DropdownMenu.Sub>
             <DropdownMenu.SubTrigger
@@ -1384,40 +1510,103 @@ function EffectSubmenu({
                         </DropdownMenu.Item>
                     )}
 
-                    {effects.map((effect) => (
-                        <DropdownMenu.Item
-                            key={effect.name}
-                            style={{
-                                padding: 0,
-                                borderRadius: '4px',
-                                outline: 'none',
-                            }}
-                            onSelect={async (event) => {
-                                event.preventDefault();
-                                try {
-                                    await onAddEffect(effect.name, effectType);
-                                    setAddEffectMenuOpen(false);
-                                } catch (error) {
-                                    console.error('Error adding effect:', error);
-                                }
-                            }}
-                        >
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    padding: '6px 12px',
-                                    fontSize: '13px',
-                                    color: currentTheme.palette.text.primary,
-                                    cursor: 'pointer',
-                                    borderRadius: '4px',
-                                    width: '100%',
-                                }}
-                            >
-                                {effect.displayName || effect.name}
+                    {/* Render grouped effects by author */}
+                    {authorNames.map((authorName) => {
+                        const authorEffects = groupedEffects[authorName];
+                        const isExpanded = expandedAuthors.has(authorName);
+
+                        return (
+                            <div key={authorName} style={{ marginBottom: '2px' }}>
+                                {/* Author Group Header */}
+                                <div
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        toggleAuthor(authorName);
+                                    }}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        padding: '6px 8px',
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                        color: currentTheme.palette.text.secondary,
+                                        cursor: 'pointer',
+                                        borderRadius: '4px',
+                                        backgroundColor: currentTheme.palette.mode === 'dark' 
+                                            ? 'rgba(255, 255, 255, 0.05)' 
+                                            : 'rgba(0, 0, 0, 0.03)',
+                                        gap: '6px',
+                                        userSelect: 'none',
+                                        transition: 'background-color 0.2s',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = currentTheme.palette.mode === 'dark' 
+                                            ? 'rgba(255, 255, 255, 0.08)' 
+                                            : 'rgba(0, 0, 0, 0.05)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = currentTheme.palette.mode === 'dark' 
+                                            ? 'rgba(255, 255, 255, 0.05)' 
+                                            : 'rgba(0, 0, 0, 0.03)';
+                                    }}
+                                >
+                                    <ChevronRight 
+                                        sx={{ 
+                                            fontSize: 14,
+                                            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                                            transition: 'transform 0.2s'
+                                        }} 
+                                    />
+                                    <span>{authorName}</span>
+                                    <span style={{ 
+                                        marginLeft: 'auto', 
+                                        fontSize: '10px',
+                                        opacity: 0.7
+                                    }}>
+                                        ({authorEffects.length})
+                                    </span>
+                                </div>
+
+                                {/* Author Effects (collapsible) */}
+                                {isExpanded && authorEffects.map((effect) => (
+                                    <DropdownMenu.Item
+                                        key={effect.name}
+                                        style={{
+                                            padding: 0,
+                                            borderRadius: '4px',
+                                            outline: 'none',
+                                            marginLeft: '16px',
+                                        }}
+                                        onSelect={async (event) => {
+                                            event.preventDefault();
+                                            try {
+                                                await onAddEffect(effect.name, effectType);
+                                                setAddEffectMenuOpen(false);
+                                            } catch (error) {
+                                                console.error('Error adding effect:', error);
+                                            }
+                                        }}
+                                    >
+                                        <div
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                padding: '6px 12px',
+                                                fontSize: '13px',
+                                                color: currentTheme.palette.text.primary,
+                                                cursor: 'pointer',
+                                                borderRadius: '4px',
+                                                width: '100%',
+                                            }}
+                                        >
+                                            {effect.displayName || effect.name}
+                                        </div>
+                                    </DropdownMenu.Item>
+                                ))}
                             </div>
-                        </DropdownMenu.Item>
-                    ))}
+                        );
+                    })}
                 </DropdownMenu.SubContent>
             </DropdownMenu.Portal>
         </DropdownMenu.Sub>

@@ -47,32 +47,23 @@ class EffectDiscoveryService {
                 finalImage: effects.finalImage.length
             });
 
+            // Helper function to map effects with plugin source
+            const mapEffects = (effectsList) => effectsList.map(plugin => ({
+                name: plugin.name,
+                registryKey: plugin.name, // Preserve the original registry key
+                displayName: plugin.metadata?.displayName || plugin.name,
+                description: plugin.metadata?.description || '',
+                className: this.deriveClassName(plugin.name),
+                configClassName: plugin.configClass ? plugin.configClass.name : (this.deriveClassName(plugin.name) + 'Config'),
+                pluginSource: plugin.metadata?.pluginSource || plugin.pluginSource || 'Core Library',
+                author: plugin.metadata?.author || plugin.author || 'NFT Studio'
+            }));
+
             // Return primary, secondary, and finalImage effects for the dropdown
             const result = {
-                primary: effects.primary.map(plugin => ({
-                    name: plugin.name,
-                    registryKey: plugin.name, // Preserve the original registry key
-                    displayName: plugin.metadata?.displayName || plugin.name,
-                    description: plugin.metadata?.description || '',
-                    className: this.deriveClassName(plugin.name),
-                    configClassName: plugin.configClass ? plugin.configClass.name : (this.deriveClassName(plugin.name) + 'Config')
-                })),
-                secondary: effects.secondary.map(plugin => ({
-                    name: plugin.name,
-                    registryKey: plugin.name, // Preserve the original registry key
-                    displayName: plugin.metadata?.displayName || plugin.name,
-                    description: plugin.metadata?.description || '',
-                    className: this.deriveClassName(plugin.name),
-                    configClassName: plugin.configClass ? plugin.configClass.name : (this.deriveClassName(plugin.name) + 'Config')
-                })),
-                finalImage: effects.finalImage.map(plugin => ({
-                    name: plugin.name,
-                    registryKey: plugin.name, // Preserve the original registry key
-                    displayName: plugin.metadata?.displayName || plugin.name,
-                    description: plugin.metadata?.description || '',
-                    className: this.deriveClassName(plugin.name),
-                    configClassName: plugin.configClass ? plugin.configClass.name : (this.deriveClassName(plugin.name) + 'Config')
-                }))
+                primary: mapEffects(effects.primary),
+                secondary: mapEffects(effects.secondary),
+                finalImage: mapEffects(effects.finalImage)
             };
             
             SafeConsole.log('✅ [EffectDiscoveryService] Returning available effects:', {
@@ -113,7 +104,9 @@ class EffectDiscoveryService {
                         description: plugin.metadata?.description || '',
                         category: plugin.category,
                         className: className,
-                        configClassName: configClassName
+                        configClassName: configClassName,
+                        pluginSource: plugin.metadata?.pluginSource || plugin.pluginSource || 'Core Library',
+                        author: plugin.metadata?.author || plugin.author || 'NFT Studio'
                     };
                 });
             }
