@@ -322,8 +322,8 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                             // Update local project state
                             setProjectState(loadedProjectState);
 
-                            // Trigger a re-render
-                            renderPipelineService.triggerRender(selectedFrame);
+                            // NOTE: Auto-render on project load DISABLED - user must manually trigger render
+                            console.log('📝 Project loaded - waiting for manual render trigger');
                         } else {
                             console.error('❌ Failed to load project from file');
                         }
