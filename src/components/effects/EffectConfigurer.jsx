@@ -150,29 +150,36 @@ function EffectConfigurer({
 
     // Check for saved defaults when effect changes
     // ONLY apply defaults when there's no initialConfig (i.e., when adding a new effect)
+    // This effect should ONLY run when the user is adding a NEW effect, never when editing
     useEffect(() => {
         const checkDefaults = async () => {
             if (!selectedEffect?.registryKey) return;
             
-            // Don't apply defaults if we've already loaded initialConfig for this effect
-            if (defaultsLoadedForEffect.current === selectedEffect.registryKey) {
-                console.log('📋 Skipping defaults - already using initialConfig for:', selectedEffect.registryKey);
+            // CRITICAL: Don't apply defaults if we have an initialConfig (editing existing effect)
+            // This check must come FIRST to prevent any defaults from being applied during edits
+            if (initialConfig && Object.keys(initialConfig).length > 0) {
+                console.log('📋 Skipping defaults - editing existing effect:', selectedEffect.registryKey);
+                // Mark that we should never load defaults for this effect instance
+                defaultsLoadedForEffect.current = selectedEffect.registryKey;
                 return;
             }
             
-            // Don't apply defaults if we have an initialConfig (editing existing effect)
-            if (initialConfig && Object.keys(initialConfig).length > 0) {
-                console.log('📋 Skipping defaults - using initialConfig for existing effect:', selectedEffect.registryKey);
+            // Don't apply defaults if we've already loaded them for this effect
+            if (defaultsLoadedForEffect.current === selectedEffect.registryKey) {
+                console.log('📋 Skipping defaults - already loaded for:', selectedEffect.registryKey);
                 return;
             }
 
             try {
                 const defaults = await services.configManager.checkForDefaults(selectedEffect.registryKey);
                 if (defaults) {
+                    console.log('✅ Applying saved defaults for NEW effect:', selectedEffect.registryKey);
                     // Mark that we've loaded defaults for this effect
                     defaultsLoadedForEffect.current = selectedEffect.registryKey;
                     // Apply defaults through configuration change
                     handleConfigurationChange(defaults);
+                } else {
+                    console.log('ℹ️ No saved defaults found for:', selectedEffect.registryKey);
                 }
             } catch (error) {
                 console.error('❌ Error checking defaults:', error);
@@ -180,7 +187,8 @@ function EffectConfigurer({
         };
 
         checkDefaults();
-    }, [selectedEffect?.registryKey, services.configManager, initialConfig, handleConfigurationChange]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedEffect?.registryKey, initialConfig]);
 
     // Field change handler - converts individual field changes to full config updates
     const handleFieldChange = useCallback((fieldName, fieldValue) => {
