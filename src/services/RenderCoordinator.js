@@ -44,6 +44,9 @@ export class RenderCoordinator {
         this.currentWorkerId = null;
         this.workerTerminationUnsubscribers = null;
         this.renderStartTime = null;
+        
+        // Track last unpinned settings file for cleanup
+        this.lastUnpinnedSettingsFile = null;
     }
 
     /**
@@ -61,6 +64,13 @@ export class RenderCoordinator {
 
         try {
             const startTime = Date.now();
+
+            // If not pinned (no settingsFile provided), clean up previous unpinned settings
+            if (!settingsFile && this.lastUnpinnedSettingsFile) {
+                this.logger.info('Cleaning up previous unpinned settings before new render');
+                await this.cleanupUnpinnedSettings(this.lastUnpinnedSettingsFile);
+                this.lastUnpinnedSettingsFile = null;
+            }
 
             // If no settings file provided, generate one before rendering (for potential pinning)
             let effectiveSettingsFile = settingsFile;
@@ -116,6 +126,14 @@ export class RenderCoordinator {
             // Backend now returns: { buffer: Buffer, settingsFile: string }
             const buffer = result.buffer || result; // Fallback for old format
             const generatedSettingsFile = result.settingsFile || effectiveSettingsFile;
+            
+            // Track unpinned settings file for future cleanup
+            if (!settingsFile && generatedSettingsFile) {
+                this.lastUnpinnedSettingsFile = generatedSettingsFile;
+                this.logger.info('Tracking unpinned settings file for cleanup', { 
+                    settingsFile: generatedSettingsFile 
+                });
+            }
             
             // Calculate progress - handle 0-indexed frames
             const framesCompleted = frameNumber + 1;
@@ -186,6 +204,13 @@ export class RenderCoordinator {
         this.logger.header('Starting New Random Loop Generation');
 
         try {
+            // If not pinned (no settingsFile provided), clean up previous unpinned settings
+            if (!settingsFile && this.lastUnpinnedSettingsFile) {
+                this.logger.info('Cleaning up previous unpinned settings before new render loop');
+                await this.cleanupUnpinnedSettings(this.lastUnpinnedSettingsFile);
+                this.lastUnpinnedSettingsFile = null;
+            }
+
             // Load modules dynamically
             const { UnifiedEventBus } = await _loadModules();
 
@@ -276,6 +301,14 @@ export class RenderCoordinator {
         this.logger.header('Starting Project Resume');
 
         try {
+            // Clean up previous unpinned settings before resuming
+            // Note: Resume uses its own settings file, so we clean up any previous unpinned ones
+            if (this.lastUnpinnedSettingsFile) {
+                this.logger.info('Cleaning up previous unpinned settings before project resume');
+                await this.cleanupUnpinnedSettings(this.lastUnpinnedSettingsFile);
+                this.lastUnpinnedSettingsFile = null;
+            }
+
             // Load modules dynamically
             const { UnifiedEventBus } = await _loadModules();
 
@@ -541,6 +574,70 @@ export class RenderCoordinator {
 
         // Fallback to system temp directory
         return os.tmpdir();
+    }
+
+    /**
+     * Clean up unpinned settings files and their parent directories
+     * This method deletes temporary settings files that were created for unpinned renders
+     * @param {string} settingsFilePath - Path to the settings file to delete
+     * @returns {Promise<Object>} Cleanup result
+     * @private
+     */
+    async cleanupUnpinnedSettings(settingsFilePath) {
+        if (!settingsFilePath) {
+            return { success: true, message: 'No settings file to clean up' };
+        }
+
+        try {
+            this.logger.info('Cleaning up unpinned settings', { settingsFilePath });
+
+            // Extract the parent directory (working directory)
+            // Settings files are typically in: /path/to/working-dir/settings/file.json
+            // We want to delete the entire working directory
+            const path = await import('path');
+            const settingsDir = path.dirname(settingsFilePath); // Gets the 'settings' directory
+            const workingDirectory = path.dirname(settingsDir); // Gets the parent working directory
+
+            // Verify this looks like a temporary directory before deleting
+            // Check if it contains timestamp or temp-like patterns
+            const dirName = path.basename(workingDirectory);
+            const isTempDir = dirName.includes('frame-') || 
+                             dirName.includes('pinned-loop-') || 
+                             dirName.includes('pin-') ||
+                             workingDirectory.includes(os.tmpdir());
+
+            if (!isTempDir) {
+                this.logger.warn('Skipping cleanup - directory does not appear to be temporary', { 
+                    workingDirectory 
+                });
+                return { 
+                    success: false, 
+                    message: 'Directory does not appear to be temporary, skipping cleanup for safety' 
+                };
+            }
+
+            // Delete the entire working directory recursively
+            await fs.rm(workingDirectory, { recursive: true, force: true });
+            
+            this.logger.success('Unpinned settings cleaned up successfully', { 
+                workingDirectory 
+            });
+
+            return {
+                success: true,
+                deletedDirectory: workingDirectory,
+                message: 'Unpinned settings and parent directory deleted'
+            };
+
+        } catch (error) {
+            // Don't fail the render if cleanup fails
+            this.logger.warn('Failed to clean up unpinned settings (non-critical)', error);
+            return {
+                success: false,
+                error: error.message,
+                message: 'Cleanup failed but continuing with render'
+            };
+        }
     }
 
     // Private helper methods
