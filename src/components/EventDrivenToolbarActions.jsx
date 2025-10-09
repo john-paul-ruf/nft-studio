@@ -424,20 +424,6 @@ export default function EventDrivenToolbarActions({ projectState }) {
             { component: 'EventDrivenToolbarActions' }
         );
 
-        // Effect edit events from EffectsPanel
-        const unsubscribeEffectEdit = eventBusService.subscribe(
-            'effectspanel:effect:edit',
-            (payload) => {
-                console.log('🔥 EventDrivenToolbarActions: Effect edit event:', payload);
-                eventBusService.emit('effect:edit', {
-                    effectIndex: payload.effectIndex,
-                    effectType: payload.effectType || 'primary',
-                    subIndex: payload.subIndex !== undefined ? payload.subIndex : null
-                }, { source: 'EventDrivenToolbarActions' });
-            },
-            { component: 'EventDrivenToolbarActions' }
-        );
-
         // Effect add secondary events from EffectsPanel
         const unsubscribeEffectAddSecondary = eventBusService.subscribe(
             'effectspanel:effect:addsecondary',
@@ -599,7 +585,6 @@ export default function EventDrivenToolbarActions({ projectState }) {
             unsubscribeEffectReorder();
             unsubscribeEffectRightClick();
             unsubscribeEffectToggleVisibility();
-            unsubscribeEffectEdit();
             unsubscribeEffectAddSecondary();
             unsubscribeEffectAddKeyframe();
             unsubscribeEffectConfigurerConfig();

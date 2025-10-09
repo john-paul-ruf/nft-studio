@@ -102,11 +102,6 @@ export default function useEffectManagement(projectState) {
             handleEffectReorder(payload.dragIndex, payload.hoverIndex);
         }, { component: 'useEffectManagement' });
 
-        const unsubscribeEffectEdit = eventBusService.subscribe('effect:edit', (payload) => {
-            console.log('🎭 useEffectManagement: Effect edit event received:', payload);
-            handleEditEffect(payload.effectIndex, payload.effectType, payload.subIndex);
-        }, { component: 'useEffectManagement' });
-
         const unsubscribeEffectToggleVisibility = eventBusService.subscribe('effect:togglevisibility', (payload) => {
             console.log('🎭 useEffectManagement: Effect toggle visibility event received:', payload);
             handleEffectToggleVisibility(payload.effectIndex);
@@ -323,7 +318,6 @@ export default function useEffectManagement(projectState) {
             unsubscribeEffectAdd();
             unsubscribeEffectDelete();
             unsubscribeEffectReorder();
-            unsubscribeEffectEdit();
             unsubscribeEffectToggleVisibility();
             unsubscribeEffectAddSecondary();
             unsubscribeEffectAddKeyframe();
@@ -335,7 +329,7 @@ export default function useEffectManagement(projectState) {
             unsubscribeKeyframeDelete();
             unsubscribeEffectsRefreshed();
         };
-    }, [eventBusService, handleAddEffectDirect, handleEffectDelete, handleEffectReorder, handleEditEffect, handleEffectToggleVisibility, handleAddSecondaryEffect, handleAddKeyframeEffect, handleSubEffectUpdate, handleConfigUpdateWithContext, projectState, availableEffects, loadAvailableEffects]);
+    }, [eventBusService, handleAddEffectDirect, handleEffectDelete, handleEffectReorder, handleEffectToggleVisibility, handleAddSecondaryEffect, handleAddKeyframeEffect, handleSubEffectUpdate, handleConfigUpdateWithContext, projectState, availableEffects, loadAvailableEffects]);
 
     const handleAddEffect = useCallback((effect) => {
         const currentEffects = projectState.getState().effects || [];

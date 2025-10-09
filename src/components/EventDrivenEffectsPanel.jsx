@@ -65,13 +65,6 @@ export default function EventDrivenEffectsPanel({
         });
     }, [eventBusService]);
 
-    const handleEffectEdit = useCallback((effectIndex, effectType = 'primary', subIndex = null) => {
-        eventBusService.emit('effectspanel:effect:edit', { effectIndex, effectType, subIndex }, {
-            source: 'EventDrivenEffectsPanel',
-            component: 'EventDrivenEffectsPanel'
-        });
-    }, [eventBusService]);
-
     const handleEffectAddSecondary = useCallback((effectName, effectType, parentIndex) => {
         eventBusService.emit('effectspanel:effect:addsecondary', { effectName, effectType, parentIndex }, {
             source: 'EventDrivenEffectsPanel',
@@ -121,7 +114,6 @@ export default function EventDrivenEffectsPanel({
             onEffectReorder={handleEffectReorder}
             onEffectRightClick={handleEffectRightClick}
             onEffectToggleVisibility={handleEffectToggleVisibility}
-            onEffectEdit={handleEffectEdit}
             onEffectAddSecondary={handleEffectAddSecondary}
             onEffectAddKeyframe={handleEffectAddKeyframe}
             onSecondaryEffectReorder={handleSecondaryEffectReorder}

@@ -335,11 +335,6 @@ export default function useEffectOperations(projectState) {
             handleEffectReorder(payload.dragIndex, payload.hoverIndex);
         }, { component: 'useEffectOperations' });
 
-        const unsubscribeEffectEdit = eventBusService.subscribe('effect:edit', (payload) => {
-            console.log('🎭 useEffectOperations: Effect edit event received:', payload);
-            handleEditEffect(payload.effectIndex, payload.effectType, payload.subIndex);
-        }, { component: 'useEffectOperations' });
-
         const unsubscribeEffectToggleVisibility = eventBusService.subscribe('effect:togglevisibility', (payload) => {
             console.log('🎭 useEffectOperations: Effect toggle visibility event received:', payload);
             handleEffectToggleVisibility(payload.effectIndex);
@@ -421,7 +416,6 @@ export default function useEffectOperations(projectState) {
             unsubscribeEffectAdd();
             unsubscribeEffectDelete();
             unsubscribeEffectReorder();
-            unsubscribeEffectEdit();
             unsubscribeEffectToggleVisibility();
             unsubscribeEffectAddSecondary();
             unsubscribeEffectAddKeyframe();
@@ -433,7 +427,6 @@ export default function useEffectOperations(projectState) {
         handleAddEffectWithConfig,
         handleEffectDelete,
         handleEffectReorder,
-        handleEditEffect,
         handleEffectToggleVisibility,
         handleAddSecondaryEffect,
         handleAddKeyframeEffect,

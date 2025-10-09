@@ -31,7 +31,6 @@ import {
     DragIndicator,
     SubdirectoryArrowRight,
     ArrowForward,
-    Edit,
     Add,
     StarBorder,
     Schedule,
@@ -154,7 +153,6 @@ export default function EffectsPanel({
     onEffectReorder,
     onEffectRightClick,
     onEffectToggleVisibility,
-    onEffectEdit,
     onEffectAddSecondary,
     onEffectAddKeyframe,
     onSecondaryEffectReorder,
@@ -306,9 +304,6 @@ export default function EffectsPanel({
             source: 'EffectsPanel',
             component: 'ConfigPanel'
         });
-        
-        // Note: onEffectEdit is for opening the edit dialog, not for updating config.
-        // The config update is handled by the event above.
     }, [selectedEffect, eventBusService]);
 
     // Toggle all effects visibility
@@ -729,19 +724,6 @@ export default function EffectsPanel({
                                             color: isReadOnly ? theme.palette.text.disabled : itemStyles.color,
                                             cursor: isReadOnly ? 'default' : 'pointer'
                                         }}
-                                        onSelect={() => !isReadOnly && onEffectEdit && onEffectEdit(parentOriginalIndex, 'secondary', idx)}
-                                    >
-                                        <Edit fontSize="small" />
-                                        {isReadOnly ? 'Edit Secondary Effect (Read-only)' : 'Edit Secondary Effect'}
-                                    </ContextMenu.Item>
-                                    <ContextMenu.Separator style={separatorStyles} />
-                                    <ContextMenu.Item
-                                        disabled={isReadOnly}
-                                        style={{
-                                            ...itemStyles,
-                                            color: isReadOnly ? theme.palette.text.disabled : itemStyles.color,
-                                            cursor: isReadOnly ? 'default' : 'pointer'
-                                        }}
                                         onSelect={() => !isReadOnly && onSecondaryEffectDelete && onSecondaryEffectDelete(parentOriginalIndex, idx)}
                                     >
                                         <Delete fontSize="small" />
@@ -891,19 +873,6 @@ export default function EffectsPanel({
                                             color: isReadOnly ? theme.palette.text.disabled : itemStyles.color,
                                             cursor: isReadOnly ? 'default' : 'pointer'
                                         }}
-                                        onSelect={() => !isReadOnly && onEffectEdit && onEffectEdit(parentOriginalIndex, 'keyframe', idx)}
-                                    >
-                                        <Edit fontSize="small" />
-                                        {isReadOnly ? 'Edit Keyframe Effect (Read-only)' : 'Edit Keyframe Effect'}
-                                    </ContextMenu.Item>
-                                    <ContextMenu.Separator style={separatorStyles} />
-                                    <ContextMenu.Item
-                                        disabled={isReadOnly}
-                                        style={{
-                                            ...itemStyles,
-                                            color: isReadOnly ? theme.palette.text.disabled : itemStyles.color,
-                                            cursor: isReadOnly ? 'default' : 'pointer'
-                                        }}
                                         onSelect={() => !isReadOnly && onKeyframeEffectDelete && onKeyframeEffectDelete(parentOriginalIndex, idx)}
                                     >
                                         <Delete fontSize="small" />
@@ -949,23 +918,9 @@ export default function EffectsPanel({
         return (
             <ContextMenu.Portal>
                 <ContextMenu.Content style={menuStyles}>
-                    <ContextMenu.Item
-                        disabled={isReadOnly}
-                        style={{
-                            ...itemStyles,
-                            color: isReadOnly ? theme.palette.text.disabled : itemStyles.color,
-                            cursor: isReadOnly ? 'default' : 'pointer'
-                        }}
-                        onSelect={() => !isReadOnly && onEffectEdit && onEffectEdit(originalIndex)}
-                    >
-                        <Edit fontSize="small" />
-                        {isReadOnly ? 'Edit Effect (Read-only)' : 'Edit Effect'}
-                    </ContextMenu.Item>
-
                     {/* Only show secondary and keyframe options for non-final effects and not in read-only mode */}
                     {!isEffectFinal && !isReadOnly && (
                         <>
-                            <ContextMenu.Separator style={separatorStyles} />
 
                             <ContextMenu.Sub>
                                 <ContextMenu.SubTrigger style={{...itemStyles, justifyContent: 'space-between'}}>
