@@ -1457,7 +1457,7 @@ export default function EffectsPanel({
                                 letterSpacing: 1
                             }}
                         >
-                            Effect Config
+                            {selectedEffectData?.className || selectedEffectData?.name || 'Effect'} - {selectedEffectData?.id || 'N/A'}
                         </Typography>
                     </Box>
                     <IconButton
