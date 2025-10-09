@@ -78,6 +78,7 @@ function EffectConfigurer({
     const schemaRef = useRef(null);
     const previousResolution = useRef(projectState?.targetResolution);
     const defaultsLoadedForEffect = useRef(null); // Track which effect we've loaded defaults for
+    const isEditingExistingEffect = useRef(false); // Track if we're editing an existing effect
 
     // Initialize percent chance from props
     useEffect(() => {
@@ -99,15 +100,24 @@ function EffectConfigurer({
             // Deep comparison to avoid unnecessary updates
             const configChanged = JSON.stringify(initialConfig) !== JSON.stringify(configRef.current);
             if (configChanged) {
+                console.log('📝 EffectConfigurer: Syncing with initialConfig (editing existing effect)', {
+                    effect: selectedEffect?.registryKey,
+                    initialConfig
+                });
                 setEffectConfig(initialConfig);
                 configRef.current = initialConfig;
-                // Mark that we're using initialConfig, so we don't load defaults
+                // Mark that we're editing an existing effect and should never load defaults
+                isEditingExistingEffect.current = true;
                 defaultsLoadedForEffect.current = selectedEffect?.registryKey;
             }
         } else if (!initialConfig || Object.keys(initialConfig).length === 0) {
             // Reset when switching to a new effect without initialConfig
+            console.log('🆕 EffectConfigurer: Resetting config (new effect)', {
+                effect: selectedEffect?.registryKey
+            });
             setEffectConfig({});
             configRef.current = {};
+            isEditingExistingEffect.current = false;
             defaultsLoadedForEffect.current = null;
         }
     }, [initialConfig, selectedEffect?.registryKey, resolutionKey]);
@@ -155,11 +165,19 @@ function EffectConfigurer({
         const checkDefaults = async () => {
             if (!selectedEffect?.registryKey) return;
             
+            // CRITICAL: Don't apply defaults if we're editing an existing effect
+            // Check the ref first as it's set synchronously by the initialConfig sync effect
+            if (isEditingExistingEffect.current) {
+                console.log('📋 Skipping defaults - editing existing effect (ref check):', selectedEffect.registryKey);
+                return;
+            }
+            
             // CRITICAL: Don't apply defaults if we have an initialConfig (editing existing effect)
             // This check must come FIRST to prevent any defaults from being applied during edits
             if (initialConfig && Object.keys(initialConfig).length > 0) {
-                console.log('📋 Skipping defaults - editing existing effect:', selectedEffect.registryKey);
+                console.log('📋 Skipping defaults - editing existing effect (initialConfig check):', selectedEffect.registryKey);
                 // Mark that we should never load defaults for this effect instance
+                isEditingExistingEffect.current = true;
                 defaultsLoadedForEffect.current = selectedEffect.registryKey;
                 return;
             }
@@ -188,7 +206,7 @@ function EffectConfigurer({
 
         checkDefaults();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedEffect?.registryKey, initialConfig]);
+    }, [selectedEffect?.registryKey]);
 
     // Field change handler - converts individual field changes to full config updates
     const handleFieldChange = useCallback((fieldName, fieldValue) => {
