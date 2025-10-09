@@ -234,10 +234,9 @@ function EffectConfigurer({
         // Apply center defaults using EffectConfigurationManager (only for new effects)
         const configWithDefaults = services.configManager.applyCenterDefaults(updatedConfig, projectState, isNewEffect);
 
-        // Process configuration change using EffectConfigurationManager
-        services.configManager.processConfigurationChange(configWithDefaults, selectedEffect, onConfigChange);
-
-        // Coordinate event emission using EffectEventCoordinator
+        // Coordinate event emission and callback using EffectEventCoordinator
+        // NOTE: This handles both event emission AND the onConfigChange callback
+        // Do NOT call processConfigurationChange separately as it would duplicate the callback
         services.eventCoordinator.coordinateConfigurationChange(
             configWithDefaults,
             selectedEffect,
@@ -267,10 +266,9 @@ function EffectConfigurer({
         // Apply center defaults using EffectConfigurationManager (only for new effects)
         const configWithDefaults = services.configManager.applyCenterDefaults(newConfig, projectState, isNewEffect);
 
-        // Process configuration change using EffectConfigurationManager
-        services.configManager.processConfigurationChange(configWithDefaults, selectedEffect, onConfigChange);
-
-        // Coordinate event emission using EffectEventCoordinator
+        // Coordinate event emission and callback using EffectEventCoordinator
+        // NOTE: This handles both event emission AND the onConfigChange callback
+        // Do NOT call processConfigurationChange separately as it would duplicate the callback
         services.eventCoordinator.coordinateConfigurationChange(
             configWithDefaults,
             selectedEffect,
