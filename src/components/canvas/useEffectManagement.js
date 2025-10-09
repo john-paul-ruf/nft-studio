@@ -525,50 +525,128 @@ export default function useEffectManagement(projectState) {
         });
     }, []);
 
-    const getEditingEffectData = useCallback(() => {
+    const getEditingEffectData = useCallback((effectContext = null) => {
+        // Use provided context or fall back to state
+        const context = effectContext || editingEffect;
+        
+        console.log('🔍 getEditingEffectData: Called with context:', {
+            providedContext: effectContext,
+            fallbackEditingEffect: editingEffect,
+            finalContext: context
+        });
+        
         // Get fresh effects from ProjectState every time (ensures we get scaled values)
         const currentEffects = projectState.getState().effects || [];
 
-        if (!editingEffect || !currentEffects[editingEffect.effectIndex]) {
-            console.log('❌ getEditingEffectData: Returning null because no editingEffect or invalid index');
+        if (!context) {
+            console.error('❌ getEditingEffectData: No context available', {
+                providedContext: effectContext,
+                editingEffect: editingEffect
+            });
             return null;
         }
 
-        const mainEffect = currentEffects[editingEffect.effectIndex];
-        console.log('🔍 getEditingEffectData: Found mainEffect (fresh from ProjectState):', mainEffect);
+        if (!currentEffects[context.effectIndex]) {
+            console.error('❌ getEditingEffectData: Invalid effect index', {
+                effectIndex: context.effectIndex,
+                effectsLength: currentEffects.length,
+                availableIndices: currentEffects.map((e, i) => i)
+            });
+            return null;
+        }
 
-        if (editingEffect.effectType === 'primary') {
+        const mainEffect = currentEffects[context.effectIndex];
+        console.log('🔍 getEditingEffectData: Found mainEffect (fresh from ProjectState):', {
+            effectIndex: context.effectIndex,
+            effectType: context.effectType,
+            subIndex: context.subIndex,
+            mainEffect: mainEffect,
+            hasRegistryKey: !!mainEffect.registryKey,
+            hasSecondaryEffects: !!mainEffect.secondaryEffects,
+            secondaryEffectsCount: mainEffect.secondaryEffects?.length || 0,
+            hasKeyframeEffects: !!mainEffect.keyframeEffects,
+            keyframeEffectsCount: mainEffect.keyframeEffects?.length || 0
+        });
+
+        if (context.effectType === 'primary') {
+            console.log('✅ getEditingEffectData: Returning primary effect');
             return mainEffect;
-        } else if (editingEffect.effectType === 'secondary' && mainEffect.secondaryEffects && editingEffect.subIndex !== null) {
-            const secondaryEffect = mainEffect.secondaryEffects[editingEffect.subIndex];
-
-            // CRITICAL: Secondary effect MUST have registryKey - no fallbacks
-            if (!secondaryEffect.registryKey) {
-                console.error('❌ getEditingEffectData: Secondary effect missing registryKey:', secondaryEffect);
+        } else if (context.effectType === 'secondary') {
+            if (!mainEffect.secondaryEffects) {
+                console.error('❌ getEditingEffectData: Main effect has no secondaryEffects array', {
+                    mainEffect: mainEffect
+                });
+                return null;
+            }
+            
+            if (context.subIndex === null || context.subIndex === undefined) {
+                console.error('❌ getEditingEffectData: subIndex is null/undefined for secondary effect', {
+                    subIndex: context.subIndex
+                });
                 return null;
             }
 
+            const secondaryEffect = mainEffect.secondaryEffects[context.subIndex];
+            
+            if (!secondaryEffect) {
+                console.error('❌ getEditingEffectData: Secondary effect not found at index', {
+                    subIndex: context.subIndex,
+                    secondaryEffectsLength: mainEffect.secondaryEffects.length,
+                    availableIndices: mainEffect.secondaryEffects.map((e, i) => i)
+                });
+                return null;
+            }
+
+            // CRITICAL: Secondary effect MUST have registryKey - no fallbacks
+            if (!secondaryEffect.registryKey) {
+                console.error('❌ getEditingEffectData: Secondary effect missing registryKey:', {
+                    secondaryEffect: secondaryEffect,
+                    hasName: !!secondaryEffect.name,
+                    hasClassName: !!secondaryEffect.className,
+                    keys: Object.keys(secondaryEffect)
+                });
+                return null;
+            }
+
+            console.log('✅ getEditingEffectData: Returning secondary effect');
             // Ensure secondary effect has proper registryKey for EffectConfigurer
             return {
                 ...secondaryEffect,
                 name: secondaryEffect.registryKey
             };
-        } else if (editingEffect.effectType === 'keyframe' && editingEffect.subIndex !== null) {
+        } else if (context.effectType === 'keyframe') {
+            if (context.subIndex === null || context.subIndex === undefined) {
+                console.error('❌ getEditingEffectData: subIndex is null/undefined for keyframe effect', {
+                    subIndex: context.subIndex
+                });
+                return null;
+            }
+            
             // Use single source of truth for keyframe effects
             const keyframeEffects = mainEffect.keyframeEffects || [];
-            const keyframeEffect = keyframeEffects[editingEffect.subIndex];
+            const keyframeEffect = keyframeEffects[context.subIndex];
             
             if (!keyframeEffect) {
-                console.error('❌ getEditingEffectData: Keyframe effect not found at index:', editingEffect.subIndex);
+                console.error('❌ getEditingEffectData: Keyframe effect not found at index', {
+                    subIndex: context.subIndex,
+                    keyframeEffectsLength: keyframeEffects.length,
+                    availableIndices: keyframeEffects.map((e, i) => i)
+                });
                 return null;
             }
 
             // CRITICAL: Keyframe effect MUST have registryKey - no fallbacks
             if (!keyframeEffect.registryKey) {
-                console.error('❌ getEditingEffectData: Keyframe effect missing registryKey:', keyframeEffect);
+                console.error('❌ getEditingEffectData: Keyframe effect missing registryKey:', {
+                    keyframeEffect: keyframeEffect,
+                    hasName: !!keyframeEffect.name,
+                    hasClassName: !!keyframeEffect.className,
+                    keys: Object.keys(keyframeEffect)
+                });
                 return null;
             }
 
+            console.log('✅ getEditingEffectData: Returning keyframe effect');
             // Ensure keyframe effect has proper registryKey for EffectConfigurer
             return {
                 ...keyframeEffect,
@@ -576,6 +654,10 @@ export default function useEffectManagement(projectState) {
             };
         }
 
+        console.error('❌ getEditingEffectData: Unknown effect type or invalid state', {
+            effectType: context.effectType,
+            subIndex: context.subIndex
+        });
         return null;
     }, [editingEffect, projectState]);
 

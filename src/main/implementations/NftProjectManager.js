@@ -359,46 +359,30 @@ class NftProjectManager {
         const myNftGenPath = path.resolve(process.cwd(), '../my-nft-gen');
         const { default: effectProcessor } = await import('../services/EffectProcessingService.js');
 
-        // Group effects by type while maintaining order
-        const primaryEffects = [];
-        const finalEffects = [];
-
-        // Categorize effects while preserving their order
+        // Process effects in their original panel order (top to bottom)
+        // This ensures effects are added to the Project class in the exact order
+        // they appear in the effects panel, regardless of type
         for (const effect of visibleEffects) {
             const effectType = effect.type || 'primary';
-            switch (effectType) {
-                case 'final':
-                case 'finalImage':
-                    finalEffects.push(effect);
-                    break;
-                case 'primary':
-                default:
-                    primaryEffects.push(effect);
-                    break;
-            }
-        }
-
-        // Process and add primary effects in order
-        if (primaryEffects.length > 0) {
+            
+            // Process each effect individually to maintain panel order
             const processedEffects = await effectProcessor.processEffects(
-                primaryEffects,
+                [effect],
                 myNftGenPath
             );
 
+            // Add the processed effect to the appropriate array based on type
             for (const layerConfig of processedEffects) {
-                project.addPrimaryEffect({layerConfig});
-            }
-        }
-
-        // Process and add final effects in order
-        if (finalEffects.length > 0) {
-            const processedEffects = await effectProcessor.processEffects(
-                finalEffects,
-                myNftGenPath
-            );
-
-            for (const layerConfig of processedEffects) {
-                project.addFinalEffect({layerConfig});
+                switch (effectType) {
+                    case 'final':
+                    case 'finalImage':
+                        project.addFinalEffect({layerConfig});
+                        break;
+                    case 'primary':
+                    default:
+                        project.addPrimaryEffect({layerConfig});
+                        break;
+                }
             }
         }
     }

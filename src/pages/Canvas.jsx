@@ -539,7 +539,8 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                                 subIndex: editingEffect.subIndex
                             });
 
-                            const editingEffectData = getEditingEffectData();
+                            // Pass editingEffect directly to avoid race condition with state updates
+                            const editingEffectData = getEditingEffectData(editingEffect);
 
                             console.log('🎨 CANVAS: getEditingEffectData returned:', {
                                 editingEffectData: editingEffectData,

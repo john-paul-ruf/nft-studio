@@ -493,8 +493,8 @@ function EffectConfigurer({
                 </Button>
             </Box>
 
-            {/* Effect Attachment Modal */}
-            {availableEffects && (
+            {/* Effect Attachment Modal - Only render when in modal mode */}
+            {isModal && availableEffects && (
                 <EffectAttachmentModal
                     open={isModal}
                     effects={availableEffects}

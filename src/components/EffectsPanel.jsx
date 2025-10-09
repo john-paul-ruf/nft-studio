@@ -5,6 +5,7 @@ import { useServices } from '../contexts/ServiceContext.js';
 import PreferencesService from '../services/PreferencesService.js';
 import SpecialtyEffectsModal from './effects/SpecialtyEffectsModal.jsx';
 import BulkAddKeyframeModal from './effects/BulkAddKeyframeModal.jsx';
+import EffectConfigurer from './effects/EffectConfigurer.jsx';
 import {
     Box,
     Typography,
@@ -18,7 +19,8 @@ import {
     ListItem,
     ListItemText,
     ListItemIcon,
-    ListItemSecondaryAction
+    ListItemSecondaryAction,
+    Drawer
 } from '@mui/material';
 import {
     ExpandMore,
@@ -36,7 +38,9 @@ import {
     ChevronRight,
     KeyboardArrowRight,
     PlaylistAdd,
-    Refresh
+    Refresh,
+    ChevronLeft,
+    Settings
 } from '@mui/icons-material';
 
 // Helper component for rendering grouped effects in context menus
@@ -174,6 +178,13 @@ export default function EffectsPanel({
     const [specialtyModalOpen, setSpecialtyModalOpen] = useState(false);
     const [bulkAddModalOpen, setBulkAddModalOpen] = useState(false);
     const [bulkAddTargetIndex, setBulkAddTargetIndex] = useState(null);
+    
+    // Selection state: stores { effectIndex, effectType, subIndex }
+    const [selectedEffect, setSelectedEffect] = useState(null);
+    
+    // Config panel state
+    const [configPanelOpen, setConfigPanelOpen] = useState(false);
+    const [configPanelWidth, setConfigPanelWidth] = useState(400);
 
     // Debug effects prop changes
     const [expandedEffects, setExpandedEffects] = useState(new Set());
@@ -210,6 +221,95 @@ export default function EffectsPanel({
         });
         setAddEffectMenuOpen(false);
     }, [eventBusService]);
+
+    // Handle effect selection
+    const handleEffectSelect = useCallback((effectIndex, effectType = 'primary', subIndex = null) => {
+        const selectionData = {
+            effectIndex,
+            effectType,
+            subIndex
+        };
+        
+        setSelectedEffect(selectionData);
+        
+        // Open config panel when an effect is selected
+        if (!isReadOnly) {
+            setConfigPanelOpen(true);
+        }
+        
+        // Emit selection event for other components to react
+        eventBusService.emit('effect:selected', selectionData, {
+            source: 'EffectsPanel',
+            component: 'EffectsPanel'
+        });
+    }, [eventBusService, isReadOnly]);
+
+    // Check if an effect is selected
+    const isEffectSelected = useCallback((effectIndex, effectType = 'primary', subIndex = null) => {
+        if (!selectedEffect) return false;
+        
+        return selectedEffect.effectIndex === effectIndex &&
+               selectedEffect.effectType === effectType &&
+               selectedEffect.subIndex === subIndex;
+    }, [selectedEffect]);
+
+    // Get the selected effect data for the config panel
+    const getSelectedEffectData = useCallback(() => {
+        if (!selectedEffect || !effects) return null;
+        
+        const { effectIndex, effectType, subIndex } = selectedEffect;
+        const effect = effects[effectIndex];
+        
+        if (!effect) return null;
+        
+        // Handle different effect types
+        if (effectType === 'secondary' && subIndex !== null) {
+            const secondaryEffect = effect.secondaryEffects?.[subIndex];
+            return secondaryEffect ? {
+                ...secondaryEffect,
+                effectIndex,
+                effectType: 'secondary',
+                subEffectIndex: subIndex
+            } : null;
+        } else if (effectType === 'keyframe' && subIndex !== null) {
+            const keyframeEffect = effect.attachedEffects?.keyFrame?.[subIndex];
+            return keyframeEffect ? {
+                ...keyframeEffect,
+                effectIndex,
+                effectType: 'keyframe',
+                subEffectIndex: subIndex
+            } : null;
+        } else {
+            // Primary or final effect
+            return {
+                ...effect,
+                effectIndex,
+                effectType: effect.type || 'primary',
+                subEffectIndex: null
+            };
+        }
+    }, [selectedEffect, effects]);
+
+    // Handle config changes from the config panel
+    const handleConfigPanelChange = useCallback((updatedConfig) => {
+        if (!selectedEffect) return;
+        
+        const { effectIndex, effectType, subIndex } = selectedEffect;
+        
+        // Emit config update event
+        eventBusService.emit('effect:config:update', {
+            effectIndex,
+            effectType,
+            subIndex,
+            config: updatedConfig
+        }, {
+            source: 'EffectsPanel',
+            component: 'ConfigPanel'
+        });
+        
+        // Note: onEffectEdit is for opening the edit dialog, not for updating config.
+        // The config update is handled by the event above.
+    }, [selectedEffect, eventBusService]);
 
     // Toggle all effects visibility
     const handleToggleAllVisibility = useCallback(() => {
@@ -460,316 +560,7 @@ export default function EffectsPanel({
         return `Frame ${keyframe.frame || 0}`;
     };
 
-    const renderSecondaryEffects = (effect, parentOriginalIndex) => {
-        if (!effect.secondaryEffects || effect.secondaryEffects.length === 0) return null;
-
-        return (
-            <Box sx={{ ml: 2, mt: 0.5 }}>
-                {effect.secondaryEffects.map((secondary, idx) => (
-                    <ContextMenu.Root key={idx}>
-                        <ContextMenu.Trigger asChild>
-                            <Box
-                                draggable={true}
-                                onDragStart={(e) => handleSecondaryDragStart(e, parentOriginalIndex, idx)}
-                                onDragOver={handleSecondaryDragOver}
-                                onDrop={(e) => handleSecondaryDrop(e, parentOriginalIndex, idx)}
-                                sx={{ cursor: 'grab', '&:active': { cursor: 'grabbing' } }}
-                            >
-                                <Paper
-                                    elevation={0}
-                                    sx={{
-                                        backgroundColor: theme.palette.mode === 'dark' ? '#2a2a2a' : '#f8f8f8',
-                                        border: `1px solid ${theme.palette.divider}`,
-                                        borderRadius: 1,
-                                        p: 1,
-                                        mb: 0.25,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        cursor: 'pointer',
-                                        '&:hover': {
-                                            backgroundColor: theme.palette.action.hover,
-                                    }
-                                }}
-                            >
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <SubdirectoryArrowRight
-                                        sx={{
-                                            fontSize: 14,
-                                            color: theme.palette.text.secondary,
-                                            mr: 1
-                                        }}
-                                    />
-                                    <Typography
-                                        variant="body2"
-                                        sx={{
-                                            color: theme.palette.text.primary,
-                                            fontSize: '13px'
-                                        }}
-                                    >
-                                        {formatEffectName(secondary)}
-                                    </Typography>
-                                    {secondary.id && (
-                                        <Chip
-                                            label={formatEffectId(secondary.id)}
-                                            size="small"
-                                            title={`Full ID: ${secondary.id}`}
-                                            sx={{
-                                                height: 16,
-                                                fontSize: '9px',
-                                                fontWeight: 500,
-                                                backgroundColor: theme.palette.mode === 'dark' 
-                                                    ? 'rgba(255, 183, 77, 0.16)' 
-                                                    : 'rgba(255, 152, 0, 0.08)',
-                                                color: theme.palette.mode === 'dark' 
-                                                    ? '#ffb74d' 
-                                                    : '#f57c00',
-                                                border: `1px solid ${theme.palette.mode === 'dark' 
-                                                    ? 'rgba(255, 183, 77, 0.3)' 
-                                                    : 'rgba(255, 152, 0, 0.2)'}`,
-                                                fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace',
-                                                letterSpacing: '0.3px',
-                                                '& .MuiChip-label': {
-                                                    px: 0.5,
-                                                    py: 0.2
-                                                },
-                                                '&:hover': {
-                                                    backgroundColor: theme.palette.mode === 'dark' 
-                                                        ? 'rgba(255, 183, 77, 0.24)' 
-                                                        : 'rgba(255, 152, 0, 0.12)',
-                                                    transform: 'scale(1.05)',
-                                                    transition: 'all 0.2s ease-in-out'
-                                                }
-                                            }}
-                                        />
-                                    )}
-                                </Box>
-                                <IconButton
-                                    size="small"
-                                    disabled={isReadOnly}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (isReadOnly) return;
-                                        onSecondaryEffectDelete && onSecondaryEffectDelete(parentOriginalIndex, idx);
-                                    }}
-                                    title={isReadOnly ? "Read-only mode" : "Delete secondary effect"}
-                                    sx={{
-                                        p: 0,
-                                        color: isReadOnly ? theme.palette.text.disabled : theme.palette.text.secondary,
-                                        opacity: isReadOnly ? 0.3 : 0.7,
-                                        '&:hover': !isReadOnly ? {
-                                            opacity: 1,
-                                            transform: 'scale(1.1)',
-                                            color: theme.palette.error.main
-                                        } : {}
-                                    }}
-                                >
-                                    <Delete sx={{ fontSize: 14 }} />
-                                </IconButton>
-                                </Paper>
-                            </Box>
-                        </ContextMenu.Trigger>
-                        <ContextMenu.Portal>
-                            <ContextMenu.Content style={menuStyles}>
-                                <ContextMenu.Item
-                                    disabled={isReadOnly}
-                                    style={{
-                                        ...itemStyles,
-                                        color: isReadOnly ? theme.palette.text.disabled : itemStyles.color,
-                                        cursor: isReadOnly ? 'default' : 'pointer'
-                                    }}
-                                    onSelect={() => !isReadOnly && onEffectEdit && onEffectEdit(parentOriginalIndex, 'secondary', idx)}
-                                >
-                                    <Edit fontSize="small" />
-                                    {isReadOnly ? 'Edit Secondary Effect (Read-only)' : 'Edit Secondary Effect'}
-                                </ContextMenu.Item>
-                                <ContextMenu.Separator style={separatorStyles} />
-                                <ContextMenu.Item
-                                    disabled={isReadOnly}
-                                    style={{
-                                        ...itemStyles,
-                                        color: isReadOnly ? theme.palette.text.disabled : itemStyles.color,
-                                        cursor: isReadOnly ? 'default' : 'pointer'
-                                    }}
-                                    onSelect={() => !isReadOnly && onSecondaryEffectDelete && onSecondaryEffectDelete(parentOriginalIndex, idx)}
-                                >
-                                    <Delete fontSize="small" />
-                                    {isReadOnly ? 'Delete Secondary Effect (Read-only)' : 'Delete Secondary Effect'}
-                                </ContextMenu.Item>
-                            </ContextMenu.Content>
-                        </ContextMenu.Portal>
-                    </ContextMenu.Root>
-                ))}
-            </Box>
-        );
-    };
-
-    const renderKeyframeEffects = (effect, parentOriginalIndex) => {
-        const keyframeEffects = effect.keyframeEffects || [];
-        if (!keyframeEffects || keyframeEffects.length === 0) return null;
-
-        return (
-            <Box sx={{ ml: 2, mt: 0.5 }}>
-                {keyframeEffects.map((keyframe, idx) => (
-                    <ContextMenu.Root key={idx}>
-                        <ContextMenu.Trigger asChild>
-                            <Box
-                                draggable={true}
-                                onDragStart={(e) => handleKeyframeDragStart(e, parentOriginalIndex, idx)}
-                                onDragOver={handleKeyframeDragOver}
-                                onDrop={(e) => handleKeyframeDrop(e, parentOriginalIndex, idx)}
-                                sx={{ cursor: 'grab', '&:active': { cursor: 'grabbing' } }}
-                            >
-                                <Paper
-                                    elevation={0}
-                                    sx={{
-                                        backgroundColor: theme.palette.mode === 'dark' ? '#2a2a2a' : '#f8f8f8',
-                                        border: `1px solid ${theme.palette.divider}`,
-                                        borderRadius: 1,
-                                        p: 1,
-                                        mb: 0.25,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        cursor: 'pointer',
-                                        '&:hover': {
-                                            backgroundColor: theme.palette.action.hover,
-                                        }
-                                    }}
-                                >
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <ArrowForward
-                                            sx={{
-                                                fontSize: 14,
-                                                color: theme.palette.text.secondary,
-                                                mr: 1
-                                            }}
-                                        />
-                                        <Typography
-                                            variant="body2"
-                                            sx={{
-                                                color: theme.palette.text.primary,
-                                                fontSize: '13px'
-                                            }}
-                                        >
-                                            {formatKeyframeDisplay(keyframe)}: {formatEffectName(keyframe)}
-                                        </Typography>
-                                        {keyframe.id && (
-                                            <Chip
-                                                label={formatEffectId(keyframe.id)}
-                                                size="small"
-                                                title={`Full ID: ${keyframe.id}`}
-                                                sx={{
-                                                    height: 16,
-                                                    fontSize: '9px',
-                                                    fontWeight: 500,
-                                                    backgroundColor: theme.palette.mode === 'dark' 
-                                                        ? 'rgba(129, 199, 132, 0.16)' 
-                                                        : 'rgba(76, 175, 80, 0.08)',
-                                                    color: theme.palette.mode === 'dark' 
-                                                        ? '#81c784' 
-                                                        : '#388e3c',
-                                                    border: `1px solid ${theme.palette.mode === 'dark' 
-                                                        ? 'rgba(129, 199, 132, 0.3)' 
-                                                        : 'rgba(76, 175, 80, 0.2)'}`,
-                                                    fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace',
-                                                    letterSpacing: '0.3px',
-                                                    '& .MuiChip-label': {
-                                                        px: 0.5,
-                                                        py: 0.2
-                                                    },
-                                                    '&:hover': {
-                                                        backgroundColor: theme.palette.mode === 'dark' 
-                                                            ? 'rgba(129, 199, 132, 0.24)' 
-                                                            : 'rgba(76, 175, 80, 0.12)',
-                                                        transform: 'scale(1.05)',
-                                                        transition: 'all 0.2s ease-in-out'
-                                                    }
-                                                }}
-                                            />
-                                        )}
-                                    </Box>
-                                    <IconButton
-                                        size="small"
-                                        disabled={isReadOnly}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (isReadOnly) return;
-                                            onKeyframeEffectDelete && onKeyframeEffectDelete(parentOriginalIndex, idx);
-                                        }}
-                                        title={isReadOnly ? "Read-only mode" : "Delete keyframe effect"}
-                                        sx={{
-                                            p: 0,
-                                            color: isReadOnly ? theme.palette.text.disabled : theme.palette.text.secondary,
-                                            opacity: isReadOnly ? 0.3 : 0.7,
-                                            '&:hover': !isReadOnly ? {
-                                                opacity: 1,
-                                                transform: 'scale(1.1)',
-                                                color: theme.palette.error.main
-                                            } : {}
-                                        }}
-                                    >
-                                        <Delete sx={{ fontSize: 14 }} />
-                                    </IconButton>
-                                </Paper>
-                            </Box>
-                        </ContextMenu.Trigger>
-                        <ContextMenu.Portal>
-                            <ContextMenu.Content style={menuStyles}>
-                                <ContextMenu.Item
-                                    disabled={isReadOnly}
-                                    style={{
-                                        ...itemStyles,
-                                        color: isReadOnly ? theme.palette.text.disabled : itemStyles.color,
-                                        cursor: isReadOnly ? 'default' : 'pointer'
-                                    }}
-                                    onSelect={() => !isReadOnly && onEffectEdit && onEffectEdit(parentOriginalIndex, 'keyframe', idx)}
-                                >
-                                    <Edit fontSize="small" />
-                                    {isReadOnly ? 'Edit Keyframe Effect (Read-only)' : 'Edit Keyframe Effect'}
-                                </ContextMenu.Item>
-                                <ContextMenu.Separator style={separatorStyles} />
-                                <ContextMenu.Item
-                                    disabled={isReadOnly}
-                                    style={{
-                                        ...itemStyles,
-                                        color: isReadOnly ? theme.palette.text.disabled : itemStyles.color,
-                                        cursor: isReadOnly ? 'default' : 'pointer'
-                                    }}
-                                    onSelect={() => !isReadOnly && onKeyframeEffectDelete && onKeyframeEffectDelete(parentOriginalIndex, idx)}
-                                >
-                                    <Delete fontSize="small" />
-                                    {isReadOnly ? 'Delete Keyframe Effect (Read-only)' : 'Delete Keyframe Effect'}
-                                </ContextMenu.Item>
-                            </ContextMenu.Content>
-                        </ContextMenu.Portal>
-                    </ContextMenu.Root>
-                ))}
-            </Box>
-        );
-    };
-
-    const isFinalEffect = (effect) => {
-        if (!effect) return false;
-
-        // Explicitly exclude secondary and keyframe effects from final effects
-        if (effect.type === 'secondary' || effect.type === 'keyframe') {
-            console.log('📋 EffectsPanel: Excluding from final effects:', effect.name || effect.className, 'type:', effect.type);
-            return false;
-        }
-
-        // Only allow actual final image effects
-        const isFinal = effect.type === 'finalImage';
-        console.log('📋 EffectsPanel: Effect categorization:', {
-            name: effect.name || effect.className,
-            type: effect.type,
-            isFinal
-        });
-
-        return isFinal;
-    };
-
-    // Context menu styles
+    // Context menu styles (defined early for use in render functions)
     const menuStyles = {
         backgroundColor: theme.palette.mode === 'dark' ? '#323232' : theme.palette.background.paper,
         border: `1px solid ${theme.palette.divider}`,
@@ -802,6 +593,349 @@ export default function EffectsPanel({
         height: '1px',
         backgroundColor: theme.palette.divider,
         margin: '4px 0',
+    };
+
+    const renderSecondaryEffects = (effect, parentOriginalIndex) => {
+        if (!effect.secondaryEffects || effect.secondaryEffects.length === 0) return null;
+
+        return (
+            <Box sx={{ ml: 2, mt: 0.5 }}>
+                {effect.secondaryEffects.map((secondary, idx) => {
+                    const isSelected = isEffectSelected(parentOriginalIndex, 'secondary', idx);
+                    
+                    return (
+                        <ContextMenu.Root key={idx}>
+                            <ContextMenu.Trigger asChild>
+                                <Box
+                                    draggable={true}
+                                    onDragStart={(e) => handleSecondaryDragStart(e, parentOriginalIndex, idx)}
+                                    onDragOver={handleSecondaryDragOver}
+                                    onDrop={(e) => handleSecondaryDrop(e, parentOriginalIndex, idx)}
+                                    sx={{ cursor: 'grab', '&:active': { cursor: 'grabbing' } }}
+                                >
+                                    <Paper
+                                        elevation={0}
+                                        onClick={() => handleEffectSelect(parentOriginalIndex, 'secondary', idx)}
+                                        onContextMenu={() => handleEffectSelect(parentOriginalIndex, 'secondary', idx)}
+                                        sx={{
+                                            backgroundColor: isSelected
+                                                ? theme.palette.mode === 'dark'
+                                                    ? 'rgba(255, 183, 77, 0.24)'
+                                                    : 'rgba(255, 152, 0, 0.12)'
+                                                : theme.palette.mode === 'dark' ? '#2a2a2a' : '#f8f8f8',
+                                            border: isSelected
+                                                ? `2px solid ${theme.palette.mode === 'dark' ? '#ffb74d' : '#f57c00'}`
+                                                : `1px solid ${theme.palette.divider}`,
+                                            borderRadius: 1,
+                                            p: 1,
+                                            mb: 0.25,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s',
+                                            '&:hover': {
+                                                backgroundColor: isSelected
+                                                    ? theme.palette.mode === 'dark'
+                                                        ? 'rgba(255, 183, 77, 0.32)'
+                                                        : 'rgba(255, 152, 0, 0.16)'
+                                                    : theme.palette.action.hover,
+                                            }
+                                        }}
+                                    >
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <SubdirectoryArrowRight
+                                                sx={{
+                                                    fontSize: 14,
+                                                    color: theme.palette.text.secondary,
+                                                    mr: 1
+                                                }}
+                                            />
+                                            <Typography
+                                                variant="body2"
+                                                sx={{
+                                                    color: theme.palette.text.primary,
+                                                    fontSize: '13px'
+                                                }}
+                                            >
+                                                {formatEffectName(secondary)}
+                                            </Typography>
+                                            {secondary.id && (
+                                                <Chip
+                                                    label={formatEffectId(secondary.id)}
+                                                    size="small"
+                                                    title={`Full ID: ${secondary.id}`}
+                                                    sx={{
+                                                        height: 16,
+                                                        fontSize: '9px',
+                                                        fontWeight: 500,
+                                                        backgroundColor: theme.palette.mode === 'dark' 
+                                                            ? 'rgba(255, 183, 77, 0.16)' 
+                                                            : 'rgba(255, 152, 0, 0.08)',
+                                                        color: theme.palette.mode === 'dark' 
+                                                            ? '#ffb74d' 
+                                                            : '#f57c00',
+                                                        border: `1px solid ${theme.palette.mode === 'dark' 
+                                                            ? 'rgba(255, 183, 77, 0.3)' 
+                                                            : 'rgba(255, 152, 0, 0.2)'}`,
+                                                        fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace',
+                                                        letterSpacing: '0.3px',
+                                                        '& .MuiChip-label': {
+                                                            px: 0.5,
+                                                            py: 0.2
+                                                        },
+                                                        '&:hover': {
+                                                            backgroundColor: theme.palette.mode === 'dark' 
+                                                                ? 'rgba(255, 183, 77, 0.24)' 
+                                                                : 'rgba(255, 152, 0, 0.12)',
+                                                            transform: 'scale(1.05)',
+                                                            transition: 'all 0.2s ease-in-out'
+                                                        }
+                                                    }}
+                                                />
+                                            )}
+                                        </Box>
+                                        <IconButton
+                                            size="small"
+                                            disabled={isReadOnly}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (isReadOnly) return;
+                                                onSecondaryEffectDelete && onSecondaryEffectDelete(parentOriginalIndex, idx);
+                                            }}
+                                            title={isReadOnly ? "Read-only mode" : "Delete secondary effect"}
+                                            sx={{
+                                                p: 0,
+                                                color: isReadOnly ? theme.palette.text.disabled : theme.palette.text.secondary,
+                                                opacity: isReadOnly ? 0.3 : 0.7,
+                                                '&:hover': !isReadOnly ? {
+                                                    opacity: 1,
+                                                    transform: 'scale(1.1)',
+                                                    color: theme.palette.error.main
+                                                } : {}
+                                            }}
+                                        >
+                                            <Delete sx={{ fontSize: 14 }} />
+                                        </IconButton>
+                                    </Paper>
+                                </Box>
+                            </ContextMenu.Trigger>
+                            <ContextMenu.Portal>
+                                <ContextMenu.Content style={menuStyles}>
+                                    <ContextMenu.Item
+                                        disabled={isReadOnly}
+                                        style={{
+                                            ...itemStyles,
+                                            color: isReadOnly ? theme.palette.text.disabled : itemStyles.color,
+                                            cursor: isReadOnly ? 'default' : 'pointer'
+                                        }}
+                                        onSelect={() => !isReadOnly && onEffectEdit && onEffectEdit(parentOriginalIndex, 'secondary', idx)}
+                                    >
+                                        <Edit fontSize="small" />
+                                        {isReadOnly ? 'Edit Secondary Effect (Read-only)' : 'Edit Secondary Effect'}
+                                    </ContextMenu.Item>
+                                    <ContextMenu.Separator style={separatorStyles} />
+                                    <ContextMenu.Item
+                                        disabled={isReadOnly}
+                                        style={{
+                                            ...itemStyles,
+                                            color: isReadOnly ? theme.palette.text.disabled : itemStyles.color,
+                                            cursor: isReadOnly ? 'default' : 'pointer'
+                                        }}
+                                        onSelect={() => !isReadOnly && onSecondaryEffectDelete && onSecondaryEffectDelete(parentOriginalIndex, idx)}
+                                    >
+                                        <Delete fontSize="small" />
+                                        {isReadOnly ? 'Delete Secondary Effect (Read-only)' : 'Delete Secondary Effect'}
+                                    </ContextMenu.Item>
+                                </ContextMenu.Content>
+                            </ContextMenu.Portal>
+                        </ContextMenu.Root>
+                    );
+                })}
+            </Box>
+        );
+    };
+
+    const renderKeyframeEffects = (effect, parentOriginalIndex) => {
+        const keyframeEffects = effect.keyframeEffects || [];
+        if (!keyframeEffects || keyframeEffects.length === 0) return null;
+
+        return (
+            <Box sx={{ ml: 2, mt: 0.5 }}>
+                {keyframeEffects.map((keyframe, idx) => {
+                    const isSelected = isEffectSelected(parentOriginalIndex, 'keyframe', idx);
+                    
+                    return (
+                        <ContextMenu.Root key={idx}>
+                            <ContextMenu.Trigger asChild>
+                                <Box
+                                    draggable={true}
+                                    onDragStart={(e) => handleKeyframeDragStart(e, parentOriginalIndex, idx)}
+                                    onDragOver={handleKeyframeDragOver}
+                                    onDrop={(e) => handleKeyframeDrop(e, parentOriginalIndex, idx)}
+                                    sx={{ cursor: 'grab', '&:active': { cursor: 'grabbing' } }}
+                                >
+                                    <Paper
+                                        elevation={0}
+                                        onClick={() => handleEffectSelect(parentOriginalIndex, 'keyframe', idx)}
+                                        onContextMenu={() => handleEffectSelect(parentOriginalIndex, 'keyframe', idx)}
+                                        sx={{
+                                            backgroundColor: isSelected
+                                                ? theme.palette.mode === 'dark'
+                                                    ? 'rgba(129, 199, 132, 0.24)'
+                                                    : 'rgba(76, 175, 80, 0.12)'
+                                                : theme.palette.mode === 'dark' ? '#2a2a2a' : '#f8f8f8',
+                                            border: isSelected
+                                                ? `2px solid ${theme.palette.mode === 'dark' ? '#81c784' : '#388e3c'}`
+                                                : `1px solid ${theme.palette.divider}`,
+                                            borderRadius: 1,
+                                            p: 1,
+                                            mb: 0.25,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s',
+                                            '&:hover': {
+                                                backgroundColor: isSelected
+                                                    ? theme.palette.mode === 'dark'
+                                                        ? 'rgba(129, 199, 132, 0.32)'
+                                                        : 'rgba(76, 175, 80, 0.16)'
+                                                    : theme.palette.action.hover,
+                                            }
+                                        }}
+                                    >
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <ArrowForward
+                                                sx={{
+                                                    fontSize: 14,
+                                                    color: theme.palette.text.secondary,
+                                                    mr: 1
+                                                }}
+                                            />
+                                            <Typography
+                                                variant="body2"
+                                                sx={{
+                                                    color: theme.palette.text.primary,
+                                                    fontSize: '13px'
+                                                }}
+                                            >
+                                                {formatKeyframeDisplay(keyframe)}: {formatEffectName(keyframe)}
+                                            </Typography>
+                                            {keyframe.id && (
+                                                <Chip
+                                                    label={formatEffectId(keyframe.id)}
+                                                    size="small"
+                                                    title={`Full ID: ${keyframe.id}`}
+                                                    sx={{
+                                                        height: 16,
+                                                        fontSize: '9px',
+                                                        fontWeight: 500,
+                                                        backgroundColor: theme.palette.mode === 'dark' 
+                                                            ? 'rgba(129, 199, 132, 0.16)' 
+                                                            : 'rgba(76, 175, 80, 0.08)',
+                                                        color: theme.palette.mode === 'dark' 
+                                                            ? '#81c784' 
+                                                            : '#388e3c',
+                                                        border: `1px solid ${theme.palette.mode === 'dark' 
+                                                            ? 'rgba(129, 199, 132, 0.3)' 
+                                                            : 'rgba(76, 175, 80, 0.2)'}`,
+                                                        fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace',
+                                                        letterSpacing: '0.3px',
+                                                        '& .MuiChip-label': {
+                                                            px: 0.5,
+                                                            py: 0.2
+                                                        },
+                                                        '&:hover': {
+                                                            backgroundColor: theme.palette.mode === 'dark' 
+                                                                ? 'rgba(129, 199, 132, 0.24)' 
+                                                                : 'rgba(76, 175, 80, 0.12)',
+                                                            transform: 'scale(1.05)',
+                                                            transition: 'all 0.2s ease-in-out'
+                                                        }
+                                                    }}
+                                                />
+                                            )}
+                                        </Box>
+                                        <IconButton
+                                            size="small"
+                                            disabled={isReadOnly}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (isReadOnly) return;
+                                                onKeyframeEffectDelete && onKeyframeEffectDelete(parentOriginalIndex, idx);
+                                            }}
+                                            title={isReadOnly ? "Read-only mode" : "Delete keyframe effect"}
+                                            sx={{
+                                                p: 0,
+                                                color: isReadOnly ? theme.palette.text.disabled : theme.palette.text.secondary,
+                                                opacity: isReadOnly ? 0.3 : 0.7,
+                                                '&:hover': !isReadOnly ? {
+                                                    opacity: 1,
+                                                    transform: 'scale(1.1)',
+                                                    color: theme.palette.error.main
+                                                } : {}
+                                            }}
+                                        >
+                                            <Delete sx={{ fontSize: 14 }} />
+                                        </IconButton>
+                                    </Paper>
+                                </Box>
+                            </ContextMenu.Trigger>
+                            <ContextMenu.Portal>
+                                <ContextMenu.Content style={menuStyles}>
+                                    <ContextMenu.Item
+                                        disabled={isReadOnly}
+                                        style={{
+                                            ...itemStyles,
+                                            color: isReadOnly ? theme.palette.text.disabled : itemStyles.color,
+                                            cursor: isReadOnly ? 'default' : 'pointer'
+                                        }}
+                                        onSelect={() => !isReadOnly && onEffectEdit && onEffectEdit(parentOriginalIndex, 'keyframe', idx)}
+                                    >
+                                        <Edit fontSize="small" />
+                                        {isReadOnly ? 'Edit Keyframe Effect (Read-only)' : 'Edit Keyframe Effect'}
+                                    </ContextMenu.Item>
+                                    <ContextMenu.Separator style={separatorStyles} />
+                                    <ContextMenu.Item
+                                        disabled={isReadOnly}
+                                        style={{
+                                            ...itemStyles,
+                                            color: isReadOnly ? theme.palette.text.disabled : itemStyles.color,
+                                            cursor: isReadOnly ? 'default' : 'pointer'
+                                        }}
+                                        onSelect={() => !isReadOnly && onKeyframeEffectDelete && onKeyframeEffectDelete(parentOriginalIndex, idx)}
+                                    >
+                                        <Delete fontSize="small" />
+                                        {isReadOnly ? 'Delete Keyframe Effect (Read-only)' : 'Delete Keyframe Effect'}
+                                    </ContextMenu.Item>
+                                </ContextMenu.Content>
+                            </ContextMenu.Portal>
+                        </ContextMenu.Root>
+                    );
+                })}
+            </Box>
+        );
+    };
+
+    const isFinalEffect = (effect) => {
+        if (!effect) return false;
+
+        // Explicitly exclude secondary and keyframe effects from final effects
+        if (effect.type === 'secondary' || effect.type === 'keyframe') {
+            console.log('📋 EffectsPanel: Excluding from final effects:', effect.name || effect.className, 'type:', effect.type);
+            return false;
+        }
+
+        // Only allow actual final image effects
+        const isFinal = effect.type === 'finalImage';
+        console.log('📋 EffectsPanel: Effect categorization:', {
+            name: effect.name || effect.className,
+            type: effect.type,
+            isFinal
+        });
+
+        return isFinal;
     };
 
     const renderContextMenu = (effect, originalIndex) => {
@@ -938,6 +1072,8 @@ export default function EffectsPanel({
             (effect.secondaryEffects?.length > 0) ||
             (effect.attachedEffects?.keyFrame?.length > 0) ||
             false; // keyframeEffects legacy property removed
+        
+        const isSelected = isEffectSelected(originalIndex, 'primary', null);
 
         return (
             <ContextMenu.Root key={`${section}-${originalIndex}`}>
@@ -951,9 +1087,17 @@ export default function EffectsPanel({
                     >
                         <Paper
                             elevation={0}
+                            onClick={() => handleEffectSelect(originalIndex, 'primary', null)}
+                            onContextMenu={() => handleEffectSelect(originalIndex, 'primary', null)}
                             sx={{
-                                backgroundColor: theme.palette.background.default,
-                                border: `1px solid ${theme.palette.divider}`,
+                                backgroundColor: isSelected 
+                                    ? theme.palette.mode === 'dark'
+                                        ? 'rgba(144, 202, 249, 0.16)'
+                                        : 'rgba(25, 118, 210, 0.08)'
+                                    : theme.palette.background.default,
+                                border: isSelected
+                                    ? `2px solid ${theme.palette.primary.main}`
+                                    : `1px solid ${theme.palette.divider}`,
                                 borderRadius: 1,
                                 p: 1,
                                 display: 'flex',
@@ -962,7 +1106,11 @@ export default function EffectsPanel({
                                 transition: 'all 0.2s',
                                 userSelect: 'none',
                                 '&:hover': {
-                                    backgroundColor: theme.palette.action.hover,
+                                    backgroundColor: isSelected
+                                        ? theme.palette.mode === 'dark'
+                                            ? 'rgba(144, 202, 249, 0.24)'
+                                            : 'rgba(25, 118, 210, 0.12)'
+                                        : theme.palette.action.hover,
                                     borderColor: theme.palette.primary.main,
                                 }
                             }}
@@ -1102,40 +1250,51 @@ export default function EffectsPanel({
         );
     };
 
+    const selectedEffectData = getSelectedEffectData();
+
     return (
-        <Paper
-            elevation={0}
+        <Box
             sx={{
-                width: 300,
-                backgroundColor: theme.palette.background.paper,
-                borderLeft: `1px solid ${theme.palette.divider}`,
                 display: 'flex',
-                flexDirection: 'column',
-                height: '100%'
+                height: '100%',
+                position: 'relative'
             }}
         >
-            <Box
+            {/* Main Effects List Panel */}
+            <Paper
+                elevation={0}
                 sx={{
-                    backgroundColor: theme.palette.background.default,
-                    p: 2,
-                    borderBottom: `1px solid ${theme.palette.divider}`,
+                    width: configPanelOpen ? 300 : 300,
+                    backgroundColor: theme.palette.background.paper,
+                    borderLeft: `1px solid ${theme.palette.divider}`,
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
+                    flexDirection: 'column',
+                    height: '100%',
+                    transition: 'width 0.3s ease'
                 }}
             >
-                <Typography
-                    variant="subtitle2"
+                <Box
                     sx={{
-                        color: theme.palette.text.primary,
-                        fontWeight: 400,
-                        textTransform: 'uppercase',
-                        letterSpacing: 1
+                        backgroundColor: theme.palette.background.default,
+                        p: 2,
+                        borderBottom: `1px solid ${theme.palette.divider}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
                     }}
                 >
-                    Layers
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography
+                        variant="subtitle2"
+                        sx={{
+                            color: theme.palette.text.primary,
+                            fontWeight: 400,
+                            textTransform: 'uppercase',
+                            letterSpacing: 1
+                        }}
+                    >
+                        Layers
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     {/* Refresh Effects Button */}
                     {refreshAvailableEffects && !isReadOnly && (
                         <IconButton
@@ -1166,6 +1325,22 @@ export default function EffectsPanel({
                             }}
                         >
                             {areAllEffectsVisible ? <Visibility /> : <VisibilityOff />}
+                        </IconButton>
+                    )}
+                    {/* Toggle Config Panel Button */}
+                    {selectedEffect && !isReadOnly && (
+                        <IconButton
+                            size="small"
+                            onClick={() => setConfigPanelOpen(!configPanelOpen)}
+                            title={configPanelOpen ? 'Hide config panel' : 'Show config panel'}
+                            sx={{
+                                color: configPanelOpen ? theme.palette.primary.main : theme.palette.text.primary,
+                                '&:hover': {
+                                    backgroundColor: theme.palette.action.hover,
+                                }
+                            }}
+                        >
+                            <Settings />
                         </IconButton>
                     )}
                     {/* Add Effect Button - Hidden in read-only mode */}
@@ -1290,6 +1465,90 @@ export default function EffectsPanel({
                 projectState={projectState}
             />
         </Paper>
+
+        {/* Collapsible Config Panel */}
+        {configPanelOpen && selectedEffectData && (
+            <Paper
+                elevation={0}
+                sx={{
+                    width: configPanelWidth,
+                    backgroundColor: theme.palette.background.paper,
+                    borderLeft: `1px solid ${theme.palette.divider}`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: '100%',
+                    overflow: 'hidden'
+                }}
+            >
+                {/* Config Panel Header */}
+                <Box
+                    sx={{
+                        backgroundColor: theme.palette.background.default,
+                        p: 2,
+                        borderBottom: `1px solid ${theme.palette.divider}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                    }}
+                >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Settings sx={{ fontSize: 18, color: theme.palette.text.secondary }} />
+                        <Typography
+                            variant="subtitle2"
+                            sx={{
+                                color: theme.palette.text.primary,
+                                fontWeight: 400,
+                                textTransform: 'uppercase',
+                                letterSpacing: 1
+                            }}
+                        >
+                            Effect Config
+                        </Typography>
+                    </Box>
+                    <IconButton
+                        size="small"
+                        onClick={() => setConfigPanelOpen(false)}
+                        title="Close config panel"
+                        sx={{
+                            color: theme.palette.text.primary,
+                            '&:hover': {
+                                backgroundColor: theme.palette.action.hover,
+                            }
+                        }}
+                    >
+                        <ChevronLeft />
+                    </IconButton>
+                </Box>
+
+                {/* Config Panel Content */}
+                <Box
+                    sx={{
+                        flex: 1,
+                        overflowY: 'auto',
+                        p: 2
+                    }}
+                >
+                    <EffectConfigurer
+                        selectedEffect={selectedEffectData}
+                        initialConfig={selectedEffectData.config}
+                        initialPercentChance={selectedEffectData.percentChance}
+                        projectState={projectState}
+                        onConfigChange={handleConfigPanelChange}
+                        isModal={false}
+                        effectType={selectedEffectData.effectType}
+                        availableEffects={availableEffects || { primary: [], secondary: [], keyFrame: [], finalImage: [] }}
+                        attachedEffects={{
+                            secondary: selectedEffectData.secondaryEffects || [],
+                            keyFrame: selectedEffectData.attachedEffects?.keyFrame || []
+                        }}
+                        onAttachEffect={onEffectAddSecondary}
+                        onRemoveAttachedEffect={onSecondaryEffectDelete}
+                        useWideLayout={false}
+                    />
+                </Box>
+            </Paper>
+        )}
+    </Box>
     );
 }
 
