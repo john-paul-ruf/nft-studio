@@ -8,17 +8,17 @@ function DynamicRangeInput({ field, value, onChange }) {
     };
 
     // State for display values
-    const [displayBottomLower, setDisplayBottomLower] = useState(NumberFormatter.formatForDisplay(currentValue.bottom?.lower || 0));
-    const [displayBottomUpper, setDisplayBottomUpper] = useState(NumberFormatter.formatForDisplay(currentValue.bottom?.upper || 5));
-    const [displayTopLower, setDisplayTopLower] = useState(NumberFormatter.formatForDisplay(currentValue.top?.lower || 5));
-    const [displayTopUpper, setDisplayTopUpper] = useState(NumberFormatter.formatForDisplay(currentValue.top?.upper || 10));
+    const [displayBottomLower, setDisplayBottomLower] = useState(NumberFormatter.formatForDisplay(currentValue.bottom?.lower ?? 0));
+    const [displayBottomUpper, setDisplayBottomUpper] = useState(NumberFormatter.formatForDisplay(currentValue.bottom?.upper ?? 0));
+    const [displayTopLower, setDisplayTopLower] = useState(NumberFormatter.formatForDisplay(currentValue.top?.lower ?? 0));
+    const [displayTopUpper, setDisplayTopUpper] = useState(NumberFormatter.formatForDisplay(currentValue.top?.upper ?? 0));
 
     // Update display values when currentValue changes
     useEffect(() => {
-        setDisplayBottomLower(NumberFormatter.formatForDisplay(currentValue.bottom?.lower || 0));
-        setDisplayBottomUpper(NumberFormatter.formatForDisplay(currentValue.bottom?.upper || 5));
-        setDisplayTopLower(NumberFormatter.formatForDisplay(currentValue.top?.lower || 5));
-        setDisplayTopUpper(NumberFormatter.formatForDisplay(currentValue.top?.upper || 10));
+        setDisplayBottomLower(NumberFormatter.formatForDisplay(currentValue.bottom?.lower ?? 0));
+        setDisplayBottomUpper(NumberFormatter.formatForDisplay(currentValue.bottom?.upper ?? 0));
+        setDisplayTopLower(NumberFormatter.formatForDisplay(currentValue.top?.lower ?? 0));
+        setDisplayTopUpper(NumberFormatter.formatForDisplay(currentValue.top?.upper ?? 0));
     }, [currentValue.bottom?.lower, currentValue.bottom?.upper, currentValue.top?.lower, currentValue.top?.upper]);
 
     const handleBottomLowerChange = (e) => {
