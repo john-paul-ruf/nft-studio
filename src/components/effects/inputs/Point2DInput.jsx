@@ -207,10 +207,25 @@ function Point2DInput({ field, value, onChange, projectState }) {
                     <input
                         type="number"
                         value={currentValue.x || 0}
-                        onChange={(e) => onChange(field.name, {
-                            ...currentValue,
-                            x: parseInt(e.target.value) || 0
-                        })}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            // Allow empty string during typing
+                            if (val === '') return;
+                            onChange(field.name, {
+                                ...currentValue,
+                                x: parseInt(val) || 0
+                            });
+                        }}
+                        onBlur={(e) => {
+                            // On blur, ensure we have a valid value
+                            const val = e.target.value;
+                            if (val === '') {
+                                onChange(field.name, {
+                                    ...currentValue,
+                                    x: 0
+                                });
+                            }
+                        }}
                         style={{ width: '100%' }}
                         min={0}
                         max={width}
@@ -221,10 +236,25 @@ function Point2DInput({ field, value, onChange, projectState }) {
                     <input
                         type="number"
                         value={currentValue.y || 0}
-                        onChange={(e) => onChange(field.name, {
-                            ...currentValue,
-                            y: parseInt(e.target.value) || 0
-                        })}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            // Allow empty string during typing
+                            if (val === '') return;
+                            onChange(field.name, {
+                                ...currentValue,
+                                y: parseInt(val) || 0
+                            });
+                        }}
+                        onBlur={(e) => {
+                            // On blur, ensure we have a valid value
+                            const val = e.target.value;
+                            if (val === '') {
+                                onChange(field.name, {
+                                    ...currentValue,
+                                    y: 0
+                                });
+                            }
+                        }}
                         style={{ width: '100%' }}
                         min={0}
                         max={height}

@@ -32,9 +32,15 @@ class NumberFormatter {
     /**
      * Parse a formatted string back to a number
      * @param {string} value - The formatted string
-     * @returns {number} - Parsed number
+     * @param {boolean} allowEmpty - If true, returns null for empty strings instead of 0
+     * @returns {number|null} - Parsed number or null if empty and allowEmpty is true
      */
-    static parseFromString(value) {
+    static parseFromString(value, allowEmpty = false) {
+        // Handle empty string
+        if (value === '' || value === null || value === undefined) {
+            return allowEmpty ? null : 0;
+        }
+        
         const parsed = parseFloat(value);
         return isNaN(parsed) ? 0 : parsed;
     }

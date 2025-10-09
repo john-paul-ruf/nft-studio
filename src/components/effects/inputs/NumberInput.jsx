@@ -24,18 +24,31 @@ function NumberInput({ field, value, onChange }) {
 
     const handleNumberChange = (e) => {
         const inputValue = e.target.value;
-        setDisplayValue(inputValue); // Allow user to type freely
+        setDisplayValue(inputValue); // Allow user to type freely, including empty string
         
-        const parsedValue = NumberFormatter.parseFromString(inputValue);
-        onChange(field.name, parsedValue);
+        // Don't update the value while typing if it's empty - wait for blur
+        if (inputValue !== '') {
+            const parsedValue = NumberFormatter.parseFromString(inputValue);
+            onChange(field.name, parsedValue);
+        }
     };
 
     const handleNumberBlur = (e) => {
-        // Format the value when user finishes editing
-        const parsedValue = NumberFormatter.parseFromString(e.target.value);
-        const formattedValue = NumberFormatter.formatForDisplay(parsedValue);
-        setDisplayValue(formattedValue);
-        onChange(field.name, parsedValue);
+        const inputValue = e.target.value;
+        
+        // If empty on blur, use the field default or 0
+        if (inputValue === '') {
+            const defaultValue = field.default !== undefined ? field.default : 0;
+            const formattedValue = NumberFormatter.formatForDisplay(defaultValue);
+            setDisplayValue(formattedValue);
+            onChange(field.name, defaultValue);
+        } else {
+            // Format the value when user finishes editing
+            const parsedValue = NumberFormatter.parseFromString(inputValue);
+            const formattedValue = NumberFormatter.formatForDisplay(parsedValue);
+            setDisplayValue(formattedValue);
+            onChange(field.name, parsedValue);
+        }
     };
 
     const handleSliderChange = (e, sliderValue) => {

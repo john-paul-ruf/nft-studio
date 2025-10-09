@@ -18,42 +18,74 @@ function RangeInput({ field, value, onChange }) {
         const inputValue = e.target.value;
         setDisplayLower(inputValue);
         
-        const parsedValue = NumberFormatter.parseFromString(inputValue);
-        onChange(field.name, {
-            ...currentValue,
-            lower: parsedValue
-        });
+        // Don't update the value while typing if it's empty - wait for blur
+        if (inputValue !== '') {
+            const parsedValue = NumberFormatter.parseFromString(inputValue);
+            onChange(field.name, {
+                ...currentValue,
+                lower: parsedValue
+            });
+        }
     };
 
     const handleLowerBlur = (e) => {
-        const parsedValue = NumberFormatter.parseFromString(e.target.value);
-        const formattedValue = NumberFormatter.formatForDisplay(parsedValue);
-        setDisplayLower(formattedValue);
-        onChange(field.name, {
-            ...currentValue,
-            lower: parsedValue
-        });
+        const inputValue = e.target.value;
+        
+        // If empty on blur, use 0 as default
+        if (inputValue === '') {
+            const defaultValue = 0;
+            const formattedValue = NumberFormatter.formatForDisplay(defaultValue);
+            setDisplayLower(formattedValue);
+            onChange(field.name, {
+                ...currentValue,
+                lower: defaultValue
+            });
+        } else {
+            const parsedValue = NumberFormatter.parseFromString(inputValue);
+            const formattedValue = NumberFormatter.formatForDisplay(parsedValue);
+            setDisplayLower(formattedValue);
+            onChange(field.name, {
+                ...currentValue,
+                lower: parsedValue
+            });
+        }
     };
 
     const handleUpperChange = (e) => {
         const inputValue = e.target.value;
         setDisplayUpper(inputValue);
         
-        const parsedValue = NumberFormatter.parseFromString(inputValue);
-        onChange(field.name, {
-            ...currentValue,
-            upper: parsedValue
-        });
+        // Don't update the value while typing if it's empty - wait for blur
+        if (inputValue !== '') {
+            const parsedValue = NumberFormatter.parseFromString(inputValue);
+            onChange(field.name, {
+                ...currentValue,
+                upper: parsedValue
+            });
+        }
     };
 
     const handleUpperBlur = (e) => {
-        const parsedValue = NumberFormatter.parseFromString(e.target.value);
-        const formattedValue = NumberFormatter.formatForDisplay(parsedValue);
-        setDisplayUpper(formattedValue);
-        onChange(field.name, {
-            ...currentValue,
-            upper: parsedValue
-        });
+        const inputValue = e.target.value;
+        
+        // If empty on blur, use 0 as default
+        if (inputValue === '') {
+            const defaultValue = 0;
+            const formattedValue = NumberFormatter.formatForDisplay(defaultValue);
+            setDisplayUpper(formattedValue);
+            onChange(field.name, {
+                ...currentValue,
+                upper: defaultValue
+            });
+        } else {
+            const parsedValue = NumberFormatter.parseFromString(inputValue);
+            const formattedValue = NumberFormatter.formatForDisplay(parsedValue);
+            setDisplayUpper(formattedValue);
+            onChange(field.name, {
+                ...currentValue,
+                upper: parsedValue
+            });
+        }
     };
 
     return (
