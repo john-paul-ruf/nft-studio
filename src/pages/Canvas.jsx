@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import EffectPicker from '../components/EffectPicker.jsx';
 import EventDrivenEffectsPanel from '../components/EventDrivenEffectsPanel.jsx';
-import EffectConfigurer from '../components/effects/EffectConfigurer.jsx';
 import EventBusMonitor from '../components/EventBusMonitor.jsx';
 import ImportProjectWizard from '../components/ImportProjectWizard.jsx';
 import ProjectSettingsDialog from '../components/ProjectSettingsDialog.jsx';
@@ -153,7 +152,6 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
     const {
         availableEffects,
         effectsLoaded,
-        editingEffect,
         handleAddEffectDirect,
         handleEffectUpdate,
         handleEffectDelete,
@@ -161,13 +159,11 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
         handleEffectToggleVisibility,
         handleEffectRightClick,
         handleEditEffect,
-        getEditingEffectData,
         handleSubEffectUpdate,
         handleAddSecondaryEffect,
         handleAddKeyframeEffect,
         contextMenuEffect,
         contextMenuPos,
-        setEditingEffect,
         refreshAvailableEffects
     } = useEffectManagement(projectState);
 
@@ -511,76 +507,6 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                             }}
                             onClose={() => setShowEffectPicker(false)}
                         />
-                    </DialogContent>
-                </Dialog>
-
-                {/* Effect Configurer Dialog */}
-                <Dialog
-                    open={!!editingEffect}
-                    onClose={() => setEditingEffect(null)}
-                    maxWidth="md"
-                    fullWidth
-                >
-                    <DialogTitle>
-                        Configure Effect
-                        <IconButton
-                            onClick={() => setEditingEffect(null)}
-                            sx={{ position: 'absolute', right: 8, top: 8 }}
-                        >
-                            <Close />
-                        </IconButton>
-                    </DialogTitle>
-                    <DialogContent>
-                        {editingEffect && (() => {
-                            console.log('🎨 CANVAS: Rendering EffectConfigurer with editingEffect:', {
-                                editingEffect: editingEffect,
-                                effectIndex: editingEffect.effectIndex,
-                                effectType: editingEffect.effectType,
-                                subIndex: editingEffect.subIndex
-                            });
-
-                            // Pass editingEffect directly to avoid race condition with state updates
-                            const editingEffectData = getEditingEffectData(editingEffect);
-
-                            console.log('🎨 CANVAS: getEditingEffectData returned:', {
-                                editingEffectData: editingEffectData,
-                                hasData: !!editingEffectData,
-                                registryKey: editingEffectData?.registryKey,
-                                name: editingEffectData?.name,
-                                config: editingEffectData?.config
-                            });
-
-                            // CRITICAL: Don't render EffectConfigurer if effect data is invalid
-                            if (!editingEffectData) {
-                                console.error('❌ CANVAS: Cannot render EffectConfigurer - editingEffectData is null');
-                                console.error('❌ CANVAS: Debug info:', {
-                                    editingEffect: editingEffect,
-                                    projectState: projectState?.getState()?.effects?.length || 'no project state'
-                                });
-                                return (
-                                    <div style={{ color: '#ff6b6b', padding: '1rem', textAlign: 'center' }}>
-                                        <h4>Effect Configuration Error</h4>
-                                        <p>Cannot edit this effect because it is missing required data.</p>
-                                        <p>This may be an old effect that needs to be re-added.</p>
-                                    </div>
-                                );
-                            }
-
-                            return (
-                                <EffectConfigurer
-                                    selectedEffect={{
-                                        ...editingEffectData,
-                                        effectIndex: editingEffect.effectIndex,
-                                        effectType: editingEffect.effectType,
-                                        subEffectIndex: editingEffect.subIndex
-                                    }}
-                                    initialConfig={editingEffectData.config}
-                                    projectState={projectState}
-                                    getResolutionDimensions={getResolutionDimensions}
-                                    onConfigChange={handleSubEffectUpdate}
-                                />
-                            );
-                        })()}
                     </DialogContent>
                 </Dialog>
 

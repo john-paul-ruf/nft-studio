@@ -294,11 +294,11 @@ export default function EffectsPanel({
         
         const { effectIndex, effectType, subIndex } = selectedEffect;
         
-        // Emit config update event
-        eventBusService.emit('effect:config:update', {
+        // Emit config change event (matches listener in useEffectManagement.js)
+        eventBusService.emit('effect:config:change', {
             effectIndex,
             effectType,
-            subIndex,
+            subEffectIndex: subIndex, // Use subEffectIndex to match listener expectations
             config: updatedConfig
         }, {
             source: 'EffectsPanel',

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ConfigIntrospector } from '../../utils/ConfigIntrospector.js';
-import EffectAttachmentModal from './EffectAttachmentModal.jsx';
 import EffectFormRenderer from '../forms/EffectFormRenderer.jsx';
 import AttachedEffectsDisplay from '../forms/AttachedEffectsDisplay.jsx';
 import PercentChanceControl from '../forms/PercentChanceControl.jsx';
@@ -492,16 +491,6 @@ function EffectConfigurer({
                     Reset Defaults
                 </Button>
             </Box>
-
-            {/* Effect Attachment Modal - Only render when in modal mode */}
-            {isModal && availableEffects && (
-                <EffectAttachmentModal
-                    open={isModal}
-                    effects={availableEffects}
-                    onAttach={handleAttachEffect}
-                    onClose={() => {}}
-                />
-            )}
         </Box>
     );
 }
