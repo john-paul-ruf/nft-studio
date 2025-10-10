@@ -355,6 +355,9 @@ class EffectProcessingService {
      */
     static async reconstructPercentageRanges(config, originalConfig, effectName) {
         try {
+            // Load required modules
+            const { PercentageRange, PercentageShortestSide, PercentageLongestSide } = await _loadModules();
+            
             // Get the config class to introspect property types
             const registryService = new EffectRegistryService();
             const plugin = await registryService.getEffectWithConfig(effectName);
@@ -392,6 +395,16 @@ class EffectProcessingService {
                     // Check if current value is NOT a proper PercentageRange
                     if (!obj || obj.constructor?.name !== 'PercentageRange' ||
                         typeof obj.lower !== 'function' || typeof obj.upper !== 'function') {
+                        return true;
+                    }
+                }
+
+                // Also check if the object structure looks like a serialized PercentageRange
+                // This handles cases where the type map might not be available
+                if (obj && typeof obj === 'object' && obj.lower && obj.upper) {
+                    // Check if lower and upper have the percent/side structure
+                    if (obj.lower.percent !== undefined && obj.lower.side !== undefined &&
+                        obj.upper.percent !== undefined && obj.upper.side !== undefined) {
                         return true;
                     }
                 }

@@ -1,9 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import PositionSerializer from '../../../utils/PositionSerializer.js';
 import CenterUtils from '../../../utils/CenterUtils.js';
 
 function Point2DInput({ field, value, onChange, projectState }) {
     const [showPresets, setShowPresets] = useState(false);
+    
+    // Use a ref to track the latest value to avoid stale closures
+    const valueRef = useRef(value);
 
     // SINGLE SOURCE: Get dimensions ONLY from ProjectState
     const { width, height, currentResolutionKey } = useMemo(() => {
@@ -85,6 +88,29 @@ function Point2DInput({ field, value, onChange, projectState }) {
         return value;
     })();
 
+    // Update ref when value prop changes
+    useEffect(() => {
+        valueRef.current = value;
+    }, [value]);
+    
+    // Helper to get the latest value from ref
+    const getCurrentValue = useCallback(() => {
+        const normalized = (() => {
+            const val = valueRef.current;
+            if (!val) return null;
+            
+            // If it's a Position object, convert to point2d format
+            if (val.name === 'position' || val.name === 'arc-path') {
+                return PositionSerializer.toPoint2D(val);
+            }
+            
+            // Already in point2d format
+            return val;
+        })();
+        
+        return normalized || generateSmartDefault(field, width, height);
+    }, [field, width, height]);
+    
     // Calculate current value with smart defaults, ensuring we react to changes
     const currentValue = useMemo(() => {
         const resolved = normalizedValue || generateSmartDefault(field, width, height);
@@ -211,8 +237,9 @@ function Point2DInput({ field, value, onChange, projectState }) {
                             const val = e.target.value;
                             // Allow empty string during typing
                             if (val === '') return;
+                            const latestValue = getCurrentValue();
                             onChange(field.name, {
-                                ...currentValue,
+                                ...latestValue,
                                 x: parseInt(val) || 0
                             });
                         }}
@@ -220,8 +247,9 @@ function Point2DInput({ field, value, onChange, projectState }) {
                             // On blur, ensure we have a valid value
                             const val = e.target.value;
                             if (val === '') {
+                                const latestValue = getCurrentValue();
                                 onChange(field.name, {
-                                    ...currentValue,
+                                    ...latestValue,
                                     x: 0
                                 });
                             }
@@ -240,8 +268,9 @@ function Point2DInput({ field, value, onChange, projectState }) {
                             const val = e.target.value;
                             // Allow empty string during typing
                             if (val === '') return;
+                            const latestValue = getCurrentValue();
                             onChange(field.name, {
-                                ...currentValue,
+                                ...latestValue,
                                 y: parseInt(val) || 0
                             });
                         }}
@@ -249,8 +278,9 @@ function Point2DInput({ field, value, onChange, projectState }) {
                             // On blur, ensure we have a valid value
                             const val = e.target.value;
                             if (val === '') {
+                                const latestValue = getCurrentValue();
                                 onChange(field.name, {
-                                    ...currentValue,
+                                    ...latestValue,
                                     y: 0
                                 });
                             }

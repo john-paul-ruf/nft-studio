@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import CenterUtils from '../../../utils/CenterUtils.js';
 
 function PositionInput({ field, value, onChange, projectState }) {
@@ -6,6 +6,9 @@ function PositionInput({ field, value, onChange, projectState }) {
     const [positionType, setPositionType] = useState('position');
     const [selectedCategory, setSelectedCategory] = useState('basic');
     const [debounceTimer, setDebounceTimer] = useState(null);
+    
+    // Use a ref to track the latest value to avoid stale closures
+    const valueRef = useRef(value);
 
     // SINGLE SOURCE: Get resolution data ONLY from ProjectState
     const { safeWidth, safeHeight, currentResolutionKey } = useMemo(() => {
@@ -26,6 +29,11 @@ function PositionInput({ field, value, onChange, projectState }) {
         };
     }, [projectState]);
 
+    // Update ref when value prop changes
+    useEffect(() => {
+        valueRef.current = value;
+    }, [value]);
+    
     // Initialize position type based on current value
     useEffect(() => {
         if (value?.name) {
@@ -89,8 +97,11 @@ function PositionInput({ field, value, onChange, projectState }) {
     };
 
     // Get current value with smart defaults - WAIT for ProjectState to be ready
-    const getCurrentValue = () => {
-        if (!value) {
+    // Uses ref to always get the latest value and avoid stale closures
+    const getCurrentValue = useCallback(() => {
+        const latestValue = valueRef.current;
+        
+        if (!latestValue) {
             if (!projectState) {
                 // Return placeholder until ProjectState is ready
                 return { x: 0, y: 0, __placeholder: true };
@@ -99,16 +110,16 @@ function PositionInput({ field, value, onChange, projectState }) {
         }
 
         // Handle legacy point2d format
-        if (value.x !== undefined && value.y !== undefined && !value.name) {
+        if (latestValue.x !== undefined && latestValue.y !== undefined && !latestValue.name) {
             return {
                 name: 'position',
-                x: value.x,
-                y: value.y
+                x: latestValue.x,
+                y: latestValue.y
             };
         }
 
-        return value;
-    };
+        return latestValue;
+    }, [projectState, positionType]);
 
     const currentValue = getCurrentValue();
 
@@ -216,8 +227,9 @@ function PositionInput({ field, value, onChange, projectState }) {
 
     const handleArcCenterPresetSelect = (preset) => {
         if (positionType === 'arc-path') {
+            const latestValue = getCurrentValue();
             const newPosition = createPositionWithMetadata({
-                ...currentValue,
+                ...latestValue,
                 center: {
                     x: Math.round(preset.x),
                     y: Math.round(preset.y)
@@ -229,8 +241,9 @@ function PositionInput({ field, value, onChange, projectState }) {
     };
 
     const handlePositionChange = (newX, newY) => {
+        const latestValue = getCurrentValue();
         const newPosition = createPositionWithMetadata({
-            ...currentValue,
+            ...latestValue,
             x: newX,
             y: newY
         }, true);
@@ -238,16 +251,18 @@ function PositionInput({ field, value, onChange, projectState }) {
     };
 
     const handleArcPathChange = (property, newValue) => {
+        const latestValue = getCurrentValue();
         const newPosition = createPositionWithMetadata({
-            ...currentValue,
+            ...latestValue,
             [property]: newValue
         }, true);
         onChange(field.name, newPosition);
     };
 
     const handleCenterChange = (newX, newY) => {
+        const latestValue = getCurrentValue();
         const newPosition = createPositionWithMetadata({
-            ...currentValue,
+            ...latestValue,
             center: { x: newX, y: newY }
         }, true);
         onChange(field.name, newPosition);

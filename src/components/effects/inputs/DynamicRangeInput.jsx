@@ -1,17 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import NumberFormatter from '../../../utils/NumberFormatter.js';
 
 function DynamicRangeInput({ field, value, onChange }) {
-    const currentValue = value || field.default || {
-        bottom: { lower: 0, upper: 5 },
-        top: { lower: 5, upper: 10 }
-    };
+    // Use a ref to always have the latest value
+    const valueRef = useRef(value);
+    
+    // Helper to get current value with defaults
+    const getCurrentValue = useCallback(() => {
+        return valueRef.current || field.default || {
+            bottom: { lower: 0, upper: 5 },
+            top: { lower: 5, upper: 10 }
+        };
+    }, [field.default]);
+    
+    const currentValue = getCurrentValue();
 
     // State for display values
     const [displayBottomLower, setDisplayBottomLower] = useState(NumberFormatter.formatForDisplay(currentValue.bottom?.lower ?? 0));
     const [displayBottomUpper, setDisplayBottomUpper] = useState(NumberFormatter.formatForDisplay(currentValue.bottom?.upper ?? 0));
     const [displayTopLower, setDisplayTopLower] = useState(NumberFormatter.formatForDisplay(currentValue.top?.lower ?? 0));
     const [displayTopUpper, setDisplayTopUpper] = useState(NumberFormatter.formatForDisplay(currentValue.top?.upper ?? 0));
+
+    // Update ref when value prop changes
+    useEffect(() => {
+        valueRef.current = value;
+    }, [value]);
 
     // Update display values when currentValue changes
     useEffect(() => {
@@ -28,10 +41,11 @@ function DynamicRangeInput({ field, value, onChange }) {
         // Don't update the value while typing if it's empty - wait for blur
         if (inputValue !== '') {
             const parsedValue = NumberFormatter.parseFromString(inputValue);
+            const latestValue = getCurrentValue();
             onChange(field.name, {
-                ...currentValue,
+                ...latestValue,
                 bottom: {
-                    ...currentValue.bottom,
+                    ...latestValue.bottom,
                     lower: parsedValue
                 }
             });
@@ -40,6 +54,7 @@ function DynamicRangeInput({ field, value, onChange }) {
 
     const handleBottomLowerBlur = (e) => {
         const inputValue = e.target.value;
+        const latestValue = getCurrentValue();
         
         // If empty on blur, use 0 as default
         if (inputValue === '') {
@@ -47,9 +62,9 @@ function DynamicRangeInput({ field, value, onChange }) {
             const formattedValue = NumberFormatter.formatForDisplay(defaultValue);
             setDisplayBottomLower(formattedValue);
             onChange(field.name, {
-                ...currentValue,
+                ...latestValue,
                 bottom: {
-                    ...currentValue.bottom,
+                    ...latestValue.bottom,
                     lower: defaultValue
                 }
             });
@@ -58,9 +73,9 @@ function DynamicRangeInput({ field, value, onChange }) {
             const formattedValue = NumberFormatter.formatForDisplay(parsedValue);
             setDisplayBottomLower(formattedValue);
             onChange(field.name, {
-                ...currentValue,
+                ...latestValue,
                 bottom: {
-                    ...currentValue.bottom,
+                    ...latestValue.bottom,
                     lower: parsedValue
                 }
             });
@@ -74,10 +89,11 @@ function DynamicRangeInput({ field, value, onChange }) {
         // Don't update the value while typing if it's empty - wait for blur
         if (inputValue !== '') {
             const parsedValue = NumberFormatter.parseFromString(inputValue);
+            const latestValue = getCurrentValue();
             onChange(field.name, {
-                ...currentValue,
+                ...latestValue,
                 bottom: {
-                    ...currentValue.bottom,
+                    ...latestValue.bottom,
                     upper: parsedValue
                 }
             });
@@ -86,6 +102,7 @@ function DynamicRangeInput({ field, value, onChange }) {
 
     const handleBottomUpperBlur = (e) => {
         const inputValue = e.target.value;
+        const latestValue = getCurrentValue();
         
         // If empty on blur, use 0 as default
         if (inputValue === '') {
@@ -93,9 +110,9 @@ function DynamicRangeInput({ field, value, onChange }) {
             const formattedValue = NumberFormatter.formatForDisplay(defaultValue);
             setDisplayBottomUpper(formattedValue);
             onChange(field.name, {
-                ...currentValue,
+                ...latestValue,
                 bottom: {
-                    ...currentValue.bottom,
+                    ...latestValue.bottom,
                     upper: defaultValue
                 }
             });
@@ -104,9 +121,9 @@ function DynamicRangeInput({ field, value, onChange }) {
             const formattedValue = NumberFormatter.formatForDisplay(parsedValue);
             setDisplayBottomUpper(formattedValue);
             onChange(field.name, {
-                ...currentValue,
+                ...latestValue,
                 bottom: {
-                    ...currentValue.bottom,
+                    ...latestValue.bottom,
                     upper: parsedValue
                 }
             });
@@ -120,10 +137,11 @@ function DynamicRangeInput({ field, value, onChange }) {
         // Don't update the value while typing if it's empty - wait for blur
         if (inputValue !== '') {
             const parsedValue = NumberFormatter.parseFromString(inputValue);
+            const latestValue = getCurrentValue();
             onChange(field.name, {
-                ...currentValue,
+                ...latestValue,
                 top: {
-                    ...currentValue.top,
+                    ...latestValue.top,
                     lower: parsedValue
                 }
             });
@@ -132,6 +150,7 @@ function DynamicRangeInput({ field, value, onChange }) {
 
     const handleTopLowerBlur = (e) => {
         const inputValue = e.target.value;
+        const latestValue = getCurrentValue();
         
         // If empty on blur, use 0 as default
         if (inputValue === '') {
@@ -139,9 +158,9 @@ function DynamicRangeInput({ field, value, onChange }) {
             const formattedValue = NumberFormatter.formatForDisplay(defaultValue);
             setDisplayTopLower(formattedValue);
             onChange(field.name, {
-                ...currentValue,
+                ...latestValue,
                 top: {
-                    ...currentValue.top,
+                    ...latestValue.top,
                     lower: defaultValue
                 }
             });
@@ -150,9 +169,9 @@ function DynamicRangeInput({ field, value, onChange }) {
             const formattedValue = NumberFormatter.formatForDisplay(parsedValue);
             setDisplayTopLower(formattedValue);
             onChange(field.name, {
-                ...currentValue,
+                ...latestValue,
                 top: {
-                    ...currentValue.top,
+                    ...latestValue.top,
                     lower: parsedValue
                 }
             });
@@ -166,10 +185,11 @@ function DynamicRangeInput({ field, value, onChange }) {
         // Don't update the value while typing if it's empty - wait for blur
         if (inputValue !== '') {
             const parsedValue = NumberFormatter.parseFromString(inputValue);
+            const latestValue = getCurrentValue();
             onChange(field.name, {
-                ...currentValue,
+                ...latestValue,
                 top: {
-                    ...currentValue.top,
+                    ...latestValue.top,
                     upper: parsedValue
                 }
             });
@@ -178,6 +198,7 @@ function DynamicRangeInput({ field, value, onChange }) {
 
     const handleTopUpperBlur = (e) => {
         const inputValue = e.target.value;
+        const latestValue = getCurrentValue();
         
         // If empty on blur, use 0 as default
         if (inputValue === '') {
@@ -185,9 +206,9 @@ function DynamicRangeInput({ field, value, onChange }) {
             const formattedValue = NumberFormatter.formatForDisplay(defaultValue);
             setDisplayTopUpper(formattedValue);
             onChange(field.name, {
-                ...currentValue,
+                ...latestValue,
                 top: {
-                    ...currentValue.top,
+                    ...latestValue.top,
                     upper: defaultValue
                 }
             });
@@ -196,9 +217,9 @@ function DynamicRangeInput({ field, value, onChange }) {
             const formattedValue = NumberFormatter.formatForDisplay(parsedValue);
             setDisplayTopUpper(formattedValue);
             onChange(field.name, {
-                ...currentValue,
+                ...latestValue,
                 top: {
-                    ...currentValue.top,
+                    ...latestValue.top,
                     upper: parsedValue
                 }
             });

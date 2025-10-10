@@ -1,12 +1,27 @@
-import React from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 
 function PercentageRangeInput({ field, value, onChange }) {
+    // Use a ref to always have the latest value
+    const valueRef = useRef(value);
+    
+    // Update ref when value prop changes
+    useEffect(() => {
+        valueRef.current = value;
+    }, [value]);
+    
+    // Helper to get current value with defaults and format conversion
+    const getCurrentValue = useCallback(() => {
+        let currentValue = valueRef.current || field.default || {
+            lower: { percent: 0.1, side: 'shortest' },
+            upper: { percent: 0.9, side: 'longest' }
+        };
+        
+        return currentValue;
+    }, [field.default]);
+    
     // Handle both legacy {min, max} and new {lower, upper} formats
     // Also handle the new enhanced format with side selection
-    let currentValue = value || field.default || {
-        lower: { percent: 0.1, side: 'shortest' },
-        upper: { percent: 0.9, side: 'longest' }
-    };
+    let currentValue = getCurrentValue();
 
 
     // Convert legacy format if needed
@@ -105,9 +120,10 @@ function PercentageRangeInput({ field, value, onChange }) {
                         <select
                             value={currentValue.lower?.side || 'shortest'}
                             onChange={(e) => {
+                                const latestValue = getCurrentValue();
                                 onChange(field.name, {
-                                    ...currentValue,
-                                    lower: { ...currentValue.lower, side: e.target.value }
+                                    ...latestValue,
+                                    lower: { ...latestValue.lower, side: e.target.value }
                                 });
                             }}
                             style={{
@@ -135,9 +151,10 @@ function PercentageRangeInput({ field, value, onChange }) {
                         value={currentValue.lower?.percent || 0}
                         onChange={(e) => {
                             const newValue = parseFloat(e.target.value);
+                            const latestValue = getCurrentValue();
                             onChange(field.name, {
-                                ...currentValue,
-                                lower: { ...currentValue.lower, percent: Math.min(newValue, currentValue.upper.percent - 0.01) }
+                                ...latestValue,
+                                lower: { ...latestValue.lower, percent: Math.min(newValue, latestValue.upper.percent - 0.01) }
                             });
                         }}
                         style={{
@@ -168,9 +185,10 @@ function PercentageRangeInput({ field, value, onChange }) {
                         <select
                             value={currentValue.upper?.side || 'longest'}
                             onChange={(e) => {
+                                const latestValue = getCurrentValue();
                                 onChange(field.name, {
-                                    ...currentValue,
-                                    upper: { ...currentValue.upper, side: e.target.value }
+                                    ...latestValue,
+                                    upper: { ...latestValue.upper, side: e.target.value }
                                 });
                             }}
                             style={{
@@ -198,9 +216,10 @@ function PercentageRangeInput({ field, value, onChange }) {
                         value={currentValue.upper?.percent || 0}
                         onChange={(e) => {
                             const newValue = parseFloat(e.target.value);
+                            const latestValue = getCurrentValue();
                             onChange(field.name, {
-                                ...currentValue,
-                                upper: { ...currentValue.upper, percent: Math.max(newValue, currentValue.lower.percent + 0.01) }
+                                ...latestValue,
+                                upper: { ...latestValue.upper, percent: Math.max(newValue, latestValue.lower.percent + 0.01) }
                             });
                         }}
                         style={{
