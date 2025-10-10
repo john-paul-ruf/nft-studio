@@ -371,6 +371,15 @@ export class ProjectLifecycleManager {
     async createProjectInstance(projectState) {
         const projectConfig = projectState.getState();
 
+        // Debug: Log the project configuration
+        this.logger.info('Creating project instance with config:', {
+            projectName: projectConfig.projectName,
+            outputDirectory: projectConfig.outputDirectory,
+            projectDirectory: projectConfig.projectDirectory,
+            hasOutputDirectory: !!projectConfig.outputDirectory,
+            hasProjectDirectory: !!projectConfig.projectDirectory
+        });
+
         // Calculate dimensions - single source of truth
         let longestSide, shortestSide;
         const isHorizontal = projectConfig.isHorizontal;
@@ -400,8 +409,15 @@ export class ProjectLifecycleManager {
         let projectDirectory = projectConfig.projectDirectory || projectConfig.outputDirectory;
         if (!projectDirectory) {
             projectDirectory = path.resolve(process.cwd(), 'src/scratch');
+            this.logger.info('No project directory specified, using default:', projectDirectory);
         } else if (!path.isAbsolute(projectDirectory)) {
             projectDirectory = path.resolve(process.cwd(), projectDirectory);
+        }
+
+        // Update the ProjectState with the resolved directory if it was null
+        if (!projectConfig.outputDirectory && projectState.setOutputDirectory) {
+            this.logger.info('Setting resolved project directory in ProjectState:', projectDirectory);
+            projectState.setOutputDirectory(projectDirectory);
         }
 
         // Get plugin paths from PluginLifecycleManager if available
@@ -410,13 +426,35 @@ export class ProjectLifecycleManager {
             : [];
 
         // Get FFmpeg configuration for current environment (dev/production)
-        const ffmpegConfig = await AsarFFmpegResolver.getFFmpegConfig();
+        console.log('[ProjectLifecycleManager] Getting FFmpeg config...');
+        let ffmpegConfig = null;
+        try {
+            // Get diagnostics first to understand the environment
+            const diagnostics = AsarFFmpegResolver.getDiagnostics();
+            console.log('[ProjectLifecycleManager] FFmpeg diagnostics:', diagnostics);
+            
+            ffmpegConfig = await AsarFFmpegResolver.getFFmpegConfig();
+            console.log('[ProjectLifecycleManager] FFmpeg config retrieved:', ffmpegConfig);
+        } catch (error) {
+            console.error('[ProjectLifecycleManager] Failed to get FFmpeg config:', error);
+            console.error('[ProjectLifecycleManager] Stack:', error.stack);
+            
+            // Get diagnostics to help debug the issue
+            try {
+                const diagnostics = AsarFFmpegResolver.getDiagnostics();
+                console.error('[ProjectLifecycleManager] FFmpeg diagnostics after error:', diagnostics);
+            } catch (diagError) {
+                console.error('[ProjectLifecycleManager] Failed to get diagnostics:', diagError);
+            }
+            
+            // Continue with null config - will use defaults
+        }
 
         // Load modules dynamically
         const { Project } = await _loadModules();
 
-        // Create the project instance
-        const project = new Project({
+        // Log the final configuration being passed to Project
+        const projectConstructorConfig = {
             artist: projectConfig.artist || 'NFT Studio User',
             projectName: projectConfig.projectName,
             projectDirectory: projectDirectory,
@@ -433,7 +471,19 @@ export class ProjectLifecycleManager {
             maxConcurrentFrameBuilderThreads: 1,
             renderJumpFrames: 1,
             frameStart: 0
+        };
+        
+        console.log('[ProjectLifecycleManager] Creating Project with config:', {
+            projectName: projectConstructorConfig.projectName,
+            projectDirectory: projectConstructorConfig.projectDirectory,
+            hasFFmpegConfig: !!projectConstructorConfig.ffmpegConfig,
+            ffmpegConfig: projectConstructorConfig.ffmpegConfig,
+            pluginPathsCount: projectConstructorConfig.pluginPaths?.length || 0,
+            numberOfFrame: projectConstructorConfig.numberOfFrame
         });
+
+        // Create the project instance
+        const project = new Project(projectConstructorConfig);
 
         return project;
     }

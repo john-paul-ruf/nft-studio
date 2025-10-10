@@ -155,24 +155,38 @@ export default function CanvasToolbar({
                                     <PlayArrow fontSize="small" style={{ marginRight: '8px' }} />
                                     <span>Render Frame</span>
                                 </DropdownMenu.Item>
-                                <DropdownMenu.Item
-                                    className="radix-dropdown-item"
-                                    onClick={onRenderLoop}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        padding: '8px 12px',
-                                        cursor: 'pointer',
-                                        outline: 'none',
-                                        borderRadius: '2px',
-                                        color: currentTheme.palette.text.primary
-                                    }}
-                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = currentTheme.palette.action.hover}
-                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                <Tooltip 
+                                    title={!isRenderLoopActive && !isPinned ? "Pin settings first (render a frame, then click the pin button)" : ""}
+                                    placement="right"
+                                    arrow
                                 >
-                                    <PlayArrow fontSize="small" style={{ marginRight: '8px' }} />
-                                    <span>{isRenderLoopActive ? 'Stop' : 'Start'} Render Loop</span>
-                                </DropdownMenu.Item>
+                                    <div>
+                                        <DropdownMenu.Item
+                                            className="radix-dropdown-item"
+                                            onClick={onRenderLoop}
+                                            disabled={!isRenderLoopActive && !isPinned}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                padding: '8px 12px',
+                                                cursor: (!isRenderLoopActive && !isPinned) ? 'not-allowed' : 'pointer',
+                                                outline: 'none',
+                                                borderRadius: '2px',
+                                                color: (!isRenderLoopActive && !isPinned) ? currentTheme.palette.text.disabled : currentTheme.palette.text.primary,
+                                                opacity: (!isRenderLoopActive && !isPinned) ? 0.5 : 1
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                if (isRenderLoopActive || isPinned) {
+                                                    e.currentTarget.style.backgroundColor = currentTheme.palette.action.hover;
+                                                }
+                                            }}
+                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                        >
+                                            <PlayArrow fontSize="small" style={{ marginRight: '8px' }} />
+                                            <span>{isRenderLoopActive ? 'Stop' : 'Start'} Render Loop</span>
+                                        </DropdownMenu.Item>
+                                    </div>
+                                </Tooltip>
                                 <DropdownMenu.Item
                                     className="radix-dropdown-item"
                                     onClick={async () => {

@@ -27,6 +27,9 @@ class NodeConsoleInterceptor {
         this.eventBuffer = [];
         this.maxBufferSize = 1000;
         
+        // Reentrancy guard to prevent infinite loops
+        this.isProcessing = false;
+        
         console.log('🎤 NodeConsoleInterceptor: Initialized');
     }
     
@@ -190,7 +193,14 @@ class NodeConsoleInterceptor {
      * @param {Array} args - Console arguments
      */
     captureConsoleCall(level, args) {
+        // Reentrancy guard: prevent infinite loops
+        if (this.isProcessing) {
+            return;
+        }
+        
         try {
+            this.isProcessing = true;
+            
             // Skip internal monitoring system logs to prevent feedback loops
             const firstArg = String(args[0] || '');
             const internalPrefixes = [
@@ -203,7 +213,11 @@ class NodeConsoleInterceptor {
                 '🛑 NodeConsoleInterceptor:',
                 '🔍 [Preload',
                 '📥 [Preload',
-                '🧪 [Preload'
+                '🧪 [Preload',
+                '📡 [RenderCoordinator]',
+                '📤 [RenderCoordinator]',
+                '🔧 [RenderCoordinator]',
+                '🎬 [RenderCoordinator]'
             ];
             
             // Check if this is an internal monitoring log
@@ -239,6 +253,8 @@ class NodeConsoleInterceptor {
         } catch (error) {
             // Fail silently to prevent infinite loops
             this.originalConsole.error('❌ NodeConsoleInterceptor: Error capturing console call:', error);
+        } finally {
+            this.isProcessing = false;
         }
     }
     

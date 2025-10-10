@@ -66,11 +66,25 @@ export default function EventDrivenCanvasToolbar({
     }, [eventBusService, selectedFrame]);
 
     const handleRenderLoop = useCallback(() => {
+        // Prevent starting render loop if settings are not pinned
+        if (!isRenderLoopActive && !isPinned) {
+            console.warn('⚠️ Cannot start render loop: Settings must be pinned first');
+            // Emit error event to show user feedback
+            eventBusService.emit('renderloop:error', {
+                error: 'Settings must be pinned before starting render loop. Please render a frame and pin the settings first.',
+                wasAttemptingToStart: true
+            }, {
+                source: 'EventDrivenCanvasToolbar',
+                component: 'EventDrivenCanvasToolbar'
+            });
+            return;
+        }
+        
         eventBusService.emit('toolbar:renderloop:toggle', { isActive: !isRenderLoopActive }, {
             source: 'EventDrivenCanvasToolbar',
             component: 'EventDrivenCanvasToolbar'
         });
-    }, [eventBusService, isRenderLoopActive]);
+    }, [eventBusService, isRenderLoopActive, isPinned]);
 
     const handleResolutionChange = useCallback((event) => {
         const resolution = parseInt(event.target.value);

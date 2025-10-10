@@ -161,33 +161,67 @@ class AsarFFmpegResolver {
      * @returns {Promise<Object>} FFmpegConfig instance
      */
     async getFFmpegConfig() {
+        console.log('[AsarFFmpegResolver] getFFmpegConfig() called');
+        
         // Return cached config if available
         if (this._cachedConfig) {
+            console.log('[AsarFFmpegResolver] Returning cached config:', this._cachedConfig);
             return this._cachedConfig;
         }
 
+        console.log('[AsarFFmpegResolver] No cached config, creating new one...');
+        console.log('[AsarFFmpegResolver] isProduction:', this.isProduction());
+        
         // Import FFmpegConfig from my-nft-gen
         const { FFmpegConfig } = await import('my-nft-gen/src/core/config/FFmpegConfig.js');
+        console.log('[AsarFFmpegResolver] FFmpegConfig imported:', FFmpegConfig);
 
         if (!this.isProduction()) {
             // Development: use default (ffmpeg-ffprobe-static)
+            console.log('[AsarFFmpegResolver] Development mode - creating default config');
             this._cachedConfig = await FFmpegConfig.createDefault();
+            console.log('[AsarFFmpegResolver] Default config created:', this._cachedConfig);
         } else {
             // Production: use ASAR unpacked paths
+            console.log('[AsarFFmpegResolver] Production mode - using ASAR unpacked paths');
             const ffmpegPath = this.getFfmpegPath();
             const ffprobePath = this.getFfprobePath();
+            console.log('[AsarFFmpegResolver] FFmpeg path:', ffmpegPath);
+            console.log('[AsarFFmpegResolver] FFprobe path:', ffprobePath);
 
-            // Verify paths exist
+            // Verify paths exist and are files (not directories)
             if (!fs.existsSync(ffmpegPath)) {
+                const diagnostics = this.getDiagnostics();
+                console.error('[AsarFFmpegResolver] FFmpeg binary not found. Diagnostics:', diagnostics);
                 throw new Error(`FFmpeg binary not found at: ${ffmpegPath}`);
             }
+            
+            const ffmpegStats = fs.statSync(ffmpegPath);
+            if (!ffmpegStats.isFile()) {
+                console.error(`[AsarFFmpegResolver] FFmpeg path is not a file: ${ffmpegPath}`);
+                throw new Error(`FFmpeg path is not a file (is directory?): ${ffmpegPath}`);
+            }
+            
             if (!fs.existsSync(ffprobePath)) {
+                const diagnostics = this.getDiagnostics();
+                console.error('[AsarFFmpegResolver] FFprobe binary not found. Diagnostics:', diagnostics);
                 throw new Error(`FFprobe binary not found at: ${ffprobePath}`);
             }
+            
+            const ffprobeStats = fs.statSync(ffprobePath);
+            if (!ffprobeStats.isFile()) {
+                console.error(`[AsarFFmpegResolver] FFprobe path is not a file: ${ffprobePath}`);
+                throw new Error(`FFprobe path is not a file (is directory?): ${ffprobePath}`);
+            }
 
+            console.log(`[AsarFFmpegResolver] Using FFmpeg: ${ffmpegPath}`);
+            console.log(`[AsarFFmpegResolver] Using FFprobe: ${ffprobePath}`);
+            
             this._cachedConfig = FFmpegConfig.fromPaths(ffmpegPath, ffprobePath);
+            console.log('[AsarFFmpegResolver] Production config created:', this._cachedConfig);
         }
 
+        console.log('[AsarFFmpegResolver] Returning config:', this._cachedConfig);
         return this._cachedConfig;
     }
 

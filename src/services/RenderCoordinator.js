@@ -1246,40 +1246,35 @@ export class RenderCoordinator {
     setupEventForwarding(eventBus) {
         console.log('🔧 [RenderCoordinator] Setting up event forwarding wrapper');
         
+        // Events to log (reduce noise from high-frequency events)
+        const verboseEvents = new Set(['frameStarted', 'frameCompleted', 'fatalError', 'error']);
+        
         const forwardEventToRenderer = (eventName, data) => {
-            // Enhanced logging for frame events
-            if (eventName === 'frameStarted' || eventName === 'frameCompleted') {
-                console.log(`🎬 [RenderCoordinator] Forwarding ${eventName} - Frame ${data?.frameNumber || 'unknown'}`);
+            // Only log important events to prevent console spam
+            if (verboseEvents.has(eventName)) {
+                this.logger.event(eventName, data);
             }
             
-            this.logger.event(eventName, data);
             try {
                 if (BrowserWindow && BrowserWindow.getAllWindows && BrowserWindow.getAllWindows().length > 0) {
                     const windows = BrowserWindow.getAllWindows();
                     const window = windows[0];
                     const payload = { eventName, data };
                     
-                    console.log(`📤 [RenderCoordinator] Sending to renderer via IPC: ${eventName} (${windows.length} windows)`);
-                    console.log(`📤 [RenderCoordinator] Window destroyed?`, window.isDestroyed());
-                    console.log(`📤 [RenderCoordinator] WebContents destroyed?`, window.webContents.isDestroyed());
-                    console.log(`📤 [RenderCoordinator] WebContents ID:`, window.webContents.id);
-                    console.log(`📤 [RenderCoordinator] Payload:`, JSON.stringify(payload).substring(0, 200));
-                    
+                    // Send via IPC without excessive logging
                     window.webContents.send('worker-event', payload);
-                    console.log(`✅ [RenderCoordinator] IPC send completed for: ${eventName}`);
-                } else {
+                } else if (verboseEvents.has(eventName)) {
+                    // Only log missing window for important events
                     console.log(`⚠️ [RenderCoordinator] No BrowserWindow available to send: ${eventName}`);
                 }
             } catch (error) {
+                // Always log errors
                 console.error(`❌ [RenderCoordinator] Error sending to renderer: ${eventName}`, error);
             }
         };
 
         const originalEmit = eventBus.emit.bind(eventBus);
         eventBus.emit = function (eventName, data) {
-            // Log ALL events being emitted through the event bus
-            console.log(`📡 [RenderCoordinator] EventBus.emit called: ${eventName}`);
-            
             const result = originalEmit(eventName, data);
             forwardEventToRenderer(eventName, data);
             return result;
