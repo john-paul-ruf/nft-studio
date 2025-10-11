@@ -330,7 +330,7 @@ export default function CanvasToolbar({
                         disabled={isReadOnly}
                         inputProps={{ min: 1, max: 10000 }}
                         sx={{ 
-                            width: '80px',
+                            width: '160px',
                             ...(isReadOnly && {
                                 '& .MuiInputBase-input': {
                                     color: 'text.disabled'
@@ -351,7 +351,7 @@ export default function CanvasToolbar({
                         value={selectedFrame}
                         onChange={(e) => debouncedFrameChange(e.target.value)}
                         inputProps={{ min: 0, max: config.numFrames - 1 }}
-                        sx={{ width: '80px' }}
+                        sx={{ width: '160px' }}
                         variant="outlined"
                     />
                 </Box>
