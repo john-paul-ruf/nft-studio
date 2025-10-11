@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import NumberFormatter from '../../../utils/NumberFormatter.js';
+import useDebounce from '../../../hooks/useDebounce.js';
 
 /**
  * Enhanced array input component with drag & drop, inline editing, and mixed type support
@@ -13,6 +14,11 @@ function ArrayInput({ field, value, onChange }) {
     const [newItemValue, setNewItemValue] = useState('');
     const [newItemType, setNewItemType] = useState('auto'); // 'auto', 'number', 'string'
     const inputRef = useRef(null);
+    
+    // Debounced onChange for inline editing
+    const debouncedOnChange = useDebounce(useCallback((name, val) => {
+        onChange(name, val);
+    }, [onChange]), 300);
 
     const currentArray = Array.isArray(value) ? value : field.default || [];
     const arrayType = field.arrayType || 'mixed'; // 'number', 'string', 'mixed'
@@ -63,7 +69,7 @@ function ArrayInput({ field, value, onChange }) {
         const originalType = detectValueType(currentArray[editingIndex]);
         newArray[editingIndex] = parseValue(editingValue, originalType);
         
-        onChange(field.name, newArray);
+        debouncedOnChange(field.name, newArray);
         setEditingIndex(null);
         setEditingValue('');
     };

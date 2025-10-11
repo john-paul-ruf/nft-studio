@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import SettingsToProjectConverter from '../utils/SettingsToProjectConverter.js';
 import ProjectState from '../models/ProjectState.js';
+import useDebounce from '../hooks/useDebounce.js';
 import './ImportProjectWizard.css';
 
 export default function ImportProjectWizard({ onComplete, onCancel }) {
@@ -10,6 +11,9 @@ export default function ImportProjectWizard({ onComplete, onCancel }) {
     const [settingsFile, setSettingsFile] = useState('');
     const [converting, setConverting] = useState(false);
     const [error, setError] = useState('');
+
+    // Debounced handler for project name input (300ms delay)
+    const debouncedSetProjectName = useDebounce(setProjectName, 300);
 
     const steps = [
         { title: 'Project Name', description: 'Enter a name for your new project' },
@@ -155,7 +159,11 @@ export default function ImportProjectWizard({ onComplete, onCancel }) {
                                 type="text"
                                 className="form-input"
                                 value={projectName}
-                                onChange={(e) => setProjectName(e.target.value)}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    setProjectName(value);
+                                    debouncedSetProjectName(value);
+                                }}
                                 placeholder="Enter project name"
                                 autoFocus
                             />

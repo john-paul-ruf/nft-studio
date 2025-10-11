@@ -12,6 +12,7 @@ import {
     Divider
 } from '@mui/material';
 import { Close, FolderOpen } from '@mui/icons-material';
+import useDebounce from '../hooks/useDebounce.js';
 
 /**
  * ProjectSettingsDialog - Edit project settings using ProjectState as single source of truth
@@ -41,11 +42,22 @@ export default function ProjectSettingsDialog({
         }
     }, [open, projectState]);
 
-    const handleInputChange = (field, value) => {
+    // Debounced input handler (300ms delay)
+    const debouncedInputChange = useDebounce((field, value) => {
         setFormData(prev => ({
             ...prev,
             [field]: value
         }));
+    }, 300);
+
+    const handleInputChange = (field, value) => {
+        // Update immediately for display
+        setFormData(prev => ({
+            ...prev,
+            [field]: value
+        }));
+        // Debounce the actual state update
+        debouncedInputChange(field, value);
     };
 
     const handleSelectOutputDirectory = async () => {

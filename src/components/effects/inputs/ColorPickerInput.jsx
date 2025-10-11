@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
+import useDebounce from '../../../hooks/useDebounce.js';
 
 function ColorPickerInput({ field, value, onChange }) {
     // Use a ref to always have the latest value
@@ -16,6 +17,11 @@ function ColorPickerInput({ field, value, onChange }) {
     
     // State for text input to allow typing invalid values temporarily
     const [textInputValue, setTextInputValue] = useState(currentValue.colorValue || '#ff0000');
+    
+    // Debounced onChange for text input
+    const debouncedOnChange = useDebounce(useCallback((name, val) => {
+        onChange(name, val);
+    }, [onChange]), 300);
 
     // Update ref when value prop changes
     useEffect(() => {
@@ -73,10 +79,10 @@ function ColorPickerInput({ field, value, onChange }) {
         const inputValue = e.target.value;
         setTextInputValue(inputValue);
         
-        // Only update if valid hex color
+        // Only update if valid hex color (with debounce)
         if (isValidHexColor(inputValue)) {
             const latestValue = getCurrentValue();
-            onChange(field.name, {
+            debouncedOnChange(field.name, {
                 ...latestValue,
                 colorValue: inputValue
             });

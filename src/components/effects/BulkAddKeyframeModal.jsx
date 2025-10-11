@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -25,6 +25,7 @@ import EffectConfigurer from './EffectConfigurer.jsx';
 import BulkPositionQuickPick from './BulkPositionQuickPick.jsx';
 import PreferencesService from '../../services/PreferencesService.js';
 import ConfigIntrospector from '../../utils/ConfigIntrospector.js';
+import useDebounce from '../../hooks/useDebounce.js';
 
 const steps = ['Select Effect', 'Configure Effect', 'Set Keyframe Range'];
 
@@ -43,6 +44,15 @@ export default function BulkAddKeyframeModal({
     const [frameRange, setFrameRange] = useState([0, 10]);
     const [numEffects, setNumEffects] = useState(5);
     const [maxFrames, setMaxFrames] = useState(10);
+    
+    // Debounced setters for number inputs
+    const debouncedSetFrameRange = useDebounce(useCallback((range) => {
+        setFrameRange(range);
+    }, []), 150);
+    
+    const debouncedSetNumEffects = useDebounce(useCallback((num) => {
+        setNumEffects(num);
+    }, []), 150);
 
     // Get max frames from project state
     useEffect(() => {
@@ -319,11 +329,11 @@ export default function BulkAddKeyframeModal({
                                     onChange={(e) => {
                                         const value = Math.max(0, Math.min(parseInt(e.target.value) || 0, frameRange[1]));
                                         const newRange = [value, frameRange[1]];
-                                        setFrameRange(newRange);
+                                        debouncedSetFrameRange(newRange);
                                         // Adjust numEffects if needed
                                         const maxPossible = newRange[1] - newRange[0] + 1;
                                         if (numEffects > maxPossible) {
-                                            setNumEffects(maxPossible);
+                                            debouncedSetNumEffects(maxPossible);
                                         }
                                     }}
                                     size="small"
@@ -336,11 +346,11 @@ export default function BulkAddKeyframeModal({
                                     onChange={(e) => {
                                         const value = Math.min(maxFrames, Math.max(parseInt(e.target.value) || maxFrames, frameRange[0]));
                                         const newRange = [frameRange[0], value];
-                                        setFrameRange(newRange);
+                                        debouncedSetFrameRange(newRange);
                                         // Adjust numEffects if needed
                                         const maxPossible = newRange[1] - newRange[0] + 1;
                                         if (numEffects > maxPossible) {
-                                            setNumEffects(maxPossible);
+                                            debouncedSetNumEffects(maxPossible);
                                         }
                                     }}
                                     size="small"
@@ -357,7 +367,7 @@ export default function BulkAddKeyframeModal({
                                 onChange={(e) => {
                                     const maxPossible = frameRange[1] - frameRange[0] + 1;
                                     const value = Math.max(1, Math.min(parseInt(e.target.value) || 1, maxPossible));
-                                    setNumEffects(value);
+                                    debouncedSetNumEffects(value);
                                 }}
                                 size="small"
                                 inputProps={{ min: 1, max: frameRange[1] - frameRange[0] + 1 }}

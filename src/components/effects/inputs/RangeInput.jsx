@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import NumberFormatter from '../../../utils/NumberFormatter.js';
+import useDebounce from '../../../hooks/useDebounce.js';
 
 function RangeInput({ field, value, onChange }) {
     const currentValue = value || field.default || { lower: 0, upper: 0 };
@@ -14,6 +15,11 @@ function RangeInput({ field, value, onChange }) {
         setDisplayUpper(NumberFormatter.formatForDisplay(currentValue.upper || 0));
     }, [currentValue.lower, currentValue.upper]);
 
+    // Debounce onChange (150ms for numbers)
+    const debouncedOnChange = useDebounce(useCallback((name, val) => {
+        onChange(name, val);
+    }, [onChange]), 150);
+
     const handleLowerChange = (e) => {
         const inputValue = e.target.value;
         setDisplayLower(inputValue);
@@ -21,7 +27,7 @@ function RangeInput({ field, value, onChange }) {
         // Don't update the value while typing if it's empty - wait for blur
         if (inputValue !== '') {
             const parsedValue = NumberFormatter.parseFromString(inputValue);
-            onChange(field.name, {
+            debouncedOnChange(field.name, {
                 ...currentValue,
                 lower: parsedValue
             });
@@ -58,7 +64,7 @@ function RangeInput({ field, value, onChange }) {
         // Don't update the value while typing if it's empty - wait for blur
         if (inputValue !== '') {
             const parsedValue = NumberFormatter.parseFromString(inputValue);
-            onChange(field.name, {
+            debouncedOnChange(field.name, {
                 ...currentValue,
                 upper: parsedValue
             });

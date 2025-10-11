@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import {
     AppBar,
     Toolbar,
@@ -43,6 +43,7 @@ import ResolutionMapper from '../../utils/ResolutionMapper.js';
 import ColorSchemeDropdown from '../ColorSchemeDropdown.jsx';
 import UndoRedoControls from '../UndoRedoControls.jsx';
 import ProjectSelector from '../ProjectSelector.jsx';
+import useDebounce from '../../hooks/useDebounce.js';
 
 export default function CanvasToolbar({
     config,
@@ -92,6 +93,10 @@ export default function CanvasToolbar({
     const resolutionValue = useMemo(() => {
         return String(currentResolution || 1920);
     }, [currentResolution]);
+
+    // Debounced handlers for input fields (150ms for numeric inputs)
+    const debouncedFramesChange = useDebounce(onFramesChange, 150);
+    const debouncedFrameChange = useDebounce((value) => onFrameChange(parseInt(value)), 150);
 
     return (
         <AppBar position="static" elevation={0}>
@@ -321,7 +326,7 @@ export default function CanvasToolbar({
                         type="number"
                         size="small"
                         value={config.numFrames}
-                        onChange={onFramesChange}
+                        onChange={debouncedFramesChange}
                         disabled={isReadOnly}
                         inputProps={{ min: 1, max: 10000 }}
                         sx={{ 
@@ -344,7 +349,7 @@ export default function CanvasToolbar({
                         type="number"
                         size="small"
                         value={selectedFrame}
-                        onChange={(e) => onFrameChange(parseInt(e.target.value))}
+                        onChange={(e) => debouncedFrameChange(e.target.value)}
                         inputProps={{ min: 0, max: config.numFrames - 1 }}
                         sx={{ width: '80px' }}
                         variant="outlined"

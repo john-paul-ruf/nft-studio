@@ -32,6 +32,7 @@ import {
     Close,
     Refresh
 } from '@mui/icons-material';
+import useDebounce from '../hooks/useDebounce.js';
 
 function TabPanel({ children, value, index, ...other }) {
     return (
@@ -54,6 +55,9 @@ export default function PluginManagerDialog({ open, onClose }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+
+    // Debounced setter for npm package input (300ms for text input)
+    const debouncedSetNpmPackage = useDebounce(setNpmPackage, 300);
 
     const loadPlugins = useCallback(async () => {
         try {
@@ -318,7 +322,7 @@ export default function PluginManagerDialog({ open, onClose }) {
                                     label="NPM Package Name"
                                     placeholder="e.g., my-nft-effects-plugin"
                                     value={npmPackage}
-                                    onChange={(e) => setNpmPackage(e.target.value)}
+                                    onChange={(e) => debouncedSetNpmPackage(e.target.value)}
                                     disabled={loading}
                                     onKeyPress={(e) => {
                                         if (e.key === 'Enter') {

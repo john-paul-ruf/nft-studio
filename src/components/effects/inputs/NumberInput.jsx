@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Typography, TextField, Slider, FormControl, FormHelperText } from '@mui/material';
 import NumberFormatter from '../../../utils/NumberFormatter.js';
+import useDebounce from '../../../hooks/useDebounce.js';
 
 function NumberInput({ field, value, onChange }) {
     const currentValue = value !== undefined ? value : field.default || 0;
@@ -22,6 +23,11 @@ function NumberInput({ field, value, onChange }) {
         setDisplayValue(NumberFormatter.formatForDisplay(currentValue));
     }, [currentValue]);
 
+    // Debounce onChange for text input (150ms for numbers - faster than text)
+    const debouncedOnChange = useDebounce(useCallback((name, val) => {
+        onChange(name, val);
+    }, [onChange]), 150);
+
     const handleNumberChange = (e) => {
         const inputValue = e.target.value;
         setDisplayValue(inputValue); // Allow user to type freely, including empty string
@@ -29,7 +35,7 @@ function NumberInput({ field, value, onChange }) {
         // Don't update the value while typing if it's empty - wait for blur
         if (inputValue !== '') {
             const parsedValue = NumberFormatter.parseFromString(inputValue);
-            onChange(field.name, parsedValue);
+            debouncedOnChange(field.name, parsedValue);
         }
     };
 

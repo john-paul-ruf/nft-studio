@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import RangeInput from './RangeInput.jsx';
 import Point2DInput from './Point2DInput.jsx';
 import PositionInput from './PositionInput.jsx';
@@ -13,9 +13,23 @@ import MultiSelectInput from './MultiSelectInput.jsx';
 import MultiStepInput from './MultiStepInput.jsx';
 import SparsityFactorInput from './SparsityFactorInput.jsx';
 import ArrayInput from './ArrayInput.jsx';
+import useDebounce from '../../../hooks/useDebounce.js';
 
 function ConfigInputFactory({ field, value, onChange, projectState }) {
     const commonProps = { field, value, onChange, projectState };
+    
+    // Local state for text inputs to provide immediate feedback
+    const [textValue, setTextValue] = useState(value || field.default || '');
+    
+    // Debounced onChange for text inputs
+    const debouncedOnChange = useDebounce(useCallback((name, val) => {
+        onChange(name, val);
+    }, [onChange]), 300);
+    
+    // Debounced onChange for JSON inputs
+    const debouncedJsonOnChange = useDebounce(useCallback((name, val) => {
+        onChange(name, val);
+    }, [onChange]), 500);
 
     switch (field.type) {
         case 'range':
@@ -74,7 +88,11 @@ function ConfigInputFactory({ field, value, onChange, projectState }) {
                     <input
                         type="text"
                         value={value || field.default || ''}
-                        onChange={(e) => onChange(field.name, e.target.value)}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setTextValue(val);
+                            debouncedOnChange(field.name, val);
+                        }}
                         placeholder={`Enter ${field.label.toLowerCase()}`}
                         readOnly={field.readonly}
                         style={{
@@ -110,12 +128,13 @@ function ConfigInputFactory({ field, value, onChange, projectState }) {
                     <textarea
                         value={typeof value === 'object' ? JSON.stringify(value, null, 2) : value || JSON.stringify(field.default, null, 2) || '{}'}
                         onChange={(e) => {
+                            const val = e.target.value;
                             try {
-                                const parsed = JSON.parse(e.target.value);
-                                onChange(field.name, parsed);
+                                const parsed = JSON.parse(val);
+                                debouncedJsonOnChange(field.name, parsed);
                             } catch (err) {
-                                // Invalid JSON, store as string temporarily
-                                onChange(field.name, e.target.value);
+                                // Invalid JSON, store as string temporarily with debounce
+                                debouncedJsonOnChange(field.name, val);
                             }
                         }}
                         placeholder="Enter JSON object"
@@ -142,7 +161,11 @@ function ConfigInputFactory({ field, value, onChange, projectState }) {
                     <input
                         type="text"
                         value={value || field.default || ''}
-                        onChange={(e) => onChange(field.name, e.target.value)}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setTextValue(val);
+                            debouncedOnChange(field.name, val);
+                        }}
                         placeholder={`Enter ${field.label.toLowerCase()}`}
                         style={{
                             width: '100%',

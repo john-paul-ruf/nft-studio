@@ -1,14 +1,19 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import CenterUtils from '../../../utils/CenterUtils.js';
+import useDebounce from '../../../hooks/useDebounce.js';
 
 function PositionInput({ field, value, onChange, projectState }) {
     const [showPresets, setShowPresets] = useState(false);
     const [positionType, setPositionType] = useState('position');
     const [selectedCategory, setSelectedCategory] = useState('basic');
-    const [debounceTimer, setDebounceTimer] = useState(null);
     
     // Use a ref to track the latest value to avoid stale closures
     const valueRef = useRef(value);
+
+    // Debounce onChange (150ms for numbers)
+    const debouncedOnChange = useDebounce(useCallback((name, val) => {
+        onChange(name, val);
+    }, [onChange]), 150);
 
     // SINGLE SOURCE: Get resolution data ONLY from ProjectState
     const { safeWidth, safeHeight, currentResolutionKey } = useMemo(() => {
@@ -247,7 +252,7 @@ function PositionInput({ field, value, onChange, projectState }) {
             x: newX,
             y: newY
         }, true);
-        onChange(field.name, newPosition);
+        debouncedOnChange(field.name, newPosition);
     };
 
     const handleArcPathChange = (property, newValue) => {
@@ -256,7 +261,7 @@ function PositionInput({ field, value, onChange, projectState }) {
             ...latestValue,
             [property]: newValue
         }, true);
-        onChange(field.name, newPosition);
+        debouncedOnChange(field.name, newPosition);
     };
 
     const handleCenterChange = (newX, newY) => {
@@ -265,7 +270,7 @@ function PositionInput({ field, value, onChange, projectState }) {
             ...latestValue,
             center: { x: newX, y: newY }
         }, true);
-        onChange(field.name, newPosition);
+        debouncedOnChange(field.name, newPosition);
     };
 
     return (

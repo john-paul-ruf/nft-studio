@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import useDebounce from '../hooks/useDebounce.js';
 
 function ColorSchemeCreator({ onClose, onSave, editingScheme = null, initialColors = null }) {
     const [schemeName, setSchemeName] = useState(
@@ -21,6 +22,11 @@ function ColorSchemeCreator({ onClose, onSave, editingScheme = null, initialColo
 
     const [newColor, setNewColor] = useState('#FF0000');
     const [selectedBucket, setSelectedBucket] = useState('lights');
+
+    // Debounced handlers for text inputs (300ms delay)
+    const debouncedSetSchemeName = useDebounce(setSchemeName, 300);
+    const debouncedSetSchemeDescription = useDebounce(setSchemeDescription, 300);
+    const debouncedSetNewColor = useDebounce(setNewColor, 300);
 
     const colorBuckets = [
         { key: 'neutrals', name: 'Neutral Colors', description: 'Whites, grays, blacks for subtle elements' },
@@ -140,7 +146,11 @@ function ColorSchemeCreator({ onClose, onSave, editingScheme = null, initialColo
                         <input
                             type="text"
                             value={schemeName}
-                            onChange={(e) => setSchemeName(e.target.value)}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                setSchemeName(value);
+                                debouncedSetSchemeName(value);
+                            }}
                             style={{
                                 width: '100%',
                                 background: 'rgba(255,255,255,0.1)',
@@ -160,7 +170,11 @@ function ColorSchemeCreator({ onClose, onSave, editingScheme = null, initialColo
                         <input
                             type="text"
                             value={schemeDescription}
-                            onChange={(e) => setSchemeDescription(e.target.value)}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                setSchemeDescription(value);
+                                debouncedSetSchemeDescription(value);
+                            }}
                             style={{
                                 width: '100%',
                                 background: 'rgba(255,255,255,0.1)',
@@ -301,7 +315,11 @@ function ColorSchemeCreator({ onClose, onSave, editingScheme = null, initialColo
                         <input
                             type="text"
                             value={newColor}
-                            onChange={(e) => setNewColor(e.target.value)}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                setNewColor(value);
+                                debouncedSetNewColor(value);
+                            }}
                             placeholder="#FF0000"
                             style={{
                                 background: 'rgba(255,255,255,0.1)',

@@ -1,12 +1,18 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import PositionSerializer from '../../../utils/PositionSerializer.js';
 import CenterUtils from '../../../utils/CenterUtils.js';
+import useDebounce from '../../../hooks/useDebounce.js';
 
 function Point2DInput({ field, value, onChange, projectState }) {
     const [showPresets, setShowPresets] = useState(false);
     
     // Use a ref to track the latest value to avoid stale closures
     const valueRef = useRef(value);
+
+    // Debounce onChange (150ms for numbers)
+    const debouncedOnChange = useDebounce(useCallback((name, val) => {
+        onChange(name, val);
+    }, [onChange]), 150);
 
     // SINGLE SOURCE: Get dimensions ONLY from ProjectState
     const { width, height, currentResolutionKey } = useMemo(() => {
@@ -238,7 +244,7 @@ function Point2DInput({ field, value, onChange, projectState }) {
                             // Allow empty string during typing
                             if (val === '') return;
                             const latestValue = getCurrentValue();
-                            onChange(field.name, {
+                            debouncedOnChange(field.name, {
                                 ...latestValue,
                                 x: parseInt(val) || 0
                             });
@@ -269,7 +275,7 @@ function Point2DInput({ field, value, onChange, projectState }) {
                             // Allow empty string during typing
                             if (val === '') return;
                             const latestValue = getCurrentValue();
-                            onChange(field.name, {
+                            debouncedOnChange(field.name, {
                                 ...latestValue,
                                 y: parseInt(val) || 0
                             });

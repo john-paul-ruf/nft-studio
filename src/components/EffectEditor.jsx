@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './EffectEditor.css';
+import useDebounce from '../hooks/useDebounce.js';
 
 export default function EffectEditor({ effect, onUpdate, onClose }) {
     const [config, setConfig] = useState(effect.config || {});
@@ -21,6 +22,11 @@ export default function EffectEditor({ effect, onUpdate, onClose }) {
     const handleConfigChange = (key, value) => {
         setConfig({ ...config, [key]: value });
     };
+
+    // Debounced version for text inputs
+    const debouncedHandleConfigChange = useDebounce(useCallback((key, value) => {
+        setConfig(prev => ({ ...prev, [key]: value }));
+    }, []), 300);
 
     const handleSave = () => {
         onUpdate({ ...effect, config });
@@ -55,7 +61,10 @@ export default function EffectEditor({ effect, onUpdate, onClose }) {
                             type="number"
                             className="field-input"
                             value={value}
-                            onChange={(e) => handleConfigChange(field.name, parseFloat(e.target.value))}
+                            onChange={(e) => {
+                                const numValue = parseFloat(e.target.value);
+                                debouncedHandleConfigChange(field.name, numValue);
+                            }}
                             min={field.min}
                             max={field.max}
                             step={field.step || 1}
@@ -76,7 +85,7 @@ export default function EffectEditor({ effect, onUpdate, onClose }) {
                             type="text"
                             className="field-input"
                             value={value}
-                            onChange={(e) => handleConfigChange(field.name, e.target.value)}
+                            onChange={(e) => debouncedHandleConfigChange(field.name, e.target.value)}
                         />
                     </div>
                 );

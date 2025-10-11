@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Box, Paper, Typography, Slider, TextField } from '@mui/material';
+import useDebounce from '../../hooks/useDebounce.js';
 
 /**
  * PercentChanceControl Component
@@ -18,13 +19,18 @@ import { Box, Paper, Typography, Slider, TextField } from '@mui/material';
  * @param {Function} props.onChange - Callback when value changes
  */
 const PercentChanceControl = ({ value, onChange }) => {
+    // Debounced onChange for text field
+    const debouncedOnChange = useDebounce(useCallback((val) => {
+        onChange(val);
+    }, [onChange]), 150);
+
     const handleSliderChange = (e, newValue) => {
         onChange(newValue);
     };
 
     const handleTextFieldChange = (e) => {
         const newValue = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
-        onChange(newValue);
+        debouncedOnChange(newValue);
     };
 
     return (

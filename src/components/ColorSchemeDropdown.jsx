@@ -3,6 +3,7 @@ import ColorSchemeService from '../services/ColorSchemeService.js';
 import PreferencesService from '../services/PreferencesService.js';
 import ColorSchemeCreator from './ColorSchemeCreator.jsx';
 import { useServices } from '../contexts/ServiceContext.js';
+import useDebounce from '../hooks/useDebounce.js';
 
 function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true, isInDropdown = false }) {
     const { eventBusService } = useServices();
@@ -14,6 +15,9 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true,
     const [searchTerm, setSearchTerm] = useState('');
     const [favorites, setFavorites] = useState([]);
     const [defaultScheme, setDefaultScheme] = useState(null);
+
+    // Debounced search handler (300ms delay)
+    const debouncedSetSearchTerm = useDebounce(setSearchTerm, 300);
 
     // Event-based color scheme change handler
     const handleColorSchemeChange = useCallback((schemeId) => {
@@ -352,7 +356,11 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true,
                         type="text"
                         placeholder="Search color schemes..."
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            setSearchTerm(value);
+                            debouncedSetSearchTerm(value);
+                        }}
                         style={{
                             width: '100%',
                             background: 'rgba(255,255,255,0.1)',
@@ -497,7 +505,11 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true,
                             type="text"
                             placeholder="Search color schemes..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                setSearchTerm(value);
+                                debouncedSetSearchTerm(value);
+                            }}
                             style={{
                                 width: '100%',
                                 background: 'rgba(255,255,255,0.1)',

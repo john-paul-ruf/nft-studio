@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PreferencesService from '../services/PreferencesService.js';
 import ResolutionMapper from '../utils/ResolutionMapper.js';
 import ProjectState from '../models/ProjectState.js';
+import useDebounce from '../hooks/useDebounce.js';
 import './ProjectWizard.css';
 
 export default function ProjectWizard({ projectStateManager, onComplete, onCancel }) {
@@ -10,6 +11,10 @@ export default function ProjectWizard({ projectStateManager, onComplete, onCance
     const [projectName, setProjectName] = useState('nft-studio-project');
     const [projectDirectory, setProjectDirectory] = useState('');
     const [isCompleting, setIsCompleting] = useState(false);
+
+    // Debounced handlers for text inputs (300ms delay)
+    const debouncedSetArtistName = useDebounce(setArtistName, 300);
+    const debouncedSetProjectName = useDebounce(setProjectName, 300);
 
     // Load directory from preferences (artist and project use hardcoded defaults)
     useEffect(() => {
@@ -137,7 +142,11 @@ export default function ProjectWizard({ projectStateManager, onComplete, onCance
                                 type="text"
                                 className="wizard-input"
                                 value={artistName}
-                                onChange={(e) => setArtistName(e.target.value)}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    setArtistName(value);
+                                    debouncedSetArtistName(value);
+                                }}
                                 placeholder="Enter your artist name"
                                 autoFocus
                             />
@@ -151,7 +160,11 @@ export default function ProjectWizard({ projectStateManager, onComplete, onCance
                                 type="text"
                                 className="wizard-input"
                                 value={projectName}
-                                onChange={(e) => setProjectName(e.target.value)}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    setProjectName(value);
+                                    debouncedSetProjectName(value);
+                                }}
                                 placeholder="Enter project name"
                                 autoFocus
                             />
