@@ -121,9 +121,22 @@ class ConfigIntrospector {
         const className = (value && typeof value === 'object' && value.__className) ||
                          (value && typeof value === 'object' && value.constructor ? value.constructor.name : null);
 
-        // Check if property name contains "color" or "Color" - treat as color picker
+        // Check if property name represents a color value - treat as color picker
+        // Only match properties that are actually color values, not properties like "colorMode"
         const nameLower = name.toLowerCase();
-        if (nameLower.includes('color') || nameLower.includes('colour')) {
+        const isColorProperty = (
+            // Exact matches: "color" or "colour"
+            nameLower === 'color' || nameLower === 'colour' ||
+            // Ends with "Color" or "Colour": backgroundColor, strokeColor, etc.
+            nameLower.endsWith('color') || nameLower.endsWith('colour')
+        ) && (
+            // Exclude properties that end with "Mode" or other non-color suffixes
+            !nameLower.endsWith('mode') && 
+            !nameLower.endsWith('type') && 
+            !nameLower.endsWith('style')
+        );
+        
+        if (isColorProperty) {
             return {
                 ...field,
                 type: 'colorpicker',
@@ -459,9 +472,22 @@ class ConfigIntrospector {
             label: this.generateLabel(name)
         };
 
-        // Check if property name contains "color" or "Color" - treat as color picker
+        // Check if property name represents a color value - treat as color picker
+        // Only match properties that are actually color values, not properties like "colorMode"
         const nameLower = name.toLowerCase();
-        if (nameLower.includes('color') || nameLower.includes('colour')) {
+        const isColorProperty = (
+            // Exact matches: "color" or "colour"
+            nameLower === 'color' || nameLower === 'colour' ||
+            // Ends with "Color" or "Colour": backgroundColor, strokeColor, etc.
+            nameLower.endsWith('color') || nameLower.endsWith('colour')
+        ) && (
+            // Exclude properties that end with "Mode" or other non-color suffixes
+            !nameLower.endsWith('mode') && 
+            !nameLower.endsWith('type') && 
+            !nameLower.endsWith('style')
+        );
+        
+        if (isColorProperty) {
             return {
                 ...field,
                 type: 'colorpicker',
