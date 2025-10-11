@@ -11,7 +11,9 @@ import {
 import {
     Clear,
     Stop,
-    Close
+    Close,
+    Pause,
+    PlayArrow
 } from '@mui/icons-material';
 import EventCaptureService from '../services/EventCaptureService';
 import EventFilterService from '../services/EventFilterService';
@@ -22,6 +24,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
     const [expandedEvents, setExpandedEvents] = useState(new Set());
     const [isStoppingRenderLoop, setIsStoppingRenderLoop] = useState(false);
     const [isRenderLoopActive, setIsRenderLoopActive] = useState(renderLoopActive);
+    const [isBufferingPaused, setIsBufferingPaused] = useState(false);
     // Progress tracking state - now managed by RenderProgressTracker
     const [renderProgress, setRenderProgress] = useState({
         isRendering: false,
@@ -41,6 +44,9 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
     // Load buffered events when monitor opens
     useEffect(() => {
         if (open) {
+            // Sync buffering state with service
+            setIsBufferingPaused(EventCaptureService.isBufferingPausedState());
+            
             // Use setTimeout to defer processing and prevent UI freeze
             setTimeout(() => {
                 // Load all buffered events
@@ -75,6 +81,14 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
         const handleEvent = (eventData) => {
             const eventName = eventData.eventName || 'unknown';
             const data = eventData.data || eventData;
+            
+            // Handle buffer:cleared meta-event - clear UI state
+            if (eventName === 'buffer:cleared') {
+                console.log('🧹 EventBusMonitor: Received buffer:cleared event, clearing UI');
+                setEvents([]);
+                setExpandedEvents(new Set());
+                return; // Don't add this meta-event to the display
+            }
             
             // Track render progress using RenderProgressTracker
             if (eventName === 'render.loop.start' || eventName === 'project.resume.start') {
@@ -245,10 +259,30 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
     };
 
     const clearEvents = () => {
+        console.log('🧹 EventBusMonitor: Starting clear operation...');
+        
+        // Clear UI state first
         setEvents([]);
-        // Also clear the persistent buffer in EventCaptureService
-        EventCaptureService.clearBuffer();
-        console.log('🧹 EventBusMonitor: Cleared all events including buffer');
+        
+        // Clear expanded events state
+        setExpandedEvents(new Set());
+        
+        // Force clear the persistent buffer in EventCaptureService
+        EventCaptureService.clearBuffer(true);
+        
+        console.log('✅ EventBusMonitor: All events cleared (UI + buffer)');
+    };
+    
+    const toggleBuffering = () => {
+        if (isBufferingPaused) {
+            EventCaptureService.resumeBuffering();
+            setIsBufferingPaused(false);
+            console.log('▶️ EventBusMonitor: Event buffering resumed');
+        } else {
+            EventCaptureService.pauseBuffering();
+            setIsBufferingPaused(true);
+            console.log('⏸️ EventBusMonitor: Event buffering paused');
+        }
     };
 
     const stopRenderLoop = async () => {
@@ -562,6 +596,19 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                             }}
                         >
                             <Stop fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                    
+                    <Tooltip title={isBufferingPaused ? "Resume event buffering" : "Pause event buffering"}>
+                        <IconButton 
+                            onClick={toggleBuffering}
+                            size="small"
+                            sx={{ 
+                                color: isBufferingPaused ? '#ff9800' : '#4caf50',
+                                '&:hover': { bgcolor: '#3d3d3d' }
+                            }}
+                        >
+                            {isBufferingPaused ? <PlayArrow fontSize="small" /> : <Pause fontSize="small" />}
                         </IconButton>
                     </Tooltip>
                     

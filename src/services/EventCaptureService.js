@@ -22,6 +22,7 @@ class EventCaptureService {
         this.maxBufferSize = 1000;
         this.eventCallbacks = new Set();
         this.consoleUnregister = null;
+        this.isBufferingPaused = false; // New flag to control buffering
         
         // Start monitoring immediately on service creation (only in browser environment)
         if (typeof window !== 'undefined') {
@@ -161,12 +162,40 @@ class EventCaptureService {
      * Add event to internal buffer
      */
     addToBuffer(eventData) {
+        // Skip buffering if paused
+        if (this.isBufferingPaused) {
+            return;
+        }
+        
         this.eventBuffer.unshift(eventData);
         
         // Keep buffer size manageable
         if (this.eventBuffer.length > this.maxBufferSize) {
             this.eventBuffer = this.eventBuffer.slice(0, this.maxBufferSize);
         }
+    }
+    
+    /**
+     * Pause event buffering (events still notify callbacks but won't be stored)
+     */
+    pauseBuffering() {
+        this.isBufferingPaused = true;
+        console.log('⏸️ EventCaptureService: Event buffering paused');
+    }
+    
+    /**
+     * Resume event buffering
+     */
+    resumeBuffering() {
+        this.isBufferingPaused = false;
+        console.log('▶️ EventCaptureService: Event buffering resumed');
+    }
+    
+    /**
+     * Check if buffering is paused
+     */
+    isBufferingPausedState() {
+        return this.isBufferingPaused;
     }
     
     /**
@@ -210,10 +239,27 @@ class EventCaptureService {
     
     /**
      * Clear event buffer
+     * @param {boolean} force - Force clear even if monitoring is active
      */
-    clearBuffer() {
+    clearBuffer(force = false) {
+        const previousLength = this.eventBuffer.length;
         this.eventBuffer = [];
-        console.log('🧹 EventCaptureService: Event buffer cleared');
+        
+        if (force) {
+            console.log(`🧹 EventCaptureService: Event buffer force cleared (${previousLength} events removed)`);
+        } else {
+            console.log(`🧹 EventCaptureService: Event buffer cleared (${previousLength} events removed)`);
+        }
+        
+        // Emit a clear event to notify any listeners
+        this.notifyCallbacks({
+            eventName: 'buffer:cleared',
+            timestamp: new Date().toISOString(),
+            data: {
+                previousLength,
+                force
+            }
+        });
     }
 
     /**
