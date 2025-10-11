@@ -91,6 +91,11 @@ class IPCSerializationService {
                 secondaryEffects: effect.secondaryEffects?.map(secEffect => ({
                     ...secEffect,
                     config: this.serializeConfigForIPC(secEffect.config)
+                })),
+                // Also serialize keyframe effects if they exist
+                keyframeEffects: effect.keyframeEffects?.map(keyframeEffect => ({
+                    ...keyframeEffect,
+                    config: this.serializeConfigForIPC(keyframeEffect.config)
                 }))
             }))
         };

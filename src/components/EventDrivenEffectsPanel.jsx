@@ -107,6 +107,20 @@ export default function EventDrivenEffectsPanel({
         });
     }, [eventBusService]);
 
+    const handleSecondaryEffectToggleVisibility = useCallback((parentIndex, secondaryIndex) => {
+        eventBusService.emit('effectspanel:secondary:togglevisibility', { parentIndex, secondaryIndex }, {
+            source: 'EventDrivenEffectsPanel',
+            component: 'EventDrivenEffectsPanel'
+        });
+    }, [eventBusService]);
+
+    const handleKeyframeEffectToggleVisibility = useCallback((parentIndex, keyframeIndex) => {
+        eventBusService.emit('effectspanel:keyframe:togglevisibility', { parentIndex, keyframeIndex }, {
+            source: 'EventDrivenEffectsPanel',
+            component: 'EventDrivenEffectsPanel'
+        });
+    }, [eventBusService]);
+
     return (
         <EffectsPanel
             effects={effects}
@@ -120,6 +134,8 @@ export default function EventDrivenEffectsPanel({
             onKeyframeEffectReorder={handleKeyframeEffectReorder}
             onSecondaryEffectDelete={handleSecondaryEffectDelete}
             onKeyframeEffectDelete={handleKeyframeEffectDelete}
+            onSecondaryEffectToggleVisibility={handleSecondaryEffectToggleVisibility}
+            onKeyframeEffectToggleVisibility={handleKeyframeEffectToggleVisibility}
             availableEffects={availableEffects}
             effectsLoaded={effectsLoaded}
             currentTheme={currentTheme}

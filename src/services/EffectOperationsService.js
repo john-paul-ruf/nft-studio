@@ -17,6 +17,8 @@ import {
     DeleteSecondaryEffectCommand,
     DeleteKeyframeEffectCommand
 } from '../commands/ProjectCommands.js';
+import { UpdateSecondaryEffectCommand } from './SecondaryEffectCommandService.js';
+import { UpdateKeyframeEffectCommand } from './KeyframeEffectCommandService.js';
 import PreferencesService from './PreferencesService.js';
 import { Effect } from '../models/Effect.js';
 
@@ -652,6 +654,124 @@ class EffectOperationsService {
         } catch (error) {
             this.operationMetrics.operationErrors++;
             this.logger.error(`Error reordering keyframe effects:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Toggle visibility of a secondary effect
+     * @param {Object} params - Toggle parameters
+     * @param {number} params.parentIndex - Index of parent effect
+     * @param {number} params.secondaryIndex - Index of secondary effect
+     * @param {Object} params.projectState - Current project state
+     * @returns {Promise<void>}
+     */
+    async toggleSecondaryEffectVisibility({ parentIndex, secondaryIndex, projectState }) {
+        const startTime = Date.now();
+        
+        try {
+            const currentEffects = projectState.getState().effects || [];
+            const parentEffect = currentEffects[parentIndex];
+
+            if (!parentEffect || !parentEffect.secondaryEffects) {
+                throw new Error(`Cannot toggle secondary effect visibility - parent effect at index ${parentIndex} not found or has no secondary effects`);
+            }
+
+            const secondaryEffect = parentEffect.secondaryEffects[secondaryIndex];
+            if (!secondaryEffect) {
+                throw new Error(`Cannot toggle secondary effect visibility - secondary effect at index ${secondaryIndex} not found`);
+            }
+
+            const currentVisibility = secondaryEffect.visible !== undefined ? secondaryEffect.visible : true;
+            const newVisibility = !currentVisibility;
+
+            this.logger.info(`Toggling secondary effect visibility at parent ${parentIndex}, secondary ${secondaryIndex} to ${newVisibility}`);
+
+            const updateSecondaryCommand = new UpdateSecondaryEffectCommand(
+                projectState,
+                parentIndex,
+                secondaryIndex,
+                { visible: newVisibility }
+            );
+            await this.commandService.execute(updateSecondaryCommand);
+
+            // Update metrics
+            this.operationMetrics.effectsUpdated++;
+            this.operationMetrics.lastOperationTime = Date.now();
+
+            // Emit event
+            this.eventBus.emit('effectOperations:secondaryEffectVisibilityToggled', {
+                parentIndex,
+                secondaryIndex,
+                visible: newVisibility,
+                operationTime: Date.now() - startTime
+            });
+
+            this.logger.info(`Secondary effect visibility toggled successfully`);
+
+        } catch (error) {
+            this.operationMetrics.operationErrors++;
+            this.logger.error(`Error toggling secondary effect visibility:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Toggle visibility of a keyframe effect
+     * @param {Object} params - Toggle parameters
+     * @param {number} params.parentIndex - Index of parent effect
+     * @param {number} params.keyframeIndex - Index of keyframe effect
+     * @param {Object} params.projectState - Current project state
+     * @returns {Promise<void>}
+     */
+    async toggleKeyframeEffectVisibility({ parentIndex, keyframeIndex, projectState }) {
+        const startTime = Date.now();
+        
+        try {
+            const currentEffects = projectState.getState().effects || [];
+            const parentEffect = currentEffects[parentIndex];
+
+            if (!parentEffect) {
+                throw new Error(`Cannot toggle keyframe effect visibility - parent effect at index ${parentIndex} not found`);
+            }
+
+            const keyframeEffects = parentEffect.keyframeEffects || parentEffect.attachedEffects?.keyFrame || [];
+            const keyframeEffect = keyframeEffects[keyframeIndex];
+            
+            if (!keyframeEffect) {
+                throw new Error(`Cannot toggle keyframe effect visibility - keyframe effect at index ${keyframeIndex} not found`);
+            }
+
+            const currentVisibility = keyframeEffect.visible !== undefined ? keyframeEffect.visible : true;
+            const newVisibility = !currentVisibility;
+
+            this.logger.info(`Toggling keyframe effect visibility at parent ${parentIndex}, keyframe ${keyframeIndex} to ${newVisibility}`);
+
+            const updateKeyframeCommand = new UpdateKeyframeEffectCommand(
+                projectState,
+                parentIndex,
+                keyframeIndex,
+                { visible: newVisibility }
+            );
+            await this.commandService.execute(updateKeyframeCommand);
+
+            // Update metrics
+            this.operationMetrics.effectsUpdated++;
+            this.operationMetrics.lastOperationTime = Date.now();
+
+            // Emit event
+            this.eventBus.emit('effectOperations:keyframeEffectVisibilityToggled', {
+                parentIndex,
+                keyframeIndex,
+                visible: newVisibility,
+                operationTime: Date.now() - startTime
+            });
+
+            this.logger.info(`Keyframe effect visibility toggled successfully`);
+
+        } catch (error) {
+            this.operationMetrics.operationErrors++;
+            this.logger.error(`Error toggling keyframe effect visibility:`, error);
             throw error;
         }
     }

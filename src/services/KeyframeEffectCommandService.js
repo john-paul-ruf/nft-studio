@@ -57,6 +57,18 @@ class KeyframeEffectCommandService {
     createReorderCommand(projectState, parentIndex, sourceIndex, destinationIndex) {
         return new ReorderKeyframeEffectsCommand(projectState, parentIndex, sourceIndex, destinationIndex);
     }
+
+    /**
+     * Create command to update a keyframe effect
+     * @param {Object} projectState - Project state instance
+     * @param {number} parentIndex - Index of parent effect
+     * @param {number} keyframeIndex - Index of keyframe effect to update
+     * @param {Object} updates - Properties to update
+     * @returns {Command} UpdateKeyframeEffectCommand instance
+     */
+    createUpdateCommand(projectState, parentIndex, keyframeIndex, updates) {
+        return new UpdateKeyframeEffectCommand(projectState, parentIndex, keyframeIndex, updates);
+    }
 }
 
 /**
@@ -375,6 +387,145 @@ export class ReorderKeyframeEffectsCommand extends Command {
         this.parentIndex = parentIndex;
         this.sourceIndex = sourceIndex;
         this.destinationIndex = destinationIndex;
+        this.isEffectCommand = true;
+    }
+}
+
+/**
+ * Command to update a keyframe effect
+ */
+export class UpdateKeyframeEffectCommand extends Command {
+    constructor(projectState, parentIndex, keyframeIndex, updates) {
+        let previousState = null;
+
+        const executeAction = () => {
+            const currentEffects = projectState.getState().effects || [];
+            const parentEffect = currentEffects[parentIndex];
+
+            if (!parentEffect) {
+                throw new Error(`Cannot update keyframe effect - parent effect at index ${parentIndex} not found`);
+            }
+
+            // Ensure parent effect is an Effect instance
+            const parentEffectInstance = parentEffect instanceof Effect 
+                ? parentEffect 
+                : Effect.fromPOJO(parentEffect);
+
+            // Use new keyframeEffects property (backward compatible with attachedEffects.keyFrame)
+            const keyframeEffects = parentEffectInstance.keyframeEffects || 
+                                   parentEffectInstance.attachedEffects?.keyFrame || [];
+
+            if (keyframeEffects.length === 0) {
+                throw new Error(`Cannot update keyframe effect - parent effect at index ${parentIndex} has no keyframe effects`);
+            }
+
+            if (keyframeIndex < 0 || keyframeIndex >= keyframeEffects.length) {
+                throw new Error(`Invalid keyframe effect index: ${keyframeIndex}. Valid range: 0 to ${keyframeEffects.length - 1}`);
+            }
+
+            console.log('✏️ UpdateKeyframeEffectCommand: Updating keyframe effect');
+            console.log('✏️ UpdateKeyframeEffectCommand: Parent index:', parentIndex, 'Keyframe index:', keyframeIndex);
+            console.log('✏️ UpdateKeyframeEffectCommand: Updates:', updates);
+
+            const keyframeEffect = keyframeEffects[keyframeIndex];
+            
+            // Store previous state for undo
+            previousState = { ...keyframeEffect };
+
+            // Create updated keyframe effect
+            const updatedKeyframeEffect = {
+                ...keyframeEffect,
+                ...updates
+            };
+
+            // Create new effects array with updated keyframe effect
+            const newEffects = [...currentEffects];
+            const newKeyframeEffects = [...keyframeEffects];
+            newKeyframeEffects[keyframeIndex] = updatedKeyframeEffect;
+            
+            newEffects[parentIndex] = {
+                ...parentEffectInstance,
+                keyframeEffects: newKeyframeEffects
+            };
+
+            projectState.update({ effects: newEffects });
+
+            // Emit event for UI updates
+            EventBusService.emit('keyframe:updated', {
+                parentIndex,
+                keyframeIndex,
+                updates,
+                effect: updatedKeyframeEffect
+            }, { source: 'UpdateKeyframeEffectCommand' });
+
+            return { success: true, parentIndex, keyframeIndex, updates };
+        };
+
+        const undoAction = () => {
+            if (!previousState) {
+                throw new Error('No previous state to restore');
+            }
+
+            const currentEffects = projectState.getState().effects || [];
+            const parentEffect = currentEffects[parentIndex];
+
+            if (!parentEffect) {
+                throw new Error(`Cannot restore keyframe effect - parent effect at index ${parentIndex} not found`);
+            }
+
+            console.log('↩️ UpdateKeyframeEffectCommand: Restoring previous state');
+
+            // Ensure parent effect is an Effect instance
+            const parentEffectInstance = parentEffect instanceof Effect 
+                ? parentEffect 
+                : Effect.fromPOJO(parentEffect);
+
+            // Use new keyframeEffects property (backward compatible with attachedEffects.keyFrame)
+            const keyframeEffects = parentEffectInstance.keyframeEffects || 
+                                   parentEffectInstance.attachedEffects?.keyFrame || [];
+
+            // Create new effects array with restored keyframe effect
+            const newEffects = [...currentEffects];
+            const newKeyframeEffects = [...keyframeEffects];
+            newKeyframeEffects[keyframeIndex] = previousState;
+            
+            newEffects[parentIndex] = {
+                ...parentEffectInstance,
+                keyframeEffects: newKeyframeEffects
+            };
+
+            projectState.update({ effects: newEffects });
+
+            // Emit event for UI updates
+            EventBusService.emit('keyframe:updated', {
+                parentIndex,
+                keyframeIndex,
+                updates: previousState,
+                effect: previousState
+            }, { source: 'UpdateKeyframeEffectCommand' });
+
+            return { success: true };
+        };
+
+        const currentEffects = projectState.getState().effects || [];
+        const parentEffect = currentEffects[parentIndex];
+        
+        // Ensure parent effect is an Effect instance
+        const parentEffectInstance = parentEffect instanceof Effect 
+            ? parentEffect 
+            : Effect.fromPOJO(parentEffect);
+        
+        const keyframeEffects = parentEffectInstance?.keyframeEffects || 
+                               parentEffectInstance?.attachedEffects?.keyFrame || [];
+        const keyframeEffect = keyframeEffects[keyframeIndex];
+        const effectName = CommandDescriptionHelper.getEffectName(keyframeEffect);
+        const updateKeys = Object.keys(updates).join(', ');
+        const description = `Updated ${effectName} keyframe (${updateKeys})`;
+
+        super('effect.keyframe.update', executeAction, undoAction, description);
+        this.parentIndex = parentIndex;
+        this.keyframeIndex = keyframeIndex;
+        this.updates = updates;
         this.isEffectCommand = true;
     }
 }

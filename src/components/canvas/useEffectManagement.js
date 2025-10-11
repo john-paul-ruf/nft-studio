@@ -15,10 +15,25 @@ import {
 } from '../../commands/ProjectCommands.js';
 import { useServices } from '../../contexts/ServiceContext.js';
 import PreferencesService from '../../services/PreferencesService.js';
+import EffectOperationsService from '../../services/EffectOperationsService.js';
 
 
 export default function useEffectManagement(projectState) {
-    const { commandService, eventBusService } = useServices();
+    const { commandService, eventBusService, loggerService } = useServices();
+
+    // Initialize EffectOperationsService
+    const [effectOperationsService] = useState(() => {
+        if (!commandService || !eventBusService || !loggerService) {
+            console.warn('useEffectManagement: Missing required services, operations will be limited');
+            return null;
+        }
+        
+        return new EffectOperationsService({
+            commandService,
+            eventBus: eventBusService,
+            logger: loggerService
+        });
+    });
 
     // Debug ProjectState (single source of truth)
     const currentEffects = projectState?.getState()?.effects || [];
@@ -307,6 +322,28 @@ export default function useEffectManagement(projectState) {
             }
         }, { component: 'useEffectManagement' });
 
+        const unsubscribeSecondaryToggleVisibility = eventBusService.subscribe('effectspanel:secondary:togglevisibility', async (payload) => {
+            console.log('🎭 useEffectManagement: Secondary effect toggle visibility event received:', payload);
+            if (effectOperationsService && projectState) {
+                await effectOperationsService.toggleSecondaryEffectVisibility({
+                    parentIndex: payload.parentIndex,
+                    secondaryIndex: payload.secondaryIndex,
+                    projectState
+                });
+            }
+        }, { component: 'useEffectManagement' });
+
+        const unsubscribeKeyframeToggleVisibility = eventBusService.subscribe('effectspanel:keyframe:togglevisibility', async (payload) => {
+            console.log('🎭 useEffectManagement: Keyframe effect toggle visibility event received:', payload);
+            if (effectOperationsService && projectState) {
+                await effectOperationsService.toggleKeyframeEffectVisibility({
+                    parentIndex: payload.parentIndex,
+                    keyframeIndex: payload.keyframeIndex,
+                    projectState
+                });
+            }
+        }, { component: 'useEffectManagement' });
+
         // Listen for effects refreshed event (emitted when registry is refreshed)
         const unsubscribeEffectsRefreshed = eventBusService.subscribe('effects:refreshed', async (payload) => {
             console.log('📊 useEffectManagement: Effects refreshed event received:', payload);
@@ -327,9 +364,11 @@ export default function useEffectManagement(projectState) {
             unsubscribeKeyframeReorder();
             unsubscribeSecondaryDelete();
             unsubscribeKeyframeDelete();
+            unsubscribeSecondaryToggleVisibility();
+            unsubscribeKeyframeToggleVisibility();
             unsubscribeEffectsRefreshed();
         };
-    }, [eventBusService, handleAddEffectDirect, handleEffectDelete, handleEffectReorder, handleEffectToggleVisibility, handleAddSecondaryEffect, handleAddKeyframeEffect, handleSubEffectUpdate, handleConfigUpdateWithContext, projectState, availableEffects, loadAvailableEffects]);
+    }, [eventBusService, effectOperationsService, handleAddEffectDirect, handleEffectDelete, handleEffectReorder, handleEffectToggleVisibility, handleAddSecondaryEffect, handleAddKeyframeEffect, handleSubEffectUpdate, handleConfigUpdateWithContext, projectState, availableEffects, loadAvailableEffects]);
 
     const handleAddEffect = useCallback((effect) => {
         const currentEffects = projectState.getState().effects || [];

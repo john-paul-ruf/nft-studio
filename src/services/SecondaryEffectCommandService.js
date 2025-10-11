@@ -68,6 +68,18 @@ class SecondaryEffectCommandService {
     createReorderSecondaryCommand(projectState, parentIndex, sourceIndex, destinationIndex) {
         return this.createReorderCommand(projectState, parentIndex, sourceIndex, destinationIndex);
     }
+
+    /**
+     * Create command to update a secondary effect
+     * @param {Object} projectState - Project state instance
+     * @param {number} parentIndex - Index of parent effect
+     * @param {number} secondaryIndex - Index of secondary effect to update
+     * @param {Object} updates - Properties to update
+     * @returns {Command} UpdateSecondaryEffectCommand instance
+     */
+    createUpdateCommand(projectState, parentIndex, secondaryIndex, updates) {
+        return new UpdateSecondaryEffectCommand(projectState, parentIndex, secondaryIndex, updates);
+    }
 }
 
 /**
@@ -326,6 +338,115 @@ export class ReorderSecondaryEffectsCommand extends Command {
         this.parentIndex = parentIndex;
         this.sourceIndex = sourceIndex;
         this.destinationIndex = destinationIndex;
+        this.isEffectCommand = true;
+    }
+}
+
+/**
+ * Command to update a secondary effect
+ */
+export class UpdateSecondaryEffectCommand extends Command {
+    constructor(projectState, parentIndex, secondaryIndex, updates) {
+        let previousState = null;
+
+        const executeAction = () => {
+            const currentEffects = projectState.getState().effects || [];
+            const parentEffect = currentEffects[parentIndex];
+
+            if (!parentEffect || !parentEffect.secondaryEffects || parentEffect.secondaryEffects.length === 0) {
+                throw new Error(`Cannot update secondary effect - parent effect at index ${parentIndex} not found or has no secondary effects`);
+            }
+
+            if (secondaryIndex < 0 || secondaryIndex >= parentEffect.secondaryEffects.length) {
+                throw new Error(`Invalid secondary effect index: ${secondaryIndex}. Valid range: 0 to ${parentEffect.secondaryEffects.length - 1}`);
+            }
+
+            console.log('✏️ UpdateSecondaryEffectCommand: Updating secondary effect');
+            console.log('✏️ UpdateSecondaryEffectCommand: Parent index:', parentIndex, 'Secondary index:', secondaryIndex);
+            console.log('✏️ UpdateSecondaryEffectCommand: Updates:', updates);
+
+            const secondaryEffect = parentEffect.secondaryEffects[secondaryIndex];
+            
+            // Store previous state for undo
+            previousState = { ...secondaryEffect };
+
+            // Create updated secondary effect
+            const updatedSecondaryEffect = {
+                ...secondaryEffect,
+                ...updates
+            };
+
+            // Create new effects array with updated secondary effect
+            const newEffects = [...currentEffects];
+            const newSecondaryEffects = [...parentEffect.secondaryEffects];
+            newSecondaryEffects[secondaryIndex] = updatedSecondaryEffect;
+            
+            newEffects[parentIndex] = {
+                ...parentEffect,
+                secondaryEffects: newSecondaryEffects
+            };
+
+            projectState.update({ effects: newEffects });
+
+            // Emit event for UI updates
+            EventBusService.emit('secondary:updated', {
+                parentIndex,
+                secondaryIndex,
+                updates,
+                effect: updatedSecondaryEffect
+            }, { source: 'UpdateSecondaryEffectCommand' });
+
+            return { success: true, parentIndex, secondaryIndex, updates };
+        };
+
+        const undoAction = () => {
+            if (!previousState) {
+                throw new Error('No previous state to restore');
+            }
+
+            const currentEffects = projectState.getState().effects || [];
+            const parentEffect = currentEffects[parentIndex];
+
+            if (!parentEffect) {
+                throw new Error(`Cannot restore secondary effect - parent effect at index ${parentIndex} not found`);
+            }
+
+            console.log('↩️ UpdateSecondaryEffectCommand: Restoring previous state');
+
+            // Create new effects array with restored secondary effect
+            const newEffects = [...currentEffects];
+            const newSecondaryEffects = [...parentEffect.secondaryEffects];
+            newSecondaryEffects[secondaryIndex] = previousState;
+            
+            newEffects[parentIndex] = {
+                ...parentEffect,
+                secondaryEffects: newSecondaryEffects
+            };
+
+            projectState.update({ effects: newEffects });
+
+            // Emit event for UI updates
+            EventBusService.emit('secondary:updated', {
+                parentIndex,
+                secondaryIndex,
+                updates: previousState,
+                effect: previousState
+            }, { source: 'UpdateSecondaryEffectCommand' });
+
+            return { success: true };
+        };
+
+        const currentEffects = projectState.getState().effects || [];
+        const parentEffect = currentEffects[parentIndex];
+        const secondaryEffect = parentEffect?.secondaryEffects?.[secondaryIndex];
+        const effectName = CommandDescriptionHelper.getEffectName(secondaryEffect);
+        const updateKeys = Object.keys(updates).join(', ');
+        const description = `Updated ${effectName} (${updateKeys})`;
+
+        super('effect.secondary.update', executeAction, undoAction, description);
+        this.parentIndex = parentIndex;
+        this.secondaryIndex = secondaryIndex;
+        this.updates = updates;
         this.isEffectCommand = true;
     }
 }

@@ -135,7 +135,8 @@ class EffectConversionService {
                             registryKey: secEffectName,
                             type: 'secondary',
                             config: await this.convertEffectConfig(secEffect.currentEffectConfig || secEffect.config, secEffectName),
-                            percentChance: secEffect.percentChance || 100
+                            percentChance: secEffect.percentChance || 100,
+                            visible: true
                         };
                     }));
                 }
@@ -156,6 +157,7 @@ class EffectConversionService {
                                 type: 'secondary',
                                 config: await this.convertEffectConfig(additionalEffect.config, addEffectName),
                                 percentChance: 100,
+                                visible: true,
                                 // Preserve original effect metadata
                                 originalData: {
                                     requiresLayer: additionalEffect.requiresLayer,
@@ -170,10 +172,60 @@ class EffectConversionService {
                     console.log(`  ✅ Converted ${convertedSecondaryEffects.length} secondary effects for ${effectName}`);
                 }
 
+                // Convert attachedEffects format - newer format with separate secondary and keyFrame arrays
+                if (settingsEffect.attachedEffects && typeof settingsEffect.attachedEffects === 'object') {
+                    // Handle secondary effects from attachedEffects.secondary
+                    if (settingsEffect.attachedEffects.secondary && Array.isArray(settingsEffect.attachedEffects.secondary)) {
+                        console.log(`  🔗 Processing ${settingsEffect.attachedEffects.secondary.length} attachedEffects.secondary for ${effectName}`);
+                        
+                        const convertedSecondaryEffects = await Promise.all(settingsEffect.attachedEffects.secondary.map(async secEffect => {
+                            const secEffectName = secEffect.name || 'secondary-effect';
+                            return {
+                                id: IdGenerator.generateId(),
+                                name: secEffectName,
+                                className: secEffectName,
+                                registryKey: secEffectName,
+                                type: 'secondary',
+                                config: await this.convertEffectConfig(secEffect.currentEffectConfig || secEffect.config, secEffectName),
+                                percentChance: secEffect.percentChance || 100,
+                                visible: true
+                            };
+                        }));
+                        
+                        // Merge with existing secondaryEffects if any
+                        uiEffect.secondaryEffects = [...(uiEffect.secondaryEffects || []), ...convertedSecondaryEffects];
+                        console.log(`  ✅ Converted ${convertedSecondaryEffects.length} secondary effects from attachedEffects for ${effectName}`);
+                    }
+
+                    // Handle keyframe effects from attachedEffects.keyFrame
+                    if (settingsEffect.attachedEffects.keyFrame && Array.isArray(settingsEffect.attachedEffects.keyFrame)) {
+                        console.log(`  🎬 Processing ${settingsEffect.attachedEffects.keyFrame.length} attachedEffects.keyFrame for ${effectName}`);
+                        
+                        const convertedKeyframeEffects = await Promise.all(settingsEffect.attachedEffects.keyFrame.map(async kfEffect => {
+                            const kfEffectName = kfEffect.name || 'keyframe-effect';
+                            return {
+                                id: IdGenerator.generateId(),
+                                name: kfEffectName,
+                                className: kfEffectName,
+                                registryKey: kfEffectName,
+                                type: 'keyframe',
+                                frame: kfEffect.frame || 0,
+                                config: await this.convertEffectConfig(kfEffect.currentEffectConfig || kfEffect.config, kfEffectName),
+                                percentChance: kfEffect.percentChance || 100,
+                                visible: true
+                            };
+                        }));
+                        
+                        uiEffect.keyframeEffects = convertedKeyframeEffects;
+                        console.log(`  ✅ Converted ${convertedKeyframeEffects.length} keyframe effects from attachedEffects for ${effectName}`);
+                    }
+                }
+
                 // Log nested effects if found
                 const nestedEffectsInfo = [];
                 if (uiEffect.secondaryEffects) nestedEffectsInfo.push(`${uiEffect.secondaryEffects.length} secondary`);
                 if (uiEffect.keyFrameEffects) nestedEffectsInfo.push(`${uiEffect.keyFrameEffects.length} keyframe`);
+                if (uiEffect.keyframeEffects) nestedEffectsInfo.push(`${uiEffect.keyframeEffects.length} keyframe`);
 
                 const nestedInfo = nestedEffectsInfo.length > 0 ? ` (with ${nestedEffectsInfo.join(', ')})` : '';
                 console.log(`✅ Converted ${effectType} effect ${index + 1}: ${effectName}${nestedInfo}`);

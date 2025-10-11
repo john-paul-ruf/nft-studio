@@ -159,6 +159,8 @@ export default function EffectsPanel({
     onKeyframeEffectReorder,
     onSecondaryEffectDelete,
     onKeyframeEffectDelete,
+    onSecondaryEffectToggleVisibility,
+    onKeyframeEffectToggleVisibility,
     // Add Effect props
     availableEffects,
     effectsLoaded,
@@ -690,28 +692,51 @@ export default function EffectsPanel({
                                                 />
                                             )}
                                         </Box>
-                                        <IconButton
-                                            size="small"
-                                            disabled={isReadOnly}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (isReadOnly) return;
-                                                onSecondaryEffectDelete && onSecondaryEffectDelete(parentOriginalIndex, idx);
-                                            }}
-                                            title={isReadOnly ? "Read-only mode" : "Delete secondary effect"}
-                                            sx={{
-                                                p: 0,
-                                                color: isReadOnly ? theme.palette.text.disabled : theme.palette.text.secondary,
-                                                opacity: isReadOnly ? 0.3 : 0.7,
-                                                '&:hover': !isReadOnly ? {
-                                                    opacity: 1,
-                                                    transform: 'scale(1.1)',
-                                                    color: theme.palette.error.main
-                                                } : {}
-                                            }}
-                                        >
-                                            <Delete sx={{ fontSize: 14 }} />
-                                        </IconButton>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                            <IconButton
+                                                size="small"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onSecondaryEffectToggleVisibility && onSecondaryEffectToggleVisibility(parentOriginalIndex, idx);
+                                                }}
+                                                title={secondary.visible !== false ? 'Hide secondary effect' : 'Show secondary effect'}
+                                                sx={{
+                                                    p: 0,
+                                                    color: secondary.visible !== false
+                                                        ? theme.palette.primary.main
+                                                        : theme.palette.text.disabled,
+                                                    opacity: secondary.visible !== false ? 1 : 0.5,
+                                                    '&:hover': {
+                                                        color: theme.palette.primary.main,
+                                                        opacity: 1
+                                                    }
+                                                }}
+                                            >
+                                                {secondary.visible !== false ? <Visibility sx={{ fontSize: 14 }} /> : <VisibilityOff sx={{ fontSize: 14 }} />}
+                                            </IconButton>
+                                            <IconButton
+                                                size="small"
+                                                disabled={isReadOnly}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (isReadOnly) return;
+                                                    onSecondaryEffectDelete && onSecondaryEffectDelete(parentOriginalIndex, idx);
+                                                }}
+                                                title={isReadOnly ? "Read-only mode" : "Delete secondary effect"}
+                                                sx={{
+                                                    p: 0,
+                                                    color: isReadOnly ? theme.palette.text.disabled : theme.palette.text.secondary,
+                                                    opacity: isReadOnly ? 0.3 : 0.7,
+                                                    '&:hover': !isReadOnly ? {
+                                                        opacity: 1,
+                                                        transform: 'scale(1.1)',
+                                                        color: theme.palette.error.main
+                                                    } : {}
+                                                }}
+                                            >
+                                                <Delete sx={{ fontSize: 14 }} />
+                                            </IconButton>
+                                        </Box>
                                     </Paper>
                                 </Box>
                             </ContextMenu.Trigger>
@@ -839,28 +864,51 @@ export default function EffectsPanel({
                                                 />
                                             )}
                                         </Box>
-                                        <IconButton
-                                            size="small"
-                                            disabled={isReadOnly}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (isReadOnly) return;
-                                                onKeyframeEffectDelete && onKeyframeEffectDelete(parentOriginalIndex, idx);
-                                            }}
-                                            title={isReadOnly ? "Read-only mode" : "Delete keyframe effect"}
-                                            sx={{
-                                                p: 0,
-                                                color: isReadOnly ? theme.palette.text.disabled : theme.palette.text.secondary,
-                                                opacity: isReadOnly ? 0.3 : 0.7,
-                                                '&:hover': !isReadOnly ? {
-                                                    opacity: 1,
-                                                    transform: 'scale(1.1)',
-                                                    color: theme.palette.error.main
-                                                } : {}
-                                            }}
-                                        >
-                                            <Delete sx={{ fontSize: 14 }} />
-                                        </IconButton>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                            <IconButton
+                                                size="small"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onKeyframeEffectToggleVisibility && onKeyframeEffectToggleVisibility(parentOriginalIndex, idx);
+                                                }}
+                                                title={keyframe.visible !== false ? 'Hide keyframe effect' : 'Show keyframe effect'}
+                                                sx={{
+                                                    p: 0,
+                                                    color: keyframe.visible !== false
+                                                        ? theme.palette.primary.main
+                                                        : theme.palette.text.disabled,
+                                                    opacity: keyframe.visible !== false ? 1 : 0.5,
+                                                    '&:hover': {
+                                                        color: theme.palette.primary.main,
+                                                        opacity: 1
+                                                    }
+                                                }}
+                                            >
+                                                {keyframe.visible !== false ? <Visibility sx={{ fontSize: 14 }} /> : <VisibilityOff sx={{ fontSize: 14 }} />}
+                                            </IconButton>
+                                            <IconButton
+                                                size="small"
+                                                disabled={isReadOnly}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (isReadOnly) return;
+                                                    onKeyframeEffectDelete && onKeyframeEffectDelete(parentOriginalIndex, idx);
+                                                }}
+                                                title={isReadOnly ? "Read-only mode" : "Delete keyframe effect"}
+                                                sx={{
+                                                    p: 0,
+                                                    color: isReadOnly ? theme.palette.text.disabled : theme.palette.text.secondary,
+                                                    opacity: isReadOnly ? 0.3 : 0.7,
+                                                    '&:hover': !isReadOnly ? {
+                                                        opacity: 1,
+                                                        transform: 'scale(1.1)',
+                                                        color: theme.palette.error.main
+                                                    } : {}
+                                                }}
+                                            >
+                                                <Delete sx={{ fontSize: 14 }} />
+                                            </IconButton>
+                                        </Box>
                                     </Paper>
                                 </Box>
                             </ContextMenu.Trigger>

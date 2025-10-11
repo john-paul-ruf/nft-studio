@@ -95,6 +95,7 @@ class EffectProcessingService {
                 const possibleSecondaryEffects = [];
 
                 if (effect.secondaryEffects?.length > 0) {
+                    SafeConsole.log(`🔗 Processing ${effect.secondaryEffects.length} secondary effects for ${effectName}`);
                     for (const secondaryEffect of effect.secondaryEffects) {
                         const secondaryEffectName = secondaryEffect.registryKey;
                         const SecondaryEffectClass = EffectRegistry.getGlobal(secondaryEffectName);
@@ -108,25 +109,32 @@ class EffectProcessingService {
                                 currentEffectConfig: secondaryConfigInstance,
                             });
                             possibleSecondaryEffects.push(secondaryLayerConfig);
+                            SafeConsole.log(`  ✅ Added secondary effect: ${secondaryEffectName}`);
+                        } else {
+                            SafeConsole.warn(`  ⚠️ Secondary effect class not found: ${secondaryEffectName}`);
                         }
                     }
                 }
 
                 if (effect.keyframeEffects?.length > 0) {
+                    SafeConsole.log(`🎬 Processing ${effect.keyframeEffects.length} keyframe effects for ${effectName}`);
                     // Process attached keyframe effects as special secondary effects
-                    for (const secondaryEffect of effect.keyframeEffects) {
-                        const secondaryEffectName = secondaryEffect.registryKey;
-                        const SecondaryEffectClass = EffectRegistry.getGlobal(secondaryEffectName);
-                        if (SecondaryEffectClass) {
-                            const secondaryConfigInstance = await this.createConfigInstance(secondaryEffect, myNftGenPath);
+                    for (const keyframeEffect of effect.keyframeEffects) {
+                        const keyframeEffectName = keyframeEffect.registryKey;
+                        const KeyframeEffectClass = EffectRegistry.getGlobal(keyframeEffectName);
+                        if (KeyframeEffectClass) {
+                            const keyframeConfigInstance = await this.createConfigInstance(keyframeEffect, myNftGenPath);
 
-                            const secondaryLayerConfig = new LayerConfig({
-                                name: secondaryEffectName,
-                                effect: SecondaryEffectClass,
+                            const keyframeLayerConfig = new LayerConfig({
+                                name: keyframeEffectName,
+                                effect: KeyframeEffectClass,
                                 percentChance: 100,
-                                currentEffectConfig: secondaryConfigInstance,
+                                currentEffectConfig: keyframeConfigInstance,
                             });
-                            possibleSecondaryEffects.push(secondaryLayerConfig);
+                            possibleSecondaryEffects.push(keyframeLayerConfig);
+                            SafeConsole.log(`  ✅ Added keyframe effect: ${keyframeEffectName}`);
+                        } else {
+                            SafeConsole.warn(`  ⚠️ Keyframe effect class not found: ${keyframeEffectName}`);
                         }
                     }
                 }
