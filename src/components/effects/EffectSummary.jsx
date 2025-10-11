@@ -7,10 +7,8 @@ function EffectSummary({ effects, onStartGeneration }) {
         if (effects.primary) {
             total += effects.primary.length;
             effects.primary.forEach(primaryEffect => {
-                if (primaryEffect.attachedEffects) {
-                    total += (primaryEffect.attachedEffects.secondary || []).length;
-                    total += (primaryEffect.attachedEffects.keyFrame || []).length;
-                }
+                total += (primaryEffect.secondaryEffects || []).length;
+                total += (primaryEffect.keyframeEffects || []).length;
             });
         }
         return total;
@@ -103,10 +101,10 @@ function EffectSummary({ effects, onStartGeneration }) {
                                         )}
 
                                         {/* Show attached effects for primary effects */}
-                                        {category.key === 'primary' && effect.attachedEffects && (
+                                        {category.key === 'primary' && (effect.secondaryEffects?.length > 0 || effect.keyframeEffects?.length > 0) && (
                                             <div style={{ marginTop: '0.75rem' }}>
                                                 {/* Secondary Effects */}
-                                                {effect.attachedEffects.secondary && effect.attachedEffects.secondary.length > 0 && (
+                                                {effect.secondaryEffects && effect.secondaryEffects.length > 0 && (
                                                     <div style={{ marginBottom: '0.5rem' }}>
                                                         <div style={{
                                                             fontSize: '0.8rem',
@@ -117,7 +115,7 @@ function EffectSummary({ effects, onStartGeneration }) {
                                                             ✨ Attached Secondary Effects:
                                                         </div>
                                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                                                            {effect.attachedEffects.secondary.map(secEffect => (
+                                                            {effect.secondaryEffects.map(secEffect => (
                                                                 <span key={secEffect.id} style={{
                                                                     fontSize: '0.7rem',
                                                                     background: 'rgba(102, 126, 234, 0.2)',
@@ -133,7 +131,7 @@ function EffectSummary({ effects, onStartGeneration }) {
                                                 )}
 
                                                 {/* KeyFrame Effects */}
-                                                {effect.attachedEffects.keyFrame && effect.attachedEffects.keyFrame.length > 0 && (
+                                                {effect.keyframeEffects && effect.keyframeEffects.length > 0 && (
                                                     <div>
                                                         <div style={{
                                                             fontSize: '0.8rem',
@@ -144,7 +142,7 @@ function EffectSummary({ effects, onStartGeneration }) {
                                                             🔑 Attached KeyFrame Effects:
                                                         </div>
                                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                                                            {effect.attachedEffects.keyFrame.map(keyEffect => (
+                                                            {effect.keyframeEffects.map(keyEffect => (
                                                                 <span key={keyEffect.id} style={{
                                                                     fontSize: '0.7rem',
                                                                     background: 'rgba(255, 167, 38, 0.2)',

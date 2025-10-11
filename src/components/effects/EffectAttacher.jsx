@@ -15,7 +15,9 @@ function EffectAttacher({
 
     const renderEffectList = (type, title, description) => {
         const effects = availableEffects[type] || [];
-        const attachedEffects = primaryEffect.attachedEffects[type] || [];
+        const attachedEffects = type === 'secondary' 
+            ? (primaryEffect.secondaryEffects || [])
+            : (primaryEffect.keyframeEffects || []);
 
         return (
             <div style={{ marginBottom: '2rem' }}>

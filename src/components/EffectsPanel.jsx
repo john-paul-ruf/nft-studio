@@ -280,7 +280,7 @@ export default function EffectsPanel({
                 subEffectIndex: subIndex
             } : null;
         } else if (effectType === 'keyframe' && subIndex !== null) {
-            const keyframeEffect = effect.attachedEffects?.keyFrame?.[subIndex];
+            const keyframeEffect = effect.keyframeEffects?.[subIndex];
             return keyframeEffect ? {
                 ...keyframeEffect,
                 effectIndex,
@@ -1094,8 +1094,8 @@ export default function EffectsPanel({
         const isExpanded = expandedEffects.has(`${section}-${sortedIndex}`);
         const hasChildren =
             (effect.secondaryEffects?.length > 0) ||
-            (effect.attachedEffects?.keyFrame?.length > 0) ||
-            false; // keyframeEffects legacy property removed
+            (effect.keyframeEffects?.length > 0) ||
+            false;
         
         const isSelected = isEffectSelected(originalIndex, 'primary', null);
 
@@ -1574,7 +1574,7 @@ export default function EffectsPanel({
                         availableEffects={availableEffects || { primary: [], secondary: [], keyFrame: [], finalImage: [] }}
                         attachedEffects={{
                             secondary: selectedEffectData.secondaryEffects || [],
-                            keyFrame: selectedEffectData.attachedEffects?.keyFrame || []
+                            keyFrame: selectedEffectData.keyframeEffects || []
                         }}
                         onAttachEffect={onEffectAddSecondary}
                         onRemoveAttachedEffect={onSecondaryEffectDelete}
