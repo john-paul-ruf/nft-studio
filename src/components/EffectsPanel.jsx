@@ -262,11 +262,15 @@ export default function EffectsPanel({
     }, [selectedEffect]);
 
     // Get the selected effect data for the config panel
+    // CRITICAL FIX: Always fetch fresh data from ProjectState to avoid stale config
     const getSelectedEffectData = useCallback(() => {
-        if (!selectedEffect || !effects) return null;
+        if (!selectedEffect || !projectState) return null;
+        
+        // Get FRESH effects directly from ProjectState (single source of truth)
+        const freshEffects = projectState.getState().effects || [];
         
         const { effectIndex, effectType, subIndex } = selectedEffect;
-        const effect = effects[effectIndex];
+        const effect = freshEffects[effectIndex];
         
         if (!effect) return null;
         
@@ -296,7 +300,7 @@ export default function EffectsPanel({
                 subEffectIndex: null
             };
         }
-    }, [selectedEffect, effects]);
+    }, [selectedEffect, projectState]);
 
     // Handle config changes from the config panel
     const handleConfigPanelChange = useCallback((updatedConfig) => {
@@ -1564,6 +1568,7 @@ export default function EffectsPanel({
                     }}
                 >
                     <EffectConfigurer
+                        key={`${selectedEffectData.id}-${selectedEffectData.effectType}-${selectedEffectData.subEffectIndex || 'primary'}`}
                         selectedEffect={selectedEffectData}
                         initialConfig={selectedEffectData.config}
                         initialPercentChance={selectedEffectData.percentChance}
