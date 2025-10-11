@@ -58,6 +58,12 @@ class EffectProcessingService {
 
         for (const effect of effects) {
             try {
+                // DEBUG: Log the effect structure to see if nested effects are present
+                SafeConsole.log('🔍 EffectProcessingService.processEffects - Processing effect:', effect.name || effect.className);
+                SafeConsole.log('🔍   - Has secondaryEffects?', effect.secondaryEffects?.length || 0);
+                SafeConsole.log('🔍   - Has keyframeEffects?', effect.keyframeEffects?.length || 0);
+                SafeConsole.log('🔍   - Effect object keys:', Object.keys(effect));
+                
                 // Use effect directly - single source of truth format
 
                 // Use registryKey only - no fallbacks to force proper key passing

@@ -365,6 +365,17 @@ class NftProjectManager {
         for (const effect of visibleEffects) {
             const effectType = effect.type || 'primary';
             
+            // DEBUG: Log effect structure before processing
+            console.log('🔍 NftProjectManager - Effect before processing:', {
+                name: effect.name || effect.registryKey,
+                type: effectType,
+                hasSecondaryEffects: !!effect.secondaryEffects,
+                secondaryEffectsCount: effect.secondaryEffects?.length || 0,
+                hasKeyframeEffects: !!effect.keyframeEffects,
+                keyframeEffectsCount: effect.keyframeEffects?.length || 0,
+                effectKeys: Object.keys(effect)
+            });
+            
             // Process each effect individually to maintain panel order
             const processedEffects = await effectProcessor.processEffects(
                 [effect],

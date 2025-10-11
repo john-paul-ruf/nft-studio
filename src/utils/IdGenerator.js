@@ -47,7 +47,14 @@ export default class IdGenerator {
                 );
             }
             
-            // Also ensure keyframe effects have IDs
+            // Also ensure keyframe effects have IDs (NEW FORMAT)
+            if (updatedEffect.keyframeEffects && Array.isArray(updatedEffect.keyframeEffects)) {
+                updatedEffect.keyframeEffects = updatedEffect.keyframeEffects.map(keyframe => 
+                    this.ensureEffectId({ ...keyframe })
+                );
+            }
+            
+            // Also ensure keyframe effects have IDs (OLD FORMAT - for backward compatibility)
             if (updatedEffect.attachedEffects?.keyFrame && Array.isArray(updatedEffect.attachedEffects.keyFrame)) {
                 updatedEffect.attachedEffects.keyFrame = updatedEffect.attachedEffects.keyFrame.map(keyframe => 
                     this.ensureEffectId({ ...keyframe })
