@@ -198,6 +198,14 @@ export default function EffectsPanel({
         loadEffects();
     }, []);
 
+    // Collapse all effects and close config panel when entering read-only mode (pinned)
+    useEffect(() => {
+        if (isReadOnly) {
+            setExpandedEffects(new Set());
+            setConfigPanelOpen(false);
+        }
+    }, [isReadOnly]);
+
     const loadEffects = async () => {
         try {
             const response = await window.api.discoverEffects();
@@ -506,6 +514,11 @@ export default function EffectsPanel({
     };
 
     const toggleExpanded = (index) => {
+        // Prevent expansion when in read-only mode (pinned)
+        if (isReadOnly) {
+            return;
+        }
+        
         const newExpanded = new Set(expandedEffects);
         if (newExpanded.has(index)) {
             newExpanded.delete(index);
@@ -695,21 +708,25 @@ export default function EffectsPanel({
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                             <IconButton
                                                 size="small"
+                                                disabled={isReadOnly}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
+                                                    if (isReadOnly) return;
                                                     onSecondaryEffectToggleVisibility && onSecondaryEffectToggleVisibility(parentOriginalIndex, idx);
                                                 }}
-                                                title={secondary.visible !== false ? 'Hide secondary effect' : 'Show secondary effect'}
+                                                title={isReadOnly ? "Read-only mode" : (secondary.visible !== false ? 'Hide secondary effect' : 'Show secondary effect')}
                                                 sx={{
                                                     p: 0,
-                                                    color: secondary.visible !== false
-                                                        ? theme.palette.primary.main
-                                                        : theme.palette.text.disabled,
-                                                    opacity: secondary.visible !== false ? 1 : 0.5,
-                                                    '&:hover': {
+                                                    color: isReadOnly 
+                                                        ? theme.palette.text.disabled 
+                                                        : (secondary.visible !== false
+                                                            ? theme.palette.primary.main
+                                                            : theme.palette.text.disabled),
+                                                    opacity: isReadOnly ? 0.3 : (secondary.visible !== false ? 1 : 0.5),
+                                                    '&:hover': !isReadOnly ? {
                                                         color: theme.palette.primary.main,
                                                         opacity: 1
-                                                    }
+                                                    } : {}
                                                 }}
                                             >
                                                 {secondary.visible !== false ? <Visibility sx={{ fontSize: 14 }} /> : <VisibilityOff sx={{ fontSize: 14 }} />}
@@ -867,21 +884,25 @@ export default function EffectsPanel({
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                             <IconButton
                                                 size="small"
+                                                disabled={isReadOnly}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
+                                                    if (isReadOnly) return;
                                                     onKeyframeEffectToggleVisibility && onKeyframeEffectToggleVisibility(parentOriginalIndex, idx);
                                                 }}
-                                                title={keyframe.visible !== false ? 'Hide keyframe effect' : 'Show keyframe effect'}
+                                                title={isReadOnly ? "Read-only mode" : (keyframe.visible !== false ? 'Hide keyframe effect' : 'Show keyframe effect')}
                                                 sx={{
                                                     p: 0,
-                                                    color: keyframe.visible !== false
-                                                        ? theme.palette.primary.main
-                                                        : theme.palette.text.disabled,
-                                                    opacity: keyframe.visible !== false ? 1 : 0.5,
-                                                    '&:hover': {
+                                                    color: isReadOnly 
+                                                        ? theme.palette.text.disabled 
+                                                        : (keyframe.visible !== false
+                                                            ? theme.palette.primary.main
+                                                            : theme.palette.text.disabled),
+                                                    opacity: isReadOnly ? 0.3 : (keyframe.visible !== false ? 1 : 0.5),
+                                                    '&:hover': !isReadOnly ? {
                                                         color: theme.palette.primary.main,
                                                         opacity: 1
-                                                    }
+                                                    } : {}
                                                 }}
                                             >
                                                 {keyframe.visible !== false ? <Visibility sx={{ fontSize: 14 }} /> : <VisibilityOff sx={{ fontSize: 14 }} />}
@@ -1121,13 +1142,20 @@ export default function EffectsPanel({
                             {hasChildren && (
                                 <IconButton
                                     size="small"
-                                    onClick={() => toggleExpanded(`${section}-${sortedIndex}`)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleExpanded(`${section}-${sortedIndex}`);
+                                    }}
+                                    disabled={isReadOnly}
+                                    title={isReadOnly ? "Cannot expand effects while pinned" : (isExpanded ? "Collapse" : "Expand")}
                                     sx={{
                                         p: 0,
                                         mr: 1,
-                                        color: theme.palette.text.secondary,
+                                        color: isReadOnly ? theme.palette.text.disabled : theme.palette.text.secondary,
                                         transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                                        transition: 'transform 0.2s'
+                                        transition: 'transform 0.2s',
+                                        opacity: isReadOnly ? 0.3 : 1,
+                                        cursor: isReadOnly ? 'not-allowed' : 'pointer'
                                     }}
                                 >
                                     <ExpandMore sx={{ fontSize: 16 }} />
@@ -1135,22 +1163,26 @@ export default function EffectsPanel({
                             )}
                             <IconButton
                                 size="small"
+                                disabled={isReadOnly}
                                 onClick={(e) => {
                                     e.stopPropagation();
+                                    if (isReadOnly) return;
                                     onEffectToggleVisibility && onEffectToggleVisibility(originalIndex);
                                 }}
-                                title={effect.visible !== false ? 'Hide layer' : 'Show layer'}
+                                title={isReadOnly ? "Read-only mode" : (effect.visible !== false ? 'Hide layer' : 'Show layer')}
                                 sx={{
                                     p: 0,
                                     mr: 1,
-                                    color: effect.visible !== false
-                                        ? theme.palette.primary.main
-                                        : theme.palette.text.disabled,
-                                    opacity: effect.visible !== false ? 1 : 0.5,
-                                    '&:hover': {
+                                    color: isReadOnly 
+                                        ? theme.palette.text.disabled 
+                                        : (effect.visible !== false
+                                            ? theme.palette.primary.main
+                                            : theme.palette.text.disabled),
+                                    opacity: isReadOnly ? 0.3 : (effect.visible !== false ? 1 : 0.5),
+                                    '&:hover': !isReadOnly ? {
                                         color: theme.palette.primary.main,
                                         opacity: 1
-                                    }
+                                    } : {}
                                 }}
                             >
                                 {effect.visible !== false ? <Visibility sx={{ fontSize: 16 }} /> : <VisibilityOff sx={{ fontSize: 16 }} />}

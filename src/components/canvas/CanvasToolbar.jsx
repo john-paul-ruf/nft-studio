@@ -564,31 +564,22 @@ export default function CanvasToolbar({
                     </Tooltip>
 
                     <Tooltip title="Event Bus Monitor">
-                        <span>
-                            <IconButton
-                                onClick={onEventBusMonitor}
-                                color="inherit"
-                                size="small"
-                                disabled={isReadOnly || isProjectResuming}
-                                sx={{
-                                    borderRadius: 1,
-                                    padding: '8px',
-                                    transition: 'all 0.2s ease',
-                                    '&:hover': {
-                                        backgroundColor: 'primary.main',
-                                        color: 'white',
-                                    },
-                                    ...(isReadOnly && {
-                                        color: 'text.disabled',
-                                        '&.Mui-disabled': {
-                                            color: 'text.disabled'
-                                        }
-                                    })
-                                }}
-                            >
-                                <BugReport />
-                            </IconButton>
-                        </span>
+                        <IconButton
+                            onClick={onEventBusMonitor}
+                            color="inherit"
+                            size="small"
+                            sx={{
+                                borderRadius: 1,
+                                padding: '8px',
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                    backgroundColor: 'primary.main',
+                                    color: 'white',
+                                }
+                            }}
+                        >
+                            <BugReport />
+                        </IconButton>
                     </Tooltip>
                     <Tooltip title="Plugin Manager">
                         <span>
