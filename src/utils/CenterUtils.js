@@ -336,18 +336,12 @@ export class CenterUtils {
                     (fieldName.includes('center') && !fieldName.includes('position'));
 
                 if (isCenterField) {
-                    // Apply center defaults if value is null, undefined, or 0,0
+                    // Apply center defaults only when the field is truly unset
                     if (value === null || value === undefined) {
                         obj[key] = this.applyCenterToValue({}, center);
-                        console.log(`🎯 CenterUtils: Applied center defaults to null field '${key}'`);
-                    } else if (typeof value === 'object' && !Array.isArray(value)) {
-                        // Check if it's at 0,0 (needs defaults)
-                        if (value.x === 0 && value.y === 0) {
-                            obj[key] = this.applyCenterToValue(value, center);
-                            console.log(`🎯 CenterUtils: Applied center defaults to 0,0 field '${key}'`);
-                        }
-                        // If it has non-zero values, leave it alone
+                        console.log(`🎯 CenterUtils: Applied center defaults to unset field '${key}'`);
                     }
+                    // If it's an object with coordinates provided (including 0,0), treat as intentional and do not override
                 } else if (typeof value === 'object' && !Array.isArray(value) && value !== null) {
                     // Recursively process nested objects
                     processObject(value, key);

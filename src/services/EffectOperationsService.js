@@ -253,8 +253,41 @@ class EffectOperationsService {
                 secondaryEffectsCount: updatedEffect.secondaryEffects?.length || 0
             });
 
+            // Defense-in-depth: deep-merge patch into current effect so we never drop fields
+            const toPOJO = (e) => (e instanceof Effect ? e.toPOJO() : (e || {}));
+            const deepMerge = (base, patch) => {
+                if (patch === undefined) return base;
+                if (base === undefined) return patch;
+                if (patch === null) return base; // avoid wiping required objects
+                if (Array.isArray(base) || Array.isArray(patch)) return patch !== undefined ? patch : base;
+                if (typeof base !== 'object' || typeof patch !== 'object') return patch;
+                const out = { ...base };
+                for (const [k, v] of Object.entries(patch)) {
+                    if (v === undefined) continue;
+                    out[k] = deepMerge(base[k], v);
+                }
+                return out;
+            };
+
+            const prevPOJO = toPOJO(currentEffect);
+            const patchPOJO = toPOJO(updatedEffect);
+            const merged = {
+                ...prevPOJO,
+                ...patchPOJO,
+                id: prevPOJO?.id,
+                type: patchPOJO.type ?? prevPOJO.type,
+                name: patchPOJO.name ?? prevPOJO.name,
+                className: patchPOJO.className ?? prevPOJO.className,
+                registryKey: patchPOJO.registryKey ?? prevPOJO.registryKey,
+                percentChance: patchPOJO.percentChance ?? prevPOJO.percentChance,
+                visible: patchPOJO.visible ?? prevPOJO.visible,
+                config: deepMerge(prevPOJO?.config || {}, patchPOJO?.config || {})
+            };
+            if (!('secondaryEffects' in patchPOJO)) merged.secondaryEffects = prevPOJO?.secondaryEffects || [];
+            if (!('keyframeEffects' in patchPOJO)) merged.keyframeEffects = prevPOJO?.keyframeEffects || [];
+
             // Use command pattern for undo/redo support
-            const updateCommand = new UpdateEffectCommand(projectState, index, updatedEffect, effectName);
+            const updateCommand = new UpdateEffectCommand(projectState, index, merged, effectName);
             await this.commandService.execute(updateCommand);
 
             // Update metrics

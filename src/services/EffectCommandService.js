@@ -82,16 +82,50 @@ export class UpdateEffectCommand extends Command {
             }
 
             previousEffect = currentEffects[effectIndex];
-            
-            // Ensure updatedEffect is an Effect instance (backward compatibility)
-            // If updatedEffect is a POJO without type, use the previous effect's type
-            const effectInstance = updatedEffect instanceof Effect 
-                ? updatedEffect 
-                : Effect.fromPOJO({ 
-                    ...updatedEffect, 
-                    type: updatedEffect.type || previousEffect.type 
-                });
-            
+
+            // Harden update: deep-merge patch into previous effect to avoid lossy updates
+            const toPOJO = (e) => (e instanceof Effect ? e.toPOJO() : (e || {}));
+
+            // Small, focused deep merge for plain objects. Arrays replace only when provided.
+            const deepMerge = (base, patch) => {
+                if (patch === undefined) return base;
+                if (base === undefined) return patch;
+                if (patch === null) return base; // ignore null patches to avoid wiping required objects
+                if (Array.isArray(base) || Array.isArray(patch)) return patch !== undefined ? patch : base;
+                if (typeof base !== 'object' || typeof patch !== 'object') return patch;
+                const out = { ...base };
+                for (const [k, v] of Object.entries(patch)) {
+                    if (v === undefined) continue; // don't erase with undefined
+                    out[k] = deepMerge(base[k], v);
+                }
+                return out;
+            };
+
+            const prevPOJO = toPOJO(previousEffect);
+            const patchPOJO = toPOJO(updatedEffect);
+
+            // Merge root fields conservatively; always preserve id unless explicitly changed (we do not allow id changes)
+            const mergedRoot = {
+                ...prevPOJO,
+                ...patchPOJO,
+                id: prevPOJO.id,
+                type: patchPOJO.type ?? prevPOJO.type,
+                name: patchPOJO.name ?? prevPOJO.name,
+                className: patchPOJO.className ?? prevPOJO.className,
+                registryKey: patchPOJO.registryKey ?? prevPOJO.registryKey,
+                percentChance: patchPOJO.percentChance ?? prevPOJO.percentChance,
+                visible: patchPOJO.visible ?? prevPOJO.visible
+            };
+
+            // Deep-merge config specifically; ignore null to prevent constructor errors
+            mergedRoot.config = deepMerge(prevPOJO.config || {}, patchPOJO.config || {});
+
+            // Preserve nested arrays if patch omits them
+            if (!('secondaryEffects' in patchPOJO)) mergedRoot.secondaryEffects = prevPOJO.secondaryEffects || [];
+            if (!('keyframeEffects' in patchPOJO)) mergedRoot.keyframeEffects = prevPOJO.keyframeEffects || [];
+
+            const effectInstance = Effect.fromPOJO(mergedRoot);
+
             const newEffects = [...currentEffects];
             newEffects[effectIndex] = effectInstance;
 
