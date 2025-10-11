@@ -9,6 +9,14 @@ function PositionInput({ field, value, onChange, projectState }) {
     
     // Use a ref to track the latest value to avoid stale closures
     const valueRef = useRef(value);
+    
+    // Local state for display values to provide immediate feedback
+    const [displayX, setDisplayX] = useState('0');
+    const [displayY, setDisplayY] = useState('0');
+    const [displayCenterX, setDisplayCenterX] = useState('0');
+    const [displayCenterY, setDisplayCenterY] = useState('0');
+    const [displayStartAngle, setDisplayStartAngle] = useState('0');
+    const [displayEndAngle, setDisplayEndAngle] = useState('360');
 
     // Debounce onChange (150ms for numbers)
     const debouncedOnChange = useDebounce(useCallback((name, val) => {
@@ -127,6 +135,19 @@ function PositionInput({ field, value, onChange, projectState }) {
     }, [projectState, positionType]);
 
     const currentValue = getCurrentValue();
+    
+    // Sync display values when currentValue changes externally
+    useEffect(() => {
+        if (positionType === 'position') {
+            setDisplayX(String(currentValue.x || 0));
+            setDisplayY(String(currentValue.y || 0));
+        } else if (positionType === 'arc-path') {
+            setDisplayCenterX(String(currentValue.center?.x || 0));
+            setDisplayCenterY(String(currentValue.center?.y || 0));
+            setDisplayStartAngle(String(currentValue.startAngle || 0));
+            setDisplayEndAngle(String(currentValue.endAngle || 360));
+        }
+    }, [currentValue, positionType]);
 
     // Position presets - SPATIALLY ORGANIZED for visual grid layout
     const basicPresets = useMemo(() => [
@@ -433,8 +454,20 @@ function PositionInput({ field, value, onChange, projectState }) {
                             <label style={{ fontSize: '0.8rem', color: '#ccc' }}>X Position</label>
                             <input
                                 type="number"
-                                value={currentValue.x || 0}
-                                onChange={(e) => handlePositionChange(parseInt(e.target.value) || 0, currentValue.y)}
+                                value={displayX}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setDisplayX(val); // Update display immediately
+                                    if (val === '') return; // Allow empty string during typing
+                                    handlePositionChange(parseInt(val) || 0, currentValue.y);
+                                }}
+                                onBlur={(e) => {
+                                    // On blur, ensure we have a valid value
+                                    if (e.target.value === '') {
+                                        setDisplayX('0');
+                                        handlePositionChange(0, currentValue.y);
+                                    }
+                                }}
                                 style={{ width: '100%' }}
                                 min={0}
                                 max={safeWidth}
@@ -444,8 +477,20 @@ function PositionInput({ field, value, onChange, projectState }) {
                             <label style={{ fontSize: '0.8rem', color: '#ccc' }}>Y Position</label>
                             <input
                                 type="number"
-                                value={currentValue.y || 0}
-                                onChange={(e) => handlePositionChange(currentValue.x, parseInt(e.target.value) || 0)}
+                                value={displayY}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setDisplayY(val); // Update display immediately
+                                    if (val === '') return; // Allow empty string during typing
+                                    handlePositionChange(currentValue.x, parseInt(val) || 0);
+                                }}
+                                onBlur={(e) => {
+                                    // On blur, ensure we have a valid value
+                                    if (e.target.value === '') {
+                                        setDisplayY('0');
+                                        handlePositionChange(currentValue.x, 0);
+                                    }
+                                }}
                                 style={{ width: '100%' }}
                                 min={0}
                                 max={safeHeight}
@@ -602,8 +647,20 @@ function PositionInput({ field, value, onChange, projectState }) {
                                     <label style={{ fontSize: '0.7rem', color: '#999' }}>X</label>
                                     <input
                                         type="number"
-                                        value={currentValue.center?.x || 0}
-                                        onChange={(e) => handleCenterChange(parseInt(e.target.value) || 0, currentValue.center?.y || 0)}
+                                        value={displayCenterX}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setDisplayCenterX(val); // Update display immediately
+                                            if (val === '') return; // Allow empty string during typing
+                                            handleCenterChange(parseInt(val) || 0, currentValue.center?.y || 0);
+                                        }}
+                                        onBlur={(e) => {
+                                            // On blur, ensure we have a valid value
+                                            if (e.target.value === '') {
+                                                setDisplayCenterX('0');
+                                                handleCenterChange(0, currentValue.center?.y || 0);
+                                            }
+                                        }}
                                         style={{ width: '100%' }}
                                         min={0}
                                         max={safeWidth}
@@ -613,8 +670,20 @@ function PositionInput({ field, value, onChange, projectState }) {
                                     <label style={{ fontSize: '0.7rem', color: '#999' }}>Y</label>
                                     <input
                                         type="number"
-                                        value={currentValue.center?.y || 0}
-                                        onChange={(e) => handleCenterChange(currentValue.center?.x || 0, parseInt(e.target.value) || 0)}
+                                        value={displayCenterY}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setDisplayCenterY(val); // Update display immediately
+                                            if (val === '') return; // Allow empty string during typing
+                                            handleCenterChange(currentValue.center?.x || 0, parseInt(val) || 0);
+                                        }}
+                                        onBlur={(e) => {
+                                            // On blur, ensure we have a valid value
+                                            if (e.target.value === '') {
+                                                setDisplayCenterY('0');
+                                                handleCenterChange(currentValue.center?.x || 0, 0);
+                                            }
+                                        }}
                                         style={{ width: '100%' }}
                                         min={0}
                                         max={safeHeight}
@@ -644,8 +713,20 @@ function PositionInput({ field, value, onChange, projectState }) {
                                 <label style={{ fontSize: '0.8rem', color: '#ccc' }}>Start Angle (°)</label>
                                 <input
                                     type="number"
-                                    value={currentValue.startAngle || 0}
-                                    onChange={(e) => handleArcPathChange('startAngle', parseInt(e.target.value) || 0)}
+                                    value={displayStartAngle}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setDisplayStartAngle(val); // Update display immediately
+                                        if (val === '') return; // Allow empty string during typing
+                                        handleArcPathChange('startAngle', parseInt(val) || 0);
+                                    }}
+                                    onBlur={(e) => {
+                                        // On blur, ensure we have a valid value
+                                        if (e.target.value === '') {
+                                            setDisplayStartAngle('0');
+                                            handleArcPathChange('startAngle', 0);
+                                        }
+                                    }}
                                     style={{ width: '100%' }}
                                     min={0}
                                     max={360}
@@ -655,8 +736,20 @@ function PositionInput({ field, value, onChange, projectState }) {
                                 <label style={{ fontSize: '0.8rem', color: '#ccc' }}>End Angle (°)</label>
                                 <input
                                     type="number"
-                                    value={currentValue.endAngle || 360}
-                                    onChange={(e) => handleArcPathChange('endAngle', parseInt(e.target.value) || 360)}
+                                    value={displayEndAngle}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setDisplayEndAngle(val); // Update display immediately
+                                        if (val === '') return; // Allow empty string during typing
+                                        handleArcPathChange('endAngle', parseInt(val) || 360);
+                                    }}
+                                    onBlur={(e) => {
+                                        // On blur, ensure we have a valid value
+                                        if (e.target.value === '') {
+                                            setDisplayEndAngle('360');
+                                            handleArcPathChange('endAngle', 360);
+                                        }
+                                    }}
                                     style={{ width: '100%' }}
                                     min={0}
                                     max={360}

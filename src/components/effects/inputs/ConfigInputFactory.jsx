@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import RangeInput from './RangeInput.jsx';
 import Point2DInput from './Point2DInput.jsx';
 import PositionInput from './PositionInput.jsx';
@@ -20,6 +20,24 @@ function ConfigInputFactory({ field, value, onChange, projectState }) {
     
     // Local state for text inputs to provide immediate feedback
     const [textValue, setTextValue] = useState(value || field.default || '');
+    
+    // Local state for JSON textarea
+    const [jsonValue, setJsonValue] = useState(() => {
+        if (field.type === 'json') {
+            return typeof value === 'object' ? JSON.stringify(value, null, 2) : value || JSON.stringify(field.default, null, 2) || '{}';
+        }
+        return '';
+    });
+    
+    // Sync local state when value changes externally
+    useEffect(() => {
+        setTextValue(value || field.default || '');
+        
+        // Sync JSON value
+        if (field.type === 'json') {
+            setJsonValue(typeof value === 'object' ? JSON.stringify(value, null, 2) : value || JSON.stringify(field.default, null, 2) || '{}');
+        }
+    }, [value, field.default, field.type]);
     
     // Debounced onChange for text inputs
     const debouncedOnChange = useDebounce(useCallback((name, val) => {
@@ -87,7 +105,7 @@ function ConfigInputFactory({ field, value, onChange, projectState }) {
                     </label>
                     <input
                         type="text"
-                        value={value || field.default || ''}
+                        value={textValue}
                         onChange={(e) => {
                             const val = e.target.value;
                             setTextValue(val);
@@ -126,9 +144,10 @@ function ConfigInputFactory({ field, value, onChange, projectState }) {
                         </div>
                     )}
                     <textarea
-                        value={typeof value === 'object' ? JSON.stringify(value, null, 2) : value || JSON.stringify(field.default, null, 2) || '{}'}
+                        value={jsonValue}
                         onChange={(e) => {
                             const val = e.target.value;
+                            setJsonValue(val); // Update local state immediately
                             try {
                                 const parsed = JSON.parse(val);
                                 debouncedJsonOnChange(field.name, parsed);
@@ -160,7 +179,7 @@ function ConfigInputFactory({ field, value, onChange, projectState }) {
                     </label>
                     <input
                         type="text"
-                        value={value || field.default || ''}
+                        value={textValue}
                         onChange={(e) => {
                             const val = e.target.value;
                             setTextValue(val);

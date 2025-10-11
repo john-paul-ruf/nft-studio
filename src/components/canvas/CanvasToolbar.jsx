@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import {
     AppBar,
     Toolbar,
@@ -94,8 +94,32 @@ export default function CanvasToolbar({
         return String(currentResolution || 1920);
     }, [currentResolution]);
 
-    // Debounced handlers for input fields (150ms for numeric inputs)
-    const debouncedFramesChange = useDebounce(onFramesChange, 150);
+    // Local state for frames input (for immediate UI feedback)
+    const [framesInputValue, setFramesInputValue] = useState(config.numFrames);
+
+    // Sync local state when config changes externally
+    useEffect(() => {
+        setFramesInputValue(config.numFrames);
+    }, [config.numFrames]);
+
+    // Debounced handler for frames change
+    const debouncedFramesChange = useDebounce((value) => {
+        // Create a synthetic event object that matches what the handler expects
+        const syntheticEvent = {
+            target: {
+                value: String(value)
+            }
+        };
+        onFramesChange(syntheticEvent);
+    }, 150);
+
+    // Handler for frames input change
+    const handleFramesInputChange = useCallback((e) => {
+        const newValue = e.target.value;
+        setFramesInputValue(newValue); // Update UI immediately
+        debouncedFramesChange(newValue); // Debounce the actual change
+    }, [debouncedFramesChange]);
+
     const debouncedFrameChange = useDebounce((value) => onFrameChange(parseInt(value)), 150);
 
     return (
@@ -325,8 +349,8 @@ export default function CanvasToolbar({
                     <TextField
                         type="number"
                         size="small"
-                        value={config.numFrames}
-                        onChange={debouncedFramesChange}
+                        value={framesInputValue}
+                        onChange={handleFramesInputChange}
                         disabled={isReadOnly}
                         inputProps={{ min: 1, max: 10000 }}
                         sx={{ 

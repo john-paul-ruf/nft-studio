@@ -8,6 +8,10 @@ function Point2DInput({ field, value, onChange, projectState }) {
     
     // Use a ref to track the latest value to avoid stale closures
     const valueRef = useRef(value);
+    
+    // Local state for display values to provide immediate feedback
+    const [displayX, setDisplayX] = useState('');
+    const [displayY, setDisplayY] = useState('');
 
     // Debounce onChange (150ms for numbers)
     const debouncedOnChange = useDebounce(useCallback((name, val) => {
@@ -129,6 +133,12 @@ function Point2DInput({ field, value, onChange, projectState }) {
         });
         return resolved;
     }, [normalizedValue, field, width, height, currentResolutionKey]);
+    
+    // Sync display values when currentValue changes externally
+    useEffect(() => {
+        setDisplayX(String(currentValue.x || 0));
+        setDisplayY(String(currentValue.y || 0));
+    }, [currentValue.x, currentValue.y]);
 
     // Memoize position presets - SPATIALLY ORGANIZED for 3x3 grid
     const positionPresets = useMemo(() => [
@@ -238,9 +248,10 @@ function Point2DInput({ field, value, onChange, projectState }) {
                     <label style={{ fontSize: '0.8rem', color: '#ccc' }}>X Position</label>
                     <input
                         type="number"
-                        value={currentValue.x || 0}
+                        value={displayX}
                         onChange={(e) => {
                             const val = e.target.value;
+                            setDisplayX(val); // Update display immediately
                             // Allow empty string during typing
                             if (val === '') return;
                             const latestValue = getCurrentValue();
@@ -254,6 +265,7 @@ function Point2DInput({ field, value, onChange, projectState }) {
                             const val = e.target.value;
                             if (val === '') {
                                 const latestValue = getCurrentValue();
+                                setDisplayX('0');
                                 onChange(field.name, {
                                     ...latestValue,
                                     x: 0
@@ -269,9 +281,10 @@ function Point2DInput({ field, value, onChange, projectState }) {
                     <label style={{ fontSize: '0.8rem', color: '#ccc' }}>Y Position</label>
                     <input
                         type="number"
-                        value={currentValue.y || 0}
+                        value={displayY}
                         onChange={(e) => {
                             const val = e.target.value;
+                            setDisplayY(val); // Update display immediately
                             // Allow empty string during typing
                             if (val === '') return;
                             const latestValue = getCurrentValue();
@@ -285,6 +298,7 @@ function Point2DInput({ field, value, onChange, projectState }) {
                             const val = e.target.value;
                             if (val === '') {
                                 const latestValue = getCurrentValue();
+                                setDisplayY('0');
                                 onChange(field.name, {
                                     ...latestValue,
                                     y: 0
