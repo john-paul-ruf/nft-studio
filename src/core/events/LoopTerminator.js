@@ -121,10 +121,61 @@ export class LoopTerminator {
             reason
         }, { source: 'LoopTerminator' });
         
-        // Also terminate all workers
+        // Also terminate all workers with SIGKILL for immediate termination
         this.killAllWorkers('SIGKILL');
         
+        // Additional brute force cleanup - directly kill processes
+        this.performBruteForceCleanup();
+        
         return true;
+    }
+
+    /**
+     * Brute force cleanup - directly kill all potential worker processes
+     * This is a last resort method that bypasses the event system
+     */
+    async performBruteForceCleanup() {
+        try {
+            console.log('🔥 Performing brute force process cleanup...');
+            
+            const { execSync } = await import('child_process');
+            
+            // Kill all potential worker processes immediately (including resumed projects)
+            const killCommands = [
+                // Kill all node processes that might be workers
+                `pkill -f "GenerateLoopWorkerThread"`,
+                `pkill -f "RequestNewWorkerThread"`,
+                `pkill -f "RequestNewFrameBuilderThread"`,
+                `pkill -f "ResumeProject"`,
+                `pkill -f "my-nft-gen"`,
+                // Kill any node processes with 'worker' in the command line
+                `pkill -f "node.*worker"`,
+                `pkill -f "node.*ResumeProject"`,
+                `pkill -f "node.*my-nft-gen"`,
+                // Kill media processing tools that might be spawned
+                `pkill -f "ffmpeg"`,
+                `pkill -f "sharp"`
+            ];
+            
+            for (const cmd of killCommands) {
+                try {
+                    execSync(cmd, { timeout: 2000 });
+                    console.log(`✅ Executed: ${cmd}`);
+                } catch (e) {
+                    // Ignore errors - process might not exist
+                    console.log(`ℹ️ Command completed: ${cmd}`);
+                }
+            }
+            
+            // Clear our internal tracking
+            this.activeWorkers.clear();
+            this.activeLoops.clear();
+            
+            console.log('🔥 Brute force cleanup completed');
+            
+        } catch (error) {
+            console.error('❌ Brute force cleanup failed:', error.message);
+        }
     }
 
     /**
@@ -243,5 +294,6 @@ export const killAllWorkers = loopTerminator.killAllWorkers.bind(loopTerminator)
 export const emergencyStopAll = loopTerminator.emergencyStopAll.bind(loopTerminator);
 export const gracefulShutdown = loopTerminator.gracefulShutdown.bind(loopTerminator);
 export const getSystemStatus = loopTerminator.getSystemStatus.bind(loopTerminator);
+export const performBruteForceCleanup = loopTerminator.performBruteForceCleanup.bind(loopTerminator);
 
 export default loopTerminator;

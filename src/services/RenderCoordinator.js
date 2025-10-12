@@ -405,11 +405,31 @@ export class RenderCoordinator {
      * @returns {Promise<Object>} Stop result
      */
     async stopRenderLoop() {
-        this.logger.info('Stopping active loop (random/resume) using event-driven termination');
+        this.logger.info('🛑 Stopping active loop (random/resume) using aggressive termination');
 
-        if (!this.renderLoopActive) {
-            this.logger.info('No active loop found');
-            return { success: true, message: 'No active loop was running' };
+        // ALWAYS log the current state for debugging
+        this.logger.info('Current loop state:', {
+            renderLoopActive: this.renderLoopActive,
+            currentLoopId: this.currentLoopId,
+            currentWorkerId: this.currentWorkerId,
+            hasActiveRenderLoop: !!this.activeRenderLoop,
+            hasEventBus: !!this.activeRenderLoopEventBus
+        });
+
+        // Check multiple indicators of active loop, not just the flag
+        const hasActiveLoop = this.renderLoopActive || this.currentLoopId || this.currentWorkerId || this.activeRenderLoop;
+        
+        if (!hasActiveLoop) {
+            this.logger.warn('⚠️ No active loop indicators found, but attempting to kill processes anyway...');
+            // Don't return early - try to kill processes anyway in case they're orphaned
+            // return { success: true, message: 'No active loop was running' };
+        } else {
+            this.logger.info('✅ Active loop detected', {
+                renderLoopActive: this.renderLoopActive,
+                currentLoopId: this.currentLoopId,
+                currentWorkerId: this.currentWorkerId,
+                hasActiveRenderLoop: !!this.activeRenderLoop
+            });
         }
 
         try {
@@ -418,57 +438,76 @@ export class RenderCoordinator {
 
             // Signal the loop to stop immediately
             this.renderLoopActive = false;
+            this.logger.info('🛑 Render loop marked as inactive');
 
-            // Use event-driven worker termination
+            // Check if this is a resumed project and use appropriate termination
+            const isResumedProject = this.currentLoopId && this.currentLoopId.startsWith('resume-loop-');
+            
+            // IMMEDIATELY kill all worker processes - don't wait for events
+            this.logger.info('🔥 IMMEDIATELY killing all worker processes...');
+            if (isResumedProject) {
+                this.logger.info('Detected resumed project - using aggressive termination');
+                await this.killResumedProjectProcesses();
+            } else {
+                // Standard termination for regular loops
+                await this.killAnyActiveChildProcesses();
+            }
+
+            // Use event-driven worker termination (this is secondary to direct killing)
             if (this.currentWorkerId) {
                 this.logger.info(`Terminating worker via event system: ${this.currentWorkerId}`);
-                killWorker(this.currentWorkerId, 'SIGTERM');
+                killWorker(this.currentWorkerId, 'SIGKILL'); // Use SIGKILL instead of SIGTERM
             } else {
                 // Fallback to old method if no worker ID
                 this.logger.info('No worker ID available, using fallback termination');
 
                 // If there's an active worker process, kill it
                 if (this.activeWorkerProcess) {
-                    this.logger.info('Killing active worker process');
-                    this.activeWorkerProcess.kill('SIGTERM');
+                    this.logger.info('Killing active worker process with SIGKILL');
+                    this.activeWorkerProcess.kill('SIGKILL'); // Use SIGKILL instead of SIGTERM
                     this.activeWorkerProcess = null;
                 }
             }
 
-            // Also try to kill any child processes immediately
-            await this.killAnyActiveChildProcesses();
-
             // Wait a moment for processes to actually stop
             await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Second pass: verify and kill any remaining processes
+            this.logger.info('🔥 Second pass: Killing any remaining processes...');
+            if (isResumedProject) {
+                await this.killResumedProjectProcesses();
+            } else {
+                await this.killAnyActiveChildProcesses();
+            }
 
             // Clean up will be handled by the event-driven system
             await this.cleanupWorker(this.currentWorkerId || 'unknown', 'user_stopped');
 
-            // Verify the loop is actually stopped
-            if (!this.renderLoopActive && !this.activeRenderLoop) {
-                this.logger.success('Active loop stopped successfully via event system');
-                return { success: true, message: 'Active loop stopped via event system' };
-            } else {
-                // Force kill if still running
-                await this.killAnyActiveChildProcesses();
-                this.renderLoopActive = false;
-                this.activeRenderLoop = null;
-                this.logger.warn('Active loop force-stopped');
-                return { success: true, message: 'Active loop force-stopped' };
-            }
+            // Force cleanup of state
+            this.renderLoopActive = false;
+            this.activeRenderLoop = null;
+            this.activeWorkerProcess = null;
+
+            this.logger.success('✅ Active loop stopped successfully');
+            return { success: true, message: 'Active loop stopped successfully' };
 
         } catch (error) {
-            this.logger.error('Failed to stop active loop via event system, using fallback', error);
+            this.logger.error('❌ Failed to stop active loop via event system, using fallback', error);
 
             // Fallback to old method - force stop everything
             this.renderLoopActive = false;
 
             if (this.activeWorkerProcess) {
-                this.activeWorkerProcess.kill('SIGTERM');
+                this.activeWorkerProcess.kill('SIGKILL'); // Use SIGKILL
                 this.activeWorkerProcess = null;
             }
 
-            // Force kill child processes
+            // Force kill child processes - multiple passes
+            this.logger.info('🔥 Fallback: Killing all child processes (pass 1)...');
+            await this.killAnyActiveChildProcesses();
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            this.logger.info('🔥 Fallback: Killing all child processes (pass 2)...');
             await this.killAnyActiveChildProcesses();
 
             if (this.activeRenderLoopEventBus) {
@@ -846,33 +885,46 @@ export class RenderCoordinator {
             }
 
         } catch (error) {
-            this.logger.error('Render loop failed', error);
+            // Check if this is a user-initiated termination
+            const isUserTermination = error.message && error.message.includes('terminated by user');
+            
+            if (isUserTermination) {
+                this.logger.info('Render loop terminated by user request (expected)');
+                // Don't clear renderLoopActive or call cleanupWorker here
+                // stopRenderLoop() will handle ALL cleanup including calling cleanupWorker
+                // Just log and return - the state must remain intact for stopRenderLoop()
+                this.logger.info('Waiting for stopRenderLoop() to complete cleanup...');
+                return; // Exit early without cleanup
+            } else {
+                // This is an actual error, not user termination
+                this.logger.error('Render loop failed', error);
 
-            // Emit error event
-            if (eventBus) {
-                eventBus.emit('render.loop.error', {
+                // Emit error event
+                if (eventBus) {
+                    eventBus.emit('render.loop.error', {
+                        timestamp: Date.now(),
+                        error: error.message,
+                        projectName: project.projectName,
+                        loopId,
+                        workerId
+                    });
+                }
+
+                // Also emit via IPC for EventBusMonitor
+                this.emitProgressEvent('render.loop.error', {
                     timestamp: Date.now(),
                     error: error.message,
                     projectName: project.projectName,
                     loopId,
                     workerId
                 });
+
+                // Mark render loop as inactive after error
+                this.renderLoopActive = false;
+                
+                // Unregister worker on error
+                await this.cleanupWorker(workerId, 'error');
             }
-
-            // Also emit via IPC for EventBusMonitor
-            this.emitProgressEvent('render.loop.error', {
-                timestamp: Date.now(),
-                error: error.message,
-                projectName: project.projectName,
-                loopId,
-                workerId
-            });
-
-            // Mark render loop as inactive after error
-            this.renderLoopActive = false;
-            
-            // Unregister worker on error
-            await this.cleanupWorker(workerId, 'error');
         }
 
         this.logger.success('Random loop generation finished');
@@ -998,33 +1050,46 @@ export class RenderCoordinator {
             }
 
         } catch (error) {
-            this.logger.error('Project resume failed', error);
+            // Check if this is a user-initiated termination
+            const isUserTermination = error.message && error.message.includes('terminated by user');
+            
+            if (isUserTermination) {
+                this.logger.info('Project resume terminated by user request (expected)');
+                // Don't clear renderLoopActive or call cleanupWorker here
+                // stopRenderLoop() will handle ALL cleanup including calling cleanupWorker
+                // Just log and return - the state must remain intact for stopRenderLoop()
+                this.logger.info('Waiting for stopRenderLoop() to complete cleanup...');
+                return; // Exit early without cleanup
+            } else {
+                // This is an actual error, not user termination
+                this.logger.error('Project resume failed', error);
 
-            // Emit error event
-            if (eventBus) {
-                eventBus.emit('project.resume.error', {
+                // Emit error event
+                if (eventBus) {
+                    eventBus.emit('project.resume.error', {
+                        timestamp: Date.now(),
+                        error: error.message,
+                        projectName: project?.projectName || 'Unknown',
+                        loopId,
+                        workerId
+                    });
+                }
+
+                // Also emit via IPC for EventBusMonitor
+                this.emitProgressEvent('project.resume.error', {
                     timestamp: Date.now(),
                     error: error.message,
                     projectName: project?.projectName || 'Unknown',
                     loopId,
                     workerId
                 });
+
+                // Mark render loop as inactive after error
+                this.renderLoopActive = false;
+
+                // Unregister worker on error
+                await this.cleanupWorker(workerId, 'error');
             }
-
-            // Also emit via IPC for EventBusMonitor
-            this.emitProgressEvent('project.resume.error', {
-                timestamp: Date.now(),
-                error: error.message,
-                projectName: project?.projectName || 'Unknown',
-                loopId,
-                workerId
-            });
-
-            // Mark render loop as inactive after error
-            this.renderLoopActive = false;
-
-            // Unregister worker on error
-            await this.cleanupWorker(workerId, 'error');
         }
 
         this.logger.success('Project resume finished');
@@ -1041,6 +1106,7 @@ export class RenderCoordinator {
         return new Promise(async (resolve, reject) => {
             let generationPromise = null;
             let terminationListener = null;
+            let isTerminated = false;
 
             // Set up termination listener that can cancel the generation
             const setupTerminationListener = () => {
@@ -1049,6 +1115,7 @@ export class RenderCoordinator {
                         if (!this.renderLoopActive) {
                             clearInterval(checkTermination);
                             this.logger.info('Random loop termination requested during generation');
+                            isTerminated = true;
                             terminationResolve('terminated');
                         }
                     }, 50); // Check every 50ms for faster response
@@ -1072,7 +1139,16 @@ export class RenderCoordinator {
                 if (result === 'terminated') {
                     this.logger.info('Random loop generation was terminated by user request');
 
-                    // Try to find and kill any child processes
+                    // CRITICAL: Kill worker processes IMMEDIATELY when termination is detected
+                    // Don't wait for the promise to resolve - kill processes NOW
+                    this.logger.info('🔥 Immediately killing worker processes...');
+                    await this.killAnyActiveChildProcesses();
+                    
+                    // Give processes a moment to die, then force kill if needed
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    // Second pass with more aggressive killing
+                    this.logger.info('🔥 Second pass: Force killing any remaining processes...');
                     await this.killAnyActiveChildProcesses();
 
                     reject(new Error('Random loop generation terminated by user'));
@@ -1082,12 +1158,26 @@ export class RenderCoordinator {
                 }
 
             } catch (error) {
-                this.logger.error('Random loop generation failed:', error);
-                reject(error);
+                // If we're in a terminated state, this error is expected
+                if (isTerminated) {
+                    this.logger.info('Generation promise rejected due to termination (expected)');
+                    // Still kill processes to be sure
+                    await this.killAnyActiveChildProcesses();
+                    reject(new Error('Random loop generation terminated by user'));
+                } else {
+                    this.logger.error('Random loop generation failed:', error);
+                    reject(error);
+                }
             } finally {
                 // Clean up the termination listener
                 if (terminationListener) {
                     clearInterval(terminationListener);
+                }
+                
+                // Final cleanup: ensure all processes are dead
+                if (isTerminated) {
+                    this.logger.info('🔥 Final cleanup: Ensuring all worker processes are terminated...');
+                    await this.killAnyActiveChildProcesses();
                 }
             }
         });
@@ -1105,6 +1195,7 @@ export class RenderCoordinator {
         return new Promise(async (resolve, reject) => {
             let resumePromise = null;
             let terminationListener = null;
+            let isTerminated = false;
 
             // Set up termination listener that can cancel the resume
             const setupTerminationListener = () => {
@@ -1113,6 +1204,7 @@ export class RenderCoordinator {
                         if (!this.renderLoopActive) {
                             clearInterval(checkTermination);
                             this.logger.info('Project resume termination requested during execution');
+                            isTerminated = true;
                             terminationResolve('terminated');
                         }
                     }, 50); // Check every 50ms for faster response
@@ -1162,8 +1254,17 @@ export class RenderCoordinator {
                 if (result === 'terminated') {
                     this.logger.info('Project resume was terminated by user request');
 
-                    // Try to find and kill any child processes
-                    await this.killAnyActiveChildProcesses();
+                    // CRITICAL: Kill worker processes IMMEDIATELY when termination is detected
+                    // For resumed projects, we need more aggressive termination
+                    this.logger.info('🔥 Immediately killing resumed project processes...');
+                    await this.killResumedProjectProcesses();
+                    
+                    // Give processes a moment to die, then force kill if needed
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    // Second pass with more aggressive killing
+                    this.logger.info('🔥 Second pass: Force killing any remaining resumed project processes...');
+                    await this.killResumedProjectProcesses();
 
                     reject(new Error('Project resume terminated by user'));
                 } else {
@@ -1172,15 +1273,80 @@ export class RenderCoordinator {
                 }
 
             } catch (error) {
-                this.logger.error('Operation failed:', error);
-                reject(error);
+                // If we're in a terminated state, this error is expected
+                if (isTerminated) {
+                    this.logger.info('Resume promise rejected due to termination (expected)');
+                    // Still kill processes to be sure
+                    await this.killResumedProjectProcesses();
+                    reject(new Error('Project resume terminated by user'));
+                } else {
+                    this.logger.error('Operation failed:', error);
+                    reject(error);
+                }
             } finally {
                 // Clean up the termination listener
                 if (terminationListener) {
                     clearInterval(terminationListener);
                 }
+                
+                // Final cleanup: ensure all processes are dead
+                if (isTerminated) {
+                    this.logger.info('🔥 Final cleanup: Ensuring all resumed project processes are terminated...');
+                    await this.killResumedProjectProcesses();
+                }
             }
         });
+    }
+
+    /**
+     * Kill resumed project processes with extra aggressive approach
+     */
+    async killResumedProjectProcesses() {
+        try {
+            this.logger.info('🚨 Killing resumed project processes with aggressive approach...');
+            
+            // First try the standard approach
+            await this.killAnyActiveChildProcesses();
+            
+            // Then use brute force cleanup
+            try {
+                const { performBruteForceCleanup } = await import('../core/events/LoopTerminator.js');
+                await performBruteForceCleanup();
+            } catch (importError) {
+                this.logger.warn('Could not import brute force cleanup, continuing with manual cleanup');
+            }
+            
+            // Additional aggressive cleanup specifically for resumed projects
+            const { execSync } = await import('child_process');
+            
+            // Kill any remaining processes that might be related to resumed projects
+            const aggressiveKillCommands = [
+                // Kill by process tree - find parent processes and kill entire tree
+                `pkill -f "ResumeProject.js"`,
+                `pkill -f "my-nft-gen.*ResumeProject"`,
+                // Kill any node processes that might be hanging
+                `pkill -9 -f "node.*ResumeProject"`,
+                `pkill -9 -f "node.*my-nft-gen"`,
+                // Kill any ffmpeg or image processing that might be stuck
+                `pkill -9 -f "ffmpeg"`,
+                `pkill -9 -f "sharp"`
+            ];
+            
+            for (const cmd of aggressiveKillCommands) {
+                try {
+                    execSync(cmd, { timeout: 3000 });
+                    this.logger.info(`✅ Executed aggressive kill: ${cmd}`);
+                } catch (e) {
+                    // Ignore errors - process might not exist
+                    this.logger.info(`ℹ️ Aggressive kill completed: ${cmd}`);
+                }
+            }
+            
+            this.logger.info('🚨 Resumed project process cleanup completed');
+            
+        } catch (error) {
+            this.logger.error('❌ Failed to kill resumed project processes:', error.message);
+        }
     }
 
     /**
@@ -1189,52 +1355,147 @@ export class RenderCoordinator {
      */
     async killAnyActiveChildProcesses() {
         try {
-            const { execSync } = await import('child_process');
+            const { execSync, exec } = await import('child_process');
+            const { promisify } = await import('util');
+            const execAsync = promisify(exec);
 
-            // Process patterns to search for
+            this.logger.info('🔍 Searching for active worker processes to terminate...');
+
+            // Enhanced process patterns to search for (including resumed project patterns)
             const processPatterns = [
                 'GenerateLoopWorkerThread.js',
                 'my-nft-gen',
                 'RequestNewWorkerThread',
-                'RequestNewFrameBuilderThread'
+                'RequestNewFrameBuilderThread',
+                'ResumeProject',
+                'node.*worker',
+                'electron.*worker',
+                'node.*ResumeProject',
+                'node.*my-nft-gen',
+                'node.*GenerateLoop',
+                'node.*RequestNew',
+                'ffmpeg',
+                'sharp'
             ];
 
+            let killedProcesses = 0;
+
+            // Track PIDs to kill
+            const pidsToKill = new Set();
+
+            // First pass: collect all PIDs
             for (const pattern of processPatterns) {
                 try {
-                    const psOutput = execSync(`ps aux | grep ${pattern} | grep -v grep`, { encoding: 'utf8' });
-                    const lines = psOutput.trim().split('\n');
+                    // Use more robust process finding
+                    const psCommand = `ps aux | grep -E "${pattern}" | grep -v grep | grep -v "ps aux"`;
+                    this.logger.info(`🔍 Searching for processes matching: ${pattern}`);
+                    
+                    const psOutput = execSync(psCommand, { encoding: 'utf8', timeout: 5000 });
+                    
+                    if (psOutput.trim()) {
+                        const lines = psOutput.trim().split('\n');
+                        this.logger.info(`📋 Found ${lines.length} processes matching ${pattern}`);
 
-                    for (const line of lines) {
+                        for (const line of lines) {
+                            if (line.trim()) {
+                                const parts = line.trim().split(/\s+/);
+                                const pid = parts[1];
+                                if (pid && !isNaN(pid) && parseInt(pid) !== process.pid) {
+                                    pidsToKill.add(parseInt(pid));
+                                }
+                            }
+                        }
+                    } else {
+                        this.logger.info(`ℹ️ No ${pattern} processes found`);
+                    }
+                } catch (psError) {
+                    if (psError.status === 1) {
+                        // grep found no matches, this is normal
+                        this.logger.info(`ℹ️ No ${pattern} processes found to kill`);
+                    } else {
+                        this.logger.warn(`⚠️ Error searching for ${pattern} processes:`, psError.message);
+                    }
+                }
+            }
+
+            // Second pass: kill all collected PIDs with SIGKILL immediately
+            // Don't bother with SIGTERM - we need immediate termination
+            if (pidsToKill.size > 0) {
+                this.logger.info(`🔥 Found ${pidsToKill.size} processes to kill, sending SIGKILL immediately...`);
+                
+                for (const pid of pidsToKill) {
+                    try {
+                        this.logger.info(`🎯 Killing process PID: ${pid} with SIGKILL`);
+                        process.kill(pid, 'SIGKILL');
+                        killedProcesses++;
+                        this.logger.info(`✅ Sent SIGKILL to PID: ${pid}`);
+                    } catch (killError) {
+                        if (killError.code === 'ESRCH') {
+                            this.logger.info(`ℹ️ Process ${pid} already terminated`);
+                        } else {
+                            this.logger.error(`❌ Failed to kill process ${pid}:`, killError.message);
+                        }
+                    }
+                }
+                
+                // Wait a moment for processes to die
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
+                // Third pass: verify all processes are dead
+                this.logger.info('🔍 Verifying all processes are terminated...');
+                for (const pid of pidsToKill) {
+                    try {
+                        process.kill(pid, 0); // Signal 0 just checks existence
+                        // If we get here, process still exists - this is bad
+                        this.logger.warn(`⚠️ Process ${pid} STILL ALIVE after SIGKILL!`);
+                    } catch (e) {
+                        // Process is dead, which is what we want
+                        this.logger.info(`✅ Process ${pid} confirmed terminated`);
+                    }
+                }
+            } else {
+                this.logger.info('ℹ️ No worker processes found to kill');
+            }
+
+            // Additional brute force approach - kill all node processes that might be workers
+            try {
+                this.logger.info('🔍 Performing additional cleanup of potential worker processes...');
+                
+                // Find all node processes that might be workers
+                const nodeProcessesCmd = `ps aux | grep -E "node.*worker|electron.*worker" | grep -v grep | grep -v "ps aux"`;
+                const nodeOutput = execSync(nodeProcessesCmd, { encoding: 'utf8', timeout: 5000 });
+                
+                if (nodeOutput.trim()) {
+                    const nodeLines = nodeOutput.trim().split('\n');
+                    for (const line of nodeLines) {
                         if (line.trim()) {
                             const parts = line.trim().split(/\s+/);
                             const pid = parts[1];
-                            if (pid && !isNaN(pid)) {
-                                this.logger.info(`Killing ${pattern} process PID: ${pid}`);
+                            if (pid && !isNaN(pid) && parseInt(pid) !== process.pid) {
                                 try {
-                                    process.kill(parseInt(pid), 'SIGTERM');
-
-                                    // Force kill after 3 seconds if still running
-                                    setTimeout(() => {
-                                        try {
-                                            process.kill(parseInt(pid), 'SIGKILL');
-                                        } catch (e) {
-                                            // Process already dead, ignore
-                                        }
-                                    }, 3000);
-                                } catch (killError) {
-                                    this.logger.warn(`Failed to kill process ${pid}:`, killError.message);
+                                    process.kill(parseInt(pid), 'SIGKILL');
+                                    killedProcesses++;
+                                    this.logger.info(`🔥 Force killed potential worker process PID: ${pid}`);
+                                } catch (e) {
+                                    // Ignore errors, process might already be dead
                                 }
                             }
                         }
                     }
-                } catch (psError) {
-                    // ps command failed, probably no matching processes
-                    this.logger.info(`No ${pattern} processes found to kill`);
                 }
+            } catch (e) {
+                // Ignore errors in additional cleanup
+                this.logger.info('ℹ️ Additional cleanup completed');
+            }
+
+            if (killedProcesses > 0) {
+                this.logger.success(`✅ Successfully terminated ${killedProcesses} worker processes`);
+            } else {
+                this.logger.info('ℹ️ No worker processes found to terminate');
             }
 
         } catch (error) {
-            this.logger.warn('Failed to kill child processes:', error.message);
+            this.logger.error('❌ Failed to kill child processes:', error.message);
         }
     }
 
@@ -1314,39 +1575,79 @@ export class RenderCoordinator {
     /**
      * Terminate a specific worker
      * @param {string} workerId - Worker ID to terminate
-     * @param {string} signal - Signal to send
+     * @param {string} signal - Signal to send (defaults to SIGKILL for immediate termination)
      * @private
      */
-    async terminateWorker(workerId, signal = 'SIGTERM') {
-        this.logger.info(`Terminating worker ${workerId} with signal ${signal}`);
+    async terminateWorker(workerId, signal = 'SIGKILL') {
+        this.logger.info(`🛑 Terminating worker ${workerId} with signal ${signal}`);
 
         try {
-            // Signal the loop to stop
+            // Signal the loop to stop immediately
             this.renderLoopActive = false;
+            this.logger.info('🛑 Render loop marked as inactive');
+
+            // IMMEDIATELY kill child processes FIRST - don't wait
+            this.logger.info('🔥 IMMEDIATELY killing all child processes...');
+            await this.killAnyActiveChildProcesses();
 
             // If there's an active worker process, kill it
             if (this.activeWorkerProcess) {
-                this.logger.info(`Killing active worker process with ${signal}`);
-                this.activeWorkerProcess.kill(signal);
+                this.logger.info(`🔥 Killing active worker process with ${signal}`);
+                try {
+                    this.activeWorkerProcess.kill(signal);
+                    this.logger.info('✅ Worker process kill signal sent');
+                } catch (killError) {
+                    this.logger.warn('⚠️ Failed to kill worker process:', killError.message);
+                }
                 this.activeWorkerProcess = null;
+            } else {
+                this.logger.info('ℹ️ No active worker process reference found');
             }
 
-            // Also try to kill any child processes that might be running
+            // Wait a moment for processes to actually terminate
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            // Second pass: kill any remaining processes
+            this.logger.info('🔥 Second pass: Killing any remaining child processes...');
             await this.killAnyActiveChildProcesses();
 
-            // Clean up worker
+            // Clean up worker resources
             await this.cleanupWorker(workerId, `terminated_${signal}`);
+
+            // Reset all render-related state
+            this.activeRenderLoop = null;
+            this.currentLoopId = null;
+            this.currentWorkerId = null;
+
+            this.logger.success(`✅ Worker ${workerId} terminated successfully`);
 
             // Import EventBusService to emit success event
             const { default: EventBusService } = await import('../services/EventBusService.js');
             EventBusService.emit('workerKilled', {
                 workerId,
                 signal,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                success: true
             }, { source: 'RenderCoordinator' });
 
         } catch (error) {
-            this.logger.error(`Failed to terminate worker ${workerId}:`, error);
+            this.logger.error(`❌ Failed to terminate worker ${workerId}:`, error);
+
+            // Even if termination failed, try aggressive cleanup
+            this.logger.info('🔥 Fallback: Attempting aggressive cleanup...');
+            this.renderLoopActive = false;
+            this.activeWorkerProcess = null;
+            
+            // Try one more time to kill processes
+            try {
+                await this.killAnyActiveChildProcesses();
+            } catch (cleanupError) {
+                this.logger.error('❌ Cleanup also failed:', cleanupError);
+            }
+            
+            this.activeRenderLoop = null;
+            this.currentLoopId = null;
+            this.currentWorkerId = null;
 
             // Import EventBusService to emit failure event
             const { default: EventBusService } = await import('../services/EventBusService.js');

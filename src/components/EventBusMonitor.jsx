@@ -19,7 +19,8 @@ import {
     PlayArrow,
     Search,
     ContentCopy,
-    DeleteSweep
+    DeleteSweep,
+    Warning
 } from '@mui/icons-material';
 import EventCaptureService from '../services/EventCaptureService';
 import EventFilterService from '../services/EventFilterService';
@@ -541,25 +542,23 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
     };
 
     const stopRenderLoop = async () => {
-        // Allow stopping even if we think nothing is running (emergency stop)
         if (isStoppingRenderLoop) return;
         
         setIsStoppingRenderLoop(true);
         try {
-            const isActive = renderProgress.isRendering || isRenderLoopActive;
-            console.log(`🛑 EventBusMonitor: ${isActive ? 'Stopping active render loop' : 'Emergency stop - killing all workers'}`);
+            console.log('🛑 EventBusMonitor: Stopping render loop gracefully...');
             
-            // Try the new event-driven approach first
+            // Try the new event-driven approach first - graceful termination only
             try {
                 const { killAllWorkers } = await import('../core/events/LoopTerminator.js');
-                console.log('🛑 EventBusMonitor: Using event-driven worker termination');
+                console.log('🛑 EventBusMonitor: Using graceful worker termination');
                 killAllWorkers('SIGTERM');
                 
                 // Also call the API for backward compatibility
                 const result = await window.api.stopRenderLoop();
-                console.log('✅ EventBusMonitor: Render loop stopped via event system:', result);
+                console.log('✅ EventBusMonitor: Render loop stopped gracefully:', result);
             } catch (importError) {
-                console.warn('⚠️ EventBusMonitor: Event-driven termination not available, using fallback:', importError);
+                console.warn('⚠️ EventBusMonitor: Enhanced termination not available, using fallback:', importError);
                 // Fallback to old method
                 const result = await window.api.stopRenderLoop();
                 console.log('✅ EventBusMonitor: Render loop stopped via fallback:', result);
@@ -590,6 +589,78 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
             });
         } catch (error) {
             console.error('❌ EventBusMonitor: Failed to stop render loop:', error);
+        } finally {
+            setIsStoppingRenderLoop(false);
+        }
+    };
+
+    // Emergency stop function (brute force)
+    const emergencyStopRenderLoop = async () => {
+        if (isStoppingRenderLoop) {
+            console.log('⚠️ EventBusMonitor: Already stopping render loop, ignoring emergency request');
+            return;
+        }
+        
+        console.log('🚨 EventBusMonitor: EMERGENCY STOP - Killing all workers with brute force...');
+        setIsStoppingRenderLoop(true);
+        
+        try {
+            // Use brute force termination immediately
+            try {
+                const { emergencyStopAll, performBruteForceCleanup } = await import('../core/events/LoopTerminator.js');
+                console.log('🚨 EventBusMonitor: Using brute force worker termination');
+                
+                // Emergency stop - use brute force immediately
+                emergencyStopAll('user_emergency_stop');
+                
+                // Perform immediate brute force cleanup
+                await performBruteForceCleanup();
+                
+                // Additional cleanup for resumed projects
+                console.log('🚨 EventBusMonitor: Performing additional cleanup for resumed projects...');
+                
+                // Call the API stop method which should trigger killResumedProjectProcesses
+                const result = await window.api.stopRenderLoop();
+                console.log('✅ EventBusMonitor: Emergency stop completed:', result);
+                
+                // Wait a bit more then do final cleanup
+                setTimeout(async () => {
+                    await performBruteForceCleanup();
+                }, 1000);
+                
+            } catch (importError) {
+                console.warn('⚠️ EventBusMonitor: Enhanced emergency termination not available, using fallback:', importError);
+                // Fallback to old method
+                const result = await window.api.stopRenderLoop();
+                console.log('✅ EventBusMonitor: Emergency stop via fallback:', result);
+            }
+            
+            // Reset render progress using RenderProgressTracker
+            RenderProgressTracker.stopRendering();
+            setRenderProgress({
+                isRendering: false,
+                currentFrame: 0,
+                totalFrames: 100,
+                progress: 0,
+                projectName: '',
+                fps: 0,
+                eta: '',
+                startTime: null,
+                avgRenderTime: 0,
+                lastFrameTime: 0
+            });
+            // Also reset render loop status
+            setIsRenderLoopActive(false);
+            
+            // Emit event to notify other components
+            import('../services/EventBusService.js').then(({ default: EventBusService }) => {
+                EventBusService.emit('renderloop:toggled', {
+                    isActive: false
+                }, { source: 'EventBusMonitor', reason: 'emergency_stop' });
+            });
+            
+        } catch (error) {
+            console.error('❌ EventBusMonitor: Error during emergency stop:', error);
         } finally {
             setIsStoppingRenderLoop(false);
         }
@@ -959,23 +1030,37 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                             </IconButton>
                         </Tooltip>
                         
-                        {/* Kill Button - Always visible and enabled for emergency stops */}
-                        <Tooltip title={
-                            isStoppingRenderLoop 
-                                ? "Stopping..." 
-                                : (renderProgress.isRendering || isRenderLoopActive)
-                                    ? "Stop Render Loop (Active)"
-                                    : "Emergency Stop (Force kill all workers)"
-                        }>
+                        {/* Normal Stop Button - Only visible when render loop is active */}
+                        {(renderProgress.isRendering || isRenderLoopActive) && (
+                            <Tooltip title={isStoppingRenderLoop ? "Stopping..." : "Stop Render Loop (Graceful)"}>
+                                <IconButton 
+                                    onClick={stopRenderLoop} 
+                                    size="small"
+                                    disabled={isStoppingRenderLoop}
+                                    sx={{ 
+                                        color: '#f44336',
+                                        '&:hover': { bgcolor: '#3d3d3d' },
+                                        '&:disabled': { color: '#555' }
+                                    }}
+                                >
+                                    <Stop fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                        )}
+                        
+                        {/* Emergency Stop Button - Always visible for force kill */}
+                        <Tooltip title={isStoppingRenderLoop ? "Stopping..." : "Emergency Stop (Force Kill All Workers)"}>
                             <IconButton 
-                                onClick={stopRenderLoop} 
+                                onClick={emergencyStopRenderLoop} 
                                 size="small"
+                                disabled={isStoppingRenderLoop}
                                 sx={{ 
-                                    color: (renderProgress.isRendering || isRenderLoopActive) ? '#f44336' : '#ff9800',
-                                    '&:hover': { bgcolor: '#3d3d3d' }
+                                    color: '#ff5722',
+                                    '&:hover': { bgcolor: '#3d3d3d' },
+                                    '&:disabled': { color: '#555' }
                                 }}
                             >
-                                <Stop fontSize="small" />
+                                <Warning fontSize="small" />
                             </IconButton>
                         </Tooltip>
                         
