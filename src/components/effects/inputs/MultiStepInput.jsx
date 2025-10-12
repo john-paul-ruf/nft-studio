@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import RangeInput from './RangeInput.jsx';
+import useDebounce from '../../../hooks/useDebounce.js';
 
 function MultiStepInput({ field, value, onChange, projectData }) {
     const [steps, setSteps] = useState(value || field.default || []);
+    // Local state for percentage inputs to provide immediate feedback
+    const [percentageInputs, setPercentageInputs] = useState({});
 
     // Available algorithm types for step types
     const algorithmTypes = [
@@ -12,6 +15,20 @@ function MultiStepInput({ field, value, onChange, projectData }) {
         'waveCrash', 'volcanic', 'spiralOut', 'spiralIn', 'mountainRange',
         'oceanTide', 'butterfly'
     ];
+
+    // Debounced update for percentage changes
+    const debouncedUpdateStep = useDebounce((index, property, newValue) => {
+        const newSteps = [...steps];
+        newSteps[index] = { ...newSteps[index], [property]: newValue };
+
+        // Auto-adjust percentages if needed
+        if (property === 'minPercentage' || property === 'maxPercentage') {
+            newSteps[index] = validatePercentages(newSteps[index]);
+        }
+
+        setSteps(newSteps);
+        onChange(field.name, newSteps);
+    }, 150);
 
     const updateStep = (index, property, newValue) => {
         const newSteps = [...steps];
@@ -248,8 +265,32 @@ function MultiStepInput({ field, value, onChange, projectData }) {
                                         min="0"
                                         max="100"
                                         step="0.1"
-                                        value={step.minPercentage}
-                                        onChange={(e) => updateStep(index, 'minPercentage', parseFloat(e.target.value) || 0)}
+                                        value={percentageInputs[`${index}-min`] !== undefined 
+                                            ? percentageInputs[`${index}-min`] 
+                                            : step.minPercentage}
+                                        onChange={(e) => {
+                                            const inputValue = e.target.value;
+                                            // Update local state immediately for instant feedback
+                                            setPercentageInputs(prev => ({ ...prev, [`${index}-min`]: inputValue }));
+                                            
+                                            // Only trigger debounced change if it's a valid number
+                                            const numValue = parseFloat(inputValue);
+                                            if (inputValue !== '' && !isNaN(numValue)) {
+                                                debouncedUpdateStep(index, 'minPercentage', numValue);
+                                            }
+                                        }}
+                                        onBlur={() => {
+                                            // On blur, restore current valid value if input is invalid
+                                            const inputValue = percentageInputs[`${index}-min`];
+                                            const numValue = parseFloat(inputValue);
+                                            if (inputValue === '' || inputValue === undefined || isNaN(numValue)) {
+                                                setPercentageInputs(prev => {
+                                                    const newInputs = { ...prev };
+                                                    delete newInputs[`${index}-min`];
+                                                    return newInputs;
+                                                });
+                                            }
+                                        }}
                                         style={{
                                             width: '100%',
                                             background: 'rgba(255,255,255,0.1)',
@@ -269,8 +310,32 @@ function MultiStepInput({ field, value, onChange, projectData }) {
                                         min="0"
                                         max="100"
                                         step="0.1"
-                                        value={step.maxPercentage}
-                                        onChange={(e) => updateStep(index, 'maxPercentage', parseFloat(e.target.value) || 0)}
+                                        value={percentageInputs[`${index}-max`] !== undefined 
+                                            ? percentageInputs[`${index}-max`] 
+                                            : step.maxPercentage}
+                                        onChange={(e) => {
+                                            const inputValue = e.target.value;
+                                            // Update local state immediately for instant feedback
+                                            setPercentageInputs(prev => ({ ...prev, [`${index}-max`]: inputValue }));
+                                            
+                                            // Only trigger debounced change if it's a valid number
+                                            const numValue = parseFloat(inputValue);
+                                            if (inputValue !== '' && !isNaN(numValue)) {
+                                                debouncedUpdateStep(index, 'maxPercentage', numValue);
+                                            }
+                                        }}
+                                        onBlur={() => {
+                                            // On blur, restore current valid value if input is invalid
+                                            const inputValue = percentageInputs[`${index}-max`];
+                                            const numValue = parseFloat(inputValue);
+                                            if (inputValue === '' || inputValue === undefined || isNaN(numValue)) {
+                                                setPercentageInputs(prev => {
+                                                    const newInputs = { ...prev };
+                                                    delete newInputs[`${index}-max`];
+                                                    return newInputs;
+                                                });
+                                            }
+                                        }}
                                         style={{
                                             width: '100%',
                                             background: 'rgba(255,255,255,0.1)',

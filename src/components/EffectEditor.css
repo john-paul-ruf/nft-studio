@@ -112,6 +112,8 @@
     font-size: 14px;
     outline: none;
     transition: border-color 0.2s;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .field-input:focus,

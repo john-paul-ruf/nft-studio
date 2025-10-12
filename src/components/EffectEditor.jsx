@@ -5,10 +5,17 @@ import useDebounce from '../hooks/useDebounce.js';
 export default function EffectEditor({ effect, onUpdate, onClose }) {
     const [config, setConfig] = useState(effect.config || {});
     const [schema, setSchema] = useState(null);
+    // Local state for number inputs to provide immediate feedback
+    const [numberInputValues, setNumberInputValues] = useState({});
 
     useEffect(() => {
         loadSchema();
     }, [effect.className]);
+
+    // Sync local input state when config changes externally
+    useEffect(() => {
+        setNumberInputValues({});
+    }, [effect.config]);
 
     const loadSchema = async () => {
         try {
@@ -23,10 +30,16 @@ export default function EffectEditor({ effect, onUpdate, onClose }) {
         setConfig({ ...config, [key]: value });
     };
 
-    // Debounced version for text inputs
+    // Debounced version for number inputs
     const debouncedHandleConfigChange = useDebounce(useCallback((key, value) => {
         setConfig(prev => ({ ...prev, [key]: value }));
-    }, []), 300);
+        // Clear local input state after updating actual config
+        setNumberInputValues(prev => {
+            const newValues = { ...prev };
+            delete newValues[key];
+            return newValues;
+        });
+    }, []), 150);
 
     const handleSave = () => {
         onUpdate({ ...effect, config });
@@ -34,6 +47,10 @@ export default function EffectEditor({ effect, onUpdate, onClose }) {
 
     const renderField = (field) => {
         const value = config[field.name] ?? field.defaultValue;
+        // Use local input value if available, otherwise use the actual value
+        const displayValue = numberInputValues[field.name] !== undefined 
+            ? numberInputValues[field.name] 
+            : value;
 
         switch (field.type) {
             case 'boolean':
@@ -60,10 +77,29 @@ export default function EffectEditor({ effect, onUpdate, onClose }) {
                         <input
                             type="number"
                             className="field-input"
-                            value={value}
+                            value={displayValue}
                             onChange={(e) => {
-                                const numValue = parseFloat(e.target.value);
-                                debouncedHandleConfigChange(field.name, numValue);
+                                const inputValue = e.target.value;
+                                // Update local state immediately for instant feedback
+                                setNumberInputValues(prev => ({ ...prev, [field.name]: inputValue }));
+                                
+                                // Only trigger debounced change if it's a valid number
+                                const numValue = parseFloat(inputValue);
+                                if (inputValue !== '' && !isNaN(numValue)) {
+                                    debouncedHandleConfigChange(field.name, numValue);
+                                }
+                            }}
+                            onBlur={() => {
+                                // On blur, restore current valid value if input is invalid
+                                const inputValue = numberInputValues[field.name];
+                                const numValue = parseFloat(inputValue);
+                                if (inputValue === '' || inputValue === undefined || isNaN(numValue)) {
+                                    setNumberInputValues(prev => {
+                                        const newValues = { ...prev };
+                                        delete newValues[field.name];
+                                        return newValues;
+                                    });
+                                }
                             }}
                             min={field.min}
                             max={field.max}

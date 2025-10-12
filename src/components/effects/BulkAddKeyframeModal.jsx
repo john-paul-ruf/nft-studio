@@ -45,6 +45,11 @@ export default function BulkAddKeyframeModal({
     const [numEffects, setNumEffects] = useState(5);
     const [maxFrames, setMaxFrames] = useState(10);
     
+    // Local state for number inputs to provide immediate feedback
+    const [startFrameInput, setStartFrameInput] = useState('0');
+    const [endFrameInput, setEndFrameInput] = useState('10');
+    const [numEffectsInput, setNumEffectsInput] = useState('5');
+    
     // Debounced setters for number inputs
     const debouncedSetFrameRange = useDebounce(useCallback((range) => {
         setFrameRange(range);
@@ -60,6 +65,8 @@ export default function BulkAddKeyframeModal({
             const totalFrames = projectState.getNumFrames();
             setMaxFrames(totalFrames);
             setFrameRange([0, totalFrames]);
+            setStartFrameInput('0');
+            setEndFrameInput(String(totalFrames));
         }
     }, [projectState]);
 
@@ -70,13 +77,26 @@ export default function BulkAddKeyframeModal({
             setSelectedEffect(null);
             setEffectConfig(null);
             setNumEffects(5);
+            setNumEffectsInput('5');
             if (projectState && projectState.getNumFrames) {
                 const totalFrames = projectState.getNumFrames();
                 setMaxFrames(totalFrames);
                 setFrameRange([0, totalFrames]);
+                setStartFrameInput('0');
+                setEndFrameInput(String(totalFrames));
             }
         }
     }, [isOpen, projectState]);
+    
+    // Sync local input states when frameRange or numEffects change externally
+    useEffect(() => {
+        setStartFrameInput(String(frameRange[0]));
+        setEndFrameInput(String(frameRange[1]));
+    }, [frameRange]);
+    
+    useEffect(() => {
+        setNumEffectsInput(String(numEffects));
+    }, [numEffects]);
 
     const handleNext = () => {
         setActiveStep((prevStep) => prevStep + 1);
@@ -325,15 +345,29 @@ export default function BulkAddKeyframeModal({
                                 <TextField
                                     label="Start Frame"
                                     type="number"
-                                    value={frameRange[0]}
+                                    value={startFrameInput}
                                     onChange={(e) => {
-                                        const value = Math.max(0, Math.min(parseInt(e.target.value) || 0, frameRange[1]));
-                                        const newRange = [value, frameRange[1]];
-                                        debouncedSetFrameRange(newRange);
-                                        // Adjust numEffects if needed
-                                        const maxPossible = newRange[1] - newRange[0] + 1;
-                                        if (numEffects > maxPossible) {
-                                            debouncedSetNumEffects(maxPossible);
+                                        const inputValue = e.target.value;
+                                        setStartFrameInput(inputValue); // Update UI immediately
+                                        
+                                        // Only trigger debounced change if it's a valid number
+                                        const numValue = parseInt(inputValue);
+                                        if (inputValue !== '' && !isNaN(numValue)) {
+                                            const value = Math.max(0, Math.min(numValue, frameRange[1]));
+                                            const newRange = [value, frameRange[1]];
+                                            debouncedSetFrameRange(newRange);
+                                            // Adjust numEffects if needed
+                                            const maxPossible = newRange[1] - newRange[0] + 1;
+                                            if (numEffects > maxPossible) {
+                                                debouncedSetNumEffects(maxPossible);
+                                            }
+                                        }
+                                    }}
+                                    onBlur={() => {
+                                        // On blur, restore current valid value if input is invalid
+                                        const numValue = parseInt(startFrameInput);
+                                        if (startFrameInput === '' || isNaN(numValue) || numValue < 0) {
+                                            setStartFrameInput(String(frameRange[0]));
                                         }
                                     }}
                                     size="small"
@@ -342,15 +376,29 @@ export default function BulkAddKeyframeModal({
                                 <TextField
                                     label="End Frame"
                                     type="number"
-                                    value={frameRange[1]}
+                                    value={endFrameInput}
                                     onChange={(e) => {
-                                        const value = Math.min(maxFrames, Math.max(parseInt(e.target.value) || maxFrames, frameRange[0]));
-                                        const newRange = [frameRange[0], value];
-                                        debouncedSetFrameRange(newRange);
-                                        // Adjust numEffects if needed
-                                        const maxPossible = newRange[1] - newRange[0] + 1;
-                                        if (numEffects > maxPossible) {
-                                            debouncedSetNumEffects(maxPossible);
+                                        const inputValue = e.target.value;
+                                        setEndFrameInput(inputValue); // Update UI immediately
+                                        
+                                        // Only trigger debounced change if it's a valid number
+                                        const numValue = parseInt(inputValue);
+                                        if (inputValue !== '' && !isNaN(numValue)) {
+                                            const value = Math.min(maxFrames, Math.max(numValue, frameRange[0]));
+                                            const newRange = [frameRange[0], value];
+                                            debouncedSetFrameRange(newRange);
+                                            // Adjust numEffects if needed
+                                            const maxPossible = newRange[1] - newRange[0] + 1;
+                                            if (numEffects > maxPossible) {
+                                                debouncedSetNumEffects(maxPossible);
+                                            }
+                                        }
+                                    }}
+                                    onBlur={() => {
+                                        // On blur, restore current valid value if input is invalid
+                                        const numValue = parseInt(endFrameInput);
+                                        if (endFrameInput === '' || isNaN(numValue) || numValue < frameRange[0]) {
+                                            setEndFrameInput(String(frameRange[1]));
                                         }
                                     }}
                                     size="small"
@@ -363,11 +411,25 @@ export default function BulkAddKeyframeModal({
                             <TextField
                                 label="Number of Effects to Add"
                                 type="number"
-                                value={numEffects}
+                                value={numEffectsInput}
                                 onChange={(e) => {
-                                    const maxPossible = frameRange[1] - frameRange[0] + 1;
-                                    const value = Math.max(1, Math.min(parseInt(e.target.value) || 1, maxPossible));
-                                    debouncedSetNumEffects(value);
+                                    const inputValue = e.target.value;
+                                    setNumEffectsInput(inputValue); // Update UI immediately
+                                    
+                                    // Only trigger debounced change if it's a valid number
+                                    const numValue = parseInt(inputValue);
+                                    if (inputValue !== '' && !isNaN(numValue)) {
+                                        const maxPossible = frameRange[1] - frameRange[0] + 1;
+                                        const value = Math.max(1, Math.min(numValue, maxPossible));
+                                        debouncedSetNumEffects(value);
+                                    }
+                                }}
+                                onBlur={() => {
+                                    // On blur, restore current valid value if input is invalid
+                                    const numValue = parseInt(numEffectsInput);
+                                    if (numEffectsInput === '' || isNaN(numValue) || numValue < 1) {
+                                        setNumEffectsInput(String(numEffects));
+                                    }
                                 }}
                                 size="small"
                                 inputProps={{ min: 1, max: frameRange[1] - frameRange[0] + 1 }}

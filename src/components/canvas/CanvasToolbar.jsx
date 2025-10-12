@@ -95,19 +95,33 @@ export default function CanvasToolbar({
     }, [currentResolution]);
 
     // Local state for frames input (for immediate UI feedback)
-    const [framesInputValue, setFramesInputValue] = useState(config.numFrames);
+    const [framesInputValue, setFramesInputValue] = useState(String(config.numFrames));
+    
+    // Local state for frame input (for immediate UI feedback)
+    const [frameInputValue, setFrameInputValue] = useState(String(selectedFrame));
 
     // Sync local state when config changes externally
     useEffect(() => {
-        setFramesInputValue(config.numFrames);
+        setFramesInputValue(String(config.numFrames));
     }, [config.numFrames]);
+    
+    // Sync frame input when selectedFrame changes externally
+    useEffect(() => {
+        setFrameInputValue(String(selectedFrame));
+    }, [selectedFrame]);
 
     // Debounced handler for frames change
     const debouncedFramesChange = useDebounce((value) => {
+        // Validate and parse the value
+        const numValue = parseInt(value);
+        if (isNaN(numValue) || numValue < 1) {
+            return; // Don't update if invalid
+        }
+        
         // Create a synthetic event object that matches what the handler expects
         const syntheticEvent = {
             target: {
-                value: String(value)
+                value: String(numValue)
             }
         };
         onFramesChange(syntheticEvent);
@@ -117,10 +131,49 @@ export default function CanvasToolbar({
     const handleFramesInputChange = useCallback((e) => {
         const newValue = e.target.value;
         setFramesInputValue(newValue); // Update UI immediately
-        debouncedFramesChange(newValue); // Debounce the actual change
+        
+        // Only trigger debounced change if it's a valid number
+        if (newValue !== '' && !isNaN(parseInt(newValue))) {
+            debouncedFramesChange(newValue);
+        }
     }, [debouncedFramesChange]);
+    
+    // Handler for frames input blur - restore current value if invalid
+    const handleFramesInputBlur = useCallback(() => {
+        const numValue = parseInt(framesInputValue);
+        if (framesInputValue === '' || isNaN(numValue) || numValue < 1) {
+            // Restore the current valid value
+            setFramesInputValue(String(config.numFrames));
+        }
+    }, [framesInputValue, config.numFrames]);
 
-    const debouncedFrameChange = useDebounce((value) => onFrameChange(parseInt(value)), 150);
+    // Debounced handler for frame change
+    const debouncedFrameChange = useDebounce((value) => {
+        const numValue = parseInt(value);
+        if (!isNaN(numValue) && numValue >= 0) {
+            onFrameChange(numValue);
+        }
+    }, 150);
+    
+    // Handler for frame input change
+    const handleFrameInputChange = useCallback((e) => {
+        const newValue = e.target.value;
+        setFrameInputValue(newValue); // Update UI immediately
+        
+        // Only trigger debounced change if it's a valid number
+        if (newValue !== '' && !isNaN(parseInt(newValue))) {
+            debouncedFrameChange(newValue);
+        }
+    }, [debouncedFrameChange]);
+    
+    // Handler for frame input blur - restore current value if invalid
+    const handleFrameInputBlur = useCallback(() => {
+        const numValue = parseInt(frameInputValue);
+        if (frameInputValue === '' || isNaN(numValue) || numValue < 0) {
+            // Restore the current valid value
+            setFrameInputValue(String(selectedFrame));
+        }
+    }, [frameInputValue, selectedFrame]);
 
     return (
         <AppBar position="static" elevation={0}>
@@ -351,6 +404,7 @@ export default function CanvasToolbar({
                         size="small"
                         value={framesInputValue}
                         onChange={handleFramesInputChange}
+                        onBlur={handleFramesInputBlur}
                         disabled={isReadOnly}
                         inputProps={{ min: 1, max: 10000 }}
                         sx={{ 
@@ -372,8 +426,9 @@ export default function CanvasToolbar({
                     <TextField
                         type="number"
                         size="small"
-                        value={selectedFrame}
-                        onChange={(e) => debouncedFrameChange(e.target.value)}
+                        value={frameInputValue}
+                        onChange={handleFrameInputChange}
+                        onBlur={handleFrameInputBlur}
                         inputProps={{ min: 0, max: config.numFrames - 1 }}
                         sx={{ width: '160px' }}
                         variant="outlined"
