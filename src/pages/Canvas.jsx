@@ -222,9 +222,15 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
         handleMouseDown(e, canvasRef, frameHolderRef);
     }, [handleMouseDown, canvasRef, frameHolderRef]);
 
+    // Debug: Track isRenderLoopActive changes
+    useEffect(() => {
+        console.log('🎨 Canvas: isRenderLoopActive state changed to:', isRenderLoopActive);
+    }, [isRenderLoopActive]);
+
     // Event listeners for UI state updates
     useEffect(() => {
         console.log('🎨 Canvas: Setting up UI event listeners');
+        console.log('🎨 Canvas: Initial isRenderLoopActive state:', isRenderLoopActive);
 
         // Theme change events
         const unsubscribeTheme = eventBusService.subscribe('theme:changed', (payload) => {
@@ -254,6 +260,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
         // Render loop events - make modal truly event-driven
         const unsubscribeRenderLoopToggle = eventBusService.subscribe('renderloop:toggled', (payload) => {
             console.log('🎨 Canvas: Render loop toggle event received:', payload);
+            console.log('🎨 Canvas: Setting isRenderLoopActive to:', payload.isActive);
             setIsRenderLoopActive(payload.isActive);
             // Only auto-manage EventBusMonitor visibility for regular render loop toggles
             // Don't override manual showEventMonitor state for resumed projects
@@ -273,6 +280,20 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
             setIsRenderLoopActive(false);
             setShowEventMonitor(false);
             console.log('🎨 Canvas: Render loop error - reset states to inactive');
+        }, { component: 'Canvas' });
+
+        // Listen for actual render loop start from RenderCoordinator
+        const unsubscribeRenderLoopStart = eventBusService.subscribe('render.loop.start', (payload) => {
+            console.log('🎨 Canvas: Render loop START event received from RenderCoordinator:', payload);
+            console.log('🎨 Canvas: Setting isRenderLoopActive to TRUE');
+            setIsRenderLoopActive(true);
+        }, { component: 'Canvas' });
+
+        // Listen for render loop stop
+        const unsubscribeRenderLoopStop = eventBusService.subscribe('render.loop.stop', (payload) => {
+            console.log('🎨 Canvas: Render loop STOP event received from RenderCoordinator:', payload);
+            console.log('🎨 Canvas: Setting isRenderLoopActive to FALSE');
+            setIsRenderLoopActive(false);
         }, { component: 'Canvas' });
 
         // Project management events
@@ -393,6 +414,8 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
             unsubscribeOrientation();
             unsubscribeRenderLoopToggle();
             unsubscribeRenderLoopError();
+            unsubscribeRenderLoopStart();
+            unsubscribeRenderLoopStop();
             unsubscribeProjectNew();
             unsubscribeProjectOpen();
             unsubscribeProjectResume();
@@ -450,6 +473,8 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                         currentTheme={currentTheme}
                         projectState={projectState}
                         isReadOnly={projectState ? projectState.getState().isReadOnly || false : false}
+                        isRenderLoopActive={isRenderLoopActive}
+                        isRendering={isRendering}
                         refreshAvailableEffects={refreshAvailableEffects}
                     />
 

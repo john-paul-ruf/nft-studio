@@ -194,6 +194,11 @@ export default function EffectsPanel({
     // Check if all effects are visible
     const areAllEffectsVisible = effects.every(effect => effect.visible !== false);
 
+    // Debug: Log isReadOnly prop changes
+    useEffect(() => {
+        console.log('🎨 EffectsPanel: isReadOnly prop changed to:', isReadOnly);
+    }, [isReadOnly]);
+
     useEffect(() => {
         loadEffects();
     }, []);
@@ -201,6 +206,7 @@ export default function EffectsPanel({
     // Collapse all effects and close config panel when entering read-only mode (pinned)
     useEffect(() => {
         if (isReadOnly) {
+            console.log('🎨 EffectsPanel: Entering read-only mode - collapsing effects and closing config panel');
             setExpandedEffects(new Set());
             setConfigPanelOpen(false);
         }

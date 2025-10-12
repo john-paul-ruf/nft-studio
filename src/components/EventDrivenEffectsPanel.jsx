@@ -14,10 +14,23 @@ export default function EventDrivenEffectsPanel({
     currentTheme,
     projectState,
     isReadOnly = false,
+    isRenderLoopActive = false,
+    isRendering = false,
     refreshAvailableEffects
 }) {
     const { eventBusService, pinSettingService } = useServices();
     const [isPinned, setIsPinned] = useState(false);
+
+    // Debug logging
+    useEffect(() => {
+        console.log('🎛️ EventDrivenEffectsPanel: Props changed:', {
+            isReadOnly,
+            isRenderLoopActive,
+            isRendering,
+            isPinned,
+            finalReadOnly: isReadOnly || isPinned || isRenderLoopActive || isRendering
+        });
+    }, [isReadOnly, isRenderLoopActive, isRendering, isPinned]);
 
     // Subscribe to pin state changes
     useEffect(() => {
@@ -140,7 +153,7 @@ export default function EventDrivenEffectsPanel({
             effectsLoaded={effectsLoaded}
             currentTheme={currentTheme}
             projectState={projectState}
-            isReadOnly={isReadOnly || isPinned}
+            isReadOnly={isReadOnly || isPinned || isRenderLoopActive || isRendering}
             refreshAvailableEffects={refreshAvailableEffects}
         />
     );
