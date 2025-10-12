@@ -22,30 +22,30 @@ function RangeInput({ field, value, onChange }) {
 
     const handleLowerChange = (e) => {
         const inputValue = e.target.value;
+        
+        // Allow user to type freely, including empty string and partial numbers
         setDisplayLower(inputValue);
         
-        // Don't update the value while typing if it's empty - wait for blur
-        if (inputValue !== '') {
+        // Only parse and update if we have a valid number
+        if (inputValue !== '' && inputValue !== '-' && inputValue !== '.') {
             const parsedValue = NumberFormatter.parseFromString(inputValue);
-            debouncedOnChange(field.name, {
-                ...currentValue,
-                lower: parsedValue
-            });
+            if (!isNaN(parsedValue)) {
+                debouncedOnChange(field.name, {
+                    ...currentValue,
+                    lower: parsedValue
+                });
+            }
         }
     };
 
     const handleLowerBlur = (e) => {
         const inputValue = e.target.value;
         
-        // If empty on blur, use 0 as default
-        if (inputValue === '') {
-            const defaultValue = 0;
-            const formattedValue = NumberFormatter.formatForDisplay(defaultValue);
+        // If empty or invalid on blur, restore the current value (don't force a default)
+        if (inputValue === '' || inputValue === '-' || inputValue === '.' || isNaN(NumberFormatter.parseFromString(inputValue))) {
+            // Restore the current valid value
+            const formattedValue = NumberFormatter.formatForDisplay(currentValue.lower || 0);
             setDisplayLower(formattedValue);
-            onChange(field.name, {
-                ...currentValue,
-                lower: defaultValue
-            });
         } else {
             const parsedValue = NumberFormatter.parseFromString(inputValue);
             const formattedValue = NumberFormatter.formatForDisplay(parsedValue);
@@ -59,30 +59,30 @@ function RangeInput({ field, value, onChange }) {
 
     const handleUpperChange = (e) => {
         const inputValue = e.target.value;
+        
+        // Allow user to type freely, including empty string and partial numbers
         setDisplayUpper(inputValue);
         
-        // Don't update the value while typing if it's empty - wait for blur
-        if (inputValue !== '') {
+        // Only parse and update if we have a valid number
+        if (inputValue !== '' && inputValue !== '-' && inputValue !== '.') {
             const parsedValue = NumberFormatter.parseFromString(inputValue);
-            debouncedOnChange(field.name, {
-                ...currentValue,
-                upper: parsedValue
-            });
+            if (!isNaN(parsedValue)) {
+                debouncedOnChange(field.name, {
+                    ...currentValue,
+                    upper: parsedValue
+                });
+            }
         }
     };
 
     const handleUpperBlur = (e) => {
         const inputValue = e.target.value;
         
-        // If empty on blur, use 0 as default
-        if (inputValue === '') {
-            const defaultValue = 0;
-            const formattedValue = NumberFormatter.formatForDisplay(defaultValue);
+        // If empty or invalid on blur, restore the current value (don't force a default)
+        if (inputValue === '' || inputValue === '-' || inputValue === '.' || isNaN(NumberFormatter.parseFromString(inputValue))) {
+            // Restore the current valid value
+            const formattedValue = NumberFormatter.formatForDisplay(currentValue.upper || 0);
             setDisplayUpper(formattedValue);
-            onChange(field.name, {
-                ...currentValue,
-                upper: defaultValue
-            });
         } else {
             const parsedValue = NumberFormatter.parseFromString(inputValue);
             const formattedValue = NumberFormatter.formatForDisplay(parsedValue);

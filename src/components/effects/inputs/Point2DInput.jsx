@@ -252,24 +252,23 @@ function Point2DInput({ field, value, onChange, projectState }) {
                         onChange={(e) => {
                             const val = e.target.value;
                             setDisplayX(val); // Update display immediately
-                            // Allow empty string during typing
-                            if (val === '') return;
-                            const latestValue = getCurrentValue();
-                            debouncedOnChange(field.name, {
-                                ...latestValue,
-                                x: parseInt(val) || 0
-                            });
+                            // Allow empty string and partial numbers during typing
+                            if (val === '' || val === '-') return;
+                            const parsedVal = parseInt(val);
+                            if (!isNaN(parsedVal)) {
+                                const latestValue = getCurrentValue();
+                                debouncedOnChange(field.name, {
+                                    ...latestValue,
+                                    x: parsedVal
+                                });
+                            }
                         }}
                         onBlur={(e) => {
-                            // On blur, ensure we have a valid value
+                            // On blur, restore current value if empty or invalid
                             const val = e.target.value;
-                            if (val === '') {
+                            if (val === '' || val === '-' || isNaN(parseInt(val))) {
                                 const latestValue = getCurrentValue();
-                                setDisplayX('0');
-                                onChange(field.name, {
-                                    ...latestValue,
-                                    x: 0
-                                });
+                                setDisplayX(String(latestValue.x || 0));
                             }
                         }}
                         style={{ width: '100%' }}
@@ -285,24 +284,23 @@ function Point2DInput({ field, value, onChange, projectState }) {
                         onChange={(e) => {
                             const val = e.target.value;
                             setDisplayY(val); // Update display immediately
-                            // Allow empty string during typing
-                            if (val === '') return;
-                            const latestValue = getCurrentValue();
-                            debouncedOnChange(field.name, {
-                                ...latestValue,
-                                y: parseInt(val) || 0
-                            });
+                            // Allow empty string and partial numbers during typing
+                            if (val === '' || val === '-') return;
+                            const parsedVal = parseInt(val);
+                            if (!isNaN(parsedVal)) {
+                                const latestValue = getCurrentValue();
+                                debouncedOnChange(field.name, {
+                                    ...latestValue,
+                                    y: parsedVal
+                                });
+                            }
                         }}
                         onBlur={(e) => {
-                            // On blur, ensure we have a valid value
+                            // On blur, restore current value if empty or invalid
                             const val = e.target.value;
-                            if (val === '') {
+                            if (val === '' || val === '-' || isNaN(parseInt(val))) {
                                 const latestValue = getCurrentValue();
-                                setDisplayY('0');
-                                onChange(field.name, {
-                                    ...latestValue,
-                                    y: 0
-                                });
+                                setDisplayY(String(latestValue.y || 0));
                             }
                         }}
                         style={{ width: '100%' }}

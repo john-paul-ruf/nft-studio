@@ -30,24 +30,31 @@ function NumberInput({ field, value, onChange }) {
 
     const handleNumberChange = (e) => {
         const inputValue = e.target.value;
-        setDisplayValue(inputValue); // Allow user to type freely, including empty string
         
-        // Don't update the value while typing if it's empty - wait for blur
-        if (inputValue !== '') {
+        // Allow user to type freely, including empty string and partial numbers like "-" or "."
+        setDisplayValue(inputValue);
+        
+        // Only parse and update if we have a valid number
+        // This allows typing negative signs, decimals, etc. without interference
+        if (inputValue !== '' && inputValue !== '-' && inputValue !== '.') {
             const parsedValue = NumberFormatter.parseFromString(inputValue);
-            debouncedOnChange(field.name, parsedValue);
+            // Only update if it's a valid number
+            if (!isNaN(parsedValue)) {
+                debouncedOnChange(field.name, parsedValue);
+            }
         }
     };
 
     const handleNumberBlur = (e) => {
         const inputValue = e.target.value;
         
-        // If empty on blur, use the field default or 0
-        if (inputValue === '') {
-            const defaultValue = field.default !== undefined ? field.default : 0;
-            const formattedValue = NumberFormatter.formatForDisplay(defaultValue);
+        // If empty or invalid on blur, restore the current value (don't force a default)
+        // This allows users to clear and retype without fighting the UI
+        if (inputValue === '' || inputValue === '-' || inputValue === '.' || isNaN(NumberFormatter.parseFromString(inputValue))) {
+            // Restore the current valid value instead of forcing a default
+            const formattedValue = NumberFormatter.formatForDisplay(currentValue);
             setDisplayValue(formattedValue);
-            onChange(field.name, defaultValue);
+            // No need to call onChange - we're keeping the existing value
         } else {
             // Format the value when user finishes editing
             const parsedValue = NumberFormatter.parseFromString(inputValue);

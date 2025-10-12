@@ -458,14 +458,18 @@ function PositionInput({ field, value, onChange, projectState }) {
                                 onChange={(e) => {
                                     const val = e.target.value;
                                     setDisplayX(val); // Update display immediately
-                                    if (val === '') return; // Allow empty string during typing
-                                    handlePositionChange(parseInt(val) || 0, currentValue.y);
+                                    // Allow empty string and partial numbers during typing
+                                    if (val === '' || val === '-') return;
+                                    const parsedVal = parseInt(val);
+                                    if (!isNaN(parsedVal)) {
+                                        handlePositionChange(parsedVal, currentValue.y);
+                                    }
                                 }}
                                 onBlur={(e) => {
-                                    // On blur, ensure we have a valid value
-                                    if (e.target.value === '') {
-                                        setDisplayX('0');
-                                        handlePositionChange(0, currentValue.y);
+                                    // On blur, restore current value if empty or invalid
+                                    const val = e.target.value;
+                                    if (val === '' || val === '-' || isNaN(parseInt(val))) {
+                                        setDisplayX(String(currentValue.x || 0));
                                     }
                                 }}
                                 style={{ width: '100%' }}
@@ -481,14 +485,18 @@ function PositionInput({ field, value, onChange, projectState }) {
                                 onChange={(e) => {
                                     const val = e.target.value;
                                     setDisplayY(val); // Update display immediately
-                                    if (val === '') return; // Allow empty string during typing
-                                    handlePositionChange(currentValue.x, parseInt(val) || 0);
+                                    // Allow empty string and partial numbers during typing
+                                    if (val === '' || val === '-') return;
+                                    const parsedVal = parseInt(val);
+                                    if (!isNaN(parsedVal)) {
+                                        handlePositionChange(currentValue.x, parsedVal);
+                                    }
                                 }}
                                 onBlur={(e) => {
-                                    // On blur, ensure we have a valid value
-                                    if (e.target.value === '') {
-                                        setDisplayY('0');
-                                        handlePositionChange(currentValue.x, 0);
+                                    // On blur, restore current value if empty or invalid
+                                    const val = e.target.value;
+                                    if (val === '' || val === '-' || isNaN(parseInt(val))) {
+                                        setDisplayY(String(currentValue.y || 0));
                                     }
                                 }}
                                 style={{ width: '100%' }}
@@ -651,14 +659,18 @@ function PositionInput({ field, value, onChange, projectState }) {
                                         onChange={(e) => {
                                             const val = e.target.value;
                                             setDisplayCenterX(val); // Update display immediately
-                                            if (val === '') return; // Allow empty string during typing
-                                            handleCenterChange(parseInt(val) || 0, currentValue.center?.y || 0);
+                                            // Allow empty string and partial numbers during typing
+                                            if (val === '' || val === '-') return;
+                                            const parsedVal = parseInt(val);
+                                            if (!isNaN(parsedVal)) {
+                                                handleCenterChange(parsedVal, currentValue.center?.y || 0);
+                                            }
                                         }}
                                         onBlur={(e) => {
-                                            // On blur, ensure we have a valid value
-                                            if (e.target.value === '') {
-                                                setDisplayCenterX('0');
-                                                handleCenterChange(0, currentValue.center?.y || 0);
+                                            // On blur, restore current value if empty or invalid
+                                            const val = e.target.value;
+                                            if (val === '' || val === '-' || isNaN(parseInt(val))) {
+                                                setDisplayCenterX(String(currentValue.center?.x || 0));
                                             }
                                         }}
                                         style={{ width: '100%' }}
@@ -674,14 +686,18 @@ function PositionInput({ field, value, onChange, projectState }) {
                                         onChange={(e) => {
                                             const val = e.target.value;
                                             setDisplayCenterY(val); // Update display immediately
-                                            if (val === '') return; // Allow empty string during typing
-                                            handleCenterChange(currentValue.center?.x || 0, parseInt(val) || 0);
+                                            // Allow empty string and partial numbers during typing
+                                            if (val === '' || val === '-') return;
+                                            const parsedVal = parseInt(val);
+                                            if (!isNaN(parsedVal)) {
+                                                handleCenterChange(currentValue.center?.x || 0, parsedVal);
+                                            }
                                         }}
                                         onBlur={(e) => {
-                                            // On blur, ensure we have a valid value
-                                            if (e.target.value === '') {
-                                                setDisplayCenterY('0');
-                                                handleCenterChange(currentValue.center?.x || 0, 0);
+                                            // On blur, restore current value if empty or invalid
+                                            const val = e.target.value;
+                                            if (val === '' || val === '-' || isNaN(parseInt(val))) {
+                                                setDisplayCenterY(String(currentValue.center?.y || 0));
                                             }
                                         }}
                                         style={{ width: '100%' }}
@@ -717,14 +733,18 @@ function PositionInput({ field, value, onChange, projectState }) {
                                     onChange={(e) => {
                                         const val = e.target.value;
                                         setDisplayStartAngle(val); // Update display immediately
-                                        if (val === '') return; // Allow empty string during typing
-                                        handleArcPathChange('startAngle', parseInt(val) || 0);
+                                        // Allow empty string and partial numbers during typing
+                                        if (val === '' || val === '-') return;
+                                        const parsedVal = parseInt(val);
+                                        if (!isNaN(parsedVal)) {
+                                            handleArcPathChange('startAngle', parsedVal);
+                                        }
                                     }}
                                     onBlur={(e) => {
-                                        // On blur, ensure we have a valid value
-                                        if (e.target.value === '') {
-                                            setDisplayStartAngle('0');
-                                            handleArcPathChange('startAngle', 0);
+                                        // On blur, restore current value if empty or invalid
+                                        const val = e.target.value;
+                                        if (val === '' || val === '-' || isNaN(parseInt(val))) {
+                                            setDisplayStartAngle(String(currentValue.startAngle || 0));
                                         }
                                     }}
                                     style={{ width: '100%' }}
@@ -740,14 +760,18 @@ function PositionInput({ field, value, onChange, projectState }) {
                                     onChange={(e) => {
                                         const val = e.target.value;
                                         setDisplayEndAngle(val); // Update display immediately
-                                        if (val === '') return; // Allow empty string during typing
-                                        handleArcPathChange('endAngle', parseInt(val) || 360);
+                                        // Allow empty string and partial numbers during typing
+                                        if (val === '' || val === '-') return;
+                                        const parsedVal = parseInt(val);
+                                        if (!isNaN(parsedVal)) {
+                                            handleArcPathChange('endAngle', parsedVal);
+                                        }
                                     }}
                                     onBlur={(e) => {
-                                        // On blur, ensure we have a valid value
-                                        if (e.target.value === '') {
-                                            setDisplayEndAngle('360');
-                                            handleArcPathChange('endAngle', 360);
+                                        // On blur, restore current value if empty or invalid
+                                        const val = e.target.value;
+                                        if (val === '' || val === '-' || isNaN(parseInt(val))) {
+                                            setDisplayEndAngle(String(currentValue.endAngle || 360));
                                         }
                                     }}
                                     style={{ width: '100%' }}

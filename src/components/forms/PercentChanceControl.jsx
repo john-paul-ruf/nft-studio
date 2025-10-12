@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Paper, Typography, Slider, TextField } from '@mui/material';
 import useDebounce from '../../hooks/useDebounce.js';
 
@@ -19,6 +19,14 @@ import useDebounce from '../../hooks/useDebounce.js';
  * @param {Function} props.onChange - Callback when value changes
  */
 const PercentChanceControl = ({ value, onChange }) => {
+    // Local state for display value to allow free typing
+    const [displayValue, setDisplayValue] = useState(value.toString());
+
+    // Update display value when prop value changes (from slider or external source)
+    useEffect(() => {
+        setDisplayValue(value.toString());
+    }, [value]);
+
     // Debounced onChange for text field
     const debouncedOnChange = useDebounce(useCallback((val) => {
         onChange(val);
@@ -29,8 +37,35 @@ const PercentChanceControl = ({ value, onChange }) => {
     };
 
     const handleTextFieldChange = (e) => {
-        const newValue = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
-        debouncedOnChange(newValue);
+        const inputValue = e.target.value;
+        
+        // Allow user to type freely, including empty string
+        setDisplayValue(inputValue);
+        
+        // Only update if we have a valid number
+        if (inputValue !== '') {
+            const parsedValue = parseInt(inputValue);
+            if (!isNaN(parsedValue)) {
+                // Clamp value between 0 and 100
+                const clampedValue = Math.max(0, Math.min(100, parsedValue));
+                debouncedOnChange(clampedValue);
+            }
+        }
+    };
+
+    const handleTextFieldBlur = (e) => {
+        const inputValue = e.target.value;
+        
+        // If empty or invalid on blur, restore the current value
+        if (inputValue === '' || isNaN(parseInt(inputValue))) {
+            setDisplayValue(value.toString());
+        } else {
+            // Ensure value is clamped and formatted
+            const parsedValue = parseInt(inputValue);
+            const clampedValue = Math.max(0, Math.min(100, parsedValue));
+            setDisplayValue(clampedValue.toString());
+            onChange(clampedValue);
+        }
     };
 
     return (
@@ -77,8 +112,9 @@ const PercentChanceControl = ({ value, onChange }) => {
                 <TextField
                     type="number"
                     size="small"
-                    value={value}
+                    value={displayValue}
                     onChange={handleTextFieldChange}
+                    onBlur={handleTextFieldBlur}
                     inputProps={{
                         min: 0,
                         max: 100,
