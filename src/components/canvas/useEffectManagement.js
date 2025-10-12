@@ -110,11 +110,34 @@ export default function useEffectManagement(projectState) {
         const unsubscribeEffectDelete = eventBusService.subscribe('effect:delete', (payload) => {
             console.log('🎭 useEffectManagement: Effect delete event received:', payload);
             handleEffectDelete(payload.effectIndex);
+            
+            // Clear editing context if the deleted effect was being edited
+            if (editingEffect && editingEffect.effectIndex === payload.effectIndex) {
+                console.log('🎯 useEffectManagement: Clearing editing context - effect was deleted');
+                setEditingEffect(null);
+            }
         }, { component: 'useEffectManagement' });
 
         const unsubscribeEffectReorder = eventBusService.subscribe('effect:reorder', (payload) => {
             console.log('🎭 useEffectManagement: Effect reorder event received:', payload);
             handleEffectReorder(payload.dragIndex, payload.hoverIndex);
+            
+            // Update editing context if the edited effect was reordered
+            if (editingEffect && editingEffect.effectId) {
+                const currentEffects = projectState.getState().effects || [];
+                const newIndex = currentEffects.findIndex(e => e.id === editingEffect.effectId);
+                if (newIndex !== -1 && newIndex !== editingEffect.effectIndex) {
+                    console.log('🎯 useEffectManagement: Updating editing context after reorder:', {
+                        oldIndex: editingEffect.effectIndex,
+                        newIndex: newIndex,
+                        effectId: editingEffect.effectId
+                    });
+                    setEditingEffect({
+                        ...editingEffect,
+                        effectIndex: newIndex
+                    });
+                }
+            }
         }, { component: 'useEffectManagement' });
 
         const unsubscribeEffectToggleVisibility = eventBusService.subscribe('effect:togglevisibility', (payload) => {
@@ -239,13 +262,26 @@ export default function useEffectManagement(projectState) {
 
             // Set editing context from the payload before updating config
             if (payload.effectIndex !== undefined) {
+                // Get the effect ID to track it reliably across reorders
+                const currentEffects = projectState.getState().effects || [];
+                const effect = currentEffects[payload.effectIndex];
+                
+                if (!effect || !effect.id) {
+                    console.error('❌ useEffectManagement: Cannot update effect without ID', { 
+                        effectIndex: payload.effectIndex, 
+                        effect 
+                    });
+                    return;
+                }
+                
                 const context = {
+                    effectId: effect.id, // Store ID for reliable tracking
                     effectIndex: payload.effectIndex,
                     effectType: payload.effectType || 'primary',
                     subIndex: payload.subEffectIndex !== undefined ? payload.subEffectIndex : null
                 };
 
-                console.log('🎯 useEffectManagement: Setting editing context from event:', context);
+                console.log('🎯 useEffectManagement: Setting editing context from event with ID:', context);
                 setEditingEffect(context);
 
                 // Use context directly instead of relying on async state update
@@ -551,12 +587,29 @@ export default function useEffectManagement(projectState) {
     }, []);
 
     const handleEditEffect = useCallback((effectIndex, effectType = 'primary', subIndex = null) => {
+        // Get the effect ID to track it reliably across reorders
+        const currentEffects = projectState.getState().effects || [];
+        const effect = currentEffects[effectIndex];
+        
+        if (!effect || !effect.id) {
+            console.error('❌ handleEditEffect: Cannot edit effect without ID', { effectIndex, effect });
+            return;
+        }
+        
         setEditingEffect({
+            effectId: effect.id, // Store ID instead of index
+            effectIndex, // Keep index for backward compatibility
+            effectType,
+            subIndex
+        });
+        
+        console.log('🎯 handleEditEffect: Set editing context with ID tracking:', {
+            effectId: effect.id,
             effectIndex,
             effectType,
             subIndex
         });
-    }, []);
+    }, [projectState]);
 
     const getEditingEffectData = useCallback((effectContext = null) => {
         // Use provided context or fall back to state
@@ -579,18 +632,41 @@ export default function useEffectManagement(projectState) {
             return null;
         }
 
-        if (!currentEffects[context.effectIndex]) {
+        // Resolve effect ID to current index (handles reordering)
+        let effectIndex = context.effectIndex;
+        if (context.effectId) {
+            const currentIndex = currentEffects.findIndex(e => e.id === context.effectId);
+            if (currentIndex === -1) {
+                console.error('❌ getEditingEffectData: Effect with ID not found (may have been deleted):', {
+                    effectId: context.effectId,
+                    originalIndex: context.effectIndex
+                });
+                return null;
+            }
+            if (currentIndex !== context.effectIndex) {
+                console.warn('⚠️ getEditingEffectData: Effect index changed due to reordering:', {
+                    effectId: context.effectId,
+                    oldIndex: context.effectIndex,
+                    newIndex: currentIndex
+                });
+            }
+            effectIndex = currentIndex;
+        }
+
+        if (!currentEffects[effectIndex]) {
             console.error('❌ getEditingEffectData: Invalid effect index', {
-                effectIndex: context.effectIndex,
+                effectIndex: effectIndex,
                 effectsLength: currentEffects.length,
                 availableIndices: currentEffects.map((e, i) => i)
             });
             return null;
         }
 
-        const mainEffect = currentEffects[context.effectIndex];
+        const mainEffect = currentEffects[effectIndex];
         console.log('🔍 getEditingEffectData: Found mainEffect (fresh from ProjectState):', {
-            effectIndex: context.effectIndex,
+            effectIndex: effectIndex,
+            originalIndex: context.effectIndex,
+            effectId: context.effectId,
             effectType: context.effectType,
             subIndex: context.subIndex,
             mainEffect: mainEffect,
@@ -699,12 +775,38 @@ export default function useEffectManagement(projectState) {
         console.log('🔧 useEffectManagement: handleConfigUpdateWithContext called with:', { newConfig, context });
 
         const currentEffects = projectState.getState().effects || [];
-        if (!context || !currentEffects[context.effectIndex]) {
-            console.warn('🔧 useEffectManagement: Invalid context or effect not found:', { context, effectsLength: currentEffects.length });
+        if (!context) {
+            console.warn('🔧 useEffectManagement: No context provided');
             return;
         }
 
-        const mainEffect = currentEffects[context.effectIndex];
+        // Resolve effect ID to current index (handles reordering)
+        let effectIndex = context.effectIndex;
+        if (context.effectId) {
+            const currentIndex = currentEffects.findIndex(e => e.id === context.effectId);
+            if (currentIndex === -1) {
+                console.error('❌ useEffectManagement: Effect with ID not found (may have been deleted):', {
+                    effectId: context.effectId,
+                    originalIndex: context.effectIndex
+                });
+                return;
+            }
+            if (currentIndex !== context.effectIndex) {
+                console.warn('⚠️ useEffectManagement: Effect index changed due to reordering:', {
+                    effectId: context.effectId,
+                    oldIndex: context.effectIndex,
+                    newIndex: currentIndex
+                });
+            }
+            effectIndex = currentIndex;
+        }
+
+        if (!currentEffects[effectIndex]) {
+            console.warn('🔧 useEffectManagement: Effect not found at index:', { effectIndex, effectsLength: currentEffects.length });
+            return;
+        }
+
+        const mainEffect = currentEffects[effectIndex];
 
         if (context.effectType === 'primary') {
             console.log('🔧 useEffectManagement: Updating primary effect config');
@@ -712,7 +814,7 @@ export default function useEffectManagement(projectState) {
                 ...mainEffect,
                 config: newConfig
             };
-            handleEffectUpdate(context.effectIndex, updatedEffect);
+            handleEffectUpdate(effectIndex, updatedEffect);
         } else if (context.effectType === 'secondary' && context.subIndex !== null) {
             console.log('🔧 useEffectManagement: Updating secondary effect config at index:', context.subIndex);
             const updatedSecondaryEffects = [...(mainEffect.secondaryEffects || [])];
@@ -724,7 +826,7 @@ export default function useEffectManagement(projectState) {
                 ...mainEffect,
                 secondaryEffects: updatedSecondaryEffects
             };
-            handleEffectUpdate(context.effectIndex, updatedEffect);
+            handleEffectUpdate(effectIndex, updatedEffect);
         } else if (context.effectType === 'keyframe' && context.subIndex !== null) {
             console.log('🔧 useEffectManagement: Updating keyframe effect config at index:', context.subIndex);
             
@@ -742,7 +844,7 @@ export default function useEffectManagement(projectState) {
                     keyFrame: updatedKeyframeEffects
                 }
             };
-            handleEffectUpdate(context.effectIndex, updatedEffect);
+            handleEffectUpdate(effectIndex, updatedEffect);
         }
     }, [projectState, handleEffectUpdate]);
 
