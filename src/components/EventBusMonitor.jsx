@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import {
     Dialog,
     DialogContent,
@@ -6,14 +7,19 @@ import {
     Typography,
     IconButton,
     LinearProgress,
-    Tooltip
+    Tooltip,
+    TextField,
+    InputAdornment
 } from '@mui/material';
 import {
     Clear,
     Stop,
     Close,
     Pause,
-    PlayArrow
+    PlayArrow,
+    Search,
+    ContentCopy,
+    DeleteSweep
 } from '@mui/icons-material';
 import EventCaptureService from '../services/EventCaptureService';
 import EventFilterService from '../services/EventFilterService';
@@ -25,6 +31,8 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
     const [isStoppingRenderLoop, setIsStoppingRenderLoop] = useState(false);
     const [isRenderLoopActive, setIsRenderLoopActive] = useState(renderLoopActive);
     const [isBufferingPaused, setIsBufferingPaused] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [renderKey, setRenderKey] = useState(0); // Force re-render key
     // Progress tracking state - now managed by RenderProgressTracker
     const [renderProgress, setRenderProgress] = useState({
         isRendering: false,
@@ -39,6 +47,20 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
         lastFrameTime: 0
     });
     const eventListRef = useRef(null);
+    const isClearingRef = useRef(false);
+    const clearTimeoutRef = useRef(null);
+    const unregisterCallbackRef = useRef(null);
+    const handleEventRef = useRef(null);
+    // Store EventBusService unsubscribe functions so clearEvents can temporarily disconnect them
+    const eventBusUnsubscribersRef = useRef({
+        workerStarted: null,
+        workerKilled: null,
+        workerKillFailed: null,
+        renderLoopToggle: null,
+        renderLoopError: null,
+        renderLoopStart: null
+    });
+    const eventBusHandlersRef = useRef({});
     const maxEvents = 1000;
 
     // Load buffered events when monitor opens
@@ -49,6 +71,11 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
             
             // Use setTimeout to defer processing and prevent UI freeze
             setTimeout(() => {
+                // Skip if we're currently clearing
+                if (isClearingRef.current) {
+                    return;
+                }
+                
                 // Load all buffered events
                 const bufferedEvents = EventCaptureService.getBufferedEvents();
                 
@@ -79,6 +106,11 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
         
         // Event handler that processes incoming events
         const handleEvent = (eventData) => {
+            // Skip processing if we're currently clearing
+            if (isClearingRef.current) {
+                return;
+            }
+            
             const eventName = eventData.eventName || 'unknown';
             const data = eventData.data || eventData;
             
@@ -127,49 +159,60 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
             
             // Batch state updates to prevent UI freezing
             setEvents(prev => {
+                // Double-check clearing flag inside state updater to prevent race conditions
+                if (isClearingRef.current) {
+                    return prev; // Don't modify state if clearing
+                }
                 const updated = [newEvent, ...prev].slice(0, maxEvents);
                 return updated;
             });
         };
+        
+        // Store handler in ref so clearEvents can access it
+        handleEventRef.current = handleEvent;
+        
         // Register callback with EventCaptureService (always active)
         console.log('🔔 EventBusMonitor: Registering event callback');
         const unregister = EventCaptureService.registerCallback(handleEvent);
+        unregisterCallbackRef.current = unregister;
+        
         return () => {
             console.log('🧹 EventBusMonitor: Unregistering event callback');
             unregister();
             EventCaptureService.stopMonitoring();
+            
+            // Clean up clear timeout
+            if (clearTimeoutRef.current) {
+                clearTimeout(clearTimeoutRef.current);
+            }
         };
     }, []); // Empty dependency array - only run once on mount
 
     // Set up event-driven worker event listeners
     useEffect(() => {
         if (open) {
-            let unsubscribeWorkerStarted, unsubscribeWorkerKilled, unsubscribeWorkerKillFailed, unsubscribeRenderLoopToggle, unsubscribeRenderLoopError, unsubscribeRenderLoopStart;
-
             // Import EventBusService and set up worker event listeners
             import('../services/EventBusService.js').then(({ default: EventBusService }) => {
                 console.log('🎯 EventBusMonitor: Setting up event-driven worker listeners');
 
-                // Listen for render loop toggle events to track render loop status
-                unsubscribeRenderLoopToggle = EventBusService.subscribe('renderloop:toggled', (payload) => {
+                // Create handlers and store them in refs so clearEvents can re-subscribe
+                const renderLoopToggleHandler = (payload) => {
                     console.log('🎯 EventBusMonitor: Render loop toggle event received:', payload);
                     setIsRenderLoopActive(payload.isActive);
-                }, { component: 'EventBusMonitor' });
-
-                // Listen for render loop error events
-                unsubscribeRenderLoopError = EventBusService.subscribe('renderloop:error', (payload) => {
+                };
+                
+                const renderLoopErrorHandler = (payload) => {
                     console.log('🎯 EventBusMonitor: Render loop error event received:', payload);
                     setIsRenderLoopActive(false);
-                }, { component: 'EventBusMonitor' });
-
-                // Listen for render.loop.start to ensure we catch loop starts
-                unsubscribeRenderLoopStart = EventBusService.subscribe('render.loop.start', (payload) => {
+                };
+                
+                const renderLoopStartHandler = (payload) => {
                     console.log('🎯 EventBusMonitor: Render loop start event received:', payload);
                     setIsRenderLoopActive(true);
-                }, { component: 'EventBusMonitor' });
-
-                // Listen for worker started events
-                unsubscribeWorkerStarted = EventBusService.subscribe('workerStarted', (data) => {
+                };
+                
+                const workerStartedHandler = (data) => {
+                    if (isClearingRef.current) return;
                     console.log('🎯 EventBusMonitor: Worker started event:', data);
                     const newEvent = {
                         id: Date.now() + Math.random(),
@@ -179,11 +222,14 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                         data: data,
                         raw: JSON.stringify(data, null, 2)
                     };
-                    setEvents(prev => [newEvent, ...prev].slice(0, maxEvents));
-                }, { component: 'EventBusMonitor' });
-
-                // Listen for worker killed events
-                unsubscribeWorkerKilled = EventBusService.subscribe('workerKilled', (data) => {
+                    setEvents(prev => {
+                        if (isClearingRef.current) return prev;
+                        return [newEvent, ...prev].slice(0, maxEvents);
+                    });
+                };
+                
+                const workerKilledHandler = (data) => {
+                    if (isClearingRef.current) return;
                     console.log('🎯 EventBusMonitor: Worker killed event:', data);
                     const newEvent = {
                         id: Date.now() + Math.random(),
@@ -193,7 +239,10 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                         data: data,
                         raw: JSON.stringify(data, null, 2)
                     };
-                    setEvents(prev => [newEvent, ...prev].slice(0, maxEvents));
+                    setEvents(prev => {
+                        if (isClearingRef.current) return prev;
+                        return [newEvent, ...prev].slice(0, maxEvents);
+                    });
                     
                     // Update render progress to show stopped state
                     setRenderProgress(prev => ({
@@ -202,10 +251,10 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                     }));
                     // Also update render loop status
                     setIsRenderLoopActive(false);
-                }, { component: 'EventBusMonitor' });
-
-                // Listen for worker kill failed events
-                unsubscribeWorkerKillFailed = EventBusService.subscribe('workerKillFailed', (data) => {
+                };
+                
+                const workerKillFailedHandler = (data) => {
+                    if (isClearingRef.current) return;
                     console.log('🎯 EventBusMonitor: Worker kill failed event:', data);
                     const newEvent = {
                         id: Date.now() + Math.random(),
@@ -215,8 +264,59 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                         data: data,
                         raw: JSON.stringify(data, null, 2)
                     };
-                    setEvents(prev => [newEvent, ...prev].slice(0, maxEvents));
-                }, { component: 'EventBusMonitor' });
+                    setEvents(prev => {
+                        if (isClearingRef.current) return prev;
+                        return [newEvent, ...prev].slice(0, maxEvents);
+                    });
+                };
+
+                // Store handlers in ref so clearEvents can re-subscribe
+                eventBusHandlersRef.current = {
+                    renderLoopToggle: renderLoopToggleHandler,
+                    renderLoopError: renderLoopErrorHandler,
+                    renderLoopStart: renderLoopStartHandler,
+                    workerStarted: workerStartedHandler,
+                    workerKilled: workerKilledHandler,
+                    workerKillFailed: workerKillFailedHandler,
+                    EventBusService: EventBusService // Store service reference too
+                };
+
+                // Subscribe and store unsubscribe functions in refs
+                eventBusUnsubscribersRef.current.renderLoopToggle = EventBusService.subscribe(
+                    'renderloop:toggled', 
+                    renderLoopToggleHandler, 
+                    { component: 'EventBusMonitor' }
+                );
+
+                eventBusUnsubscribersRef.current.renderLoopError = EventBusService.subscribe(
+                    'renderloop:error', 
+                    renderLoopErrorHandler, 
+                    { component: 'EventBusMonitor' }
+                );
+
+                eventBusUnsubscribersRef.current.renderLoopStart = EventBusService.subscribe(
+                    'render.loop.start', 
+                    renderLoopStartHandler, 
+                    { component: 'EventBusMonitor' }
+                );
+
+                eventBusUnsubscribersRef.current.workerStarted = EventBusService.subscribe(
+                    'workerStarted', 
+                    workerStartedHandler, 
+                    { component: 'EventBusMonitor' }
+                );
+
+                eventBusUnsubscribersRef.current.workerKilled = EventBusService.subscribe(
+                    'workerKilled', 
+                    workerKilledHandler, 
+                    { component: 'EventBusMonitor' }
+                );
+
+                eventBusUnsubscribersRef.current.workerKillFailed = EventBusService.subscribe(
+                    'workerKillFailed', 
+                    workerKillFailedHandler, 
+                    { component: 'EventBusMonitor' }
+                );
 
             }).catch(error => {
                 console.error('❌ EventBusMonitor: Failed to set up worker event listeners:', error);
@@ -224,12 +324,13 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
 
             return () => {
                 console.log('🧹 EventBusMonitor: Cleaning up event-driven worker listeners');
-                if (unsubscribeWorkerStarted) unsubscribeWorkerStarted();
-                if (unsubscribeWorkerKilled) unsubscribeWorkerKilled();
-                if (unsubscribeWorkerKillFailed) unsubscribeWorkerKillFailed();
-                if (unsubscribeRenderLoopToggle) unsubscribeRenderLoopToggle();
-                if (unsubscribeRenderLoopError) unsubscribeRenderLoopError();
-                if (unsubscribeRenderLoopStart) unsubscribeRenderLoopStart();
+                const unsubs = eventBusUnsubscribersRef.current;
+                if (unsubs.workerStarted) unsubs.workerStarted();
+                if (unsubs.workerKilled) unsubs.workerKilled();
+                if (unsubs.workerKillFailed) unsubs.workerKillFailed();
+                if (unsubs.renderLoopToggle) unsubs.renderLoopToggle();
+                if (unsubs.renderLoopError) unsubs.renderLoopError();
+                if (unsubs.renderLoopStart) unsubs.renderLoopStart();
             };
         }
     }, [open]);
@@ -259,18 +360,172 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
     };
 
     const clearEvents = () => {
-        console.log('🧹 EventBusMonitor: Starting clear operation...');
+        // Prevent multiple simultaneous clear operations
+        if (isClearingRef.current) {
+            console.log('⚠️ EventBusMonitor: Clear already in progress, ignoring...');
+            return;
+        }
         
-        // Clear UI state first
-        setEvents([]);
+        console.log('🧹🧹🧹 EventBusMonitor: Starting NUCLEAR clear operation...');
         
-        // Clear expanded events state
-        setExpandedEvents(new Set());
+        // Clear any pending timeout
+        if (clearTimeoutRef.current) {
+            clearTimeout(clearTimeoutRef.current);
+        }
         
-        // Force clear the persistent buffer in EventCaptureService
+        // STEP 1A: Completely unregister the EventCaptureService callback FIRST
+        // This must happen BEFORE setting the clearing flag to prevent race conditions
+        if (unregisterCallbackRef.current) {
+            console.log('🛑 EventBusMonitor: Unregistering EventCaptureService callback');
+            unregisterCallbackRef.current();
+            unregisterCallbackRef.current = null;
+        }
+        
+        // STEP 1B: Completely unregister ALL EventBusService subscriptions
+        console.log('🛑 EventBusMonitor: Unregistering ALL EventBusService subscriptions');
+        const unsubs = eventBusUnsubscribersRef.current;
+        if (unsubs.workerStarted) {
+            unsubs.workerStarted();
+            unsubs.workerStarted = null;
+        }
+        if (unsubs.workerKilled) {
+            unsubs.workerKilled();
+            unsubs.workerKilled = null;
+        }
+        if (unsubs.workerKillFailed) {
+            unsubs.workerKillFailed();
+            unsubs.workerKillFailed = null;
+        }
+        if (unsubs.renderLoopToggle) {
+            unsubs.renderLoopToggle();
+            unsubs.renderLoopToggle = null;
+        }
+        if (unsubs.renderLoopError) {
+            unsubs.renderLoopError();
+            unsubs.renderLoopError = null;
+        }
+        if (unsubs.renderLoopStart) {
+            unsubs.renderLoopStart();
+            unsubs.renderLoopStart = null;
+        }
+        
+        console.log('🔇 EventBusMonitor: ALL event sources disconnected');
+        
+        // STEP 1C: NOW set the clearing flag after callbacks are unregistered
+        isClearingRef.current = true;
+        
+        // STEP 2: Remember if buffering was already paused
+        const wasBufferingPaused = EventCaptureService.isBufferingPausedState();
+        
+        // STEP 3: Pause buffering to stop new events from being stored
+        if (!wasBufferingPaused) {
+            EventCaptureService.pauseBuffering();
+        }
+        
+        // STEP 4: Clear the service buffer
         EventCaptureService.clearBuffer(true);
         
-        console.log('✅ EventBusMonitor: All events cleared (UI + buffer)');
+        // STEP 5: Use flushSync to force IMMEDIATE synchronous state updates
+        // This bypasses React's batching and applies changes instantly
+        console.log('🧹 EventBusMonitor: Forcing SYNCHRONOUS state clear with flushSync...');
+        flushSync(() => {
+            setEvents([]);
+            setExpandedEvents(new Set());
+            setSearchQuery('');
+            setRenderKey(prev => prev + 1); // Force complete re-render
+        });
+        console.log('✅ EventBusMonitor: First synchronous clear complete');
+        
+        // STEP 6: Set up CONTINUOUS clearing loop - clear every 25ms for 1.5 seconds
+        // This aggressively catches any stragglers that slip through
+        const clearIntervalId = setInterval(() => {
+            flushSync(() => {
+                setEvents([]);
+                setExpandedEvents(new Set());
+                setRenderKey(prev => prev + 1); // Force re-render on each clear
+            });
+        }, 25); // Clear every 25ms
+        
+        console.log('🔄 EventBusMonitor: Started continuous clearing loop (every 25ms)');
+        console.log('✅ EventBusMonitor: All events cleared (UI + buffer + ALL callbacks unregistered)');
+        
+        // STEP 7: Wait for a long time before re-registering to ensure complete silence
+        clearTimeoutRef.current = setTimeout(() => {
+            // Stop the continuous clearing loop
+            clearInterval(clearIntervalId);
+            console.log('🛑 EventBusMonitor: Stopped continuous clearing loop');
+            
+            // One final flushSync clear before re-registration
+            flushSync(() => {
+                setEvents([]);
+                setExpandedEvents(new Set());
+                setRenderKey(prev => prev + 1); // Force final re-render
+            });
+            console.log('🧹 EventBusMonitor: Final clear before re-registration');
+            
+            console.log('🔓 EventBusMonitor: Clear operation complete, re-registering ALL callbacks...');
+            
+            // Re-register the EventCaptureService callback
+            if (handleEventRef.current) {
+                const newUnregister = EventCaptureService.registerCallback(handleEventRef.current);
+                unregisterCallbackRef.current = newUnregister;
+                console.log('✅ EventBusMonitor: EventCaptureService callback re-registered');
+            }
+            
+            // Re-register ALL EventBusService subscriptions
+            const handlers = eventBusHandlersRef.current;
+            if (handlers.EventBusService) {
+                const EventBusService = handlers.EventBusService;
+                
+                eventBusUnsubscribersRef.current.renderLoopToggle = EventBusService.subscribe(
+                    'renderloop:toggled', 
+                    handlers.renderLoopToggle, 
+                    { component: 'EventBusMonitor' }
+                );
+                
+                eventBusUnsubscribersRef.current.renderLoopError = EventBusService.subscribe(
+                    'renderloop:error', 
+                    handlers.renderLoopError, 
+                    { component: 'EventBusMonitor' }
+                );
+                
+                eventBusUnsubscribersRef.current.renderLoopStart = EventBusService.subscribe(
+                    'render.loop.start', 
+                    handlers.renderLoopStart, 
+                    { component: 'EventBusMonitor' }
+                );
+                
+                eventBusUnsubscribersRef.current.workerStarted = EventBusService.subscribe(
+                    'workerStarted', 
+                    handlers.workerStarted, 
+                    { component: 'EventBusMonitor' }
+                );
+                
+                eventBusUnsubscribersRef.current.workerKilled = EventBusService.subscribe(
+                    'workerKilled', 
+                    handlers.workerKilled, 
+                    { component: 'EventBusMonitor' }
+                );
+                
+                eventBusUnsubscribersRef.current.workerKillFailed = EventBusService.subscribe(
+                    'workerKillFailed', 
+                    handlers.workerKillFailed, 
+                    { component: 'EventBusMonitor' }
+                );
+                
+                console.log('✅ EventBusMonitor: ALL EventBusService subscriptions re-registered');
+            }
+            
+            // Resume buffering if it wasn't paused before
+            if (!wasBufferingPaused) {
+                EventCaptureService.resumeBuffering();
+                console.log('▶️ EventBusMonitor: Buffering resumed after clear');
+            }
+            
+            // Clear the clearing flag
+            isClearingRef.current = false;
+            console.log('🎉 EventBusMonitor: NUCLEAR clear complete - all systems restored');
+        }, 1500);
     };
     
     const toggleBuffering = () => {
@@ -380,139 +635,243 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
         return event.type;
     };
 
-    // Console-style rendering (Chrome DevTools inspired)
-    const renderConsole = () => (
-        <Box 
-            ref={eventListRef}
-            sx={{ 
-                height: 'calc(100vh - 200px)',
-                overflow: 'auto',
-                bgcolor: '#1e1e1e',
-                fontFamily: 'Consolas, Monaco, "Courier New", monospace',
-                fontSize: '12px',
-                color: '#cccccc',
-                p: 1
-            }}
-        >
-            {events.length === 0 && (
-                <Box sx={{ p: 2, color: '#888', textAlign: 'center' }}>
-                    Console is empty. Waiting for events...
-                </Box>
-            )}
+    // Filter events based on search query
+    const filterEvents = (events) => {
+        if (!searchQuery.trim()) return events;
+        
+        const query = searchQuery.toLowerCase();
+        return events.filter(event => {
+            const message = formatMessage(event).toLowerCase();
+            const type = event.type.toLowerCase();
+            const category = event.category.toLowerCase();
+            const timestamp = new Date(event.timestamp).toLocaleTimeString('en-US', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                fractionalSecondDigits: 3
+            }).toLowerCase();
+            const dataStr = JSON.stringify(event.data).toLowerCase();
             
-            {events.map((event) => {
-                const isExpanded = expandedEvents.has(event.id);
-                const levelColor = getLevelColor(event.category);
-                const message = formatMessage(event);
+            return message.includes(query) || 
+                   type.includes(query) || 
+                   category.includes(query) ||
+                   timestamp.includes(query) ||
+                   dataStr.includes(query);
+        });
+    };
+
+    // Copy event to clipboard
+    const copyEventToClipboard = (event, e) => {
+        e.stopPropagation();
+        const timestamp = new Date(event.timestamp).toLocaleTimeString('en-US', {
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            fractionalSecondDigits: 3
+        });
+        const message = formatMessage(event);
+        const text = `[${timestamp}] ${message}`;
+        
+        navigator.clipboard.writeText(text).then(() => {
+            console.log('✅ Event copied to clipboard');
+        }).catch(err => {
+            console.error('❌ Failed to copy event:', err);
+        });
+    };
+
+    // Copy all visible events to clipboard
+    const copyAllToClipboard = () => {
+        const filteredEvents = filterEvents(events);
+        const text = filteredEvents.map(event => {
+            const timestamp = new Date(event.timestamp).toLocaleTimeString('en-US', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                fractionalSecondDigits: 3
+            });
+            const message = formatMessage(event);
+            return `[${timestamp}] ${message}`;
+        }).join('\n');
+        
+        navigator.clipboard.writeText(text).then(() => {
+            console.log('✅ All events copied to clipboard');
+        }).catch(err => {
+            console.error('❌ Failed to copy events:', err);
+        });
+    };
+
+    // Console-style rendering (Chrome DevTools inspired)
+    const renderConsole = () => {
+        const filteredEvents = filterEvents(events);
+        
+        return (
+            <Box 
+                key={renderKey} // Force complete re-render when renderKey changes
+                ref={eventListRef}
+                sx={{ 
+                    height: 'calc(100vh - 200px)',
+                    overflow: 'auto',
+                    bgcolor: '#1e1e1e',
+                    fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+                    fontSize: '12px',
+                    color: '#cccccc',
+                    userSelect: 'text',
+                    cursor: 'text'
+                }}
+            >
+                {events.length === 0 && (
+                    <Box sx={{ p: 2, color: '#888', textAlign: 'center' }}>
+                        Console is empty. Waiting for events...
+                    </Box>
+                )}
                 
-                return (
-                    <Box 
-                        key={event.id}
-                        onClick={() => toggleEventExpansion(event.id)}
-                        sx={{
-                            py: 0.5,
-                            px: 1,
-                            cursor: 'pointer',
-                            borderBottom: '1px solid #2d2d2d',
-                            '&:hover': {
-                                bgcolor: '#2d2d2d'
-                            }
-                        }}
-                    >
-                        {/* Console line */}
-                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                            {/* Timestamp */}
-                            <Typography 
-                                component="span"
-                                sx={{ 
-                                    color: '#888',
-                                    fontSize: '11px',
-                                    minWidth: '80px',
-                                    flexShrink: 0
-                                }}
-                            >
-                                {new Date(event.timestamp).toLocaleTimeString('en-US', {
-                                    hour12: false,
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    second: '2-digit',
-                                    fractionalSecondDigits: 3
-                                })}
-                            </Typography>
-                            
-                            {/* Event type badge */}
-                            <Typography 
-                                component="span"
-                                sx={{ 
-                                    color: levelColor,
-                                    fontSize: '11px',
-                                    fontWeight: 600,
-                                    minWidth: '60px',
-                                    flexShrink: 0
-                                }}
-                            >
-                                {event.type.startsWith('node.console.') 
-                                    ? event.type.replace('node.console.', '').toUpperCase()
-                                    : event.category}
-                            </Typography>
-                            
-                            {/* Message */}
-                            <Typography 
-                                component="span"
-                                sx={{ 
-                                    color: '#cccccc',
-                                    flex: 1,
-                                    wordBreak: 'break-word'
-                                }}
-                            >
-                                {message}
-                            </Typography>
-                            
-                            {/* Expand indicator */}
-                            <Typography 
-                                component="span"
-                                sx={{ 
-                                    color: '#888',
-                                    fontSize: '10px',
-                                    flexShrink: 0
-                                }}
-                            >
-                                {isExpanded ? '▼' : '▶'}
-                            </Typography>
-                        </Box>
-                        
-                        {/* Expanded details */}
-                        {isExpanded && (
+                {events.length > 0 && filteredEvents.length === 0 && (
+                    <Box sx={{ p: 2, color: '#888', textAlign: 'center' }}>
+                        No events match your search query "{searchQuery}"
+                    </Box>
+                )}
+                
+                {filteredEvents.map((event) => {
+                    const isExpanded = expandedEvents.has(event.id);
+                    const levelColor = getLevelColor(event.category);
+                    const message = formatMessage(event);
+                    
+                    return (
+                        <Box 
+                            key={event.id}
+                            sx={{
+                                borderBottom: '1px solid #2a2a2a',
+                                '&:hover': {
+                                    bgcolor: '#252525'
+                                },
+                                '&:hover .copy-button': {
+                                    opacity: 1
+                                }
+                            }}
+                        >
+                            {/* Console line */}
                             <Box 
+                                onClick={() => toggleEventExpansion(event.id)}
                                 sx={{ 
-                                    mt: 1,
-                                    ml: 4,
-                                    p: 1,
-                                    bgcolor: '#252525',
-                                    borderLeft: `3px solid ${levelColor}`,
-                                    borderRadius: '2px'
+                                    display: 'flex', 
+                                    alignItems: 'flex-start', 
+                                    gap: 1.5,
+                                    py: 0.5,
+                                    px: 1,
+                                    cursor: 'pointer',
+                                    position: 'relative'
                                 }}
                             >
+                                {/* Timestamp */}
                                 <Typography 
-                                    component="pre"
-                                    sx={{
-                                        fontFamily: 'inherit',
+                                    component="span"
+                                    sx={{ 
+                                        color: '#6e7681',
                                         fontSize: '11px',
-                                        color: '#d4d4d4',
-                                        margin: 0,
-                                        whiteSpace: 'pre-wrap',
-                                        wordBreak: 'break-word'
+                                        minWidth: '90px',
+                                        flexShrink: 0,
+                                        fontFamily: 'inherit',
+                                        userSelect: 'text'
                                     }}
                                 >
-                                    {JSON.stringify(event.eventData, null, 2)}
+                                    {new Date(event.timestamp).toLocaleTimeString('en-US', {
+                                        hour12: false,
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        second: '2-digit',
+                                        fractionalSecondDigits: 3
+                                    })}
+                                </Typography>
+                                
+                                {/* Message */}
+                                <Typography 
+                                    component="span"
+                                    sx={{ 
+                                        color: '#d4d4d4',
+                                        flex: 1,
+                                        wordBreak: 'break-word',
+                                        fontFamily: 'inherit',
+                                        userSelect: 'text',
+                                        lineHeight: 1.5
+                                    }}
+                                >
+                                    {message}
+                                </Typography>
+                                
+                                {/* Copy button */}
+                                <IconButton
+                                    className="copy-button"
+                                    size="small"
+                                    onClick={(e) => copyEventToClipboard(event, e)}
+                                    sx={{
+                                        opacity: 0,
+                                        transition: 'opacity 0.2s',
+                                        color: '#6e7681',
+                                        padding: '2px',
+                                        '&:hover': {
+                                            color: '#d4d4d4',
+                                            bgcolor: '#3a3a3a'
+                                        }
+                                    }}
+                                >
+                                    <ContentCopy sx={{ fontSize: '14px' }} />
+                                </IconButton>
+                                
+                                {/* Expand indicator */}
+                                <Typography 
+                                    component="span"
+                                    sx={{ 
+                                        color: '#6e7681',
+                                        fontSize: '10px',
+                                        flexShrink: 0,
+                                        fontFamily: 'inherit'
+                                    }}
+                                >
+                                    {isExpanded ? '▼' : '▶'}
                                 </Typography>
                             </Box>
-                        )}
-                    </Box>
-                );
-            })}
-        </Box>
-    );
+                            
+                            {/* Expanded details */}
+                            {isExpanded && (
+                                <Box 
+                                    sx={{ 
+                                        mt: 0.5,
+                                        mb: 0.5,
+                                        ml: 4,
+                                        mr: 1,
+                                        p: 1.5,
+                                        bgcolor: '#0d1117',
+                                        borderLeft: `3px solid ${levelColor}`,
+                                        borderRadius: '4px',
+                                        border: '1px solid #30363d'
+                                    }}
+                                >
+                                    <Typography 
+                                        component="pre"
+                                        sx={{
+                                            fontFamily: 'inherit',
+                                            fontSize: '11px',
+                                            color: '#8b949e',
+                                            margin: 0,
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word',
+                                            userSelect: 'text',
+                                            lineHeight: 1.6
+                                        }}
+                                    >
+                                        {JSON.stringify(event.eventData, null, 2)}
+                                    </Typography>
+                                </Box>
+                            )}
+                        </Box>
+                    );
+                })}
+            </Box>
+        );
+    };
 
     return (
         <>
@@ -550,87 +909,168 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
             {/* Simplified toolbar */}
             <Box sx={{ 
                 display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'space-between',
+                flexDirection: 'column',
                 bgcolor: (renderProgress.isRendering || isRenderLoopActive) ? '#3d2d2d' : '#2d2d2d',
                 color: '#cccccc',
-                px: 2,
-                py: 1,
                 borderBottom: '1px solid #1e1e1e',
                 transition: 'background-color 0.3s ease'
             }}>
-                <Typography sx={{ fontSize: '13px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {(renderProgress.isRendering || isRenderLoopActive) && (
-                        <span style={{ 
-                            display: 'inline-block', 
-                            width: '8px', 
-                            height: '8px', 
-                            borderRadius: '50%', 
-                            backgroundColor: '#f44336',
-                            animation: 'pulse 1.5s ease-in-out infinite'
-                        }} />
-                    )}
-                    Console ({events.length} events)
-                    {(renderProgress.isRendering || isRenderLoopActive) && (
-                        <span style={{ color: '#f44336', fontSize: '11px', fontWeight: 600 }}>
-                            • RENDERING
-                        </span>
-                    )}
-                </Typography>
+                {/* Top row - Title and controls */}
+                <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between',
+                    px: 2,
+                    py: 1
+                }}>
+                    <Typography sx={{ fontSize: '13px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {(renderProgress.isRendering || isRenderLoopActive) && (
+                            <span style={{ 
+                                display: 'inline-block', 
+                                width: '8px', 
+                                height: '8px', 
+                                borderRadius: '50%', 
+                                backgroundColor: '#f44336',
+                                animation: 'pulse 1.5s ease-in-out infinite'
+                            }} />
+                        )}
+                        Console ({filterEvents(events).length}{events.length !== filterEvents(events).length ? ` / ${events.length}` : ''} events)
+                        {(renderProgress.isRendering || isRenderLoopActive) && (
+                            <span style={{ color: '#f44336', fontSize: '11px', fontWeight: 600 }}>
+                                • RENDERING
+                            </span>
+                        )}
+                    </Typography>
 
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                    {/* Kill Button - Always visible and enabled for emergency stops */}
-                    <Tooltip title={
-                        isStoppingRenderLoop 
-                            ? "Stopping..." 
-                            : (renderProgress.isRendering || isRenderLoopActive)
-                                ? "Stop Render Loop (Active)"
-                                : "Emergency Stop (Force kill all workers)"
-                    }>
-                        <IconButton 
-                            onClick={stopRenderLoop} 
-                            size="small"
-                            sx={{ 
-                                color: (renderProgress.isRendering || isRenderLoopActive) ? '#f44336' : '#ff9800',
-                                '&:hover': { bgcolor: '#3d3d3d' }
-                            }}
-                        >
-                            <Stop fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    
-                    <Tooltip title={isBufferingPaused ? "Resume event buffering" : "Pause event buffering"}>
-                        <IconButton 
-                            onClick={toggleBuffering}
-                            size="small"
-                            sx={{ 
-                                color: isBufferingPaused ? '#ff9800' : '#4caf50',
-                                '&:hover': { bgcolor: '#3d3d3d' }
-                            }}
-                        >
-                            {isBufferingPaused ? <PlayArrow fontSize="small" /> : <Pause fontSize="small" />}
-                        </IconButton>
-                    </Tooltip>
-                    
-                    <Tooltip title="Clear console">
-                        <IconButton 
-                            onClick={clearEvents}
-                            size="small"
-                            sx={{ color: '#cccccc', '&:hover': { bgcolor: '#3d3d3d' } }}
-                        >
-                            <Clear fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    
-                    <Tooltip title="Close">
-                        <IconButton 
-                            onClick={onClose}
-                            size="small"
-                            sx={{ color: '#cccccc', '&:hover': { bgcolor: '#3d3d3d' } }}
-                        >
-                            <Close fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                        {/* Copy All Button */}
+                        <Tooltip title="Copy all visible events to clipboard">
+                            <IconButton 
+                                onClick={copyAllToClipboard}
+                                size="small"
+                                disabled={filterEvents(events).length === 0}
+                                sx={{ 
+                                    color: '#cccccc',
+                                    '&:hover': { bgcolor: '#3d3d3d' },
+                                    '&:disabled': { color: '#555' }
+                                }}
+                            >
+                                <ContentCopy fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        
+                        {/* Kill Button - Always visible and enabled for emergency stops */}
+                        <Tooltip title={
+                            isStoppingRenderLoop 
+                                ? "Stopping..." 
+                                : (renderProgress.isRendering || isRenderLoopActive)
+                                    ? "Stop Render Loop (Active)"
+                                    : "Emergency Stop (Force kill all workers)"
+                        }>
+                            <IconButton 
+                                onClick={stopRenderLoop} 
+                                size="small"
+                                sx={{ 
+                                    color: (renderProgress.isRendering || isRenderLoopActive) ? '#f44336' : '#ff9800',
+                                    '&:hover': { bgcolor: '#3d3d3d' }
+                                }}
+                            >
+                                <Stop fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        
+                        <Tooltip title={isBufferingPaused ? "Resume event buffering" : "Pause event buffering"}>
+                            <IconButton 
+                                onClick={toggleBuffering}
+                                size="small"
+                                sx={{ 
+                                    color: isBufferingPaused ? '#ff9800' : '#4caf50',
+                                    '&:hover': { bgcolor: '#3d3d3d' }
+                                }}
+                            >
+                                {isBufferingPaused ? <PlayArrow fontSize="small" /> : <Pause fontSize="small" />}
+                            </IconButton>
+                        </Tooltip>
+                        
+                        <Tooltip title="Clear console">
+                            <IconButton 
+                                onClick={clearEvents}
+                                size="small"
+                                sx={{ 
+                                    color: '#ffa726',
+                                    '&:hover': { 
+                                        bgcolor: '#3d3d3d',
+                                        color: '#ffb74d'
+                                    } 
+                                }}
+                            >
+                                <DeleteSweep fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        
+                        <Tooltip title="Close">
+                            <IconButton 
+                                onClick={onClose}
+                                size="small"
+                                sx={{ color: '#cccccc', '&:hover': { bgcolor: '#3d3d3d' } }}
+                            >
+                                <Close fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    </Box>
+                </Box>
+                
+                {/* Search bar */}
+                <Box sx={{ px: 2, pb: 1 }}>
+                    <TextField
+                        fullWidth
+                        size="small"
+                        placeholder="Filter console output..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <Search sx={{ fontSize: '18px', color: '#6e7681' }} />
+                                </InputAdornment>
+                            ),
+                            endAdornment: searchQuery && (
+                                <InputAdornment position="end">
+                                    <IconButton
+                                        size="small"
+                                        onClick={() => setSearchQuery('')}
+                                        sx={{ 
+                                            padding: '4px',
+                                            color: '#6e7681',
+                                            '&:hover': { color: '#d4d4d4' }
+                                        }}
+                                    >
+                                        <Clear sx={{ fontSize: '16px' }} />
+                                    </IconButton>
+                                </InputAdornment>
+                            )
+                        }}
+                        sx={{
+                            '& .MuiOutlinedInput-root': {
+                                bgcolor: '#1e1e1e',
+                                color: '#d4d4d4',
+                                fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+                                fontSize: '12px',
+                                '& fieldset': {
+                                    borderColor: '#30363d'
+                                },
+                                '&:hover fieldset': {
+                                    borderColor: '#6e7681'
+                                },
+                                '&.Mui-focused fieldset': {
+                                    borderColor: '#58a6ff'
+                                }
+                            },
+                            '& .MuiOutlinedInput-input': {
+                                padding: '6px 8px'
+                            }
+                        }}
+                    />
                 </Box>
             </Box>
 
