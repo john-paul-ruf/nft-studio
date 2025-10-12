@@ -6,7 +6,6 @@ import {
     Box,
     Typography,
     IconButton,
-    LinearProgress,
     Tooltip,
     TextField,
     InputAdornment
@@ -24,7 +23,6 @@ import {
 } from '@mui/icons-material';
 import EventCaptureService from '../services/EventCaptureService';
 import EventFilterService from '../services/EventFilterService';
-import RenderProgressTracker from '../services/RenderProgressTracker';
 
 export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, setIsMinimized, isForResumedProject = false, renderLoopActive = false }) {
     const [events, setEvents] = useState([]);
@@ -34,19 +32,6 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
     const [isBufferingPaused, setIsBufferingPaused] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [renderKey, setRenderKey] = useState(0); // Force re-render key
-    // Progress tracking state - now managed by RenderProgressTracker
-    const [renderProgress, setRenderProgress] = useState({
-        isRendering: false,
-        currentFrame: 0,
-        totalFrames: 100,
-        progress: 0,
-        projectName: '',
-        fps: 0,
-        eta: '',
-        startTime: null,
-        avgRenderTime: 0,
-        lastFrameTime: 0
-    });
     const eventListRef = useRef(null);
     const isClearingRef = useRef(false);
     const clearTimeoutRef = useRef(null);
@@ -161,31 +146,6 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                 return; // Don't add this meta-event to the display
             }
             
-            // Track render progress using RenderProgressTracker
-            if (eventName === 'render.loop.start' || eventName === 'project.resume.start') {
-                RenderProgressTracker.handleRenderLoopStart(data);
-            } else if (eventName === 'render.loop.complete') {
-                RenderProgressTracker.handleRenderLoopComplete();
-            } else if (eventName === 'render.loop.error') {
-                RenderProgressTracker.handleRenderLoopError();
-            } else if (eventName === 'frameCompleted') {
-                RenderProgressTracker.handleFrameCompleted(data);
-            } else if (eventName === 'frameStarted') {
-                RenderProgressTracker.handleFrameStarted(data);
-            }
-            // Update render progress state from tracker
-            setRenderProgress({
-                isRendering: RenderProgressTracker.isRendering(),
-                currentFrame: RenderProgressTracker.getCurrentFrame(),
-                totalFrames: RenderProgressTracker.getTotalFrames(),
-                progress: RenderProgressTracker.getProgressPercentage(),
-                projectName: RenderProgressTracker.getProjectName(),
-                fps: RenderProgressTracker.getFPS(),
-                eta: RenderProgressTracker.getETA(),
-                startTime: RenderProgressTracker.getStartTime(),
-                avgRenderTime: RenderProgressTracker.getAvgRenderTime(),
-                lastFrameTime: 0
-            });
             // Create event object using EventFilterService for categorization
             const newEvent = {
                 id: Date.now() + Math.random(),
@@ -279,12 +239,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                     };
                     addEventToBuffer(newEvent);
                     
-                    // Update render progress to show stopped state
-                    setRenderProgress(prev => ({
-                        ...prev,
-                        isRendering: false
-                    }));
-                    // Also update render loop status
+                    // Update render loop status
                     setIsRenderLoopActive(false);
                 };
                 
@@ -595,21 +550,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                 console.log('✅ EventBusMonitor: Render loop stopped via fallback:', result);
             }
             
-            // Reset render progress using RenderProgressTracker
-            RenderProgressTracker.stopRendering();
-            setRenderProgress({
-                isRendering: false,
-                currentFrame: 0,
-                totalFrames: 100,
-                progress: 0,
-                projectName: '',
-                fps: 0,
-                eta: '',
-                startTime: null,
-                avgRenderTime: 0,
-                lastFrameTime: 0
-            });
-            // Also reset render loop status
+            // Reset render loop status
             setIsRenderLoopActive(false);
             
             // Emit event to notify other components
@@ -666,21 +607,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                 console.log('✅ EventBusMonitor: Emergency stop via fallback:', result);
             }
             
-            // Reset render progress using RenderProgressTracker
-            RenderProgressTracker.stopRendering();
-            setRenderProgress({
-                isRendering: false,
-                currentFrame: 0,
-                totalFrames: 100,
-                progress: 0,
-                projectName: '',
-                fps: 0,
-                eta: '',
-                startTime: null,
-                avgRenderTime: 0,
-                lastFrameTime: 0
-            });
-            // Also reset render loop status
+            // Reset render loop status
             setIsRenderLoopActive(false);
             
             // Emit event to notify other components
@@ -1012,7 +939,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
             <Box sx={{ 
                 display: 'flex', 
                 flexDirection: 'column',
-                bgcolor: (renderProgress.isRendering || isRenderLoopActive) ? '#3d2d2d' : '#2d2d2d',
+                bgcolor: isRenderLoopActive ? '#3d2d2d' : '#2d2d2d',
                 color: '#cccccc',
                 borderBottom: '1px solid #1e1e1e',
                 transition: 'background-color 0.3s ease'
@@ -1026,7 +953,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                     py: 1
                 }}>
                     <Typography sx={{ fontSize: '13px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {(renderProgress.isRendering || isRenderLoopActive) && (
+                        {isRenderLoopActive && (
                             <span style={{ 
                                 display: 'inline-block', 
                                 width: '8px', 
@@ -1037,7 +964,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                             }} />
                         )}
                         Console ({filterEvents(events).length}{events.length !== filterEvents(events).length ? ` / ${events.length}` : ''} events)
-                        {(renderProgress.isRendering || isRenderLoopActive) && (
+                        {isRenderLoopActive && (
                             <span style={{ color: '#f44336', fontSize: '11px', fontWeight: 600 }}>
                                 • RENDERING
                             </span>
@@ -1062,7 +989,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                         </Tooltip>
                         
                         {/* Normal Stop Button - Only visible when render loop is active */}
-                        {(renderProgress.isRendering || isRenderLoopActive) && (
+                        {isRenderLoopActive && (
                             <Tooltip title={isStoppingRenderLoop ? "Stopping..." : "Stop Render Loop (Graceful)"}>
                                 <IconButton 
                                     onClick={stopRenderLoop} 
@@ -1225,61 +1152,6 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
             </Box>
 
             <DialogContent sx={{ p: 0, bgcolor: '#1e1e1e' }}>
-                {/* Progress Bar - Simplified */}
-                {renderProgress.isRendering && (
-                    <Box sx={{ bgcolor: '#2d2d2d', p: 1.5, borderBottom: '1px solid #1e1e1e' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-                            <Typography sx={{ fontSize: '12px', color: '#4caf50', fontWeight: 600 }}>
-                                🎬 Rendering: {renderProgress.projectName}
-                            </Typography>
-                            <Typography sx={{ fontSize: '11px', color: '#888' }}>
-                                {renderProgress.currentFrame}/{renderProgress.totalFrames} frames • {renderProgress.progress}%
-                            </Typography>
-                        </Box>
-
-                        <LinearProgress
-                            variant="determinate"
-                            value={renderProgress.progress}
-                            sx={{
-                                height: 4,
-                                borderRadius: 1,
-                                bgcolor: '#1e1e1e',
-                                '& .MuiLinearProgress-bar': {
-                                    borderRadius: 1,
-                                    bgcolor: '#4caf50'
-                                }
-                            }}
-                        />
-                    </Box>
-                )}
-
-                {/* Basic render loop status */}
-                {!renderProgress.isRendering && isRenderLoopActive && (
-                    <Box sx={{ bgcolor: '#2d2d2d', p: 1.5, borderBottom: '1px solid #1e1e1e' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-                            <Typography sx={{ fontSize: '12px', color: '#ff9800', fontWeight: 600 }}>
-                                🔄 Render Loop Active
-                            </Typography>
-                            <Typography sx={{ fontSize: '11px', color: '#888' }}>
-                                Waiting for progress data...
-                            </Typography>
-                        </Box>
-
-                        <LinearProgress
-                            variant="indeterminate"
-                            sx={{
-                                height: 4,
-                                borderRadius: 1,
-                                bgcolor: '#1e1e1e',
-                                '& .MuiLinearProgress-bar': {
-                                    borderRadius: 1,
-                                    bgcolor: '#ff9800'
-                                }
-                            }}
-                        />
-                    </Box>
-                )}
-
                 {/* Console output */}
                 {renderConsole()}
             </DialogContent>
