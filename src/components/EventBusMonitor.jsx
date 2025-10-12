@@ -63,6 +63,44 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
     });
     const eventBusHandlersRef = useRef({});
     const maxEvents = 1000;
+    
+    // UI Display Buffer - batches events before updating display
+    const displayBufferRef = useRef([]);
+    const displayBufferTimerRef = useRef(null);
+    const [displayBufferDelay, setDisplayBufferDelay] = useState(100); // ms - configurable delay
+    
+    // Flush buffered events to display
+    const flushDisplayBuffer = () => {
+        if (displayBufferRef.current.length === 0) {
+            return;
+        }
+        
+        const eventsToAdd = [...displayBufferRef.current];
+        displayBufferRef.current = [];
+        
+        setEvents(prev => {
+            if (isClearingRef.current) {
+                return prev;
+            }
+            const updated = [...eventsToAdd, ...prev].slice(0, maxEvents);
+            return updated;
+        });
+    };
+    
+    // Helper to add event to display buffer
+    const addEventToBuffer = (newEvent) => {
+        if (isClearingRef.current) return;
+        
+        displayBufferRef.current.push(newEvent);
+        
+        // Schedule flush if not already scheduled
+        if (!displayBufferTimerRef.current) {
+            displayBufferTimerRef.current = setTimeout(() => {
+                displayBufferTimerRef.current = null;
+                flushDisplayBuffer();
+            }, displayBufferDelay);
+        }
+    };
 
     // Load buffered events when monitor opens
     useEffect(() => {
@@ -158,15 +196,8 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                 eventData: eventData
             };
             
-            // Batch state updates to prevent UI freezing
-            setEvents(prev => {
-                // Double-check clearing flag inside state updater to prevent race conditions
-                if (isClearingRef.current) {
-                    return prev; // Don't modify state if clearing
-                }
-                const updated = [newEvent, ...prev].slice(0, maxEvents);
-                return updated;
-            });
+            // Add to display buffer instead of immediately updating state
+            addEventToBuffer(newEvent);
         };
         
         // Store handler in ref so clearEvents can access it
@@ -186,6 +217,15 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
             if (clearTimeoutRef.current) {
                 clearTimeout(clearTimeoutRef.current);
             }
+            
+            // Clean up display buffer timer
+            if (displayBufferTimerRef.current) {
+                clearTimeout(displayBufferTimerRef.current);
+                displayBufferTimerRef.current = null;
+            }
+            
+            // Flush any remaining buffered events
+            flushDisplayBuffer();
         };
     }, []); // Empty dependency array - only run once on mount
 
@@ -223,10 +263,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                         data: data,
                         raw: JSON.stringify(data, null, 2)
                     };
-                    setEvents(prev => {
-                        if (isClearingRef.current) return prev;
-                        return [newEvent, ...prev].slice(0, maxEvents);
-                    });
+                    addEventToBuffer(newEvent);
                 };
                 
                 const workerKilledHandler = (data) => {
@@ -240,10 +277,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                         data: data,
                         raw: JSON.stringify(data, null, 2)
                     };
-                    setEvents(prev => {
-                        if (isClearingRef.current) return prev;
-                        return [newEvent, ...prev].slice(0, maxEvents);
-                    });
+                    addEventToBuffer(newEvent);
                     
                     // Update render progress to show stopped state
                     setRenderProgress(prev => ({
@@ -265,10 +299,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                         data: data,
                         raw: JSON.stringify(data, null, 2)
                     };
-                    setEvents(prev => {
-                        if (isClearingRef.current) return prev;
-                        return [newEvent, ...prev].slice(0, maxEvents);
-                    });
+                    addEventToBuffer(newEvent);
                 };
 
                 // Store handlers in ref so clearEvents can re-subscribe
@@ -1075,6 +1106,40 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                             >
                                 {isBufferingPaused ? <PlayArrow fontSize="small" /> : <Pause fontSize="small" />}
                             </IconButton>
+                        </Tooltip>
+                        
+                        {/* Display Buffer Delay Control */}
+                        <Tooltip title={`UI update delay: ${displayBufferDelay}ms (click to cycle: 50ms → 100ms → 250ms → 500ms)`}>
+                            <Box
+                                onClick={() => {
+                                    const delays = [50, 100, 250, 500];
+                                    const currentIndex = delays.indexOf(displayBufferDelay);
+                                    const nextIndex = (currentIndex + 1) % delays.length;
+                                    setDisplayBufferDelay(delays[nextIndex]);
+                                }}
+                                sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 0.5,
+                                    px: 1,
+                                    py: 0.5,
+                                    bgcolor: '#2d2d2d',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '11px',
+                                    color: '#888',
+                                    border: '1px solid #444',
+                                    '&:hover': {
+                                        bgcolor: '#3d3d3d',
+                                        color: '#aaa',
+                                        borderColor: '#666'
+                                    }
+                                }}
+                            >
+                                <Typography sx={{ fontSize: '11px', fontWeight: 500 }}>
+                                    Buffer: {displayBufferDelay}ms
+                                </Typography>
+                            </Box>
                         </Tooltip>
                         
                         <Tooltip title="Clear console">
