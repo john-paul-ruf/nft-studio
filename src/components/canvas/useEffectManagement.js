@@ -43,6 +43,35 @@ export default function useEffectManagement(projectState) {
     const currentEffects = projectState?.getState()?.effects || [];
     console.log('🎭 useEffectManagement: Hook called with ProjectState effects:', currentEffects.length, currentEffects.map(e => e.name || e.className));
 
+    /**
+     * 🔒 CRITICAL UTILITY: Resolve Effect ID to Current Index
+     * 
+     * This function ensures that effects are NEVER updated by index alone.
+     * It always resolves the effect ID to the current index in the array,
+     * which prevents race conditions during reordering, deletion, and rapid updates.
+     * 
+     * @param {string} effectId - The stable effect ID
+     * @param {string} context - Context for error logging (e.g., 'handleEffectUpdate')
+     * @returns {number|null} - Current index of the effect, or null if not found
+     */
+    const resolveEffectIndex = useCallback((effectId, context = 'unknown') => {
+        if (!effectId) {
+            console.error(`❌ ${context}: effectId is required but was not provided`);
+            return null;
+        }
+
+        const currentEffects = projectState.getState().effects || [];
+        const effectIndex = currentEffects.findIndex(e => e.id === effectId);
+
+        if (effectIndex === -1) {
+            console.error(`❌ ${context}: Effect with ID "${effectId}" not found in current effects array`);
+            return null;
+        }
+
+        console.log(`✅ ${context}: Resolved effect ID "${effectId}" to index ${effectIndex}`);
+        return effectIndex;
+    }, [projectState]);
+
     const [availableEffects, setAvailableEffects] = useState({
         primary: [],
         secondary: [],
@@ -146,7 +175,22 @@ export default function useEffectManagement(projectState) {
 
         const unsubscribeEffectToggleVisibility = eventBusService.subscribe('effect:togglevisibility', (payload) => {
             console.log('🎭 useEffectManagement: Effect toggle visibility event received:', payload);
-            handleEffectToggleVisibility(payload.effectIndex);
+            
+            // 🔒 CRITICAL: Use effect ID if provided, otherwise resolve from index
+            let effectId = payload.effectId;
+            if (!effectId && payload.effectIndex !== undefined) {
+                const currentEffects = projectState.getState().effects || [];
+                const effect = currentEffects[payload.effectIndex];
+                if (effect) {
+                    effectId = effect.id;
+                    console.warn('⚠️ effect:togglevisibility: Received index without ID, resolved to ID:', effectId);
+                } else {
+                    console.error('❌ effect:togglevisibility: Cannot resolve effect ID from index', payload.effectIndex);
+                    return;
+                }
+            }
+            
+            handleEffectToggleVisibility(effectId);
         }, { component: 'useEffectManagement' });
 
         const unsubscribeEffectAddSecondary = eventBusService.subscribe('effect:addsecondary', async (payload) => {
@@ -250,22 +294,40 @@ export default function useEffectManagement(projectState) {
             console.log('🎭 useEffectManagement: Effect config change event received:', payload);
 
             // Set editing context from the payload before updating config
-            if (payload.effectIndex !== undefined) {
-                // Get the effect ID to track it reliably across reorders
+            if (payload.effectIndex !== undefined || payload.effectId) {
                 const currentEffects = projectState.getState().effects || [];
-                const effect = currentEffects[payload.effectIndex];
                 
-                if (!effect || !effect.id) {
-                    console.error('❌ useEffectManagement: Cannot update effect without ID', { 
-                        effectIndex: payload.effectIndex, 
-                        effect 
-                    });
-                    return;
+                // CRITICAL FIX: Prioritize effect ID if provided (prevents race conditions)
+                let effectId = payload.effectId;
+                let effectIndex = payload.effectIndex;
+                
+                if (effectId) {
+                    // Effect ID provided - resolve to current index (handles reordering)
+                    const currentIndex = currentEffects.findIndex(e => e.id === effectId);
+                    if (currentIndex === -1) {
+                        console.error('❌ useEffectManagement: Effect with ID not found (may have been deleted):', { 
+                            effectId,
+                            originalIndex: effectIndex
+                        });
+                        return;
+                    }
+                    effectIndex = currentIndex;
+                } else {
+                    // Fallback: No effect ID provided, use index and look up ID
+                    const effect = currentEffects[effectIndex];
+                    if (!effect || !effect.id) {
+                        console.error('❌ useEffectManagement: Cannot update effect without ID', { 
+                            effectIndex, 
+                            effect 
+                        });
+                        return;
+                    }
+                    effectId = effect.id;
                 }
                 
                 const context = {
-                    effectId: effect.id, // Store ID for reliable tracking
-                    effectIndex: payload.effectIndex,
+                    effectId, // Store ID for reliable tracking across reorders
+                    effectIndex,
                     effectType: payload.effectType || 'primary',
                     subIndex: payload.subEffectIndex !== undefined ? payload.subEffectIndex : null
                 };
@@ -505,20 +567,33 @@ export default function useEffectManagement(projectState) {
         }
     }, [availableEffects, projectState, commandService]);
 
-    const handleEffectUpdate = useCallback((index, updatedEffect) => {
+    const handleEffectUpdate = useCallback((effectId, updatedEffect) => {
+        // 🔒 CRITICAL: Resolve effect ID to current index (NEVER use index alone)
+        const effectIndex = resolveEffectIndex(effectId, 'handleEffectUpdate');
+        if (effectIndex === null) {
+            console.error('❌ handleEffectUpdate: Cannot update effect - effect not found');
+            return;
+        }
+
         const currentEffects = projectState.getState().effects || [];
-        const currentEffect = currentEffects[index];
+        const currentEffect = currentEffects[effectIndex];
+        
+        if (!currentEffect) {
+            console.error('❌ handleEffectUpdate: Effect not found at resolved index');
+            return;
+        }
+
         const effectName = updatedEffect.name || updatedEffect.className || 'Effect';
 
         // Use command pattern for undo/redo support
-        const updateCommand = new UpdateEffectCommand(projectState, index, updatedEffect, effectName);
+        const updateCommand = new UpdateEffectCommand(projectState, effectIndex, updatedEffect, effectName);
         commandService.execute(updateCommand);
 
         // Verify what was actually stored
         const verifyEffects = projectState.getState().effects || [];
-        const storedEffect = verifyEffects[index];
+        const storedEffect = verifyEffects[effectIndex];
 
-    }, [projectState, commandService]);
+    }, [projectState, commandService, resolveEffectIndex]);
 
     const handleEffectDelete = useCallback((index) => {
         // Get fresh effects from current ProjectState
@@ -534,9 +609,22 @@ export default function useEffectManagement(projectState) {
         commandService.execute(reorderCommand);
     }, [projectState, commandService]);
 
-    const handleEffectToggleVisibility = useCallback((index) => {
+    const handleEffectToggleVisibility = useCallback((effectId) => {
+        // 🔒 CRITICAL: Resolve effect ID to current index (NEVER use index alone)
+        const effectIndex = resolveEffectIndex(effectId, 'handleEffectToggleVisibility');
+        if (effectIndex === null) {
+            console.error('❌ handleEffectToggleVisibility: Cannot toggle visibility - effect not found');
+            return;
+        }
+
         const currentEffects = projectState.getState().effects || [];
-        const effect = currentEffects[index];
+        const effect = currentEffects[effectIndex];
+        
+        if (!effect) {
+            console.error('❌ handleEffectToggleVisibility: Effect not found at resolved index');
+            return;
+        }
+
         const updatedEffect = {
             ...effect,
             visible: effect.visible === false ? true : false
@@ -546,7 +634,7 @@ export default function useEffectManagement(projectState) {
         const effectName = effect.name || effect.className || 'Effect';
         const updateCommand = new UpdateEffectCommand(
             projectState,
-            index,
+            effectIndex,
             updatedEffect,
             effectName
         );
@@ -554,7 +642,7 @@ export default function useEffectManagement(projectState) {
         // Override the description for visibility toggle
         updateCommand.description = `${updatedEffect.visible ? 'Showed' : 'Hid'} ${effectName}`;
         commandService.execute(updateCommand);
-    }, [projectState, commandService]);
+    }, [projectState, commandService, resolveEffectIndex]);
 
     const handleEffectRightClick = useCallback((effect, index, e) => {
         e.preventDefault();
@@ -804,12 +892,20 @@ export default function useEffectManagement(projectState) {
                 ...mainEffect,
                 config: mergedConfig
             };
-            handleEffectUpdate(effectIndex, updatedEffect);
+            // 🔒 CRITICAL: Pass effect ID, not index
+            handleEffectUpdate(mainEffect.id, updatedEffect);
         } else if (context.effectType === 'secondary' && context.subIndex !== null) {
             console.log('🔧 useEffectManagement: Updating secondary effect config at index:', context.subIndex);
             const updatedSecondaryEffects = [...(mainEffect.secondaryEffects || [])];
             // CRITICAL FIX: Merge new config with existing config instead of replacing
             const existingSecondaryEffect = updatedSecondaryEffects[context.subIndex];
+            
+            // 🔒 CRITICAL: Validate secondary effect exists before updating
+            if (!existingSecondaryEffect) {
+                console.error('❌ Secondary effect not found at subIndex:', context.subIndex);
+                return;
+            }
+            
             const mergedConfig = {
                 ...(existingSecondaryEffect?.config || {}),
                 ...newConfig
@@ -822,7 +918,8 @@ export default function useEffectManagement(projectState) {
                 ...mainEffect,
                 secondaryEffects: updatedSecondaryEffects
             };
-            handleEffectUpdate(effectIndex, updatedEffect);
+            // 🔒 CRITICAL: Pass effect ID, not index
+            handleEffectUpdate(mainEffect.id, updatedEffect);
         } else if (context.effectType === 'keyframe' && context.subIndex !== null) {
             console.log('🔧 useEffectManagement: Updating keyframe effect config at index:', context.subIndex);
             
@@ -831,6 +928,13 @@ export default function useEffectManagement(projectState) {
             const updatedKeyframeEffects = [...currentKeyframeEffects];
             // CRITICAL FIX: Merge new config with existing config instead of replacing
             const existingKeyframeEffect = updatedKeyframeEffects[context.subIndex];
+            
+            // 🔒 CRITICAL: Validate keyframe effect exists before updating
+            if (!existingKeyframeEffect) {
+                console.error('❌ Keyframe effect not found at subIndex:', context.subIndex);
+                return;
+            }
+            
             const mergedConfig = {
                 ...(existingKeyframeEffect?.config || {}),
                 ...newConfig
@@ -846,7 +950,8 @@ export default function useEffectManagement(projectState) {
                     keyFrame: updatedKeyframeEffects
                 }
             };
-            handleEffectUpdate(effectIndex, updatedEffect);
+            // 🔒 CRITICAL: Pass effect ID, not index
+            handleEffectUpdate(mainEffect.id, updatedEffect);
             }
         }, { 
             key: updateKey, 
@@ -855,12 +960,24 @@ export default function useEffectManagement(projectState) {
     }, [projectState, handleEffectUpdate, updateQueue]);
 
     const handleSubEffectUpdate = useCallback((newConfig) => {
-        const currentEffects = projectState.getState().effects || [];
-        if (!editingEffect || !currentEffects[editingEffect.effectIndex]) {
+        if (!editingEffect) {
             return;
         }
 
-        const mainEffect = currentEffects[editingEffect.effectIndex];
+        // 🔒 CRITICAL: Resolve effect ID to current index (NEVER use index alone)
+        const effectIndex = resolveEffectIndex(editingEffect.effectId, 'handleSubEffectUpdate');
+        if (effectIndex === null) {
+            console.error('❌ handleSubEffectUpdate: Cannot update - effect not found');
+            return;
+        }
+
+        const currentEffects = projectState.getState().effects || [];
+        const mainEffect = currentEffects[effectIndex];
+
+        if (!mainEffect) {
+            console.error('❌ handleSubEffectUpdate: Effect not found at resolved index');
+            return;
+        }
 
         // CRITICAL FIX: Handle both 'primary' and 'finalImage' effect types
         if (editingEffect.effectType === 'primary' || editingEffect.effectType === 'finalImage') {
@@ -873,11 +990,18 @@ export default function useEffectManagement(projectState) {
                 ...mainEffect,
                 config: mergedConfig
             };
-            handleEffectUpdate(editingEffect.effectIndex, updatedEffect);
+            // 🔒 CRITICAL: Pass effect ID, not index
+            handleEffectUpdate(mainEffect.id, updatedEffect);
         } else if (editingEffect.effectType === 'secondary' && editingEffect.subIndex !== null) {
             const updatedSecondaryEffects = [...(mainEffect.secondaryEffects || [])];
             // CRITICAL FIX: Merge new config with existing config instead of replacing
             const existingSecondaryEffect = updatedSecondaryEffects[editingEffect.subIndex];
+            
+            if (!existingSecondaryEffect) {
+                console.error('❌ handleSubEffectUpdate: Secondary effect not found at subIndex:', editingEffect.subIndex);
+                return;
+            }
+            
             const mergedConfig = {
                 ...(existingSecondaryEffect?.config || {}),
                 ...newConfig
@@ -890,13 +1014,20 @@ export default function useEffectManagement(projectState) {
                 ...mainEffect,
                 secondaryEffects: updatedSecondaryEffects
             };
-            handleEffectUpdate(editingEffect.effectIndex, updatedEffect);
+            // 🔒 CRITICAL: Pass effect ID, not index
+            handleEffectUpdate(mainEffect.id, updatedEffect);
         } else if (editingEffect.effectType === 'keyframe' && editingEffect.subIndex !== null) {
             // Use single source of truth for keyframe effects
             const currentKeyframeEffects = mainEffect.attachedEffects?.keyFrame || [];
             const updatedKeyframeEffects = [...currentKeyframeEffects];
             // CRITICAL FIX: Merge new config with existing config instead of replacing
             const existingKeyframeEffect = updatedKeyframeEffects[editingEffect.subIndex];
+            
+            if (!existingKeyframeEffect) {
+                console.error('❌ handleSubEffectUpdate: Keyframe effect not found at subIndex:', editingEffect.subIndex);
+                return;
+            }
+            
             const mergedConfig = {
                 ...(existingKeyframeEffect?.config || {}),
                 ...newConfig
@@ -912,9 +1043,10 @@ export default function useEffectManagement(projectState) {
                     keyFrame: updatedKeyframeEffects
                 }
             };
-            handleEffectUpdate(editingEffect.effectIndex, updatedEffect);
+            // 🔒 CRITICAL: Pass effect ID, not index
+            handleEffectUpdate(mainEffect.id, updatedEffect);
         }
-    }, [editingEffect, projectState, handleEffectUpdate]);
+    }, [editingEffect, projectState, handleEffectUpdate, resolveEffectIndex]);
 
     const handleAddSecondaryEffect = useCallback((targetEffect, effectIndex, newSecondaryEffect) => {
         try {

@@ -381,28 +381,52 @@ class EffectOperationsService {
     /**
      * Toggle effect visibility
      * @param {Object} params - Toggle parameters
-     * @param {number} params.index - Index of effect to toggle
+     * @param {string} params.effectId - ID of effect to toggle (preferred, ID-first pattern)
+     * @param {number} params.index - Index of effect to toggle (deprecated, for backward compatibility)
      * @param {Object} params.projectState - Current project state
      * @returns {Promise<void>}
      */
-    async toggleEffectVisibility({ index, projectState }) {
+    async toggleEffectVisibility({ effectId, index, projectState }) {
         const startTime = Date.now();
         
         try {
             const currentEffects = projectState.getState().effects || [];
-            const effect = currentEffects[index];
+            
+            // 🔒 CRITICAL: Resolve effect ID to current index (ID-first pattern)
+            let resolvedIndex = index;
+            if (effectId) {
+                resolvedIndex = currentEffects.findIndex(e => e.id === effectId);
+                if (resolvedIndex === -1) {
+                    this.logger.error(`❌ Effect with ID ${effectId} not found in current effects array`);
+                    throw new Error(`Effect with ID ${effectId} not found`);
+                }
+                this.logger.info(`✅ Resolved effect ID ${effectId} to index ${resolvedIndex}`);
+            } else if (index !== undefined) {
+                // Backward compatibility: if only index provided, log warning
+                this.logger.warn(`⚠️ toggleEffectVisibility called with index only (${index}). Please pass effectId for safety.`);
+                resolvedIndex = index;
+            } else {
+                throw new Error('Either effectId or index must be provided to toggleEffectVisibility');
+            }
+            
+            const effect = currentEffects[resolvedIndex];
+            if (!effect) {
+                this.logger.error(`❌ No effect found at resolved index ${resolvedIndex}`);
+                throw new Error(`No effect found at index ${resolvedIndex}`);
+            }
+            
             const updatedEffect = {
                 ...effect,
                 visible: effect.visible === false ? true : false
             };
 
             const effectName = effect.name || effect.className || 'Effect';
-            this.logger.info(`Toggling visibility for ${effectName} to ${updatedEffect.visible}`);
+            this.logger.info(`Toggling visibility for ${effectName} (ID: ${effect.id}) to ${updatedEffect.visible}`);
 
             // Use UpdateEffectCommand for visibility toggle
             const updateCommand = new UpdateEffectCommand(
                 projectState,
-                index,
+                resolvedIndex,
                 updatedEffect,
                 effectName
             );
@@ -413,17 +437,18 @@ class EffectOperationsService {
 
             // Emit event
             this.eventBus.emit('effectOperations:effectVisibilityToggled', {
-                index,
+                effectId: effect.id,
+                index: resolvedIndex,
                 effect: updatedEffect,
                 visible: updatedEffect.visible,
                 operationTime: Date.now() - startTime
             });
 
-            this.logger.info(`Effect visibility toggled successfully for ${effectName}`);
+            this.logger.info(`Effect visibility toggled successfully for ${effectName} (ID: ${effect.id})`);
 
         } catch (error) {
             this.operationMetrics.operationErrors++;
-            this.logger.error(`Error toggling effect visibility at index ${index}:`, error);
+            this.logger.error(`Error toggling effect visibility:`, error);
             throw error;
         }
     }

@@ -169,17 +169,36 @@ export default function useEffectOperations(projectState) {
         }
     }, [effectOperationsService, projectState]);
 
-    const handleEffectToggleVisibility = useCallback(async (index) => {
+    const handleEffectToggleVisibility = useCallback(async (effectIdOrIndex) => {
         if (!effectOperationsService) {
             console.error('EffectOperationsService not available');
             return;
         }
 
         try {
-            await effectOperationsService.toggleEffectVisibility({
-                index,
-                projectState
-            });
+            // 🔒 CRITICAL: Determine if we received an ID or index
+            const currentEffects = projectState.getState().effects || [];
+            const isId = typeof effectIdOrIndex === 'string';
+            
+            if (isId) {
+                // ID-first pattern: pass effectId
+                await effectOperationsService.toggleEffectVisibility({
+                    effectId: effectIdOrIndex,
+                    projectState
+                });
+            } else {
+                // Backward compatibility: resolve index to ID
+                const effect = currentEffects[effectIdOrIndex];
+                if (effect && effect.id) {
+                    console.warn(`⚠️ handleEffectToggleVisibility called with index (${effectIdOrIndex}). Resolving to ID: ${effect.id}`);
+                    await effectOperationsService.toggleEffectVisibility({
+                        effectId: effect.id,
+                        projectState
+                    });
+                } else {
+                    console.error(`❌ No effect found at index ${effectIdOrIndex}`);
+                }
+            }
         } catch (error) {
             console.error('Error toggling effect visibility:', error);
         }
@@ -337,7 +356,12 @@ export default function useEffectOperations(projectState) {
 
         const unsubscribeEffectToggleVisibility = eventBusService.subscribe('effect:togglevisibility', (payload) => {
             console.log('🎭 useEffectOperations: Effect toggle visibility event received:', payload);
-            handleEffectToggleVisibility(payload.effectIndex);
+            // 🔒 CRITICAL: Prefer effectId over effectIndex (ID-first pattern)
+            const identifier = payload.effectId || payload.effectIndex;
+            if (!payload.effectId && payload.effectIndex !== undefined) {
+                console.warn('⚠️ effect:togglevisibility event received with effectIndex only. Please pass effectId.');
+            }
+            handleEffectToggleVisibility(identifier);
         }, { component: 'useEffectOperations' });
 
         const unsubscribeEffectAddSecondary = eventBusService.subscribe('effect:addsecondary', async (payload) => {

@@ -11,6 +11,7 @@ import PreferencesService from '../../services/PreferencesService.js';
 import EffectFormValidator from '../../services/EffectFormValidator.js';
 import EffectConfigurationManager from '../../services/EffectConfigurationManager.js';
 import EffectEventCoordinator from '../../services/EffectEventCoordinator.js';
+import EffectUpdateCoordinator from '../../services/EffectUpdateCoordinator.js';
 import {
     Box,
     Typography,
@@ -25,11 +26,12 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, TextField } from '@m
  * EffectConfigurer - Refactored Service Orchestrator
  * 
  * This component has been refactored from a 532-line god object into a service orchestrator
- * that coordinates three focused services:
+ * that coordinates four focused services:
  * 
  * 1. EffectFormValidator - Handles all form validation logic
  * 2. EffectConfigurationManager - Manages configuration schemas and defaults
  * 3. EffectEventCoordinator - Coordinates all event emission and handling
+ * 4. EffectUpdateCoordinator - Orchestrates debounced updates and state synchronization
  * 
  * The component now focuses on:
  * - UI rendering and user interaction
@@ -61,10 +63,25 @@ function EffectConfigurer({
         const eventBus = eventBusService || { emit: () => {}, subscribe: () => {} };
         const logger = { log: console.log, error: console.error };
         
+        const validator = new EffectFormValidator({ eventBus, logger });
+        const configManager = new EffectConfigurationManager({ eventBus, logger });
+        const eventCoordinator = new EffectEventCoordinator({ eventBus, logger });
+        
+        // Create update coordinator with callback that coordinates through event coordinator
+        const updateCoordinator = new EffectUpdateCoordinator({
+            eventBus,
+            logger,
+            debounceMs: 300,
+            onUpdate: null, // Will be set dynamically in handlers
+            enableBatching: true,
+            maxBatchSize: 10
+        });
+        
         return {
-            validator: new EffectFormValidator({ eventBus, logger }),
-            configManager: new EffectConfigurationManager({ eventBus, logger }),
-            eventCoordinator: new EffectEventCoordinator({ eventBus, logger })
+            validator,
+            configManager,
+            eventCoordinator,
+            updateCoordinator
         };
     });
     
@@ -80,8 +97,14 @@ function EffectConfigurer({
     const schemaRef = useRef(null);
     const previousResolution = useRef(projectState?.targetResolution);
     const defaultsLoadedForEffect = useRef(null); // Track which effect we've loaded defaults for
-    const isEditingExistingEffect = useRef(false); // Track if we're editing an existing effect
-    const userModifiedConfig = useRef(false); // Track if user has modified config (prevents revert)
+
+    // Cleanup update coordinator on unmount
+    useEffect(() => {
+        return () => {
+            // Destroy coordinator (automatically flushes pending updates)
+            services.updateCoordinator.destroy();
+        };
+    }, [services.updateCoordinator]);
 
     // Initialize percent chance from props
     useEffect(() => {
@@ -105,7 +128,7 @@ function EffectConfigurer({
             
             // CRITICAL: Don't revert if user has modified the config (e.g., applied a preset)
             // Only sync if this is a genuine external change (like resolution scaling)
-            if (configChanged && !userModifiedConfig.current) {
+            if (configChanged && !services.updateCoordinator.getUserModified()) {
                 console.log('📝 EffectConfigurer: Syncing with initialConfig (editing existing effect)', {
                     effect: selectedEffect?.registryKey,
                     initialConfig
@@ -113,9 +136,9 @@ function EffectConfigurer({
                 setEffectConfig(initialConfig);
                 configRef.current = initialConfig;
                 // Mark that we're editing an existing effect and should never load defaults
-                isEditingExistingEffect.current = true;
+                services.updateCoordinator.setEditingExistingEffect(true);
                 defaultsLoadedForEffect.current = selectedEffect?.registryKey;
-            } else if (configChanged && userModifiedConfig.current) {
+            } else if (configChanged && services.updateCoordinator.getUserModified()) {
                 console.log('🚫 EffectConfigurer: Skipping sync - user has modified config', {
                     effect: selectedEffect?.registryKey
                 });
@@ -127,11 +150,10 @@ function EffectConfigurer({
             });
             setEffectConfig({});
             configRef.current = {};
-            isEditingExistingEffect.current = false;
+            services.updateCoordinator.resetFlags(); // Reset all flags
             defaultsLoadedForEffect.current = null;
-            userModifiedConfig.current = false; // Reset flag for new effect
         }
-    }, [initialConfig, selectedEffect?.registryKey, resolutionKey]);
+    }, [initialConfig, selectedEffect?.registryKey, resolutionKey, services.updateCoordinator]);
 
     // Load configuration schema when effect changes
     useEffect(() => {
@@ -177,34 +199,37 @@ function EffectConfigurer({
     // Field change handler - converts individual field changes to full config updates
     const handleFieldChange = useCallback((fieldName, fieldValue) => {
 
-        // Mark that user has modified the config
-        userModifiedConfig.current = true;
-
         // Create updated config with the new field value
         const updatedConfig = {
             ...configRef.current,
             [fieldName]: fieldValue
         };
 
-        // Update local state
+        // Update local state IMMEDIATELY (for responsive UI)
         setEffectConfig(updatedConfig);
         configRef.current = updatedConfig;
 
-        // Validate configuration using EffectFormValidator
+        // Validate configuration using EffectFormValidator IMMEDIATELY
         if (schemaRef.current) {
             const validation = services.validator.validateConfiguration(updatedConfig, schemaRef.current);
             setValidationErrors(validation.errors);
             setIsConfigComplete(validation.isComplete);
         }
 
-        // Coordinate event emission and callback using EffectEventCoordinator
-        // NOTE: This handles both event emission AND the onConfigChange callback
-        // Do NOT call processConfigurationChange separately as it would duplicate the callback
-        // NOTE: Center defaults are NOT applied here - they are only applied when the effect is first created
-        services.eventCoordinator.coordinateConfigurationChange(
+        // Schedule DEBOUNCED update through EffectUpdateCoordinator
+        // This prevents race conditions from rapid typing/changes
+        // UI updates are instant, but ProjectState updates are debounced
+        services.updateCoordinator.setOnUpdate((config, metadata) => {
+            services.eventCoordinator.coordinateConfigurationChange(
+                config,
+                selectedEffect,
+                onConfigChange,
+                metadata
+            );
+        });
+        
+        services.updateCoordinator.scheduleUpdate(
             updatedConfig,
-            selectedEffect,
-            onConfigChange,
             { fieldName, fieldValue, source: 'user-input', timestamp: Date.now() }
         );
 
@@ -213,31 +238,32 @@ function EffectConfigurer({
     // Configuration change handler with service coordination (for bulk updates)
     const handleConfigurationChange = useCallback((newConfig, metadata = {}) => {
 
-        // Mark that user has modified the config (unless this is from defaults loading)
-        if (metadata.source !== 'defaults') {
-            userModifiedConfig.current = true;
-        }
-
-        // Update local state
+        // Update local state IMMEDIATELY (for responsive UI)
         setEffectConfig(newConfig);
         configRef.current = newConfig;
 
-        // Validate configuration using EffectFormValidator
+        // Validate configuration using EffectFormValidator IMMEDIATELY
         if (schemaRef.current) {
             const validation = services.validator.validateConfiguration(newConfig, schemaRef.current);
             setValidationErrors(validation.errors);
             setIsConfigComplete(validation.isComplete);
         }
 
-        // Coordinate event emission and callback using EffectEventCoordinator
-        // NOTE: This handles both event emission AND the onConfigChange callback
-        // Do NOT call processConfigurationChange separately as it would duplicate the callback
-        // NOTE: Center defaults are NOT applied here - they are only applied when the effect is first created
-        services.eventCoordinator.coordinateConfigurationChange(
+        // Schedule DEBOUNCED update through EffectUpdateCoordinator
+        // This prevents race conditions from rapid changes (e.g., preset application)
+        // UI updates are instant, but ProjectState updates are debounced
+        services.updateCoordinator.setOnUpdate((config, metadata) => {
+            services.eventCoordinator.coordinateConfigurationChange(
+                config,
+                selectedEffect,
+                onConfigChange,
+                metadata
+            );
+        });
+        
+        services.updateCoordinator.scheduleUpdate(
             newConfig,
-            selectedEffect,
-            onConfigChange,
-            { ...metadata, source: 'user-input', timestamp: Date.now() }
+            { ...metadata, timestamp: Date.now() }
         );
 
     }, [selectedEffect, onConfigChange, services]);

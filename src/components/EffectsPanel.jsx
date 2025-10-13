@@ -314,9 +314,24 @@ export default function EffectsPanel({
         
         const { effectIndex, effectType, subIndex } = selectedEffect;
         
-        // Emit config change event (matches listener in useEffectManagement.js)
+        // CRITICAL FIX: Get the effect ID from ProjectState to prevent race conditions
+        // during remove/reorder operations. The ID is stable across reorders, while
+        // the index can change before debounced updates fire.
+        const freshEffects = projectState.getState().effects || [];
+        const effect = freshEffects[effectIndex];
+        
+        if (!effect || !effect.id) {
+            console.error('❌ EffectsPanel: Cannot update effect without ID', { 
+                effectIndex, 
+                effect 
+            });
+            return;
+        }
+        
+        // Emit config change event with effect ID for reliable tracking
         eventBusService.emit('effect:config:change', {
-            effectIndex,
+            effectId: effect.id, // PRIMARY identifier - stable across reorders
+            effectIndex, // HINT for optimization - may be stale after reorder
             effectType,
             subEffectIndex: subIndex, // Use subEffectIndex to match listener expectations
             config: updatedConfig
@@ -324,14 +339,15 @@ export default function EffectsPanel({
             source: 'EffectsPanel',
             component: 'ConfigPanel'
         });
-    }, [selectedEffect, eventBusService]);
+    }, [selectedEffect, projectState, eventBusService]);
 
     // Toggle all effects visibility
     const handleToggleAllVisibility = useCallback(() => {
         const shouldHide = areAllEffectsVisible;
-        effects.forEach((_, index) => {
-            if ((effects[index].visible !== false) === shouldHide) {
-                onEffectToggleVisibility(index);
+        effects.forEach((effect) => {
+            if ((effect.visible !== false) === shouldHide) {
+                // 🔒 CRITICAL: Pass effect ID, not index
+                onEffectToggleVisibility(effect.id);
             }
         });
     }, [effects, areAllEffectsVisible, onEffectToggleVisibility]);
@@ -1180,7 +1196,8 @@ export default function EffectsPanel({
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     if (isReadOnly) return;
-                                    onEffectToggleVisibility && onEffectToggleVisibility(originalIndex);
+                                    // 🔒 CRITICAL: Pass effect ID, not index
+                                    onEffectToggleVisibility && onEffectToggleVisibility(effect.id);
                                 }}
                                 title={isReadOnly ? "Read-only mode" : (effect.visible !== false ? 'Hide layer' : 'Show layer')}
                                 sx={{

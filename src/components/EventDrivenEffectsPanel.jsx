@@ -71,8 +71,9 @@ export default function EventDrivenEffectsPanel({
         });
     }, [eventBusService]);
 
-    const handleEffectToggleVisibility = useCallback((effectIndex) => {
-        eventBusService.emit('effectspanel:effect:togglevisibility', { effectIndex }, {
+    const handleEffectToggleVisibility = useCallback((effectId) => {
+        // 🔒 CRITICAL: Pass effect ID, not index
+        eventBusService.emit('effectspanel:effect:togglevisibility', { effectId }, {
             source: 'EventDrivenEffectsPanel',
             component: 'EventDrivenEffectsPanel'
         });
