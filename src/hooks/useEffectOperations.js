@@ -344,26 +344,18 @@ export default function useEffectOperations(projectState) {
             console.log('🎭 useEffectOperations: Effect add secondary event received:', payload);
 
             try {
-                // Get effect defaults from backend first
-                const result = await window.api.getEffectDefaults(payload.effectName);
-                if (!result.success) {
-                    console.error('Failed to get effect defaults for secondary effect:', result.error);
-                    return;
-                }
-
                 // Find the effect in available effects to get proper metadata
                 const effectCategory = availableEffects.secondary || [];
                 const effectData = effectCategory.find(e => e.name === payload.effectName);
                 const registryKey = effectData?.registryKey || payload.effectName;
 
-                // Check for user-saved defaults first
-                const savedDefaults = await PreferencesService.getEffectDefaults(registryKey);
-                const config = savedDefaults || result.defaults || {};
+                // ⚠️ CRITICAL: Start with empty config - NO defaults applied
+                // Effects should be created with empty configuration and user configures them manually
+                const config = {};
 
-                console.log('🎭 useEffectOperations: Using secondary effect defaults:', {
+                console.log('🎭 useEffectOperations: Creating secondary effect with empty config:', {
                     effectName: payload.effectName,
                     registryKey,
-                    usingSavedDefaults: !!savedDefaults,
                     config
                 });
 
@@ -377,27 +369,19 @@ export default function useEffectOperations(projectState) {
             console.log('🎭 useEffectOperations: Effect add keyframe event received:', payload);
 
             try {
-                // Get effect defaults from backend first
-                const result = await window.api.getEffectDefaults(payload.effectName);
-                if (!result.success) {
-                    console.error('Failed to get effect defaults for keyframe effect:', result.error);
-                    return;
-                }
-
                 // Find the effect in available effects to get proper metadata
                 const effectCategory = availableEffects.secondary || [];
                 const effectData = effectCategory.find(e => e.name === payload.effectName);
                 const registryKey = effectData?.registryKey || payload.effectName;
 
-                // Check for user-saved defaults first
-                const savedDefaults = await PreferencesService.getEffectDefaults(registryKey);
-                const config = savedDefaults || result.defaults || {};
+                // ⚠️ CRITICAL: Start with empty config - NO defaults applied
+                // Effects should be created with empty configuration and user configures them manually
+                const config = {};
 
-                console.log('🎭 useEffectOperations: Using keyframe effect defaults:', {
+                console.log('🎭 useEffectOperations: Creating keyframe effect with empty config:', {
                     effectName: payload.effectName,
                     registryKey,
                     frame: payload.frame,
-                    usingSavedDefaults: !!savedDefaults,
                     config
                 });
 

@@ -19,6 +19,7 @@ import {
     useTheme
 } from '@mui/material';
 import { RestartAlt } from '@mui/icons-material';
+import { Dialog, DialogTitle, DialogContent, DialogActions, TextField } from '@mui/material';
 
 /**
  * EffectConfigurer - Refactored Service Orchestrator
@@ -80,6 +81,7 @@ function EffectConfigurer({
     const previousResolution = useRef(projectState?.targetResolution);
     const defaultsLoadedForEffect = useRef(null); // Track which effect we've loaded defaults for
     const isEditingExistingEffect = useRef(false); // Track if we're editing an existing effect
+    const userModifiedConfig = useRef(false); // Track if user has modified config (prevents revert)
 
     // Initialize percent chance from props
     useEffect(() => {
@@ -100,7 +102,10 @@ function EffectConfigurer({
         if (initialConfig && Object.keys(initialConfig).length > 0) {
             // Deep comparison to avoid unnecessary updates
             const configChanged = JSON.stringify(initialConfig) !== JSON.stringify(configRef.current);
-            if (configChanged) {
+            
+            // CRITICAL: Don't revert if user has modified the config (e.g., applied a preset)
+            // Only sync if this is a genuine external change (like resolution scaling)
+            if (configChanged && !userModifiedConfig.current) {
                 console.log('📝 EffectConfigurer: Syncing with initialConfig (editing existing effect)', {
                     effect: selectedEffect?.registryKey,
                     initialConfig
@@ -110,6 +115,10 @@ function EffectConfigurer({
                 // Mark that we're editing an existing effect and should never load defaults
                 isEditingExistingEffect.current = true;
                 defaultsLoadedForEffect.current = selectedEffect?.registryKey;
+            } else if (configChanged && userModifiedConfig.current) {
+                console.log('🚫 EffectConfigurer: Skipping sync - user has modified config', {
+                    effect: selectedEffect?.registryKey
+                });
             }
         } else if (!initialConfig || Object.keys(initialConfig).length === 0) {
             // Reset when switching to a new effect without initialConfig
@@ -120,6 +129,7 @@ function EffectConfigurer({
             configRef.current = {};
             isEditingExistingEffect.current = false;
             defaultsLoadedForEffect.current = null;
+            userModifiedConfig.current = false; // Reset flag for new effect
         }
     }, [initialConfig, selectedEffect?.registryKey, resolutionKey]);
 
@@ -159,58 +169,16 @@ function EffectConfigurer({
         loadSchema();
     }, [selectedEffect, projectState, services.configManager, services.validator, effectConfig]);
 
-    // Check for saved defaults when effect changes
-    // ONLY apply defaults when there's no initialConfig (i.e., when adding a new effect)
-    // This effect should ONLY run when the user is adding a NEW effect, never when editing
-    useEffect(() => {
-        const checkDefaults = async () => {
-            if (!selectedEffect?.registryKey) return;
-            
-            // CRITICAL: Don't apply defaults if we're editing an existing effect
-            // Check the ref first as it's set synchronously by the initialConfig sync effect
-            if (isEditingExistingEffect.current) {
-                console.log('📋 Skipping defaults - editing existing effect (ref check):', selectedEffect.registryKey);
-                return;
-            }
-            
-            // CRITICAL: Don't apply defaults if we have an initialConfig (editing existing effect)
-            // This check must come FIRST to prevent any defaults from being applied during edits
-            if (initialConfig && Object.keys(initialConfig).length > 0) {
-                console.log('📋 Skipping defaults - editing existing effect (initialConfig check):', selectedEffect.registryKey);
-                // Mark that we should never load defaults for this effect instance
-                isEditingExistingEffect.current = true;
-                defaultsLoadedForEffect.current = selectedEffect.registryKey;
-                return;
-            }
-            
-            // Don't apply defaults if we've already loaded them for this effect
-            if (defaultsLoadedForEffect.current === selectedEffect.registryKey) {
-                console.log('📋 Skipping defaults - already loaded for:', selectedEffect.registryKey);
-                return;
-            }
-
-            try {
-                const defaults = await services.configManager.checkForDefaults(selectedEffect.registryKey);
-                if (defaults) {
-                    console.log('✅ Applying saved defaults for NEW effect:', selectedEffect.registryKey);
-                    // Mark that we've loaded defaults for this effect
-                    defaultsLoadedForEffect.current = selectedEffect.registryKey;
-                    // Apply defaults through configuration change
-                    handleConfigurationChange(defaults);
-                } else {
-                    console.log('ℹ️ No saved defaults found for:', selectedEffect.registryKey);
-                }
-            } catch (error) {
-                console.error('❌ Error checking defaults:', error);
-            }
-        };
-
-        checkDefaults();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedEffect?.registryKey]);
+    // ⚠️ REMOVED: Automatic defaults loading
+    // Effects are now created with empty configuration - NO defaults applied automatically
+    // Users must manually configure all effect parameters
+    // This ensures complete control and prevents unexpected behavior from saved defaults
 
     // Field change handler - converts individual field changes to full config updates
     const handleFieldChange = useCallback((fieldName, fieldValue) => {
+
+        // Mark that user has modified the config
+        userModifiedConfig.current = true;
 
         // Create updated config with the new field value
         const updatedConfig = {
@@ -229,26 +197,26 @@ function EffectConfigurer({
             setIsConfigComplete(validation.isComplete);
         }
 
-        // Determine if this is a new effect (no initialConfig means new)
-        const isNewEffect = !initialConfig || Object.keys(initialConfig).length === 0;
-
-        // Apply center defaults using EffectConfigurationManager (only for new effects)
-        const configWithDefaults = services.configManager.applyCenterDefaults(updatedConfig, projectState, isNewEffect);
-
         // Coordinate event emission and callback using EffectEventCoordinator
         // NOTE: This handles both event emission AND the onConfigChange callback
         // Do NOT call processConfigurationChange separately as it would duplicate the callback
+        // NOTE: Center defaults are NOT applied here - they are only applied when the effect is first created
         services.eventCoordinator.coordinateConfigurationChange(
-            configWithDefaults,
+            updatedConfig,
             selectedEffect,
             onConfigChange,
             { fieldName, fieldValue, source: 'user-input', timestamp: Date.now() }
         );
 
-    }, [selectedEffect, projectState, onConfigChange, services, initialConfig]);
+    }, [selectedEffect, onConfigChange, services]);
 
     // Configuration change handler with service coordination (for bulk updates)
     const handleConfigurationChange = useCallback((newConfig, metadata = {}) => {
+
+        // Mark that user has modified the config (unless this is from defaults loading)
+        if (metadata.source !== 'defaults') {
+            userModifiedConfig.current = true;
+        }
 
         // Update local state
         setEffectConfig(newConfig);
@@ -261,23 +229,18 @@ function EffectConfigurer({
             setIsConfigComplete(validation.isComplete);
         }
 
-        // Determine if this is a new effect (no initialConfig means new)
-        const isNewEffect = !initialConfig || Object.keys(initialConfig).length === 0;
-
-        // Apply center defaults using EffectConfigurationManager (only for new effects)
-        const configWithDefaults = services.configManager.applyCenterDefaults(newConfig, projectState, isNewEffect);
-
         // Coordinate event emission and callback using EffectEventCoordinator
         // NOTE: This handles both event emission AND the onConfigChange callback
         // Do NOT call processConfigurationChange separately as it would duplicate the callback
+        // NOTE: Center defaults are NOT applied here - they are only applied when the effect is first created
         services.eventCoordinator.coordinateConfigurationChange(
-            configWithDefaults,
+            newConfig,
             selectedEffect,
             onConfigChange,
             { ...metadata, source: 'user-input', timestamp: Date.now() }
         );
 
-    }, [selectedEffect, projectState, onConfigChange, services, initialConfig]);
+    }, [selectedEffect, onConfigChange, services]);
 
     // Effect addition handler with service coordination
     const handleAddEffect = useCallback(() => {
@@ -343,19 +306,44 @@ function EffectConfigurer({
         previousResolution.current = currentResolution;
     }, [projectState?.targetResolution, services.eventCoordinator, services.validator]);
 
-    // Save as default handler
-    const handleSaveAsDefault = useCallback(async () => {
+    // Save user preset handler (replaces save as default)
+    const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+    const [presetName, setPresetName] = useState('');
+    const [saveError, setSaveError] = useState('');
+
+    const openSavePresetDialog = useCallback(() => {
         if (!selectedEffect?.registryKey || !configRef.current) {
-            console.warn('⚠️ Cannot save defaults: missing effect or config');
+            console.warn('⚠️ Cannot save preset: missing effect or config');
             return;
         }
+        setPresetName('');
+        setSaveError('');
+        setSaveDialogOpen(true);
+    }, [selectedEffect?.registryKey]);
 
-        try {
-            await services.configManager.saveAsDefault(selectedEffect.registryKey, configRef.current);
-        } catch (error) {
-            console.error('❌ Error saving defaults:', error);
+    const handleConfirmSavePreset = useCallback(async () => {
+        const name = (presetName || '').trim();
+        // Basic validation
+        if (name.length < 1 || name.length > 64) {
+            setSaveError('Name must be between 1 and 64 characters');
+            return;
         }
-    }, [selectedEffect?.registryKey, services.configManager]);
+        if (!/^[\w\-\s]+$/.test(name)) {
+            setSaveError('Only letters, numbers, spaces, dashes and underscores are allowed');
+            return;
+        }
+        try {
+            const result = await window.api.saveUserPreset(selectedEffect.registryKey, name, configRef.current);
+            if (!result?.success) {
+                setSaveError(result?.error || 'Failed to save preset');
+                return;
+            }
+            setSaveDialogOpen(false);
+        } catch (error) {
+            console.error('❌ Error saving user preset:', error);
+            setSaveError('Error saving preset');
+        }
+    }, [presetName, selectedEffect?.registryKey]);
 
     // Reset defaults handler
     const handleResetDefaults = useCallback(async () => {
@@ -367,8 +355,11 @@ function EffectConfigurer({
         try {
             await services.configManager.resetDefaults(selectedEffect.registryKey);
 
+            // Reset the user modification flag to allow fresh start
+            userModifiedConfig.current = false;
+
             // Clear current configuration
-            handleConfigurationChange({});
+            handleConfigurationChange({}, { source: 'reset' });
         } catch (error) {
             console.error('❌ Error resetting defaults:', error);
         }
@@ -455,91 +446,114 @@ function EffectConfigurer({
     }
 
     return (
-        <Box sx={{ p: 2 }}>
-            {/* Effect Header */}
-            <Box sx={{ mb: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                    {selectedEffect.name} - {selectedEffect.id}
-                </Typography>
-            </Box>
-
-            {/* Preset Selector */}
-            <PresetSelector
-                selectedEffect={selectedEffect}
-                onPresetSelect={handlePresetSelect}
-            />
-
-            {/* Validation Errors */}
-            {renderValidationErrors()}
-
-            {/* Configuration Form */}
-            {configSchema && (
-                <Box sx={{ mb: 3 }}>
-                    <EffectFormRenderer
-                        configSchema={configSchema}
-                        effectConfig={effectConfig}
-                        onConfigChange={handleFieldChange}
-                        projectState={projectState}
-                        validationErrors={validationErrors}
-                    />
+        <>
+            <Box sx={{ p: 2 }}>
+                {/* Effect Header */}
+                <Box sx={{ mb: 2 }}>
+                    <Typography variant="h6" gutterBottom>
+                        {selectedEffect.name} - {selectedEffect.id}
+                    </Typography>
                 </Box>
-            )}
 
-            {/* Percent Chance Control */}
-            {!isModal && (
-                <Box sx={{ mb: 3 }}>
-                    <PercentChanceControl
-                        value={percentChance}
-                        onChange={setPercentChance}
-                    />
-                </Box>
-            )}
+                {/* Preset Selector */}
+                <PresetSelector
+                    selectedEffect={selectedEffect}
+                    onPresetSelect={handlePresetSelect}
+                />
 
-            {/* Attached Effects Display */}
-            {attachedEffects && attachedEffects.length > 0 && (
-                <Box sx={{ mb: 3 }}>
-                    <AttachedEffectsDisplay
-                        effects={attachedEffects}
-                        onRemove={onRemoveAttachedEffect}
-                    />
-                </Box>
-            )}
+                {/* Validation Errors */}
+                {renderValidationErrors()}
 
-            {/* Action Buttons */}
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                {/* Add Effect Button */}
-                {onAddEffect && (
+                {/* Configuration Form */}
+                {configSchema && (
+                    <Box sx={{ mb: 3 }}>
+                        <EffectFormRenderer
+                            configSchema={configSchema}
+                            effectConfig={effectConfig}
+                            onConfigChange={handleFieldChange}
+                            projectState={projectState}
+                            validationErrors={validationErrors}
+                        />
+                    </Box>
+                )}
+
+                {/* Percent Chance Control */}
+                {!isModal && (
+                    <Box sx={{ mb: 3 }}>
+                        <PercentChanceControl
+                            value={percentChance}
+                            onChange={setPercentChance}
+                        />
+                    </Box>
+                )}
+
+                {/* Attached Effects Display */}
+                {attachedEffects && attachedEffects.length > 0 && (
+                    <Box sx={{ mb: 3 }}>
+                        <AttachedEffectsDisplay
+                            effects={attachedEffects}
+                            onRemove={onRemoveAttachedEffect}
+                        />
+                    </Box>
+                )}
+
+                {/* Action Buttons */}
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                    {/* Add Effect Button */}
+                    {onAddEffect && (
+                        <Button
+                            variant="contained"
+                            onClick={handleAddEffect}
+                            disabled={!isConfigComplete}
+                            sx={{ minWidth: 120 }}
+                        >
+                            Add Effect
+                        </Button>
+                    )}
+
+                    {/* Save Preset Button */}
                     <Button
-                        variant="contained"
-                        onClick={handleAddEffect}
+                        variant="outlined"
+                        onClick={openSavePresetDialog}
                         disabled={!isConfigComplete}
                         sx={{ minWidth: 120 }}
                     >
-                        Add Effect
+                        Save Preset
                     </Button>
-                )}
 
-                {/* Save as Default Button */}
-                <Button
-                    variant="outlined"
-                    onClick={handleSaveAsDefault}
-                    disabled={!isConfigComplete}
-                    sx={{ minWidth: 120 }}
-                >
-                    Save as Default
-                </Button>
-
-                {/* Reset Defaults Button */}
-                <Button
-                    variant="outlined"
-                    startIcon={<RestartAlt />}
-                    onClick={handleResetDefaults}
-                    sx={{ minWidth: 120 }}
-                >
-                    Reset Defaults
-                </Button>
+                    {/* Reset Defaults Button */}
+                    <Button
+                        variant="outlined"
+                        startIcon={<RestartAlt />}
+                        onClick={handleResetDefaults}
+                        sx={{ minWidth: 120 }}
+                    >
+                        Reset Defaults
+                    </Button>
+                </Box>
             </Box>
-        </Box>
+
+            {/* Save Preset Dialog */}
+            <Dialog open={saveDialogOpen} onClose={() => setSaveDialogOpen(false)} maxWidth="xs" fullWidth>
+                <DialogTitle>Save Preset</DialogTitle>
+                <DialogContent>
+                    <TextField
+                        autoFocus
+                        fullWidth
+                        label="Preset name"
+                        value={presetName}
+                        onChange={(e) => setPresetName(e.target.value)}
+                        error={!!saveError}
+                        helperText={saveError || 'Enter a unique name'}
+                        inputProps={{ maxLength: 64 }}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setSaveDialogOpen(false)}>Cancel</Button>
+                    <Button variant="contained" onClick={handleConfirmSavePreset}>Save</Button>
+                </DialogActions>
+            </Dialog>
+        </>
     );
 }
 

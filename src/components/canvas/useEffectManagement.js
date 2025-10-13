@@ -153,26 +153,18 @@ export default function useEffectManagement(projectState) {
             console.log('🎭 useEffectManagement: Effect add secondary event received:', payload);
 
             try {
-                // Get effect defaults from backend first
-                const result = await window.api.getEffectDefaults(payload.effectName);
-                if (!result.success) {
-                    console.error('Failed to get effect defaults for secondary effect:', result.error);
-                    return;
-                }
-
                 // Find the effect in available effects to get proper metadata
                 const effectCategory = availableEffects.secondary || [];
                 const effectData = effectCategory.find(e => e.name === payload.effectName);
                 const registryKey = effectData?.registryKey || payload.effectName;
 
-                // Check for user-saved defaults first
-                const savedDefaults = await PreferencesService.getEffectDefaults(registryKey);
-                const config = savedDefaults || result.defaults || {};
+                // ⚠️ CRITICAL: Start with empty config - NO defaults applied
+                // Effects should be created with empty configuration and user configures them manually
+                const config = {};
 
-                console.log('🎭 useEffectManagement: Using secondary effect defaults:', {
+                console.log('🎭 useEffectManagement: Creating secondary effect with empty config:', {
                     effectName: payload.effectName,
                     registryKey,
-                    usingSavedDefaults: !!savedDefaults,
                     config
                 });
 
@@ -210,27 +202,20 @@ export default function useEffectManagement(projectState) {
             console.log('🎭 useEffectManagement: Effect add keyframe event received:', payload);
 
             try {
-                // Get effect defaults from backend first
-                const result = await window.api.getEffectDefaults(payload.effectName);
-                if (!result.success) {
-                    console.error('Failed to get effect defaults for keyframe effect:', result.error);
-                    return;
-                }
-
                 // Find the effect in available effects to get proper metadata
                 const effectCategory = availableEffects.secondary || []; // Keyframe effects are in secondary category
                 const effectData = effectCategory.find(e => e.name === payload.effectName);
                 const registryKey = effectData?.registryKey || payload.effectName;
 
-                // Use config from payload if provided, otherwise check for user-saved defaults
+                // ⚠️ CRITICAL: Use config from payload if provided, otherwise start with empty config
+                // NO defaults applied - effects should be created with empty configuration
                 let config;
                 if (payload.config && Object.keys(payload.config).length > 0) {
                     config = payload.config;
                     console.log('🎭 useEffectManagement: Using config from payload (bulk add)');
                 } else {
-                    const savedDefaults = await PreferencesService.getEffectDefaults(registryKey);
-                    config = savedDefaults || result.defaults || {};
-                    console.log('🎭 useEffectManagement: Using default config');
+                    config = {};
+                    console.log('🎭 useEffectManagement: Using empty config - no defaults');
                 }
 
                 console.log('🎭 useEffectManagement: Using keyframe effect config:', {
@@ -457,76 +442,63 @@ export default function useEffectManagement(projectState) {
 
     const handleAddEffectDirect = useCallback(async (effectName, effectType = 'primary') => {
         try {
-            // Get effect defaults from backend
-            const result = await window.api.getEffectDefaults(effectName);
-            if (result.success) {
-                // Find the effect in our available effects to get the registryKey
-                const effectCategory = availableEffects[effectType] || [];
-                const effectData = effectCategory.find(e => e.name === effectName);
-                const registryKey = effectData?.registryKey || effectName;
+            // Find the effect in our available effects to get the registryKey
+            const effectCategory = availableEffects[effectType] || [];
+            const effectData = effectCategory.find(e => e.name === effectName);
+            const registryKey = effectData?.registryKey || effectName;
 
-                // Check for user-saved defaults first
-                const savedDefaults = await PreferencesService.getEffectDefaults(registryKey);
-                let processedConfig = savedDefaults || result.defaults;
+            // ⚠️ CRITICAL: Start with empty config - NO defaults applied
+            // Effects should be created with empty configuration and user configures them manually
+            // This includes NO center defaults, NO saved defaults, NO backend defaults
+            let processedConfig = {};
 
-                // Apply center defaults immediately when adding effect
-                const projectData = projectState.getState();
+            // Validate and correct effect type to prevent categorization issues
+            let validatedType = effectType;
 
-                if (projectData) {
-                    processedConfig = CenterUtils.detectAndApplyCenter(processedConfig, projectData);
-                }
-
-                // Validate and correct effect type to prevent categorization issues
-                let validatedType = effectType;
-
-                // If effect was found in availableEffects, use its natural category
-                if (effectData && effectData.category) {
-                    const naturalCategory = effectData.category;
-                    console.log('🔍 useEffectManagement: Effect natural category validation:', {
-                        effectName,
-                        requestedType: effectType,
-                        naturalCategory: naturalCategory,
-                        effectData: effectData
-                    });
-
-                    // Use the natural category from the registry if it's valid
-                    if (['primary', 'secondary', 'keyframe', 'finalImage'].includes(naturalCategory)) {
-                        validatedType = naturalCategory;
-                        if (validatedType !== effectType) {
-                            console.warn('🔍 useEffectManagement: Corrected effect type:', {
-                                effectName,
-                                requested: effectType,
-                                corrected: validatedType
-                            });
-                        }
-                    }
-                }
-
-                const effect = {
-                    id: IdGenerator.generateId(),
-                    name: effectName,
-                    className: effectName,
-                    registryKey: effectName,
-                    type: validatedType,
-                    config: processedConfig,
-                    visible: true
-                };
-
-                console.log('🔍 useEffectManagement: Final effect object:', {
+            // If effect was found in availableEffects, use its natural category
+            if (effectData && effectData.category) {
+                const naturalCategory = effectData.category;
+                console.log('🔍 useEffectManagement: Effect natural category validation:', {
                     effectName,
-                    finalType: validatedType,
-                    effect
+                    requestedType: effectType,
+                    naturalCategory: naturalCategory,
+                    effectData: effectData
                 });
 
-                // Use Command Pattern instead of direct state update
-                const addCommand = new AddEffectCommand(projectState, effect, effectName, effectType);
-                commandService.execute(addCommand);
-
-                console.log(`✅ Command executed: Add ${effectType} effect: ${effectName}`, effect);
-            } else {
-                console.error('Failed to get effect defaults:', result.error);
-                alert(`Failed to add effect: ${result.error}`);
+                // Use the natural category from the registry if it's valid
+                if (['primary', 'secondary', 'keyframe', 'finalImage'].includes(naturalCategory)) {
+                    validatedType = naturalCategory;
+                    if (validatedType !== effectType) {
+                        console.warn('🔍 useEffectManagement: Corrected effect type:', {
+                            effectName,
+                            requested: effectType,
+                            corrected: validatedType
+                        });
+                    }
+                }
             }
+
+            const effect = {
+                id: IdGenerator.generateId(),
+                name: effectName,
+                className: effectName,
+                registryKey: effectName,
+                type: validatedType,
+                config: processedConfig,
+                visible: true
+            };
+
+            console.log('🔍 useEffectManagement: Final effect object:', {
+                effectName,
+                finalType: validatedType,
+                effect
+            });
+
+            // Use Command Pattern instead of direct state update
+            const addCommand = new AddEffectCommand(projectState, effect, effectName, effectType);
+            commandService.execute(addCommand);
+
+            console.log(`✅ Command executed: Add ${effectType} effect: ${effectName}`, effect);
         } catch (error) {
             console.error('Error adding effect:', error);
             alert(`Error adding effect: ${error.message}`);
@@ -818,8 +790,10 @@ export default function useEffectManagement(projectState) {
 
             const mainEffect = currentEffects[effectIndex];
 
-        if (context.effectType === 'primary') {
-            console.log('🔧 useEffectManagement: Updating primary effect config');
+        // CRITICAL FIX: Handle both 'primary' and 'finalImage' effect types
+        // Final image effects are top-level effects just like primary effects
+        if (context.effectType === 'primary' || context.effectType === 'finalImage') {
+            console.log('🔧 useEffectManagement: Updating effect config (type: ' + context.effectType + ')');
             // CRITICAL FIX: Merge new config with existing config instead of replacing
             // This prevents config properties from being lost when only partial updates are sent
             const mergedConfig = {
@@ -888,7 +862,8 @@ export default function useEffectManagement(projectState) {
 
         const mainEffect = currentEffects[editingEffect.effectIndex];
 
-        if (editingEffect.effectType === 'primary') {
+        // CRITICAL FIX: Handle both 'primary' and 'finalImage' effect types
+        if (editingEffect.effectType === 'primary' || editingEffect.effectType === 'finalImage') {
             // CRITICAL FIX: Merge new config with existing config instead of replacing
             const mergedConfig = {
                 ...(mainEffect.config || {}),

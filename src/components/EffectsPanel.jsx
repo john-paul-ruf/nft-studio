@@ -1107,7 +1107,10 @@ export default function EffectsPanel({
             (effect.keyframeEffects?.length > 0) ||
             false;
         
-        const isSelected = isEffectSelected(originalIndex, 'primary', null);
+        // CRITICAL FIX: Use actual effect type instead of hardcoded 'primary'
+        // This ensures final image effects are treated correctly when applying presets
+        const effectType = effect.type || 'primary';
+        const isSelected = isEffectSelected(originalIndex, effectType, null);
 
         return (
             <ContextMenu.Root key={`${section}-${originalIndex}`}>
@@ -1121,8 +1124,8 @@ export default function EffectsPanel({
                     >
                         <Paper
                             elevation={0}
-                            onClick={() => handleEffectSelect(originalIndex, 'primary', null)}
-                            onContextMenu={() => handleEffectSelect(originalIndex, 'primary', null)}
+                            onClick={() => handleEffectSelect(originalIndex, effectType, null)}
+                            onContextMenu={() => handleEffectSelect(originalIndex, effectType, null)}
                             sx={{
                                 backgroundColor: isSelected 
                                     ? theme.palette.mode === 'dark'

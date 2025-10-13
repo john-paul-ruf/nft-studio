@@ -51,6 +51,7 @@ class PreferencesService {
                 selectedTheme: 'cyberpunk' // User's preferred theme (cyberpunk only)
             },
             effectDefaults: {}, // Object mapping registryKey to default config objects
+            userPresets: {}, // Object mapping effect registryKey -> { [presetName]: currentEffectConfig }
             lastModified: new Date().toISOString()
         };
     }
@@ -413,6 +414,87 @@ class PreferencesService {
     static async hasEffectDefaults(registryKey) {
         const preferences = await this.getPreferences();
         return !!(preferences.effectDefaults && preferences.effectDefaults[registryKey]);
+    }
+
+    // =========================
+    // User Presets API
+    // =========================
+
+    /**
+     * List user presets for an effect
+     * @param {string} registryKey
+     * @returns {Promise<Array<{name: string, config: Object}>>}
+     */
+    static async getUserPresets(registryKey) {
+        const preferences = await this.getPreferences();
+        const map = preferences.userPresets?.[registryKey] || {};
+        return Object.entries(map).map(([name, config]) => ({ name, config }));
+    }
+
+    /**
+     * Get a single user preset
+     * @param {string} registryKey
+     * @param {string} name
+     * @returns {Promise<Object|null>} currentEffectConfig or null
+     */
+    static async getUserPreset(registryKey, name) {
+        const preferences = await this.getPreferences();
+        return preferences.userPresets?.[registryKey]?.[name] || null;
+    }
+
+    /**
+     * Check if user preset exists
+     */
+    static async hasUserPreset(registryKey, name) {
+        const preferences = await this.getPreferences();
+        return !!preferences.userPresets?.[registryKey]?.[name];
+    }
+
+    /**
+     * Save a new user preset (disallow duplicates)
+     * @param {string} registryKey
+     * @param {string} name
+     * @param {Object} config currentEffectConfig
+     * @returns {Promise<{success: boolean, error?: string}>}
+     */
+    static async saveUserPreset(registryKey, name, config) {
+        try {
+            if (!registryKey || !name || !config) {
+                return { success: false, error: 'registryKey, name, and config are required' };
+            }
+
+            const preferences = await this.getPreferences();
+            if (!preferences.userPresets) preferences.userPresets = {};
+            if (!preferences.userPresets[registryKey]) preferences.userPresets[registryKey] = {};
+
+            if (preferences.userPresets[registryKey][name]) {
+                return { success: false, error: 'Duplicate preset name' };
+            }
+
+            preferences.userPresets[registryKey][name] = config;
+            const ok = await this.savePreferences(preferences);
+            return { success: ok };
+        } catch (error) {
+            safeConsoleError('Error saving user preset:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Delete a user preset
+     */
+    static async deleteUserPreset(registryKey, name) {
+        try {
+            const preferences = await this.getPreferences();
+            if (preferences.userPresets?.[registryKey]?.[name]) {
+                delete preferences.userPresets[registryKey][name];
+                return await this.savePreferences(preferences);
+            }
+            return true;
+        } catch (error) {
+            safeConsoleError('Error deleting user preset:', error);
+            return false;
+        }
     }
 }
 

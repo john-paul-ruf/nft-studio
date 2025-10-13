@@ -3,7 +3,7 @@ import React from 'react';
 function EffectSummary({ effects, onStartGeneration }) {
     // Calculate total effects including attached effects
     const calculateTotalEffects = () => {
-        let total = effects.final ? effects.final.length : 0;
+        let total = effects.finalImage ? effects.finalImage.length : 0;
         if (effects.primary) {
             total += effects.primary.length;
             effects.primary.forEach(primaryEffect => {
@@ -18,7 +18,7 @@ function EffectSummary({ effects, onStartGeneration }) {
 
     const effectCategories = [
         { key: 'primary', name: 'Primary Effects', icon: '🎨', description: 'Core visual effects' },
-        { key: 'final', name: 'Final Effects', icon: '🎭', description: 'Post-processing effects' }
+        { key: 'finalImage', name: 'Final Effects', icon: '🎭', description: 'Post-processing effects' }
     ];
 
     return (

@@ -96,10 +96,21 @@ export class EffectConfigurationManager {
 
     /**
      * Apply center position defaults to configuration
+     * 
+     * ⚠️ IMPORTANT: This method should ONLY be called when an effect is FIRST CREATED.
+     * It should NOT be called during:
+     * - User editing of existing effects
+     * - Field changes in the UI
+     * - Configuration updates
+     * - Preset applications
+     * 
+     * Center defaults are applied ONCE at effect creation time in useEffectManagement.js
+     * 
      * @param {Object} config - Configuration to process
      * @param {Object} projectState - Project state with resolution info
      * @param {boolean} isNewEffect - Whether this is a new effect being added (not an edit)
      * @returns {Object} Configuration with center positions applied
+     * @deprecated This method is kept for backward compatibility but should not be used in EffectConfigurer
      */
     applyCenterDefaults(config, projectState, isNewEffect = false) {
         const startTime = performance.now();

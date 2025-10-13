@@ -271,8 +271,8 @@ class EffectRegistryService {
                 } else if (className === 'Range') {
                     serialized[key] = {
                         __type: 'Range',
-                        min: value.min,
-                        max: value.max
+                        lower: value.lower,
+                        upper: value.upper
                     };
                 } else if (className === 'DynamicRange') {
                     serialized[key] = {
@@ -312,16 +312,64 @@ class EffectRegistryService {
      * @param {string} effectName - Name of effect
      * @returns {Promise<Array|null>} Array of presets or null if none found
      */
+    // Internal: read user presets map from user-preferences.json
+    async _readUserPresetsMap() {
+        try {
+            const userDataPath = app.getPath('userData');
+            const prefsPath = path.join(userDataPath, 'user-preferences.json');
+            const content = await fs.readFile(prefsPath, 'utf8');
+            const json = JSON.parse(content || '{}');
+            return json.userPresets || {};
+        } catch (e) {
+            // File may not exist yet
+            return {};
+        }
+    }
+
+    // Internal: write user presets map back to user-preferences.json
+    async _writeUserPresetsMap(updatedMap) {
+        try {
+            const userDataPath = app.getPath('userData');
+            const prefsPath = path.join(userDataPath, 'user-preferences.json');
+            let base = {};
+            try {
+                const content = await fs.readFile(prefsPath, 'utf8');
+                base = JSON.parse(content || '{}');
+            } catch {}
+            base.userPresets = updatedMap;
+            base.lastModified = new Date().toISOString();
+            await fs.writeFile(prefsPath, JSON.stringify(base, null, 2), 'utf8');
+            return true;
+        } catch (e) {
+            SafeConsole.log('❌ [EffectRegistryService] Failed to write user presets:', e.message);
+            return false;
+        }
+    }
+
     async getPresetsForEffect(effectName) {
         const PresetReg = await this.getPresetRegistry();
-        const presets = PresetReg.getGlobal(effectName);
-        
-        if (!presets || !Array.isArray(presets)) {
-            return null;
-        }
-        
-        // Serialize each preset for IPC transmission
-        return presets.map(preset => this._serializePreset(preset));
+        const builtInPresets = PresetReg.getGlobal(effectName) || [];
+
+        // Serialize built-in presets and mark source
+        const serializedBuiltIn = builtInPresets.map(p => ({
+            ...this._serializePreset(p),
+            metadata: { source: 'builtin' }
+        }));
+
+        // Load user presets for this effect
+        const userMap = await this._readUserPresetsMap();
+        const userForEffect = userMap[effectName] || {};
+        const serializedUser = Object.entries(userForEffect).map(([name, config]) => ({
+            name,
+            percentChance: 100,
+            currentEffectConfig: this._serializeConfig(config),
+            metadata: { source: 'user' }
+        }));
+
+        const combined = [...serializedBuiltIn, ...serializedUser];
+        // Ensure returned data is cloneable over IPC (plain JSON)
+        const safeCombined = JSON.parse(JSON.stringify(combined));
+        return safeCombined.length > 0 ? safeCombined : null;
     }
 
     /**
@@ -331,15 +379,28 @@ class EffectRegistryService {
      * @returns {Promise<Object|null>} Preset object or null if not found
      */
     async getPreset(effectName, presetName) {
+        // First, check user presets
+        const userMap = await this._readUserPresetsMap();
+        const userPresetConfig = userMap?.[effectName]?.[presetName] || null;
+        if (userPresetConfig) {
+            const obj = {
+                name: presetName,
+                effect: effectName,
+                percentChance: 100,
+                currentEffectConfig: this._serializeConfig(userPresetConfig),
+                metadata: { source: 'user' }
+            };
+            return JSON.parse(JSON.stringify(obj));
+        }
+
+        // Fallback to built-in presets
         const PresetReg = await this.getPresetRegistry();
         const preset = PresetReg.getPresetGlobal(effectName, presetName);
-        
         if (!preset) {
             return null;
         }
-        
-        // Serialize the preset for IPC transmission
-        return this._serializePreset(preset);
+        const builtin = { ...this._serializePreset(preset), metadata: { source: 'builtin' } };
+        return JSON.parse(JSON.stringify(builtin));
     }
 
     /**
@@ -349,7 +410,10 @@ class EffectRegistryService {
      */
     async hasPresets(effectName) {
         const PresetReg = await this.getPresetRegistry();
-        return PresetReg.hasGlobal(effectName);
+        const hasBuiltIn = PresetReg.hasGlobal(effectName);
+        const userMap = await this._readUserPresetsMap();
+        const hasUser = !!userMap?.[effectName] && Object.keys(userMap[effectName]).length > 0;
+        return hasBuiltIn || hasUser;
     }
 
     /**
@@ -359,7 +423,10 @@ class EffectRegistryService {
      */
     async getPresetNames(effectName) {
         const PresetReg = await this.getPresetRegistry();
-        return PresetReg.getPresetNamesGlobal(effectName);
+        const builtIn = PresetReg.getPresetNamesGlobal(effectName) || [];
+        const userMap = await this._readUserPresetsMap();
+        const user = Object.keys(userMap?.[effectName] || {});
+        return [...builtIn, ...user];
     }
 
     /**

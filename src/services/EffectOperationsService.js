@@ -89,33 +89,20 @@ class EffectOperationsService {
         try {
             this.logger.info(`Creating effect: ${effectName} (${effectType})`);
 
-            // Get effect defaults from backend
-            const result = await window.api.getEffectDefaults(effectName);
-            if (!result.success) {
-                throw new Error(`Failed to get effect defaults: ${result.error}`);
-            }
-
             // Find the effect in available effects to get the registryKey
             const effectCategory = availableEffects[effectType] || [];
             const effectData = effectCategory.find(e => e.name === effectName);
             const registryKey = effectData?.registryKey || effectName;
 
-            // Check for user-saved defaults first
-            const savedDefaults = await PreferencesService.getEffectDefaults(registryKey);
-            let processedConfig = savedDefaults || result.defaults;
+            // ⚠️ CRITICAL: Start with empty config - NO defaults applied
+            // Effects should be created with empty configuration and user configures them manually
+            // This includes NO center defaults, NO saved defaults, NO backend defaults
+            let processedConfig = {};
 
-            this.logger.info(`Using effect defaults for ${effectName}:`, {
+            this.logger.info(`Creating effect with empty config for ${effectName}:`, {
                 registryKey,
-                usingSavedDefaults: !!savedDefaults,
-                configKeys: Object.keys(processedConfig || {})
+                config: processedConfig
             });
-
-            // Apply center defaults immediately when adding effect
-            const projectData = projectState.getState();
-            if (projectData) {
-                processedConfig = CenterUtils.detectAndApplyCenter(processedConfig, projectData);
-                this.logger.info(`Center defaults applied for ${effectName}`);
-            }
 
             // Validate and correct effect type
             let validatedType = effectType;

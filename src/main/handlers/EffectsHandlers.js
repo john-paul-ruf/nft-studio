@@ -221,6 +221,52 @@ class EffectsHandlers {
                 };
             }
         });
+
+        // User preset persistence
+        ipcMain.handle('save-user-preset', async (event, { effectName, presetName, config }) => {
+            try {
+                const registryService = new EffectRegistryService();
+                const map = await registryService._readUserPresetsMap();
+                const namesForEffect = map[effectName] || {};
+                if (namesForEffect[presetName]) {
+                    return { success: false, error: 'Duplicate preset name' };
+                }
+                map[effectName] = { ...namesForEffect, [presetName]: config };
+                const ok = await registryService._writeUserPresetsMap(map);
+                return { success: ok };
+            } catch (error) {
+                SafeConsole.error('Error saving user preset via IPC:', error);
+                return { success: false, error: error.message };
+            }
+        });
+
+        ipcMain.handle('delete-user-preset', async (event, { effectName, presetName }) => {
+            try {
+                const registryService = new EffectRegistryService();
+                const map = await registryService._readUserPresetsMap();
+                if (map?.[effectName]?.[presetName]) {
+                    delete map[effectName][presetName];
+                    const ok = await registryService._writeUserPresetsMap(map);
+                    return { success: ok };
+                }
+                return { success: true };
+            } catch (error) {
+                SafeConsole.error('Error deleting user preset via IPC:', error);
+                return { success: false, error: error.message };
+            }
+        });
+
+        ipcMain.handle('list-user-presets', async (event, effectName) => {
+            try {
+                const registryService = new EffectRegistryService();
+                const map = await registryService._readUserPresetsMap();
+                const list = Object.keys(map?.[effectName] || {});
+                return { success: true, names: list };
+            } catch (error) {
+                SafeConsole.error('Error listing user presets via IPC:', error);
+                return { success: false, error: error.message, names: [] };
+            }
+        });
     }
 
     /**

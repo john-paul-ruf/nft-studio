@@ -54,6 +54,11 @@ contextBridge.exposeInMainWorld('api', {
     hasPresets: (effectName) => ipcRenderer.invoke('has-presets', effectName),
     getPresetNames: (effectName) => ipcRenderer.invoke('get-preset-names', effectName),
 
+    // User presets
+    saveUserPreset: (effectName, presetName, config) => ipcRenderer.invoke('save-user-preset', { effectName, presetName, config }),
+    deleteUserPreset: (effectName, presetName) => ipcRenderer.invoke('delete-user-preset', { effectName, presetName }),
+    listUserPresets: (effectName) => ipcRenderer.invoke('list-user-presets', effectName),
+
     // Config introspection
     introspectConfig: (params) => ipcRenderer.invoke('introspect-config', params),
 

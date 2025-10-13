@@ -14,9 +14,10 @@ export default function EffectPicker({ onSelect, onClose }) {
 
             if (response.success && response.effects) {
                 // Combine primary and final effects
+                // Note: The API returns 'finalImage' not 'final'
                 const allEffects = [
                     ...(response.effects.primary || []),
-                    ...(response.effects.final || [])
+                    ...(response.effects.finalImage || [])
                 ];
                 setEffects(allEffects);
             } else {
@@ -88,7 +89,7 @@ export default function EffectPicker({ onSelect, onClose }) {
                                         </div>
                                         <div className="effect-name">
                                             {displayName}
-                                            {effect.category === 'final' && (
+                                            {effect.category === 'finalImage' && (
                                                 <span className="effect-type"> (Final)</span>
                                             )}
                                         </div>
