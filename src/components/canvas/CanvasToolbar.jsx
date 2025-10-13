@@ -692,26 +692,6 @@ export default function CanvasToolbar({
                             </IconButton>
                         </span>
                     </Tooltip>
-
-                    <Tooltip title={`Current theme: ${availableThemes[currentThemeKey]?.name || currentThemeKey} (click to cycle)`}>
-                        <IconButton
-                            onClick={onThemeToggle}
-                            color="inherit"
-                            size="small"
-                            sx={{
-                                borderRadius: 1,
-                                padding: '8px',
-                                transition: 'all 0.2s ease',
-                                '&:hover': {
-                                    backgroundColor: 'primary.main',
-                                    color: 'white',
-                                }
-                            }}
-                        >
-                            {/* Cyberpunk theme icon */}
-                            <span style={{fontSize: '16px'}}>⚡</span>
-                        </IconButton>
-                    </Tooltip>
                 </Box>
             </Toolbar>
         </AppBar>

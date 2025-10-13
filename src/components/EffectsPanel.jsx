@@ -184,7 +184,7 @@ export default function EffectsPanel({
     
     // Config panel state
     const [configPanelOpen, setConfigPanelOpen] = useState(false);
-    const [configPanelWidth, setConfigPanelWidth] = useState(400);
+    const [configPanelWidth, setConfigPanelWidth] = useState(600);
 
     // Debug effects prop changes
     const [expandedEffects, setExpandedEffects] = useState(new Set());

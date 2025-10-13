@@ -12,11 +12,25 @@ import FindValueAlgorithmInput from './FindValueAlgorithmInput.jsx';
 import MultiSelectInput from './MultiSelectInput.jsx';
 import MultiStepInput from './MultiStepInput.jsx';
 import SparsityFactorInput from './SparsityFactorInput.jsx';
-import ArrayInput from './ArrayInput.jsx';
+import EnhancedArrayInput from './EnhancedArrayInput.jsx';
 import useDebounce from '../../../hooks/useDebounce.js';
 
 function ConfigInputFactory({ field, value, onChange, projectState }) {
     const commonProps = { field, value, onChange, projectState };
+    
+    // Check if this is a JSON field that contains an array
+    const isJsonArray = field.type === 'json' && Array.isArray(field.default);
+    
+    // Debug logging for array types
+    if (field.type === 'array' || isJsonArray) {
+        console.log('🔧 ConfigInputFactory: Array field detected:', {
+            fieldName: field.name,
+            fieldType: field.type,
+            isJsonArray: isJsonArray,
+            arrayType: field.arrayType,
+            value: value
+        });
+    }
     
     // Local state for text inputs to provide immediate feedback
     const [textValue, setTextValue] = useState(value || field.default || '');
@@ -49,6 +63,11 @@ function ConfigInputFactory({ field, value, onChange, projectState }) {
         onChange(name, val);
     }, [onChange]), 500);
 
+    // If this is a JSON field with an array default, treat it as an array
+    if (isJsonArray) {
+        return <EnhancedArrayInput {...commonProps} />;
+    }
+    
     switch (field.type) {
         case 'range':
             return <RangeInput {...commonProps} />;
@@ -78,7 +97,8 @@ function ConfigInputFactory({ field, value, onChange, projectState }) {
         case 'sparsityfactor':
             return <SparsityFactorInput {...commonProps} />;
         case 'array':
-            return <ArrayInput {...commonProps} />;
+            // Use enhanced array input for better UX
+            return <EnhancedArrayInput {...commonProps} />;
         case 'readonly':
             return (
                 <div className="readonly-input">
