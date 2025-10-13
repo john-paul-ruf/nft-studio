@@ -810,17 +810,29 @@ export default function useEffectManagement(projectState) {
 
         if (context.effectType === 'primary') {
             console.log('🔧 useEffectManagement: Updating primary effect config');
+            // CRITICAL FIX: Merge new config with existing config instead of replacing
+            // This prevents config properties from being lost when only partial updates are sent
+            const mergedConfig = {
+                ...(mainEffect.config || {}),
+                ...newConfig
+            };
             const updatedEffect = {
                 ...mainEffect,
-                config: newConfig
+                config: mergedConfig
             };
             handleEffectUpdate(effectIndex, updatedEffect);
         } else if (context.effectType === 'secondary' && context.subIndex !== null) {
             console.log('🔧 useEffectManagement: Updating secondary effect config at index:', context.subIndex);
             const updatedSecondaryEffects = [...(mainEffect.secondaryEffects || [])];
+            // CRITICAL FIX: Merge new config with existing config instead of replacing
+            const existingSecondaryEffect = updatedSecondaryEffects[context.subIndex];
+            const mergedConfig = {
+                ...(existingSecondaryEffect?.config || {}),
+                ...newConfig
+            };
             updatedSecondaryEffects[context.subIndex] = {
-                ...updatedSecondaryEffects[context.subIndex],
-                config: newConfig
+                ...existingSecondaryEffect,
+                config: mergedConfig
             };
             const updatedEffect = {
                 ...mainEffect,
@@ -833,9 +845,15 @@ export default function useEffectManagement(projectState) {
             // Use single source of truth for keyframe effects
             const currentKeyframeEffects = mainEffect.attachedEffects?.keyFrame || [];
             const updatedKeyframeEffects = [...currentKeyframeEffects];
+            // CRITICAL FIX: Merge new config with existing config instead of replacing
+            const existingKeyframeEffect = updatedKeyframeEffects[context.subIndex];
+            const mergedConfig = {
+                ...(existingKeyframeEffect?.config || {}),
+                ...newConfig
+            };
             updatedKeyframeEffects[context.subIndex] = {
-                ...updatedKeyframeEffects[context.subIndex],
-                config: newConfig
+                ...existingKeyframeEffect,
+                config: mergedConfig
             };
             const updatedEffect = {
                 ...mainEffect,
@@ -857,16 +875,27 @@ export default function useEffectManagement(projectState) {
         const mainEffect = currentEffects[editingEffect.effectIndex];
 
         if (editingEffect.effectType === 'primary') {
+            // CRITICAL FIX: Merge new config with existing config instead of replacing
+            const mergedConfig = {
+                ...(mainEffect.config || {}),
+                ...newConfig
+            };
             const updatedEffect = {
                 ...mainEffect,
-                config: newConfig
+                config: mergedConfig
             };
             handleEffectUpdate(editingEffect.effectIndex, updatedEffect);
         } else if (editingEffect.effectType === 'secondary' && editingEffect.subIndex !== null) {
             const updatedSecondaryEffects = [...(mainEffect.secondaryEffects || [])];
+            // CRITICAL FIX: Merge new config with existing config instead of replacing
+            const existingSecondaryEffect = updatedSecondaryEffects[editingEffect.subIndex];
+            const mergedConfig = {
+                ...(existingSecondaryEffect?.config || {}),
+                ...newConfig
+            };
             updatedSecondaryEffects[editingEffect.subIndex] = {
-                ...updatedSecondaryEffects[editingEffect.subIndex],
-                config: newConfig
+                ...existingSecondaryEffect,
+                config: mergedConfig
             };
             const updatedEffect = {
                 ...mainEffect,
@@ -877,9 +906,15 @@ export default function useEffectManagement(projectState) {
             // Use single source of truth for keyframe effects
             const currentKeyframeEffects = mainEffect.attachedEffects?.keyFrame || [];
             const updatedKeyframeEffects = [...currentKeyframeEffects];
+            // CRITICAL FIX: Merge new config with existing config instead of replacing
+            const existingKeyframeEffect = updatedKeyframeEffects[editingEffect.subIndex];
+            const mergedConfig = {
+                ...(existingKeyframeEffect?.config || {}),
+                ...newConfig
+            };
             updatedKeyframeEffects[editingEffect.subIndex] = {
-                ...updatedKeyframeEffects[editingEffect.subIndex],
-                config: newConfig
+                ...existingKeyframeEffect,
+                config: mergedConfig
             };
             const updatedEffect = {
                 ...mainEffect,
