@@ -173,7 +173,32 @@ class EffectProcessingService {
         const { ConfigReconstructor } = await _loadModules();
         
         // Always preserve user config as fallback
-        const userConfig = effect.config || {};
+        let userConfig = effect.config || {};
+        
+        // DEBUG: Log config before deserialization
+        SafeConsole.log(`🔍 [EffectProcessingService] Config BEFORE deserialization for ${effect.registryKey}:`, {
+            hasInnerColor: !!userConfig.innerColor,
+            innerColorType: userConfig.innerColor?.constructor?.name || typeof userConfig.innerColor,
+            innerColorHasType: !!userConfig.innerColor?.__type,
+            innerColorValue: userConfig.innerColor
+        });
+        
+        // CRITICAL: Deserialize config if it contains serialized class instances (from presets)
+        // This handles configs that come from preset selection, which are serialized for IPC transmission
+        const registryService = new EffectRegistryService();
+        userConfig = await registryService._deserializeConfig(userConfig);
+        
+        // DEBUG: Log config after deserialization
+        SafeConsole.log(`🔍 [EffectProcessingService] Config AFTER deserialization for ${effect.registryKey}:`, {
+            hasInnerColor: !!userConfig.innerColor,
+            innerColorType: userConfig.innerColor?.constructor?.name || typeof userConfig.innerColor,
+            innerColorHasGetColor: typeof userConfig.innerColor?.getColor === 'function',
+            innerColorValue: userConfig.innerColor
+        });
+
+        // Check if config is already properly deserialized (has class instances with methods)
+        const isAlreadyDeserialized = EffectProcessingService._hasClassInstances(userConfig);
+        SafeConsole.log(`🔍 [EffectProcessingService] Config already deserialized: ${isAlreadyDeserialized}`);
 
         // For resumed projects, the config might be serialized (plain objects instead of method objects)
         // We need to re-hydrate it properly, but since we're in backend context,
@@ -181,9 +206,15 @@ class EffectProcessingService {
         // which requires window.api (frontend IPC)
         let hydratedConfig;
         try {
-            // Try ConfigReconstructor first for proper config reconstruction from my-nft-gen
-            const effectName = effect.registryKey;
-            hydratedConfig = await ConfigReconstructor.reconstruct(effectName, userConfig);
+            // If config is already properly deserialized, skip ConfigReconstructor to avoid overwriting
+            if (isAlreadyDeserialized) {
+                SafeConsole.log(`✅ [EffectProcessingService] Using already deserialized config for ${effect.registryKey}`);
+                hydratedConfig = userConfig;
+            } else {
+                // Try ConfigReconstructor first for proper config reconstruction from my-nft-gen
+                const effectName = effect.registryKey;
+                hydratedConfig = await ConfigReconstructor.reconstruct(effectName, userConfig);
+            }
 
             // Check if ConfigReconstructor properly handled ColorPicker objects
             // If not, we need to manually reconstruct them
@@ -260,6 +291,51 @@ class EffectProcessingService {
             // Return deserialized config as fallback to prevent crashes
             return hydratedConfig;
         }
+    }
+
+    /**
+     * Check if a config object has proper class instances (not plain objects)
+     * @param {Object} config - Config object to check
+     * @returns {boolean} True if config has class instances with methods
+     */
+    static _hasClassInstances(config) {
+        if (!config || typeof config !== 'object') {
+            return false;
+        }
+
+        // Check for common class instances that should have methods
+        for (const [key, value] of Object.entries(config)) {
+            if (value && typeof value === 'object') {
+                const constructorName = value.constructor?.name;
+                
+                // Check for ColorPicker instances
+                if (constructorName === 'ColorPicker' && typeof value.getColor === 'function') {
+                    return true;
+                }
+                
+                // Check for Range instances
+                if (constructorName === 'Range' && typeof value.getRandom === 'function') {
+                    return true;
+                }
+                
+                // Check for Point2D instances
+                if (constructorName === 'Point2D' && (value.x !== undefined || value.y !== undefined)) {
+                    return true;
+                }
+                
+                // Check for PercentageRange instances
+                if (constructorName === 'PercentageRange' && typeof value.getPixels === 'function') {
+                    return true;
+                }
+                
+                // Recursively check nested objects
+                if (!Array.isArray(value) && EffectProcessingService._hasClassInstances(value)) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
     }
 
     /**

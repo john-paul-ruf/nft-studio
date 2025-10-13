@@ -266,7 +266,7 @@ class EffectRegistryService {
                     serialized[key] = {
                         __type: 'ColorPicker',
                         selectionType: value.selectionType,
-                        specificColor: value.specificColor
+                        colorValue: value.colorValue
                     };
                 } else if (className === 'Range') {
                     serialized[key] = {
@@ -305,6 +305,97 @@ class EffectRegistryService {
         }
         
         return serialized;
+    }
+
+    /**
+     * Deserialize a configuration object from IPC transmission
+     * Converts plain objects with __type metadata back into class instances
+     * @param {Object} config - Serialized configuration object
+     * @returns {Promise<Object>} Deserialized configuration with proper class instances
+     */
+    async _deserializeConfig(config) {
+        if (!config || typeof config !== 'object') {
+            return config;
+        }
+
+        // Handle arrays
+        if (Array.isArray(config)) {
+            const result = [];
+            for (const item of config) {
+                result.push(await this._deserializeConfig(item));
+            }
+            return result;
+        }
+
+        // Check if this object has a __type marker
+        if (config.__type) {
+            try {
+                // Import the required classes from my-nft-gen with specific paths
+                switch (config.__type) {
+                    case 'ColorPicker': {
+                        const { ColorPicker } = await import('my-nft-gen/src/core/layer/configType/ColorPicker.js');
+                        const colorPicker = new ColorPicker();
+                        colorPicker.selectionType = config.selectionType || 'color-bucket';
+                        colorPicker.colorValue = config.colorValue || null;
+                        return colorPicker;
+                    }
+
+                    case 'Range': {
+                        const { Range } = await import('my-nft-gen/src/core/layer/configType/Range.js');
+                        return new Range(config.lower || 0, config.upper || 1);
+                    }
+
+                    case 'DynamicRange': {
+                        const { DynamicRange } = await import('my-nft-gen/src/core/layer/configType/DynamicRange.js');
+                        const bottom = await this._deserializeConfig(config.bottom);
+                        const top = await this._deserializeConfig(config.top);
+                        return new DynamicRange(bottom, top);
+                    }
+
+                    case 'Point2D': {
+                        const { Point2D } = await import('my-nft-gen/src/core/layer/configType/Point2D.js');
+                        return new Point2D(config.x || 0, config.y || 0);
+                    }
+
+                    case 'PercentageRange': {
+                        const { PercentageRange } = await import('my-nft-gen/src/core/layer/configType/PercentageRange.js');
+                        const lower = await this._deserializeConfig(config.lower);
+                        const upper = await this._deserializeConfig(config.upper);
+                        return new PercentageRange(lower, upper);
+                    }
+
+                    case 'PercentageShortestSide': {
+                        const { PercentageShortestSide } = await import('my-nft-gen/src/core/layer/configType/PercentageShortestSide.js');
+                        return new PercentageShortestSide(config.percent || 0.5);
+                    }
+
+                    case 'PercentageLongestSide': {
+                        const { PercentageLongestSide } = await import('my-nft-gen/src/core/layer/configType/PercentageLongestSide.js');
+                        return new PercentageLongestSide(config.percent || 0.5);
+                    }
+
+                    default:
+                        SafeConsole.log(`⚠️ [EffectRegistryService] Unknown __type: ${config.__type}, returning as plain object`);
+                        // Remove __type and return as plain object
+                        const { __type, ...rest } = config;
+                        return await this._deserializeConfig(rest);
+                }
+            } catch (error) {
+                SafeConsole.log(`❌ [EffectRegistryService] Failed to deserialize ${config.__type}:`, error.message);
+                SafeConsole.log(`   Stack:`, error.stack);
+                // Return as plain object if deserialization fails
+                const { __type, ...rest } = config;
+                return rest;
+            }
+        }
+
+        // Recursively deserialize nested objects
+        const deserialized = {};
+        for (const [key, value] of Object.entries(config)) {
+            deserialized[key] = await this._deserializeConfig(value);
+        }
+
+        return deserialized;
     }
 
     /**
