@@ -277,8 +277,8 @@ class EffectRegistryService {
                 } else if (className === 'DynamicRange') {
                     serialized[key] = {
                         __type: 'DynamicRange',
-                        startRange: this._serializeConfig(value.startRange),
-                        endRange: this._serializeConfig(value.endRange)
+                        bottom: this._serializeConfig(value.bottom),
+                        top: this._serializeConfig(value.top)
                     };
                 } else if (className === 'Point2D') {
                     serialized[key] = {
