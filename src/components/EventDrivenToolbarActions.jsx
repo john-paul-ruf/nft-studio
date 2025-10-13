@@ -417,8 +417,9 @@ export default function EventDrivenToolbarActions({ projectState }) {
             'effectspanel:effect:togglevisibility',
             (payload) => {
                 console.log('🔥 EventDrivenToolbarActions: Effect toggle visibility event:', payload);
+                // 🔒 CRITICAL: Pass effectId (not effectIndex) for ID-first pattern
                 eventBusService.emit('effect:togglevisibility', {
-                    effectIndex: payload.effectIndex
+                    effectId: payload.effectId
                 }, { source: 'EventDrivenToolbarActions' });
             },
             { component: 'EventDrivenToolbarActions' }
