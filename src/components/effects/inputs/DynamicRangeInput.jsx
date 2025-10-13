@@ -20,19 +20,37 @@ function DynamicRangeInput({ field, value, onChange }) {
     const [displayBottomUpper, setDisplayBottomUpper] = useState(NumberFormatter.formatForDisplay(currentValue.bottom?.upper ?? 0));
     const [displayTopLower, setDisplayTopLower] = useState(NumberFormatter.formatForDisplay(currentValue.top?.lower ?? 0));
     const [displayTopUpper, setDisplayTopUpper] = useState(NumberFormatter.formatForDisplay(currentValue.top?.upper ?? 0));
+    
+    // Track if inputs are focused to prevent overwriting during typing
+    const isBottomLowerFocusedRef = useRef(false);
+    const isBottomUpperFocusedRef = useRef(false);
+    const isTopLowerFocusedRef = useRef(false);
+    const isTopUpperFocusedRef = useRef(false);
 
     // Update ref when value prop changes
     useEffect(() => {
         valueRef.current = value;
     }, [value]);
 
-    // Update display values when currentValue changes
+    // Update display values when currentValue changes, but ONLY if not actively typing
     useEffect(() => {
-        setDisplayBottomLower(NumberFormatter.formatForDisplay(currentValue.bottom?.lower ?? 0));
-        setDisplayBottomUpper(NumberFormatter.formatForDisplay(currentValue.bottom?.upper ?? 0));
-        setDisplayTopLower(NumberFormatter.formatForDisplay(currentValue.top?.lower ?? 0));
-        setDisplayTopUpper(NumberFormatter.formatForDisplay(currentValue.top?.upper ?? 0));
+        if (!isBottomLowerFocusedRef.current) {
+            setDisplayBottomLower(NumberFormatter.formatForDisplay(currentValue.bottom?.lower ?? 0));
+        }
+        if (!isBottomUpperFocusedRef.current) {
+            setDisplayBottomUpper(NumberFormatter.formatForDisplay(currentValue.bottom?.upper ?? 0));
+        }
+        if (!isTopLowerFocusedRef.current) {
+            setDisplayTopLower(NumberFormatter.formatForDisplay(currentValue.top?.lower ?? 0));
+        }
+        if (!isTopUpperFocusedRef.current) {
+            setDisplayTopUpper(NumberFormatter.formatForDisplay(currentValue.top?.upper ?? 0));
+        }
     }, [currentValue.bottom?.lower, currentValue.bottom?.upper, currentValue.top?.lower, currentValue.top?.upper]);
+
+    const handleBottomLowerFocus = () => {
+        isBottomLowerFocusedRef.current = true;
+    };
 
     const handleBottomLowerChange = (e) => {
         const inputValue = e.target.value;
@@ -53,6 +71,7 @@ function DynamicRangeInput({ field, value, onChange }) {
     };
 
     const handleBottomLowerBlur = (e) => {
+        isBottomLowerFocusedRef.current = false;
         const inputValue = e.target.value;
         const latestValue = getCurrentValue();
         
@@ -82,6 +101,10 @@ function DynamicRangeInput({ field, value, onChange }) {
         }
     };
 
+    const handleBottomUpperFocus = () => {
+        isBottomUpperFocusedRef.current = true;
+    };
+
     const handleBottomUpperChange = (e) => {
         const inputValue = e.target.value;
         setDisplayBottomUpper(inputValue);
@@ -101,6 +124,7 @@ function DynamicRangeInput({ field, value, onChange }) {
     };
 
     const handleBottomUpperBlur = (e) => {
+        isBottomUpperFocusedRef.current = false;
         const inputValue = e.target.value;
         const latestValue = getCurrentValue();
         
@@ -130,6 +154,10 @@ function DynamicRangeInput({ field, value, onChange }) {
         }
     };
 
+    const handleTopLowerFocus = () => {
+        isTopLowerFocusedRef.current = true;
+    };
+
     const handleTopLowerChange = (e) => {
         const inputValue = e.target.value;
         setDisplayTopLower(inputValue);
@@ -149,6 +177,7 @@ function DynamicRangeInput({ field, value, onChange }) {
     };
 
     const handleTopLowerBlur = (e) => {
+        isTopLowerFocusedRef.current = false;
         const inputValue = e.target.value;
         const latestValue = getCurrentValue();
         
@@ -178,6 +207,10 @@ function DynamicRangeInput({ field, value, onChange }) {
         }
     };
 
+    const handleTopUpperFocus = () => {
+        isTopUpperFocusedRef.current = true;
+    };
+
     const handleTopUpperChange = (e) => {
         const inputValue = e.target.value;
         setDisplayTopUpper(inputValue);
@@ -197,6 +230,7 @@ function DynamicRangeInput({ field, value, onChange }) {
     };
 
     const handleTopUpperBlur = (e) => {
+        isTopUpperFocusedRef.current = false;
         const inputValue = e.target.value;
         const latestValue = getCurrentValue();
         
@@ -271,6 +305,7 @@ function DynamicRangeInput({ field, value, onChange }) {
                                 type="number"
                                 step={NumberFormatter.getStepForValue(currentValue.bottom?.upper || 0)}
                                 value={displayBottomUpper}
+                                onFocus={handleBottomUpperFocus}
                                 onChange={handleBottomUpperChange}
                                 onBlur={handleBottomUpperBlur}
                                 style={{
@@ -296,6 +331,7 @@ function DynamicRangeInput({ field, value, onChange }) {
                                 type="number"
                                 step={NumberFormatter.getStepForValue(currentValue.top?.lower || 0)}
                                 value={displayTopLower}
+                                onFocus={handleTopLowerFocus}
                                 onChange={handleTopLowerChange}
                                 onBlur={handleTopLowerBlur}
                                 style={{
@@ -314,6 +350,7 @@ function DynamicRangeInput({ field, value, onChange }) {
                                 type="number"
                                 step={NumberFormatter.getStepForValue(currentValue.top?.upper || 0)}
                                 value={displayTopUpper}
+                                onFocus={handleTopUpperFocus}
                                 onChange={handleTopUpperChange}
                                 onBlur={handleTopUpperBlur}
                                 style={{

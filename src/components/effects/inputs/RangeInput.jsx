@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import NumberFormatter from '../../../utils/NumberFormatter.js';
 import useDebounce from '../../../hooks/useDebounce.js';
 
@@ -8,17 +8,29 @@ function RangeInput({ field, value, onChange }) {
     // State for display values
     const [displayLower, setDisplayLower] = useState(NumberFormatter.formatForDisplay(currentValue.lower || 0));
     const [displayUpper, setDisplayUpper] = useState(NumberFormatter.formatForDisplay(currentValue.upper || 0));
+    
+    // Track if inputs are focused to prevent overwriting during typing
+    const isLowerFocusedRef = useRef(false);
+    const isUpperFocusedRef = useRef(false);
 
-    // Update display values when currentValue changes
+    // Update display values when currentValue changes, but ONLY if not actively typing
     useEffect(() => {
-        setDisplayLower(NumberFormatter.formatForDisplay(currentValue.lower || 0));
-        setDisplayUpper(NumberFormatter.formatForDisplay(currentValue.upper || 0));
+        if (!isLowerFocusedRef.current) {
+            setDisplayLower(NumberFormatter.formatForDisplay(currentValue.lower || 0));
+        }
+        if (!isUpperFocusedRef.current) {
+            setDisplayUpper(NumberFormatter.formatForDisplay(currentValue.upper || 0));
+        }
     }, [currentValue.lower, currentValue.upper]);
 
     // Debounce onChange (150ms for numbers)
     const debouncedOnChange = useDebounce(useCallback((name, val) => {
         onChange(name, val);
     }, [onChange]), 150);
+
+    const handleLowerFocus = () => {
+        isLowerFocusedRef.current = true;
+    };
 
     const handleLowerChange = (e) => {
         const inputValue = e.target.value;
@@ -39,6 +51,7 @@ function RangeInput({ field, value, onChange }) {
     };
 
     const handleLowerBlur = (e) => {
+        isLowerFocusedRef.current = false;
         const inputValue = e.target.value;
         
         // If empty or invalid on blur, restore the current value (don't force a default)
@@ -55,6 +68,10 @@ function RangeInput({ field, value, onChange }) {
                 lower: parsedValue
             });
         }
+    };
+
+    const handleUpperFocus = () => {
+        isUpperFocusedRef.current = true;
     };
 
     const handleUpperChange = (e) => {
@@ -76,6 +93,7 @@ function RangeInput({ field, value, onChange }) {
     };
 
     const handleUpperBlur = (e) => {
+        isUpperFocusedRef.current = false;
         const inputValue = e.target.value;
         
         // If empty or invalid on blur, restore the current value (don't force a default)
@@ -111,6 +129,7 @@ function RangeInput({ field, value, onChange }) {
                         type="number"
                         step={NumberFormatter.getStepForValue(currentValue.lower || 0)}
                         value={displayLower}
+                        onFocus={handleLowerFocus}
                         onChange={handleLowerChange}
                         onBlur={handleLowerBlur}
                         style={{
@@ -132,6 +151,7 @@ function RangeInput({ field, value, onChange }) {
                         type="number"
                         step={NumberFormatter.getStepForValue(currentValue.upper || 0)}
                         value={displayUpper}
+                        onFocus={handleUpperFocus}
                         onChange={handleUpperChange}
                         onBlur={handleUpperBlur}
                         style={{

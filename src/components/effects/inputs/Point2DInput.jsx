@@ -12,6 +12,10 @@ function Point2DInput({ field, value, onChange, projectState }) {
     // Local state for display values to provide immediate feedback
     const [displayX, setDisplayX] = useState('');
     const [displayY, setDisplayY] = useState('');
+    
+    // Track if inputs are focused to prevent overwriting during typing
+    const isXFocusedRef = useRef(false);
+    const isYFocusedRef = useRef(false);
 
     // Debounce onChange (150ms for numbers)
     const debouncedOnChange = useDebounce(useCallback((name, val) => {
@@ -134,10 +138,14 @@ function Point2DInput({ field, value, onChange, projectState }) {
         return resolved;
     }, [normalizedValue, field, width, height, currentResolutionKey]);
     
-    // Sync display values when currentValue changes externally
+    // Sync display values when currentValue changes externally, but ONLY if not actively typing
     useEffect(() => {
-        setDisplayX(String(currentValue.x || 0));
-        setDisplayY(String(currentValue.y || 0));
+        if (!isXFocusedRef.current) {
+            setDisplayX(String(currentValue.x || 0));
+        }
+        if (!isYFocusedRef.current) {
+            setDisplayY(String(currentValue.y || 0));
+        }
     }, [currentValue.x, currentValue.y]);
 
     // Memoize position presets - SPATIALLY ORGANIZED for 3x3 grid
@@ -249,6 +257,9 @@ function Point2DInput({ field, value, onChange, projectState }) {
                     <input
                         type="number"
                         value={displayX}
+                        onFocus={() => {
+                            isXFocusedRef.current = true;
+                        }}
                         onChange={(e) => {
                             const val = e.target.value;
                             setDisplayX(val); // Update display immediately
@@ -264,6 +275,7 @@ function Point2DInput({ field, value, onChange, projectState }) {
                             }
                         }}
                         onBlur={(e) => {
+                            isXFocusedRef.current = false;
                             // On blur, restore current value if empty or invalid
                             const val = e.target.value;
                             if (val === '' || val === '-' || isNaN(parseInt(val))) {
@@ -281,6 +293,9 @@ function Point2DInput({ field, value, onChange, projectState }) {
                     <input
                         type="number"
                         value={displayY}
+                        onFocus={() => {
+                            isYFocusedRef.current = true;
+                        }}
                         onChange={(e) => {
                             const val = e.target.value;
                             setDisplayY(val); // Update display immediately
@@ -296,6 +311,7 @@ function Point2DInput({ field, value, onChange, projectState }) {
                             }
                         }}
                         onBlur={(e) => {
+                            isYFocusedRef.current = false;
                             // On blur, restore current value if empty or invalid
                             const val = e.target.value;
                             if (val === '' || val === '-' || isNaN(parseInt(val))) {

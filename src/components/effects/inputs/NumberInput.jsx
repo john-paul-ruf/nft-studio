@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Box, Typography, TextField, Slider, FormControl, FormHelperText } from '@mui/material';
 import NumberFormatter from '../../../utils/NumberFormatter.js';
 import useDebounce from '../../../hooks/useDebounce.js';
@@ -17,16 +17,25 @@ function NumberInput({ field, value, onChange }) {
 
     // State for display value to handle formatting
     const [displayValue, setDisplayValue] = useState(NumberFormatter.formatForDisplay(currentValue));
+    
+    // Track if input is focused to prevent overwriting during typing
+    const isFocusedRef = useRef(false);
 
-    // Update display value when currentValue changes
+    // Update display value when currentValue changes, but ONLY if not actively typing
     useEffect(() => {
-        setDisplayValue(NumberFormatter.formatForDisplay(currentValue));
+        if (!isFocusedRef.current) {
+            setDisplayValue(NumberFormatter.formatForDisplay(currentValue));
+        }
     }, [currentValue]);
 
     // Debounce onChange for text input (150ms for numbers - faster than text)
     const debouncedOnChange = useDebounce(useCallback((name, val) => {
         onChange(name, val);
     }, [onChange]), 150);
+
+    const handleNumberFocus = () => {
+        isFocusedRef.current = true;
+    };
 
     const handleNumberChange = (e) => {
         const inputValue = e.target.value;
@@ -46,6 +55,7 @@ function NumberInput({ field, value, onChange }) {
     };
 
     const handleNumberBlur = (e) => {
+        isFocusedRef.current = false;
         const inputValue = e.target.value;
         
         // If empty or invalid on blur, restore the current value (don't force a default)
@@ -80,6 +90,7 @@ function NumberInput({ field, value, onChange }) {
                     type="number"
                     size="small"
                     value={displayValue}
+                    onFocus={handleNumberFocus}
                     onChange={handleNumberChange}
                     onBlur={handleNumberBlur}
                     inputProps={{
@@ -116,6 +127,7 @@ function NumberInput({ field, value, onChange }) {
                     type="number"
                     size="small"
                     value={displayValue}
+                    onFocus={handleNumberFocus}
                     onChange={handleNumberChange}
                     onBlur={handleNumberBlur}
                     inputProps={{

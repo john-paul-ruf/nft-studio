@@ -16,10 +16,14 @@ import {
 import { useServices } from '../../contexts/ServiceContext.js';
 import PreferencesService from '../../services/PreferencesService.js';
 import EffectOperationsService from '../../services/EffectOperationsService.js';
+import { UpdateQueue } from '../../utils/UpdateQueue.js';
 
 
 export default function useEffectManagement(projectState) {
     const { commandService, eventBusService, loggerService } = useServices();
+
+    // Initialize UpdateQueue for sequential config updates (prevents race conditions)
+    const [updateQueue] = useState(() => new UpdateQueue());
 
     // Initialize EffectOperationsService
     const [effectOperationsService] = useState(() => {
@@ -774,39 +778,45 @@ export default function useEffectManagement(projectState) {
     const handleConfigUpdateWithContext = useCallback((newConfig, context) => {
         console.log('🔧 useEffectManagement: handleConfigUpdateWithContext called with:', { newConfig, context });
 
-        const currentEffects = projectState.getState().effects || [];
         if (!context) {
             console.warn('🔧 useEffectManagement: No context provided');
             return;
         }
 
-        // Resolve effect ID to current index (handles reordering)
-        let effectIndex = context.effectIndex;
-        if (context.effectId) {
-            const currentIndex = currentEffects.findIndex(e => e.id === context.effectId);
-            if (currentIndex === -1) {
-                console.error('❌ useEffectManagement: Effect with ID not found (may have been deleted):', {
-                    effectId: context.effectId,
-                    originalIndex: context.effectIndex
-                });
+        // Create a unique key for this update to enable deduplication
+        const updateKey = `config-${context.effectId || context.effectIndex}-${context.effectType}-${context.subIndex}`;
+        
+        // Enqueue the update to prevent race conditions from rapid updates
+        updateQueue.enqueue(async () => {
+            const currentEffects = projectState.getState().effects || [];
+
+            // Resolve effect ID to current index (handles reordering)
+            let effectIndex = context.effectIndex;
+            if (context.effectId) {
+                const currentIndex = currentEffects.findIndex(e => e.id === context.effectId);
+                if (currentIndex === -1) {
+                    console.error('❌ useEffectManagement: Effect with ID not found (may have been deleted):', {
+                        effectId: context.effectId,
+                        originalIndex: context.effectIndex
+                    });
+                    return;
+                }
+                if (currentIndex !== context.effectIndex) {
+                    console.warn('⚠️ useEffectManagement: Effect index changed due to reordering:', {
+                        effectId: context.effectId,
+                        oldIndex: context.effectIndex,
+                        newIndex: currentIndex
+                    });
+                }
+                effectIndex = currentIndex;
+            }
+
+            if (!currentEffects[effectIndex]) {
+                console.warn('🔧 useEffectManagement: Effect not found at index:', { effectIndex, effectsLength: currentEffects.length });
                 return;
             }
-            if (currentIndex !== context.effectIndex) {
-                console.warn('⚠️ useEffectManagement: Effect index changed due to reordering:', {
-                    effectId: context.effectId,
-                    oldIndex: context.effectIndex,
-                    newIndex: currentIndex
-                });
-            }
-            effectIndex = currentIndex;
-        }
 
-        if (!currentEffects[effectIndex]) {
-            console.warn('🔧 useEffectManagement: Effect not found at index:', { effectIndex, effectsLength: currentEffects.length });
-            return;
-        }
-
-        const mainEffect = currentEffects[effectIndex];
+            const mainEffect = currentEffects[effectIndex];
 
         if (context.effectType === 'primary') {
             console.log('🔧 useEffectManagement: Updating primary effect config');
@@ -863,8 +873,12 @@ export default function useEffectManagement(projectState) {
                 }
             };
             handleEffectUpdate(effectIndex, updatedEffect);
-        }
-    }, [projectState, handleEffectUpdate]);
+            }
+        }, { 
+            key: updateKey, 
+            replace: true // Replace pending updates for the same effect to avoid stale updates
+        });
+    }, [projectState, handleEffectUpdate, updateQueue]);
 
     const handleSubEffectUpdate = useCallback((newConfig) => {
         const currentEffects = projectState.getState().effects || [];

@@ -18,6 +18,9 @@ function ColorPickerInput({ field, value, onChange }) {
     // State for text input to allow typing invalid values temporarily
     const [textInputValue, setTextInputValue] = useState(currentValue.colorValue || '#ff0000');
     
+    // Track if text input is focused to prevent overwriting during typing
+    const isTextInputFocusedRef = useRef(false);
+    
     // Debounced onChange for text input
     const debouncedOnChange = useDebounce(useCallback((name, val) => {
         onChange(name, val);
@@ -28,9 +31,11 @@ function ColorPickerInput({ field, value, onChange }) {
         valueRef.current = value;
     }, [value]);
     
-    // Update text input when colorValue changes externally
+    // Update text input when colorValue changes externally, but ONLY if not actively typing
     useEffect(() => {
-        setTextInputValue(currentValue.colorValue || '#ff0000');
+        if (!isTextInputFocusedRef.current) {
+            setTextInputValue(currentValue.colorValue || '#ff0000');
+        }
     }, [currentValue.colorValue]);
 
     const colorSelectionTypes = [
@@ -74,6 +79,11 @@ function ColorPickerInput({ field, value, onChange }) {
         });
     };
     
+    // Handle text input focus
+    const handleTextInputFocus = () => {
+        isTextInputFocusedRef.current = true;
+    };
+    
     // Handle text input change (allow typing, validate on blur)
     const handleTextInputChange = (e) => {
         const inputValue = e.target.value;
@@ -91,6 +101,7 @@ function ColorPickerInput({ field, value, onChange }) {
     
     // Handle text input blur (validate and correct if needed)
     const handleTextInputBlur = () => {
+        isTextInputFocusedRef.current = false;
         const latestValue = getCurrentValue();
         
         if (!isValidHexColor(textInputValue)) {
@@ -138,6 +149,7 @@ function ColorPickerInput({ field, value, onChange }) {
                         <input
                             type="text"
                             value={textInputValue}
+                            onFocus={handleTextInputFocus}
                             onChange={handleTextInputChange}
                             onBlur={handleTextInputBlur}
                             placeholder="#ff0000"

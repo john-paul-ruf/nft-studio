@@ -17,6 +17,14 @@ function PositionInput({ field, value, onChange, projectState }) {
     const [displayCenterY, setDisplayCenterY] = useState('0');
     const [displayStartAngle, setDisplayStartAngle] = useState('0');
     const [displayEndAngle, setDisplayEndAngle] = useState('360');
+    
+    // Track if inputs are focused to prevent overwriting during typing
+    const isXFocusedRef = useRef(false);
+    const isYFocusedRef = useRef(false);
+    const isCenterXFocusedRef = useRef(false);
+    const isCenterYFocusedRef = useRef(false);
+    const isStartAngleFocusedRef = useRef(false);
+    const isEndAngleFocusedRef = useRef(false);
 
     // Debounce onChange (150ms for numbers)
     const debouncedOnChange = useDebounce(useCallback((name, val) => {
@@ -136,16 +144,28 @@ function PositionInput({ field, value, onChange, projectState }) {
 
     const currentValue = getCurrentValue();
     
-    // Sync display values when currentValue changes externally
+    // Sync display values when currentValue changes externally, but ONLY if not actively typing
     useEffect(() => {
         if (positionType === 'position') {
-            setDisplayX(String(currentValue.x || 0));
-            setDisplayY(String(currentValue.y || 0));
+            if (!isXFocusedRef.current) {
+                setDisplayX(String(currentValue.x || 0));
+            }
+            if (!isYFocusedRef.current) {
+                setDisplayY(String(currentValue.y || 0));
+            }
         } else if (positionType === 'arc-path') {
-            setDisplayCenterX(String(currentValue.center?.x || 0));
-            setDisplayCenterY(String(currentValue.center?.y || 0));
-            setDisplayStartAngle(String(currentValue.startAngle || 0));
-            setDisplayEndAngle(String(currentValue.endAngle || 360));
+            if (!isCenterXFocusedRef.current) {
+                setDisplayCenterX(String(currentValue.center?.x || 0));
+            }
+            if (!isCenterYFocusedRef.current) {
+                setDisplayCenterY(String(currentValue.center?.y || 0));
+            }
+            if (!isStartAngleFocusedRef.current) {
+                setDisplayStartAngle(String(currentValue.startAngle || 0));
+            }
+            if (!isEndAngleFocusedRef.current) {
+                setDisplayEndAngle(String(currentValue.endAngle || 360));
+            }
         }
     }, [currentValue, positionType]);
 
@@ -455,6 +475,7 @@ function PositionInput({ field, value, onChange, projectState }) {
                             <input
                                 type="number"
                                 value={displayX}
+                                onFocus={() => { isXFocusedRef.current = true; }}
                                 onChange={(e) => {
                                     const val = e.target.value;
                                     setDisplayX(val); // Update display immediately
@@ -466,6 +487,7 @@ function PositionInput({ field, value, onChange, projectState }) {
                                     }
                                 }}
                                 onBlur={(e) => {
+                                    isXFocusedRef.current = false;
                                     // On blur, restore current value if empty or invalid
                                     const val = e.target.value;
                                     if (val === '' || val === '-' || isNaN(parseInt(val))) {
@@ -482,6 +504,7 @@ function PositionInput({ field, value, onChange, projectState }) {
                             <input
                                 type="number"
                                 value={displayY}
+                                onFocus={() => { isYFocusedRef.current = true; }}
                                 onChange={(e) => {
                                     const val = e.target.value;
                                     setDisplayY(val); // Update display immediately
@@ -493,6 +516,7 @@ function PositionInput({ field, value, onChange, projectState }) {
                                     }
                                 }}
                                 onBlur={(e) => {
+                                    isYFocusedRef.current = false;
                                     // On blur, restore current value if empty or invalid
                                     const val = e.target.value;
                                     if (val === '' || val === '-' || isNaN(parseInt(val))) {
@@ -656,6 +680,7 @@ function PositionInput({ field, value, onChange, projectState }) {
                                     <input
                                         type="number"
                                         value={displayCenterX}
+                                        onFocus={() => { isCenterXFocusedRef.current = true; }}
                                         onChange={(e) => {
                                             const val = e.target.value;
                                             setDisplayCenterX(val); // Update display immediately
@@ -667,6 +692,7 @@ function PositionInput({ field, value, onChange, projectState }) {
                                             }
                                         }}
                                         onBlur={(e) => {
+                                            isCenterXFocusedRef.current = false;
                                             // On blur, restore current value if empty or invalid
                                             const val = e.target.value;
                                             if (val === '' || val === '-' || isNaN(parseInt(val))) {
@@ -683,6 +709,7 @@ function PositionInput({ field, value, onChange, projectState }) {
                                     <input
                                         type="number"
                                         value={displayCenterY}
+                                        onFocus={() => { isCenterYFocusedRef.current = true; }}
                                         onChange={(e) => {
                                             const val = e.target.value;
                                             setDisplayCenterY(val); // Update display immediately
@@ -694,6 +721,7 @@ function PositionInput({ field, value, onChange, projectState }) {
                                             }
                                         }}
                                         onBlur={(e) => {
+                                            isCenterYFocusedRef.current = false;
                                             // On blur, restore current value if empty or invalid
                                             const val = e.target.value;
                                             if (val === '' || val === '-' || isNaN(parseInt(val))) {
@@ -730,6 +758,7 @@ function PositionInput({ field, value, onChange, projectState }) {
                                 <input
                                     type="number"
                                     value={displayStartAngle}
+                                    onFocus={() => { isStartAngleFocusedRef.current = true; }}
                                     onChange={(e) => {
                                         const val = e.target.value;
                                         setDisplayStartAngle(val); // Update display immediately
@@ -741,6 +770,7 @@ function PositionInput({ field, value, onChange, projectState }) {
                                         }
                                     }}
                                     onBlur={(e) => {
+                                        isStartAngleFocusedRef.current = false;
                                         // On blur, restore current value if empty or invalid
                                         const val = e.target.value;
                                         if (val === '' || val === '-' || isNaN(parseInt(val))) {
@@ -757,6 +787,7 @@ function PositionInput({ field, value, onChange, projectState }) {
                                 <input
                                     type="number"
                                     value={displayEndAngle}
+                                    onFocus={() => { isEndAngleFocusedRef.current = true; }}
                                     onChange={(e) => {
                                         const val = e.target.value;
                                         setDisplayEndAngle(val); // Update display immediately
@@ -768,6 +799,7 @@ function PositionInput({ field, value, onChange, projectState }) {
                                         }
                                     }}
                                     onBlur={(e) => {
+                                        isEndAngleFocusedRef.current = false;
                                         // On blur, restore current value if empty or invalid
                                         const val = e.target.value;
                                         if (val === '' || val === '-' || isNaN(parseInt(val))) {
