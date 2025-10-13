@@ -34,7 +34,8 @@ class EffectRegistryService {
                 { PluginRegistry },
                 { EffectCategories },
                 { EffectRegistry },
-                { ConfigRegistry }
+                { ConfigRegistry },
+                { PresetRegistry }
             ] = await Promise.all([
                 import('my-nft-gen/src/core/plugins/PluginLoader.js'),
                 import('my-nft-gen/src/core/registry/ConfigLinker.js'),
@@ -42,7 +43,8 @@ class EffectRegistryService {
                 import('my-nft-gen/src/core/registry/PluginRegistry.js'),
                 import('my-nft-gen/src/core/registry/EffectCategories.js'),
                 import('my-nft-gen/src/core/registry/EffectRegistry.js'),
-                import('my-nft-gen/src/core/registry/ConfigRegistry.js')
+                import('my-nft-gen/src/core/registry/ConfigRegistry.js'),
+                import('my-nft-gen/src/core/registry/PresetRegistry.js')
             ]);
             
             this._moduleCache = {
@@ -53,6 +55,7 @@ class EffectRegistryService {
                 EffectCategories,
                 EffectRegistry,
                 ConfigRegistry,
+                PresetRegistry,
                 loaded: true
             };
         }
@@ -206,6 +209,157 @@ class EffectRegistryService {
         await this.ensureCoreEffectsRegistered();
         const { ConfigRegistry } = await this._loadModules();
         return ConfigRegistry;
+    }
+
+    /**
+     * Get preset registry
+     * @returns {Promise<Object>} Preset registry
+     */
+    async getPresetRegistry() {
+        await this.ensureCoreEffectsRegistered();
+        const { PresetRegistry } = await this._loadModules();
+        return PresetRegistry;
+    }
+
+    /**
+     * Serialize a preset configuration for IPC transmission
+     * Converts class instances to plain objects
+     * @param {Object} preset - Preset object
+     * @returns {Object} Serialized preset
+     */
+    _serializePreset(preset) {
+        if (!preset) return null;
+        
+        // Create a deep copy and serialize the currentEffectConfig
+        const serialized = {
+            name: preset.name,
+            effect: preset.effect,
+            percentChance: preset.percentChance,
+            currentEffectConfig: this._serializeConfig(preset.currentEffectConfig)
+        };
+        
+        return serialized;
+    }
+    
+    /**
+     * Serialize a configuration object for IPC transmission
+     * Converts class instances to plain objects with type information
+     * @param {Object} config - Configuration object
+     * @returns {Object} Serialized configuration
+     */
+    _serializeConfig(config) {
+        if (!config || typeof config !== 'object') {
+            return config;
+        }
+        
+        const serialized = {};
+        
+        for (const [key, value] of Object.entries(config)) {
+            if (value === null || value === undefined) {
+                serialized[key] = value;
+            } else if (typeof value === 'object' && value.constructor && value.constructor.name) {
+                // Handle class instances - serialize them with type information
+                const className = value.constructor.name;
+                
+                // For known types, extract their serializable properties
+                if (className === 'ColorPicker') {
+                    serialized[key] = {
+                        __type: 'ColorPicker',
+                        selectionType: value.selectionType,
+                        specificColor: value.specificColor
+                    };
+                } else if (className === 'Range') {
+                    serialized[key] = {
+                        __type: 'Range',
+                        min: value.min,
+                        max: value.max
+                    };
+                } else if (className === 'DynamicRange') {
+                    serialized[key] = {
+                        __type: 'DynamicRange',
+                        startRange: this._serializeConfig(value.startRange),
+                        endRange: this._serializeConfig(value.endRange)
+                    };
+                } else if (className === 'Point2D') {
+                    serialized[key] = {
+                        __type: 'Point2D',
+                        x: value.x,
+                        y: value.y
+                    };
+                } else if (Array.isArray(value)) {
+                    serialized[key] = value.map(item => this._serializeConfig(item));
+                } else {
+                    // For unknown types, try to serialize all enumerable properties
+                    serialized[key] = {
+                        __type: className,
+                        ...Object.fromEntries(
+                            Object.entries(value).filter(([k]) => !k.startsWith('_'))
+                        )
+                    };
+                }
+            } else if (Array.isArray(value)) {
+                serialized[key] = value.map(item => this._serializeConfig(item));
+            } else {
+                serialized[key] = value;
+            }
+        }
+        
+        return serialized;
+    }
+
+    /**
+     * Get all presets for a specific effect
+     * @param {string} effectName - Name of effect
+     * @returns {Promise<Array|null>} Array of presets or null if none found
+     */
+    async getPresetsForEffect(effectName) {
+        const PresetReg = await this.getPresetRegistry();
+        const presets = PresetReg.getGlobal(effectName);
+        
+        if (!presets || !Array.isArray(presets)) {
+            return null;
+        }
+        
+        // Serialize each preset for IPC transmission
+        return presets.map(preset => this._serializePreset(preset));
+    }
+
+    /**
+     * Get a specific preset by effect name and preset name
+     * @param {string} effectName - Name of effect
+     * @param {string} presetName - Name of preset
+     * @returns {Promise<Object|null>} Preset object or null if not found
+     */
+    async getPreset(effectName, presetName) {
+        const PresetReg = await this.getPresetRegistry();
+        const preset = PresetReg.getPresetGlobal(effectName, presetName);
+        
+        if (!preset) {
+            return null;
+        }
+        
+        // Serialize the preset for IPC transmission
+        return this._serializePreset(preset);
+    }
+
+    /**
+     * Check if an effect has presets
+     * @param {string} effectName - Name of effect
+     * @returns {Promise<boolean>} True if effect has presets
+     */
+    async hasPresets(effectName) {
+        const PresetReg = await this.getPresetRegistry();
+        return PresetReg.hasGlobal(effectName);
+    }
+
+    /**
+     * Get preset names for an effect
+     * @param {string} effectName - Name of effect
+     * @returns {Promise<Array<string>>} Array of preset names
+     */
+    async getPresetNames(effectName) {
+        const PresetReg = await this.getPresetRegistry();
+        return PresetReg.getPresetNamesGlobal(effectName);
     }
 
     /**

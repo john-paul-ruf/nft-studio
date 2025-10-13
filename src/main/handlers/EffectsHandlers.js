@@ -144,6 +144,83 @@ class EffectsHandlers {
                 };
             }
         });
+
+        // Preset-related handlers
+        ipcMain.handle('get-effect-presets', async (event, effectName) => {
+            try {
+                const registryService = new EffectRegistryService();
+                const presets = await registryService.getPresetsForEffect(effectName);
+                
+                return {
+                    success: true,
+                    presets: presets || []
+                };
+            } catch (error) {
+                SafeConsole.error('Error getting effect presets via IPC:', error);
+                return {
+                    success: false,
+                    error: error.message,
+                    presets: []
+                };
+            }
+        });
+
+        ipcMain.handle('get-preset', async (event, { effectName, presetName }) => {
+            try {
+                const registryService = new EffectRegistryService();
+                const preset = await registryService.getPreset(effectName, presetName);
+                
+                return {
+                    success: true,
+                    preset: preset
+                };
+            } catch (error) {
+                SafeConsole.error('Error getting preset via IPC:', error);
+                return {
+                    success: false,
+                    error: error.message,
+                    preset: null
+                };
+            }
+        });
+
+        ipcMain.handle('has-presets', async (event, effectName) => {
+            try {
+                const registryService = new EffectRegistryService();
+                const hasPresets = await registryService.hasPresets(effectName);
+                
+                return {
+                    success: true,
+                    hasPresets: hasPresets
+                };
+            } catch (error) {
+                SafeConsole.error('Error checking presets via IPC:', error);
+                return {
+                    success: false,
+                    error: error.message,
+                    hasPresets: false
+                };
+            }
+        });
+
+        ipcMain.handle('get-preset-names', async (event, effectName) => {
+            try {
+                const registryService = new EffectRegistryService();
+                const names = await registryService.getPresetNames(effectName);
+                
+                return {
+                    success: true,
+                    names: names || []
+                };
+            } catch (error) {
+                SafeConsole.error('Error getting preset names via IPC:', error);
+                return {
+                    success: false,
+                    error: error.message,
+                    names: []
+                };
+            }
+        });
     }
 
     /**

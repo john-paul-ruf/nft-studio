@@ -48,6 +48,12 @@ contextBridge.exposeInMainWorld('api', {
     refreshEffectRegistry: (skipPluginReload = true) => ipcRenderer.invoke('refresh-effect-registry', skipPluginReload),
     debugEffectRegistry: () => ipcRenderer.invoke('debug-effect-registry'),
 
+    // Preset management
+    getEffectPresets: (effectName) => ipcRenderer.invoke('get-effect-presets', effectName),
+    getPreset: (effectName, presetName) => ipcRenderer.invoke('get-preset', { effectName, presetName }),
+    hasPresets: (effectName) => ipcRenderer.invoke('has-presets', effectName),
+    getPresetNames: (effectName) => ipcRenderer.invoke('get-preset-names', effectName),
+
     // Config introspection
     introspectConfig: (params) => ipcRenderer.invoke('introspect-config', params),
 

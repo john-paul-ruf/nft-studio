@@ -3,6 +3,7 @@ import { ConfigIntrospector } from '../../utils/ConfigIntrospector.js';
 import EffectFormRenderer from '../forms/EffectFormRenderer.jsx';
 import AttachedEffectsDisplay from '../forms/AttachedEffectsDisplay.jsx';
 import PercentChanceControl from '../forms/PercentChanceControl.jsx';
+import PresetSelector from './PresetSelector.jsx';
 import { serializeFieldValue } from '../forms/EffectFormSubmitter.js';
 import CenterUtils from '../../utils/CenterUtils.js';
 import { useServices } from '../../contexts/ServiceContext.js';
@@ -373,6 +374,24 @@ function EffectConfigurer({
         }
     }, [selectedEffect?.registryKey, services.configManager, handleConfigurationChange]);
 
+    // Preset selection handler
+    const handlePresetSelect = useCallback((presetConfig, preset) => {
+        if (!presetConfig) {
+            console.warn('⚠️ Cannot apply preset: missing config');
+            return;
+        }
+
+        console.log('✅ Applying preset configuration:', preset.name, presetConfig);
+        
+        // Apply the preset configuration using the configuration change handler
+        // This will trigger validation and update the form
+        handleConfigurationChange(presetConfig, {
+            source: 'preset',
+            presetName: preset.name,
+            timestamp: Date.now()
+        });
+    }, [handleConfigurationChange]);
+
     // Get validation metrics for debugging
     const getValidationMetrics = useCallback(() => {
         return services.validator.getValidationMetrics();
@@ -444,6 +463,11 @@ function EffectConfigurer({
                 </Typography>
             </Box>
 
+            {/* Preset Selector */}
+            <PresetSelector
+                selectedEffect={selectedEffect}
+                onPresetSelect={handlePresetSelect}
+            />
 
             {/* Validation Errors */}
             {renderValidationErrors()}
