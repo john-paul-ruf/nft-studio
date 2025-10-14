@@ -121,9 +121,18 @@ class EffectIPCSerializationService {
                     const descriptor = Object.getOwnPropertyDescriptor(obj, key);
                     if (descriptor && descriptor.value !== undefined) {
                         result[key] = this.deepSerializeForIPC(descriptor.value, visited);
-                    } else if (descriptor && (descriptor.get || descriptor.set)) {
-                        // Handle getters/setters
-                        result[key] = '[Getter/Setter]';
+                    } else if (descriptor && descriptor.get) {
+                        // Handle getters - call them to get the actual value
+                        try {
+                            const value = descriptor.get.call(obj);
+                            result[key] = this.deepSerializeForIPC(value, visited);
+                        } catch (getterError) {
+                            // If getter fails, mark it as such
+                            result[key] = '[Getter Error]';
+                        }
+                    } else if (descriptor && descriptor.set) {
+                        // Handle setters without getters
+                        result[key] = '[Setter]';
                     }
                 } catch (error) {
                     // If a property can't be serialized, replace with error info
@@ -134,6 +143,16 @@ class EffectIPCSerializationService {
             // Preserve class name if available
             if (obj.constructor && obj.constructor.name !== 'Object') {
                 result.__className = obj.constructor.name;
+                
+                // Debug logging for percentage-based classes
+                if (obj.constructor.name === 'PercentageShortestSide' || 
+                    obj.constructor.name === 'PercentageLongestSide') {
+                    console.log(`[IPC Serialization] ${obj.constructor.name}:`, {
+                        serializedProps: result,
+                        hasPercent: 'percent' in result,
+                        hasSide: 'side' in result
+                    });
+                }
             } else {
                 // Fallback: detect object type based on structure when constructor info is lost
                 const detectedClassName = this.detectClassNameByStructure(obj);
@@ -356,10 +375,11 @@ class EffectIPCSerializationService {
 
                 case 'ColorPicker':
                     // Reconstruct ColorPicker with preserved properties
-                    const colorPicker = new ColorPicker();
-                    colorPicker.selectionType = props.selectionType || 'color-bucket';
-                    colorPicker.colorValue = props.colorValue || null;
-                    return colorPicker;
+                    // CRITICAL: Pass parameters to constructor, not set afterward
+                    // The getColor method is defined in the constructor and captures the values
+                    const selectionType = props.selectionType || 'color-bucket';
+                    const colorValue = props.colorValue || null;
+                    return new ColorPicker(selectionType, colorValue);
 
                 case 'Effect':
                     // Reconstruct Effect class instance

@@ -7,11 +7,14 @@ function DynamicRangeInput({ field, value, onChange }) {
     
     // Helper to get current value with defaults
     const getCurrentValue = useCallback(() => {
-        return valueRef.current || field.default || {
+        // Use value prop directly if available (this ensures preset changes are reflected)
+        return (value !== undefined && value !== null) ? value :
+               (valueRef.current !== undefined && valueRef.current !== null) ? valueRef.current :
+               field.default || {
             bottom: { lower: 0, upper: 5 },
             top: { lower: 5, upper: 10 }
         };
-    }, [field.default]);
+    }, [value, field.default]);
     
     const currentValue = getCurrentValue();
 

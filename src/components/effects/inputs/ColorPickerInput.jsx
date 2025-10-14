@@ -7,11 +7,13 @@ function ColorPickerInput({ field, value, onChange }) {
     
     // Helper to get current value with defaults
     const getCurrentValue = useCallback(() => {
-        return valueRef.current || {
+        // Use value prop directly if available (this ensures preset changes are reflected)
+        return (value !== undefined && value !== null) ? value :
+               (valueRef.current !== undefined && valueRef.current !== null) ? valueRef.current : {
             selectionType: field.bucketType || 'color-bucket',
             colorValue: '#ff0000'
         };
-    }, [field.bucketType]);
+    }, [value, field.bucketType]);
     
     const currentValue = getCurrentValue();
     

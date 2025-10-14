@@ -109,8 +109,10 @@ function Point2DInput({ field, value, onChange, projectState }) {
     
     // Helper to get the latest value from ref
     const getCurrentValue = useCallback(() => {
+        // Use value prop directly if available (this ensures preset changes are reflected)
+        const val = (value !== undefined && value !== null) ? value : valueRef.current;
+        
         const normalized = (() => {
-            const val = valueRef.current;
             if (!val) return null;
             
             // If it's a Position object, convert to point2d format
@@ -123,7 +125,7 @@ function Point2DInput({ field, value, onChange, projectState }) {
         })();
         
         return normalized || generateSmartDefault(field, width, height);
-    }, [field, width, height]);
+    }, [value, field, width, height]);
     
     // Calculate current value with smart defaults, ensuring we react to changes
     const currentValue = useMemo(() => {

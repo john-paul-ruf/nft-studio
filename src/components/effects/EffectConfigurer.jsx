@@ -401,6 +401,8 @@ function EffectConfigurer({
         console.log('✅ Applying preset configuration:', preset.name, presetConfig);
         
         // Apply the preset configuration using the configuration change handler
+        // Note: presetConfig should already be deserialized by PresetSelector
+        // (converted from __type metadata format to plain objects)
         // This will trigger validation and update the form
         handleConfigurationChange(presetConfig, {
             source: 'preset',

@@ -16,6 +16,7 @@ import {
     DialogActions
 } from '@mui/material';
 import { AutoAwesome } from '@mui/icons-material';
+import PresetConfigDeserializer from '../../utils/PresetConfigDeserializer';
 
 /**
  * PresetSelector Component
@@ -143,7 +144,13 @@ function PresetSelector({ selectedEffect, onPresetSelect }) {
             const presetResult = await window.api.getPreset(selectedEffect.registryKey, presetName);
             if (presetResult.success && presetResult.preset) {
                 const preset = presetResult.preset;
-                const config = preset.currentEffectConfig || {};
+                const serializedConfig = preset.currentEffectConfig || {};
+                
+                // Deserialize the config to remove __type metadata and convert to plain objects
+                const config = PresetConfigDeserializer.deserialize(serializedConfig);
+                
+                console.log('[PresetSelector] Deserialized config:', config);
+                
                 if (onPresetSelect) onPresetSelect(config, preset);
             } else {
                 showSnackbar('error', presetResult.error || 'Failed to load preset');

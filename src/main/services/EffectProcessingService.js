@@ -185,8 +185,10 @@ class EffectProcessingService {
         
         // CRITICAL: Deserialize config if it contains serialized class instances (from presets)
         // This handles configs that come from preset selection, which are serialized for IPC transmission
+        SafeConsole.log(`🔍 [EffectProcessingService] Raw userConfig BEFORE deserialization for ${effect.registryKey}:`, JSON.stringify(userConfig, null, 2));
         const registryService = new EffectRegistryService();
         userConfig = await registryService._deserializeConfig(userConfig);
+        SafeConsole.log(`🔍 [EffectProcessingService] userConfig AFTER _deserializeConfig for ${effect.registryKey}:`, JSON.stringify(userConfig, null, 2));
         
         // DEBUG: Log config after deserialization
         SafeConsole.log(`🔍 [EffectProcessingService] Config AFTER deserialization for ${effect.registryKey}:`, {
@@ -213,7 +215,15 @@ class EffectProcessingService {
             } else {
                 // Try ConfigReconstructor first for proper config reconstruction from my-nft-gen
                 const effectName = effect.registryKey;
+                SafeConsole.log(`🔧 [EffectProcessingService] Calling ConfigReconstructor.reconstruct for ${effectName}`);
+                SafeConsole.log(`🔧 [EffectProcessingService] userConfig before ConfigReconstructor:`, JSON.stringify(userConfig, null, 2));
                 hydratedConfig = await ConfigReconstructor.reconstruct(effectName, userConfig);
+                SafeConsole.log(`🔧 [EffectProcessingService] hydratedConfig after ConfigReconstructor:`, {
+                    flareRingsSizeRange: hydratedConfig.flareRingsSizeRange,
+                    flareRingsSizeRangeType: hydratedConfig.flareRingsSizeRange?.constructor?.name,
+                    hasLowerFunction: typeof hydratedConfig.flareRingsSizeRange?.lower === 'function',
+                    hasUpperFunction: typeof hydratedConfig.flareRingsSizeRange?.upper === 'function'
+                });
             }
 
             // Check if ConfigReconstructor properly handled ColorPicker objects
@@ -222,7 +232,9 @@ class EffectProcessingService {
 
             // Check if ConfigReconstructor properly handled PercentageRange objects
             // If not, we need to manually reconstruct them (especially sequencePixelConstant)
+            SafeConsole.log(`🔍 [EffectProcessingService] Before reconstructPercentageRanges for ${effectName}:`, JSON.stringify(hydratedConfig, null, 2));
             hydratedConfig = await this.reconstructPercentageRanges(hydratedConfig, userConfig, effectName);
+            SafeConsole.log(`🔍 [EffectProcessingService] After reconstructPercentageRanges for ${effectName}:`, JSON.stringify(hydratedConfig, null, 2));
         } catch (reconstructionError) {
 
             // Log the failure details for debugging
@@ -267,8 +279,29 @@ class EffectProcessingService {
                     const pluginByName = await registryService.getEffectWithConfig(EffectClass._name_);
                     if (pluginByName && pluginByName.configClass) {
                         SafeConsole.log(`✅ Found config class for ${effectName} via _name_: ${pluginByName.configClass.name}`);
+                        
+                        // Log what we're passing to the constructor
+                        SafeConsole.log(`📦 [EffectProcessingService] Creating config instance with:`, {
+                            effectName,
+                            flareRingsSizeRange: hydratedConfig.flareRingsSizeRange,
+                            flareRingsSizeRangeType: hydratedConfig.flareRingsSizeRange?.constructor?.name,
+                            hasLowerFunction: typeof hydratedConfig.flareRingsSizeRange?.lower === 'function',
+                            hasUpperFunction: typeof hydratedConfig.flareRingsSizeRange?.upper === 'function'
+                        });
+                        
                         // Create proper config instance using the linked config class
-                        return new pluginByName.configClass(hydratedConfig);
+                        const configInstance = new pluginByName.configClass(hydratedConfig);
+                        
+                        // Log what the constructor produced
+                        SafeConsole.log(`📋 [EffectProcessingService] Config instance created:`, {
+                            effectName,
+                            flareRingsSizeRange: configInstance.flareRingsSizeRange,
+                            flareRingsSizeRangeType: configInstance.flareRingsSizeRange?.constructor?.name,
+                            hasLowerFunction: typeof configInstance.flareRingsSizeRange?.lower === 'function',
+                            hasUpperFunction: typeof configInstance.flareRingsSizeRange?.upper === 'function'
+                        });
+                        
+                        return configInstance;
                     }
                 }
                 SafeConsole.warn(`Effect ${effectName} not found in plugin registry, using deserialized config`);
@@ -504,6 +537,16 @@ class EffectProcessingService {
 
             // Iterate through config properties
             for (const [key, value] of Object.entries(config)) {
+                SafeConsole.log(`🔍 Checking ${effectName}.${key} for PercentageRange reconstruction:`, {
+                    valueType: typeof value,
+                    valueConstructor: value?.constructor?.name,
+                    hasLower: !!value?.lower,
+                    hasUpper: !!value?.upper,
+                    lowerType: typeof value?.lower,
+                    upperType: typeof value?.upper,
+                    needsReconstruction: needsPercentageRangeReconstruction(value, key)
+                });
+                
                 if (needsPercentageRangeReconstruction(value, key)) {
                     SafeConsole.log(`🔧 Reconstructing PercentageRange for ${effectName}.${key} (detected via introspection)`);
 

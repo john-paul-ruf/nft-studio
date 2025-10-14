@@ -286,6 +286,102 @@ class EffectRegistryService {
                         x: value.x,
                         y: value.y
                     };
+                } else if (className === 'PercentageRange') {
+                    // PercentageRange stores functions in lower/upper, not the original objects
+                    // We need to extract the percent values by calling the functions
+                    SafeConsole.log(`[Serialization] PercentageRange for key "${key}":`, {
+                        originalValue: value,
+                        lowerType: typeof value.lower,
+                        upperType: typeof value.upper
+                    });
+                    
+                    // Check if lower and upper are functions (they usually are in PercentageRange)
+                    const lowerIsFunction = typeof value.lower === 'function';
+                    const upperIsFunction = typeof value.upper === 'function';
+                    
+                    if (lowerIsFunction && upperIsFunction) {
+                        // Extract percent values by calling functions with test size
+                        // where shortestSide and longestSide are both 100
+                        const testSize = { shortestSide: 100, longestSide: 100 };
+                        try {
+                            const lowerPixels = value.lower(testSize);
+                            const upperPixels = value.upper(testSize);
+                            const lowerPercent = lowerPixels / 100;
+                            const upperPercent = upperPixels / 100;
+                            
+                            SafeConsole.log(`[Serialization] Extracted PercentageRange values for key "${key}":`, {
+                                lowerPercent,
+                                upperPercent
+                            });
+                            
+                            // Determine side based on which function returned the value
+                            // If lower and upper are the same, we can't determine the side reliably
+                            // so we'll use 'shortest' for lower and 'longest' for upper as defaults
+                            serialized[key] = {
+                                __type: 'PercentageRange',
+                                lower: {
+                                    __type: 'PercentageShortestSide',
+                                    percent: lowerPercent,
+                                    side: 'shortest'
+                                },
+                                upper: {
+                                    __type: 'PercentageLongestSide',
+                                    percent: upperPercent,
+                                    side: 'longest'
+                                }
+                            };
+                        } catch (extractError) {
+                            SafeConsole.log(`[Serialization] Failed to extract PercentageRange values:`, extractError);
+                            // Fallback to null
+                            serialized[key] = {
+                                __type: 'PercentageRange',
+                                lower: null,
+                                upper: null,
+                                _functionsDetected: true
+                            };
+                        }
+                    } else {
+                        // If they're not functions, serialize normally
+                        const serializedLower = this._serializeConfig(value.lower);
+                        const serializedUpper = this._serializeConfig(value.upper);
+                        SafeConsole.log(`[Serialization] PercentageRange serialized for key "${key}":`, {
+                            serializedLower,
+                            serializedUpper
+                        });
+                        serialized[key] = {
+                            __type: 'PercentageRange',
+                            lower: serializedLower,
+                            upper: serializedUpper
+                        };
+                    }
+                } else if (className === 'PercentageShortestSide') {
+                    // Extract all enumerable properties to ensure we get percent and side
+                    const props = { ...value };
+                    SafeConsole.log(`[Serialization] PercentageShortestSide for key "${key}":`, { 
+                        originalValue: value, 
+                        extractedProps: props,
+                        percent: props.percent,
+                        side: props.side
+                    });
+                    serialized[key] = {
+                        __type: 'PercentageShortestSide',
+                        percent: props.percent !== undefined ? props.percent : (props.value !== undefined ? props.value : 0.5),
+                        side: props.side || 'shortest'
+                    };
+                } else if (className === 'PercentageLongestSide') {
+                    // Extract all enumerable properties to ensure we get percent and side
+                    const props = { ...value };
+                    SafeConsole.log(`[Serialization] PercentageLongestSide for key "${key}":`, { 
+                        originalValue: value, 
+                        extractedProps: props,
+                        percent: props.percent,
+                        side: props.side
+                    });
+                    serialized[key] = {
+                        __type: 'PercentageLongestSide',
+                        percent: props.percent !== undefined ? props.percent : (props.value !== undefined ? props.value : 0.5),
+                        side: props.side || 'longest'
+                    };
                 } else if (Array.isArray(value)) {
                     serialized[key] = value.map(item => this._serializeConfig(item));
                 } else {
@@ -334,10 +430,11 @@ class EffectRegistryService {
                 switch (config.__type) {
                     case 'ColorPicker': {
                         const { ColorPicker } = await import('my-nft-gen/src/core/layer/configType/ColorPicker.js');
-                        const colorPicker = new ColorPicker();
-                        colorPicker.selectionType = config.selectionType || 'color-bucket';
-                        colorPicker.colorValue = config.colorValue || null;
-                        return colorPicker;
+                        // CRITICAL: Pass parameters to constructor, not set afterward
+                        // The getColor method is defined in the constructor and captures the values
+                        const selectionType = config.selectionType || 'color-bucket';
+                        const colorValue = config.colorValue || null;
+                        return new ColorPicker(selectionType, colorValue);
                     }
 
                     case 'Range': {
@@ -491,7 +588,15 @@ class EffectRegistryService {
             return null;
         }
         const builtin = { ...this._serializePreset(preset), metadata: { source: 'builtin' } };
-        return JSON.parse(JSON.stringify(builtin));
+        const result = JSON.parse(JSON.stringify(builtin));
+        
+        // Log the final serialized preset for debugging
+        SafeConsole.log(`[EffectRegistryService] Returning preset "${presetName}" for "${effectName}":`, {
+            hasConfig: !!result.currentEffectConfig,
+            configKeys: result.currentEffectConfig ? Object.keys(result.currentEffectConfig) : []
+        });
+        
+        return result;
     }
 
     /**

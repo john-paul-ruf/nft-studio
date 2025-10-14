@@ -120,7 +120,8 @@ function PositionInput({ field, value, onChange, projectState }) {
     // Get current value with smart defaults - WAIT for ProjectState to be ready
     // Uses ref to always get the latest value and avoid stale closures
     const getCurrentValue = useCallback(() => {
-        const latestValue = valueRef.current;
+        // Use value prop directly if available (this ensures preset changes are reflected)
+        const latestValue = (value !== undefined && value !== null) ? value : valueRef.current;
         
         if (!latestValue) {
             if (!projectState) {
@@ -140,7 +141,7 @@ function PositionInput({ field, value, onChange, projectState }) {
         }
 
         return latestValue;
-    }, [projectState, positionType]);
+    }, [value, projectState, positionType]);
 
     const currentValue = getCurrentValue();
     
