@@ -286,8 +286,6 @@ function Point2DInput({ field, value, onChange, projectState }) {
                             }
                         }}
                         style={{ width: '100%' }}
-                        min={0}
-                        max={width}
                     />
                 </div>
                 <div>
@@ -322,8 +320,6 @@ function Point2DInput({ field, value, onChange, projectState }) {
                             }
                         }}
                         style={{ width: '100%' }}
-                        min={0}
-                        max={height}
                     />
                 </div>
             </div>

@@ -477,6 +477,8 @@ class EffectProcessingService {
      * @returns {Promise<Object>} Config with reconstructed PercentageRange objects
      */
     static async reconstructPercentageRanges(config, originalConfig, effectName) {
+        SafeConsole.log(`🔍 [reconstructPercentageRanges] Called for ${effectName} with config:`, JSON.stringify(config, null, 2));
+        
         try {
             // Load required modules
             const { PercentageRange, PercentageShortestSide, PercentageLongestSide } = await _loadModules();
@@ -574,12 +576,20 @@ class EffectProcessingService {
                     const lowerSideClass = lowerSide === 'shortest' ? PercentageShortestSide : PercentageLongestSide;
                     const upperSideClass = upperSide === 'shortest' ? PercentageShortestSide : PercentageLongestSide;
 
-                    config[key] = new PercentageRange(
-                        new lowerSideClass(lowerPercent),
-                        new upperSideClass(upperPercent)
-                    );
+                    const lowerInstance = new lowerSideClass(lowerPercent);
+                    const upperInstance = new upperSideClass(upperPercent);
+                    config[key] = new PercentageRange(lowerInstance, upperInstance);
 
-                    SafeConsole.log(`✅ Reconstructed PercentageRange for ${key}: ${lowerPercent} (${lowerSide}) - ${upperPercent} (${upperSide})`);
+                    SafeConsole.log(`✅ Reconstructed PercentageRange for ${key}:`, {
+                        lowerPercent,
+                        lowerSide,
+                        lowerClass: lowerInstance.constructor.name,
+                        upperPercent,
+                        upperSide,
+                        upperClass: upperInstance.constructor.name,
+                        resultLowerType: typeof config[key].lower,
+                        resultUpperType: typeof config[key].upper
+                    });
                 }
             }
         } catch (error) {

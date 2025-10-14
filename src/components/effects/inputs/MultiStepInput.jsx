@@ -44,16 +44,14 @@ function MultiStepInput({ field, value, onChange, projectData }) {
     };
 
     const validatePercentages = (step) => {
-        // Ensure min <= max and values are between 0-100
-        const min = Math.max(0, Math.min(100, step.minPercentage || 0));
-        const max = Math.max(min, Math.min(100, step.maxPercentage || 100));
-        return { ...step, minPercentage: min, maxPercentage: max };
+        // No validation - accept whatever values the user wants
+        return step;
     };
 
     const addStep = () => {
         const lastStep = steps[steps.length - 1];
         const newMinPercentage = lastStep ? lastStep.maxPercentage : 0;
-        const newMaxPercentage = Math.min(100, newMinPercentage + 25);
+        const newMaxPercentage = newMinPercentage + 25;
 
         const newStep = {
             minPercentage: newMinPercentage,
@@ -262,8 +260,6 @@ function MultiStepInput({ field, value, onChange, projectData }) {
                                     </label>
                                     <input
                                         type="number"
-                                        min="0"
-                                        max="100"
                                         step="0.1"
                                         value={percentageInputs[`${index}-min`] !== undefined 
                                             ? percentageInputs[`${index}-min`] 
@@ -307,8 +303,6 @@ function MultiStepInput({ field, value, onChange, projectData }) {
                                     </label>
                                     <input
                                         type="number"
-                                        min="0"
-                                        max="100"
                                         step="0.1"
                                         value={percentageInputs[`${index}-max`] !== undefined 
                                             ? percentageInputs[`${index}-max`] 

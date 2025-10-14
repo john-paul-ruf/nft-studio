@@ -140,8 +140,6 @@ function RangeInput({ field, value, onChange }) {
                             padding: '0.5rem',
                             color: '#ffffff'
                         }}
-                        min={field.min}
-                        max={field.max}
                     />
                 </div>
                 <span style={{ color: '#cccccc', margin: '0 0.5rem', marginTop: '1rem' }}>—</span>
@@ -162,8 +160,6 @@ function RangeInput({ field, value, onChange }) {
                             padding: '0.5rem',
                             color: '#ffffff'
                         }}
-                        min={field.min}
-                        max={field.max}
                     />
                 </div>
             </div>

@@ -496,8 +496,6 @@ function PositionInput({ field, value, onChange, projectState }) {
                                     }
                                 }}
                                 style={{ width: '100%' }}
-                                min={0}
-                                max={safeWidth}
                             />
                         </div>
                         <div>
@@ -525,8 +523,6 @@ function PositionInput({ field, value, onChange, projectState }) {
                                     }
                                 }}
                                 style={{ width: '100%' }}
-                                min={0}
-                                max={safeHeight}
                             />
                         </div>
                     </div>
@@ -701,8 +697,6 @@ function PositionInput({ field, value, onChange, projectState }) {
                                             }
                                         }}
                                         style={{ width: '100%' }}
-                                        min={0}
-                                        max={safeWidth}
                                     />
                                 </div>
                                 <div>
@@ -730,8 +724,6 @@ function PositionInput({ field, value, onChange, projectState }) {
                                             }
                                         }}
                                         style={{ width: '100%' }}
-                                        min={0}
-                                        max={safeHeight}
                                     />
                                 </div>
                             </div>
@@ -744,8 +736,8 @@ function PositionInput({ field, value, onChange, projectState }) {
                             </label>
                             <input
                                 type="range"
-                                min={10}
-                                max={Math.min(safeWidth, safeHeight) / 2}
+                                min={0}
+                                max={Math.max(safeWidth, safeHeight)}
                                 value={currentValue.radius || 100}
                                 onChange={(e) => handleArcPathChange('radius', parseInt(e.target.value))}
                                 style={{ width: '100%' }}
@@ -779,8 +771,6 @@ function PositionInput({ field, value, onChange, projectState }) {
                                         }
                                     }}
                                     style={{ width: '100%' }}
-                                    min={0}
-                                    max={360}
                                 />
                             </div>
                             <div>
@@ -808,8 +798,6 @@ function PositionInput({ field, value, onChange, projectState }) {
                                         }
                                     }}
                                     style={{ width: '100%' }}
-                                    min={0}
-                                    max={360}
                                 />
                             </div>
                         </div>

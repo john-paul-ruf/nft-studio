@@ -336,15 +336,38 @@ class EffectIPCSerializationService {
             switch (__className) {
                 case 'PercentageRange':
                     // Reconstruct PercentageRange with proper lower/upper instances
+                    // Determine the correct class based on the 'side' property
+                    console.log('[PercentageRange Reconstruction] Input props:', {
+                        lower: props.lower,
+                        upper: props.upper,
+                        lowerSide: props.lower?.side,
+                        upperSide: props.upper?.side
+                    });
+                    
+                    const lowerClassName = props.lower?.__className || 
+                        (props.lower?.side === 'longest' ? 'PercentageLongestSide' : 'PercentageShortestSide');
+                    const upperClassName = props.upper?.__className || 
+                        (props.upper?.side === 'longest' ? 'PercentageLongestSide' : 'PercentageShortestSide');
+                    
+                    console.log('[PercentageRange Reconstruction] Determined classes:', {
+                        lowerClassName,
+                        upperClassName
+                    });
+                    
                     const lowerInstance = props.lower ? await this.reconstructObjectFromClassName({
-                        __className: props.lower.__className || 'PercentageShortestSide',
+                        __className: lowerClassName,
                         ...props.lower
                     }) : new PercentageShortestSide(0.1);
 
                     const upperInstance = props.upper ? await this.reconstructObjectFromClassName({
-                        __className: props.upper.__className || 'PercentageLongestSide',
+                        __className: upperClassName,
                         ...props.upper
                     }) : new PercentageLongestSide(0.9);
+                    
+                    console.log('[PercentageRange Reconstruction] Created instances:', {
+                        lowerInstance: lowerInstance.constructor.name,
+                        upperInstance: upperInstance.constructor.name
+                    });
 
                     return new PercentageRange(lowerInstance, upperInstance);
 

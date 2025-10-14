@@ -1,13 +1,42 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 
 function PercentageRangeInput({ field, value, onChange }) {
     // Use a ref to always have the latest value
     const valueRef = useRef(value);
+    const lowerDebounceTimerRef = useRef(null);
+    const upperDebounceTimerRef = useRef(null);
     
     // Update ref when value prop changes
     useEffect(() => {
         valueRef.current = value;
     }, [value]);
+    
+    // Cleanup debounce timers on unmount
+    useEffect(() => {
+        return () => {
+            if (lowerDebounceTimerRef.current) {
+                clearTimeout(lowerDebounceTimerRef.current);
+            }
+            if (upperDebounceTimerRef.current) {
+                clearTimeout(upperDebounceTimerRef.current);
+            }
+        };
+    }, []);
+    
+    // Helper to format percentage with fractional precision
+    const formatPercentage = useCallback((decimalValue) => {
+        const percentage = decimalValue * 100;
+        // Show up to 3 decimal places if there's a fractional part, otherwise show whole number
+        if (percentage % 1 === 0) {
+            return percentage.toFixed(0);
+        } else if ((percentage * 10) % 1 === 0) {
+            return percentage.toFixed(1);
+        } else if ((percentage * 100) % 1 === 0) {
+            return percentage.toFixed(2);
+        } else {
+            return percentage.toFixed(3);
+        }
+    }, []);
     
     // Helper to normalize value format - handles legacy formats and ensures proper structure
     const normalizeValue = useCallback((rawValue) => {
@@ -16,48 +45,78 @@ function PercentageRangeInput({ field, value, onChange }) {
         // Convert legacy format if needed
         if (normalized.min !== undefined || normalized.max !== undefined) {
             normalized = {
-                lower: { percent: normalized.min || normalized.lower || 0.1, side: 'shortest' },
-                upper: { percent: normalized.max || normalized.upper || 0.9, side: 'longest' }
+                lower: { 
+                    percent: normalized.min !== undefined ? normalized.min : (normalized.lower !== undefined ? normalized.lower : 0.1), 
+                    side: 'shortest' 
+                },
+                upper: { 
+                    percent: normalized.max !== undefined ? normalized.max : (normalized.upper !== undefined ? normalized.upper : 0.9), 
+                    side: 'longest' 
+                }
             };
         }
 
         // Convert simple number format if needed (more robust check)
-        if (typeof normalized.lower === 'number' ||
-            (normalized.lower && typeof normalized.lower.percent === 'undefined') ||
-            normalized.lower === '[Function]') {
+        // Only convert if we don't already have a valid enhanced format with side property
+        const hasValidLower = normalized.lower && typeof normalized.lower === 'object' && 
+                             normalized.lower.percent !== undefined && normalized.lower.side !== undefined;
+        const hasValidUpper = normalized.upper && typeof normalized.upper === 'object' && 
+                             normalized.upper.percent !== undefined && normalized.upper.side !== undefined;
+        
+        if (!hasValidLower || !hasValidUpper) {
+            if (typeof normalized.lower === 'number' ||
+                (normalized.lower && typeof normalized.lower.percent === 'undefined') ||
+                normalized.lower === '[Function]') {
 
-            let lowerPercent, upperPercent;
+                let lowerPercent, upperPercent, lowerSide, upperSide;
 
-            // Handle different input formats
-            if (typeof normalized.lower === 'number') {
-                lowerPercent = normalized.lower;
-                upperPercent = normalized.upper;
-            } else if (normalized.lower === '[Function]' || normalized.upper === '[Function]') {
-                // Use field-specific defaults for serialized functions
-                const fieldDefaults = {
-                    'flareOffset': { lower: 0.01, upper: 0.06 },
-                    'flareRingsSizeRange': { lower: 0.05, upper: 1.0 },
-                    'flareRaysSizeRange': { lower: 0.7, upper: 1.0 }
+                // Handle different input formats
+                if (typeof normalized.lower === 'number') {
+                    lowerPercent = normalized.lower;
+                    upperPercent = normalized.upper;
+                    lowerSide = 'shortest';
+                    upperSide = 'longest';
+                } else if (normalized.lower === '[Function]' || normalized.upper === '[Function]') {
+                    // Use field-specific defaults for serialized functions
+                    const fieldDefaults = {
+                        'flareOffset': { lower: 0.01, upper: 0.06 },
+                        'flareRingsSizeRange': { lower: 0.05, upper: 1.0 },
+                        'flareRaysSizeRange': { lower: 0.7, upper: 1.0 }
+                    };
+                    const defaults = fieldDefaults[field.name] || { lower: 0.1, upper: 0.9 };
+                    lowerPercent = defaults.lower;
+                    upperPercent = defaults.upper;
+                    lowerSide = 'shortest';
+                    upperSide = 'longest';
+                } else {
+                    // Fallback for other cases
+                    lowerPercent = 0.1;
+                    upperPercent = 0.9;
+                    lowerSide = 'shortest';
+                    upperSide = 'longest';
+                }
+
+                // Preserve existing side values if they exist
+                if (hasValidLower) {
+                    lowerPercent = normalized.lower.percent;
+                    lowerSide = normalized.lower.side;
+                }
+                if (hasValidUpper) {
+                    upperPercent = normalized.upper.percent;
+                    upperSide = normalized.upper.side;
+                }
+
+                normalized = {
+                    lower: { percent: lowerPercent, side: lowerSide },
+                    upper: { percent: upperPercent, side: upperSide }
                 };
-                const defaults = fieldDefaults[field.name] || { lower: 0.1, upper: 0.9 };
-                lowerPercent = defaults.lower;
-                upperPercent = defaults.upper;
-            } else {
-                // Fallback for other cases
-                lowerPercent = 0.1;
-                upperPercent = 0.9;
             }
-
-            normalized = {
-                lower: { percent: lowerPercent, side: 'shortest' },
-                upper: { percent: upperPercent, side: 'longest' }
-            };
         }
 
         // Convert [Object] format (when serialization fails) to enhanced format
         if (normalized.lower && typeof normalized.lower === 'object' &&
             normalized.lower.toString() === '[object Object]' &&
-            !normalized.lower.percent) {
+            normalized.lower.percent === undefined) {
             // This is likely a failed serialization, use field-specific defaults
             const fieldDefaults = {
                 'flareOffset': {
@@ -109,6 +168,25 @@ function PercentageRangeInput({ field, value, onChange }) {
     // Handle both legacy {min, max} and new {lower, upper} formats
     // Also handle the new enhanced format with side selection
     let currentValue = getCurrentValue();
+    
+    // State for text input values - use lazy initialization to avoid resetting on re-renders
+    const [lowerInputValue, setLowerInputValue] = useState(() => (currentValue.lower?.percent * 100 || 0).toString());
+    const [upperInputValue, setUpperInputValue] = useState(() => (currentValue.upper?.percent * 100 || 0).toString());
+
+    // Sync input values when the value prop changes (e.g., when a preset is applied)
+    useEffect(() => {
+        const normalized = getCurrentValue();
+        const newLowerValue = (normalized.lower?.percent * 100 || 0).toString();
+        const newUpperValue = (normalized.upper?.percent * 100 || 0).toString();
+        
+        // Only update if the values actually changed to avoid unnecessary re-renders
+        if (newLowerValue !== lowerInputValue) {
+            setLowerInputValue(newLowerValue);
+        }
+        if (newUpperValue !== upperInputValue) {
+            setUpperInputValue(newUpperValue);
+        }
+    }, [value]); // Only depend on value prop, not the state variables
 
     // Debug logging for preset application
     if (currentValue && (currentValue.lower || currentValue.upper)) {
@@ -123,6 +201,64 @@ function PercentageRangeInput({ field, value, onChange }) {
             upperSide: currentValue.upper?.side
         });
     }
+    
+    // Handle manual input changes for lower bound with debouncing
+    const handleLowerInputChange = (e) => {
+        const rawValue = e.target.value;
+        setLowerInputValue(rawValue);
+        
+        // Clear existing timer
+        if (lowerDebounceTimerRef.current) {
+            clearTimeout(lowerDebounceTimerRef.current);
+        }
+        
+        if (rawValue === '' || rawValue === '-' || rawValue === '.') {
+            return;
+        }
+        
+        const numValue = parseFloat(rawValue);
+        if (!isNaN(numValue)) {
+            // Debounce the onChange call
+            lowerDebounceTimerRef.current = setTimeout(() => {
+                // No validation - accept whatever value the user wants
+                // Get fresh value from ref to avoid stale closure
+                const freshValue = normalizeValue(valueRef.current);
+                onChange(field.name, {
+                    ...freshValue,
+                    lower: { ...freshValue.lower, percent: numValue / 100 }
+                });
+            }, 300);
+        }
+    };
+    
+    // Handle manual input changes for upper bound with debouncing
+    const handleUpperInputChange = (e) => {
+        const rawValue = e.target.value;
+        setUpperInputValue(rawValue);
+        
+        // Clear existing timer
+        if (upperDebounceTimerRef.current) {
+            clearTimeout(upperDebounceTimerRef.current);
+        }
+        
+        if (rawValue === '' || rawValue === '-' || rawValue === '.') {
+            return;
+        }
+        
+        const numValue = parseFloat(rawValue);
+        if (!isNaN(numValue)) {
+            // Debounce the onChange call
+            upperDebounceTimerRef.current = setTimeout(() => {
+                // No validation - accept whatever value the user wants
+                // Get fresh value from ref to avoid stale closure
+                const freshValue = normalizeValue(valueRef.current);
+                onChange(field.name, {
+                    ...freshValue,
+                    upper: { ...freshValue.upper, percent: numValue / 100 }
+                });
+            }, 300);
+        }
+    };
 
     return (
         <div className="percentage-range-input">
@@ -145,19 +281,45 @@ function PercentageRangeInput({ field, value, onChange }) {
                         <label style={{ fontSize: '0.8rem', color: '#ccc' }}>
                             Lower bound
                         </label>
-                        <span style={{ fontSize: '0.8rem', color: '#67eea5', fontWeight: 'bold' }}>
-                            {Math.round((currentValue.lower?.percent || 0) * 100)}%
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <input
+                                type="text"
+                                value={lowerInputValue}
+                                onChange={handleLowerInputChange}
+                                onFocus={(e) => e.target.select()}
+                                style={{
+                                    width: '50px',
+                                    textAlign: 'center',
+                                    background: 'rgba(255,255,255,0.1)',
+                                    border: '1px solid rgba(255,255,255,0.2)',
+                                    color: '#67eea5',
+                                    padding: '0.15rem 0.25rem',
+                                    borderRadius: '3px',
+                                    fontWeight: 'bold',
+                                    fontSize: '0.75rem'
+                                }}
+                            />
+                            <span style={{ fontSize: '0.75rem', color: '#67eea5', fontWeight: 'bold' }}>%</span>
+                        </div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                         <select
                             value={currentValue.lower?.side || 'shortest'}
                             onChange={(e) => {
-                                const latestValue = getCurrentValue();
-                                onChange(field.name, {
-                                    ...latestValue,
-                                    lower: { ...latestValue.lower, side: e.target.value }
-                                });
+                                // Get fresh value from ref to avoid stale closure
+                                const freshValue = normalizeValue(valueRef.current);
+                                const newSide = e.target.value;
+                                const newType = newSide === 'shortest' ? 'PercentageShortestSide' : 'PercentageLongestSide';
+                                const newValue = {
+                                    ...freshValue,
+                                    lower: { 
+                                        ...freshValue.lower, 
+                                        side: newSide,
+                                        __type: newType
+                                    }
+                                };
+                                console.log(`[PercentageRangeInput] ${field.name} lower side changed to:`, newSide, 'Full value:', newValue);
+                                onChange(field.name, newValue);
                             }}
                             style={{
                                 background: 'rgba(255,255,255,0.1)',
@@ -176,29 +338,6 @@ function PercentageRangeInput({ field, value, onChange }) {
                             of canvas
                         </span>
                     </div>
-                    <input
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={0.01}
-                        value={currentValue.lower?.percent || 0}
-                        onChange={(e) => {
-                            const newValue = parseFloat(e.target.value);
-                            const latestValue = getCurrentValue();
-                            onChange(field.name, {
-                                ...latestValue,
-                                lower: { ...latestValue.lower, percent: Math.min(newValue, latestValue.upper.percent - 0.01) }
-                            });
-                        }}
-                        style={{
-                            width: '100%',
-                            height: '6px',
-                            background: 'rgba(255,255,255,0.2)',
-                            borderRadius: '3px',
-                            outline: 'none',
-                            cursor: 'pointer'
-                        }}
-                    />
                 </div>
                 <div>
                     <div style={{
@@ -210,19 +349,45 @@ function PercentageRangeInput({ field, value, onChange }) {
                         <label style={{ fontSize: '0.8rem', color: '#ccc' }}>
                             Upper bound
                         </label>
-                        <span style={{ fontSize: '0.8rem', color: '#67eea5', fontWeight: 'bold' }}>
-                            {Math.round((currentValue.upper?.percent || 0) * 100)}%
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <input
+                                type="text"
+                                value={upperInputValue}
+                                onChange={handleUpperInputChange}
+                                onFocus={(e) => e.target.select()}
+                                style={{
+                                    width: '50px',
+                                    textAlign: 'center',
+                                    background: 'rgba(255,255,255,0.1)',
+                                    border: '1px solid rgba(255,255,255,0.2)',
+                                    color: '#67eea5',
+                                    padding: '0.15rem 0.25rem',
+                                    borderRadius: '3px',
+                                    fontWeight: 'bold',
+                                    fontSize: '0.75rem'
+                                }}
+                            />
+                            <span style={{ fontSize: '0.75rem', color: '#67eea5', fontWeight: 'bold' }}>%</span>
+                        </div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                         <select
                             value={currentValue.upper?.side || 'longest'}
                             onChange={(e) => {
-                                const latestValue = getCurrentValue();
-                                onChange(field.name, {
-                                    ...latestValue,
-                                    upper: { ...latestValue.upper, side: e.target.value }
-                                });
+                                // Get fresh value from ref to avoid stale closure
+                                const freshValue = normalizeValue(valueRef.current);
+                                const newSide = e.target.value;
+                                const newType = newSide === 'shortest' ? 'PercentageShortestSide' : 'PercentageLongestSide';
+                                const newValue = {
+                                    ...freshValue,
+                                    upper: { 
+                                        ...freshValue.upper, 
+                                        side: newSide,
+                                        __type: newType
+                                    }
+                                };
+                                console.log(`[PercentageRangeInput] ${field.name} upper side changed to:`, newSide, 'Full value:', newValue);
+                                onChange(field.name, newValue);
                             }}
                             style={{
                                 background: 'rgba(255,255,255,0.1)',
@@ -241,29 +406,6 @@ function PercentageRangeInput({ field, value, onChange }) {
                             of canvas
                         </span>
                     </div>
-                    <input
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={0.01}
-                        value={currentValue.upper?.percent || 0}
-                        onChange={(e) => {
-                            const newValue = parseFloat(e.target.value);
-                            const latestValue = getCurrentValue();
-                            onChange(field.name, {
-                                ...latestValue,
-                                upper: { ...latestValue.upper, percent: Math.max(newValue, latestValue.lower.percent + 0.01) }
-                            });
-                        }}
-                        style={{
-                            width: '100%',
-                            height: '6px',
-                            background: 'rgba(255,255,255,0.2)',
-                            borderRadius: '3px',
-                            outline: 'none',
-                            cursor: 'pointer'
-                        }}
-                    />
                 </div>
                 <div style={{
                     marginTop: '0.5rem',
@@ -271,7 +413,7 @@ function PercentageRangeInput({ field, value, onChange }) {
                     color: '#888',
                     textAlign: 'center'
                 }}>
-                    Range: {Math.round((currentValue.lower?.percent || 0) * 100)}% ({currentValue.lower?.side || 'shortest'}) - {Math.round((currentValue.upper?.percent || 0) * 100)}% ({currentValue.upper?.side || 'longest'})
+                    Range: {formatPercentage(currentValue.lower?.percent || 0)}% ({currentValue.lower?.side || 'shortest'}) - {formatPercentage(currentValue.upper?.percent || 0)}% ({currentValue.upper?.side || 'longest'})
                 </div>
             </div>
         </div>

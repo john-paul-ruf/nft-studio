@@ -94,16 +94,11 @@ function NumberInput({ field, value, onChange }) {
                     onChange={handleNumberChange}
                     onBlur={handleNumberBlur}
                     inputProps={{
-                        min: field.min || 0,
-                        max: maxValue,
                         step: step,
                         style: { textAlign: 'center' }
                     }}
                     sx={{ width: 120 }}
                 />
-                <FormHelperText>
-                    Range: {field.min || 0} - {maxValue}
-                </FormHelperText>
             </FormControl>
         );
     }
@@ -118,7 +113,7 @@ function NumberInput({ field, value, onChange }) {
                 <Slider
                     value={currentValue}
                     onChange={handleSliderChange}
-                    min={field.min || 0}
+                    min={0}
                     max={maxValue}
                     step={step}
                     sx={{ flex: 1 }}
@@ -131,17 +126,12 @@ function NumberInput({ field, value, onChange }) {
                     onChange={handleNumberChange}
                     onBlur={handleNumberBlur}
                     inputProps={{
-                        min: field.min || 0,
-                        max: maxValue,
                         step: step,
                         style: { textAlign: 'center' }
                     }}
                     sx={{ width: 80 }}
                 />
             </Box>
-            <FormHelperText>
-                Min: {field.min || 0} | Max: {maxValue}
-            </FormHelperText>
         </FormControl>
     );
 }
