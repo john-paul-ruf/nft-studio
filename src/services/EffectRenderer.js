@@ -251,7 +251,8 @@ class EffectRenderer {
      * @returns {React.Element|null} Rendered keyframe effects or null
      */
     renderKeyframeEffects(effect, parentOriginalIndex, handlers, isReadOnly = false) {
-        const keyframeEffects = effect.attachedEffects?.keyFrame || [];
+        // CRITICAL FIX: Use new keyframeEffects property (backward compatible with attachedEffects.keyFrame)
+        const keyframeEffects = effect.keyframeEffects || effect.attachedEffects?.keyFrame || [];
         if (!keyframeEffects || keyframeEffects.length === 0) {
             return null;
         }
@@ -461,7 +462,9 @@ class EffectRenderer {
      * @private
      */
     _hasChildEffects(effect) {
+        // CRITICAL FIX: Use new keyframeEffects property (backward compatible with attachedEffects.keyFrame)
         return (effect.secondaryEffects?.length > 0) ||
+               (effect.keyframeEffects?.length > 0) ||
                (effect.attachedEffects?.keyFrame?.length > 0);
     }
 

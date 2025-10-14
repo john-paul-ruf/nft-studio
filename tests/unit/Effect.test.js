@@ -326,6 +326,63 @@ export function test_frompojo_null() {
     console.log('✅ fromPOJO validates null/undefined');
 }
 
+// Test 15b: fromPOJO - Property migration (prefer new keyframeEffects over old attachedEffects.keyFrame)
+export function test_frompojo_property_migration() {
+    // Test case 1: Both properties exist - should prefer new property
+    const pojoWithBoth = {
+        id: 'effect_123',
+        name: 'amp',
+        config: {},
+        type: 'primary',
+        keyframeEffects: [
+            { id: 'kf_new', name: 'rotate-new', config: {}, type: 'keyframe' }
+        ],
+        attachedEffects: {
+            keyFrame: [
+                { id: 'kf_old', name: 'rotate-old', config: {}, type: 'keyframe' }
+            ]
+        }
+    };
+
+    const effect1 = Effect.fromPOJO(pojoWithBoth);
+    if (effect1.keyframeEffects.length !== 1) throw new Error('Should have 1 keyframe effect');
+    if (effect1.keyframeEffects[0].name !== 'rotate-new') throw new Error('Should prefer new keyframeEffects property');
+
+    // Test case 2: Only new property exists
+    const pojoNewOnly = {
+        id: 'effect_456',
+        name: 'amp',
+        config: {},
+        type: 'primary',
+        keyframeEffects: [
+            { id: 'kf_new2', name: 'scale', config: {}, type: 'keyframe' }
+        ]
+    };
+
+    const effect2 = Effect.fromPOJO(pojoNewOnly);
+    if (effect2.keyframeEffects.length !== 1) throw new Error('Should have 1 keyframe effect from new property');
+    if (effect2.keyframeEffects[0].name !== 'scale') throw new Error('Should read from new property');
+
+    // Test case 3: Only old property exists (backward compatibility)
+    const pojoOldOnly = {
+        id: 'effect_789',
+        name: 'amp',
+        config: {},
+        type: 'primary',
+        attachedEffects: {
+            keyFrame: [
+                { id: 'kf_old2', name: 'fade', config: {}, type: 'keyframe' }
+            ]
+        }
+    };
+
+    const effect3 = Effect.fromPOJO(pojoOldOnly);
+    if (effect3.keyframeEffects.length !== 1) throw new Error('Should have 1 keyframe effect from old property');
+    if (effect3.keyframeEffects[0].name !== 'fade') throw new Error('Should fallback to old property');
+
+    console.log('✅ fromPOJO property migration works correctly (prefers new, falls back to old)');
+}
+
 // ============================================================================
 // toPOJO Tests
 // ============================================================================

@@ -923,8 +923,9 @@ export default function useEffectManagement(projectState) {
         } else if (context.effectType === 'keyframe' && context.subIndex !== null) {
             console.log('🔧 useEffectManagement: Updating keyframe effect config at index:', context.subIndex);
             
-            // Use single source of truth for keyframe effects
-            const currentKeyframeEffects = mainEffect.attachedEffects?.keyFrame || [];
+            // CRITICAL FIX: Use new keyframeEffects property (backward compatible with attachedEffects.keyFrame)
+            const currentKeyframeEffects = mainEffect.keyframeEffects || 
+                                          mainEffect.attachedEffects?.keyFrame || [];
             const updatedKeyframeEffects = [...currentKeyframeEffects];
             // CRITICAL FIX: Merge new config with existing config instead of replacing
             const existingKeyframeEffect = updatedKeyframeEffects[context.subIndex];
@@ -943,12 +944,11 @@ export default function useEffectManagement(projectState) {
                 ...existingKeyframeEffect,
                 config: mergedConfig
             };
+            
+            // CRITICAL FIX: Update using new keyframeEffects property (single source of truth)
             const updatedEffect = {
                 ...mainEffect,
-                attachedEffects: {
-                    ...mainEffect.attachedEffects,
-                    keyFrame: updatedKeyframeEffects
-                }
+                keyframeEffects: updatedKeyframeEffects
             };
             // 🔒 CRITICAL: Pass effect ID, not index
             handleEffectUpdate(mainEffect.id, updatedEffect);
@@ -1017,8 +1017,9 @@ export default function useEffectManagement(projectState) {
             // 🔒 CRITICAL: Pass effect ID, not index
             handleEffectUpdate(mainEffect.id, updatedEffect);
         } else if (editingEffect.effectType === 'keyframe' && editingEffect.subIndex !== null) {
-            // Use single source of truth for keyframe effects
-            const currentKeyframeEffects = mainEffect.attachedEffects?.keyFrame || [];
+            // CRITICAL FIX: Use new keyframeEffects property (backward compatible with attachedEffects.keyFrame)
+            const currentKeyframeEffects = mainEffect.keyframeEffects || 
+                                          mainEffect.attachedEffects?.keyFrame || [];
             const updatedKeyframeEffects = [...currentKeyframeEffects];
             // CRITICAL FIX: Merge new config with existing config instead of replacing
             const existingKeyframeEffect = updatedKeyframeEffects[editingEffect.subIndex];
@@ -1036,12 +1037,11 @@ export default function useEffectManagement(projectState) {
                 ...existingKeyframeEffect,
                 config: mergedConfig
             };
+            
+            // CRITICAL FIX: Update using new keyframeEffects property (single source of truth)
             const updatedEffect = {
                 ...mainEffect,
-                attachedEffects: {
-                    ...mainEffect.attachedEffects,
-                    keyFrame: updatedKeyframeEffects
-                }
+                keyframeEffects: updatedKeyframeEffects
             };
             // 🔒 CRITICAL: Pass effect ID, not index
             handleEffectUpdate(mainEffect.id, updatedEffect);

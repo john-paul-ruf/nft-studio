@@ -108,26 +108,21 @@ export class Effect {
         }
 
         // Handle both old format (attachedEffects) and new format (secondaryEffects/keyframeEffects)
+        // CRITICAL FIX: Prefer new format, fallback to old format for backward compatibility
         let secondaryEffects = [];
         let keyframeEffects = [];
 
-        if (pojo.attachedEffects) {
-            // Old format: { attachedEffects: { secondary: [], keyFrame: [] } }
-            secondaryEffects = (pojo.attachedEffects.secondary || []).map(se => 
-                se instanceof Effect ? se : Effect.fromPOJO(se)
-            );
-            keyframeEffects = (pojo.attachedEffects.keyFrame || []).map(ke => 
-                ke instanceof Effect ? ke : Effect.fromPOJO(ke)
-            );
-        } else {
-            // New format: { secondaryEffects: [], keyframeEffects: [] }
-            secondaryEffects = (pojo.secondaryEffects || []).map(se => 
-                se instanceof Effect ? se : Effect.fromPOJO(se)
-            );
-            keyframeEffects = (pojo.keyframeEffects || []).map(ke => 
-                ke instanceof Effect ? ke : Effect.fromPOJO(ke)
-            );
-        }
+        // Read secondaryEffects: prefer new format, fallback to old
+        const secondarySource = pojo.secondaryEffects || pojo.attachedEffects?.secondary || [];
+        secondaryEffects = secondarySource.map(se => 
+            se instanceof Effect ? se : Effect.fromPOJO(se)
+        );
+
+        // Read keyframeEffects: prefer new format, fallback to old
+        const keyframeSource = pojo.keyframeEffects || pojo.attachedEffects?.keyFrame || [];
+        keyframeEffects = keyframeSource.map(ke => 
+            ke instanceof Effect ? ke : Effect.fromPOJO(ke)
+        );
 
         return new Effect({
             id: pojo.id || `effect_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,

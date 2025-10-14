@@ -103,6 +103,12 @@ class EffectProcessingService {
                 if (effect.secondaryEffects?.length > 0) {
                     SafeConsole.log(`🔗 Processing ${effect.secondaryEffects.length} secondary effects for ${effectName}`);
                     for (const secondaryEffect of effect.secondaryEffects) {
+                        // Skip invisible secondary effects
+                        if (secondaryEffect.visible === false) {
+                            SafeConsole.log(`  ⏭️  Skipping invisible secondary effect: ${secondaryEffect.registryKey}`);
+                            continue;
+                        }
+                        
                         const secondaryEffectName = secondaryEffect.registryKey;
                         const SecondaryEffectClass = EffectRegistry.getGlobal(secondaryEffectName);
                         if (SecondaryEffectClass) {
@@ -126,6 +132,12 @@ class EffectProcessingService {
                     SafeConsole.log(`🎬 Processing ${effect.keyframeEffects.length} keyframe effects for ${effectName}`);
                     // Process attached keyframe effects as special secondary effects
                     for (const keyframeEffect of effect.keyframeEffects) {
+                        // Skip invisible keyframe effects
+                        if (keyframeEffect.visible === false) {
+                            SafeConsole.log(`  ⏭️  Skipping invisible keyframe effect: ${keyframeEffect.registryKey}`);
+                            continue;
+                        }
+                        
                         const keyframeEffectName = keyframeEffect.registryKey;
                         const KeyframeEffectClass = EffectRegistry.getGlobal(keyframeEffectName);
                         if (KeyframeEffectClass) {
@@ -313,10 +325,25 @@ class EffectProcessingService {
                 return hydratedConfig;
             }
 
-            SafeConsole.log(`✅ Using reconstructed config for ${effectName} from ConfigReconstructor`);
-
-            // ConfigReconstructor already returns a properly reconstructed instance
-            return hydratedConfig;
+            SafeConsole.log(`✅ Found config class for ${effectName}: ${plugin.configClass.name}`);
+            
+            // Log what we're passing to the constructor
+            SafeConsole.log(`📦 [EffectProcessingService] Creating config instance with:`, {
+                effectName,
+                hydratedConfig
+            });
+            
+            // Create proper config instance using the linked config class
+            // This ensures default values are populated when hydratedConfig is empty
+            const configInstance = new plugin.configClass(hydratedConfig);
+            
+            // Log what the constructor produced
+            SafeConsole.log(`📋 [EffectProcessingService] Config instance created:`, {
+                effectName,
+                configInstance
+            });
+            
+            return configInstance;
 
         } catch (error) {
             SafeConsole.error('Error creating config instance:', error);

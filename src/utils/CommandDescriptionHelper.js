@@ -45,13 +45,14 @@ class CommandDescriptionHelper {
             }
         }
 
-        // Check for keyframe effects changes
-        const oldKeyframeCount = oldObj?.attachedEffects?.keyFrame?.length || 0;
-        const newKeyframeCount = newObj?.attachedEffects?.keyFrame?.length || 0;
+        // Check for keyframe effects changes (use new keyframeEffects property with backward compatibility)
+        const oldKeyframeCount = oldObj?.keyframeEffects?.length || oldObj?.attachedEffects?.keyFrame?.length || 0;
+        const newKeyframeCount = newObj?.keyframeEffects?.length || newObj?.attachedEffects?.keyFrame?.length || 0;
 
         if (oldKeyframeCount !== newKeyframeCount) {
             if (newKeyframeCount > oldKeyframeCount) {
-                const addedKeyframe = newObj.attachedEffects.keyFrame[newKeyframeCount - 1];
+                const keyframeArray = newObj.keyframeEffects || newObj.attachedEffects?.keyFrame || [];
+                const addedKeyframe = keyframeArray[newKeyframeCount - 1];
                 const frame = addedKeyframe.frame || 0;
                 const keyframeName = this.getEffectName(addedKeyframe);
                 return `Added ${keyframeName} at frame ${frame} to ${effectWithId}`;
