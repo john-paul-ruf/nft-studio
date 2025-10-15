@@ -69,19 +69,47 @@ class EffectCommandService {
 
 /**
  * Command to update effect properties/configuration
+ * 🔒 CRITICAL: Accepts effect ID (not index) to prevent stale reference bugs after reordering
  */
 export class UpdateEffectCommand extends Command {
-    constructor(projectState, effectIndex, updatedEffect, effectName) {
+    constructor(projectState, effectIdOrIndex, updatedEffect, effectName) {
         let previousEffect = null;
+        let resolvedIndex = null; // Store resolved index for undo
 
         const executeAction = () => {
             const currentEffects = projectState.getState().effects || [];
+
+            // 🔒 CRITICAL: Resolve effect ID to current index at execution time (not construction time)
+            // This prevents stale index bugs when effects are reordered between command creation and execution
+            let effectIndex;
+            
+            if (typeof effectIdOrIndex === 'string') {
+                // ID-based resolution (preferred, stable across reorders)
+                effectIndex = currentEffects.findIndex(e => e.id === effectIdOrIndex);
+                if (effectIndex === -1) {
+                    throw new Error(`Effect with ID ${effectIdOrIndex} not found (may have been deleted)`);
+                }
+                console.log('✏️ UpdateEffectCommand: Resolved effect ID to index:', {
+                    effectId: effectIdOrIndex,
+                    resolvedIndex: effectIndex
+                });
+            } else {
+                // Index-based resolution (legacy, may be stale)
+                effectIndex = effectIdOrIndex;
+                console.warn('⚠️ UpdateEffectCommand: Using index-based resolution (may be unreliable after reorders)');
+            }
 
             if (effectIndex < 0 || effectIndex >= currentEffects.length) {
                 throw new Error(`Invalid effect index: ${effectIndex}`);
             }
 
-            previousEffect = currentEffects[effectIndex];
+            // Store resolved index for undo operation
+            resolvedIndex = effectIndex;
+            // 🔒 CRITICAL: Deep clone to prevent reference sharing bugs after reorders
+            const effectToClone = currentEffects[effectIndex];
+            previousEffect = effectToClone instanceof Effect 
+                ? Effect.fromPOJO(JSON.parse(JSON.stringify(effectToClone.toPOJO())))
+                : Effect.fromPOJO(JSON.parse(JSON.stringify(effectToClone)));
 
             // Harden update: deep-merge patch into previous effect to avoid lossy updates
             const toPOJO = (e) => (e instanceof Effect ? e.toPOJO() : (e || {}));
@@ -130,6 +158,12 @@ export class UpdateEffectCommand extends Command {
             newEffects[effectIndex] = effectInstance;
 
             console.log('✏️ UpdateEffectCommand: Updating effect at index:', effectIndex);
+            console.log('✏️ UpdateEffectCommand: Effect config being saved:', {
+                effectId: effectInstance.id,
+                effectName: effectInstance.name || effectInstance.className,
+                config: effectInstance.config,
+                configKeys: Object.keys(effectInstance.config || {})
+            });
             projectState.update({ effects: newEffects });
 
             // Emit event for UI updates
@@ -147,6 +181,10 @@ export class UpdateEffectCommand extends Command {
                 throw new Error('No previous effect state to restore');
             }
 
+            if (resolvedIndex === null) {
+                throw new Error('Cannot undo: effect index was never resolved (command may not have executed)');
+            }
+
             // Ensure previousEffect is an Effect instance (backward compatibility)
             // previousEffect should already have all required properties including type
             const effectInstance = previousEffect instanceof Effect 
@@ -155,7 +193,7 @@ export class UpdateEffectCommand extends Command {
 
             const currentEffects = projectState.getState().effects || [];
             const newEffects = [...currentEffects];
-            newEffects[effectIndex] = effectInstance;
+            newEffects[resolvedIndex] = effectInstance;
 
             projectState.update({ effects: newEffects });
 
@@ -163,20 +201,35 @@ export class UpdateEffectCommand extends Command {
             EventBusService.emit('effect:updated', {
                 effect: effectInstance,
                 previousEffect: updatedEffect,
-                index: effectIndex
+                index: resolvedIndex
             }, { source: 'UpdateEffectCommand' });
 
             return { success: true };
         };
 
         // Generate detailed description based on what changed
-        const currentEffect = projectState.getState().effects?.[effectIndex];
+        // 🔒 CRITICAL: Resolve effectIdOrIndex to actual index for description generation
+        const currentEffects = projectState.getState().effects || [];
+        let descriptionIndex;
+        
+        if (typeof effectIdOrIndex === 'string') {
+            // ID-based resolution
+            descriptionIndex = currentEffects.findIndex(e => e.id === effectIdOrIndex);
+        } else {
+            // Index-based resolution
+            descriptionIndex = effectIdOrIndex;
+        }
+        
+        const currentEffect = descriptionIndex >= 0 && descriptionIndex < currentEffects.length 
+            ? currentEffects[descriptionIndex] 
+            : null;
+            
         const description = currentEffect
             ? CommandDescriptionHelper.describePropertyChanges(currentEffect, updatedEffect, effectName || 'effect')
             : `Updated ${effectName || 'effect'} properties`;
 
         super('effect.update', executeAction, undoAction, description);
-        this.effectIndex = effectIndex;
+        this.effectIdOrIndex = effectIdOrIndex; // Store the ID or index for reference
         this.isEffectCommand = true;
     }
 }
@@ -268,7 +321,11 @@ export class DeleteEffectCommand extends Command {
                 throw new Error(`Invalid effect index: ${effectIndex}. Valid range: 0 to ${currentEffects.length - 1}`);
             }
 
-            deletedEffect = currentEffects[effectIndex];
+            // 🔒 CRITICAL: Deep clone to prevent reference sharing bugs
+            const effectToClone = currentEffects[effectIndex];
+            deletedEffect = effectToClone instanceof Effect 
+                ? Effect.fromPOJO(JSON.parse(JSON.stringify(effectToClone.toPOJO())))
+                : Effect.fromPOJO(JSON.parse(JSON.stringify(effectToClone)));
             const newEffects = currentEffects.filter((_, index) => index !== effectIndex);
 
             projectState.update({ effects: newEffects });

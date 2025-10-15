@@ -25,6 +25,7 @@ export {
 
 export {
     AddSecondaryEffectCommand,
+    UpdateSecondaryEffectCommand,
     DeleteSecondaryEffectCommand,
     ReorderSecondaryEffectsCommand
 } from '../services/SecondaryEffectCommandService.js';

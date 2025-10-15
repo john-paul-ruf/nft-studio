@@ -58,6 +58,7 @@ function ColorPickerInput({ field, value, onChange }) {
         
         // When switching to 'color' mode, ensure colorValue is set
         const updatedValue = {
+            __type: 'ColorPicker',
             ...latestValue,
             selectionType: newSelectionType
         };
@@ -76,6 +77,7 @@ function ColorPickerInput({ field, value, onChange }) {
         const newColor = e.target.value;
         setTextInputValue(newColor);
         onChange(field.name, {
+            __type: 'ColorPicker',
             ...latestValue,
             colorValue: newColor
         });
@@ -95,6 +97,7 @@ function ColorPickerInput({ field, value, onChange }) {
         if (isValidHexColor(inputValue)) {
             const latestValue = getCurrentValue();
             debouncedOnChange(field.name, {
+                __type: 'ColorPicker',
                 ...latestValue,
                 colorValue: inputValue
             });

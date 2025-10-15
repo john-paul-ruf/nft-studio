@@ -98,5 +98,6 @@ class LoggerService {
     }
 }
 
-// Export singleton instance
+// Export both the class (for testing) and singleton instance (for production)
+export { LoggerService };
 export default new LoggerService();

@@ -58,6 +58,10 @@ function EffectConfigurer({
     const theme = useTheme();
     const { eventBusService } = useServices();
     
+    // 🔒 CRITICAL: Store onConfigChange in ref for the update coordinator callback
+    // The effect context is captured at schedule time and stored in metadata
+    const onConfigChangeRef = useRef(onConfigChange);
+    
     // Initialize services with dependency injection
     const [services] = useState(() => {
         const eventBus = eventBusService || { emit: () => {}, subscribe: () => {} };
@@ -67,12 +71,36 @@ function EffectConfigurer({
         const configManager = new EffectConfigurationManager({ eventBus, logger });
         const eventCoordinator = new EffectEventCoordinator({ eventBus, logger });
         
-        // Create update coordinator with callback that coordinates through event coordinator
+        // 🔒 CRITICAL FIX: Set onUpdate callback ONCE during initialization
+        // This callback uses the effect context stored WITH the config in metadata
+        // Previously, setOnUpdate was called on every field change, overwriting the previous callback
+        // This caused debounced updates to use the wrong effect context after reordering
         const updateCoordinator = new EffectUpdateCoordinator({
             eventBus,
             logger,
             debounceMs: 300,
-            onUpdate: null, // Will be set dynamically in handlers
+            onUpdate: (config, metadata) => {
+                // 🔒 CRITICAL: Use effect context from metadata (captured at schedule time)
+                // This ensures the config is paired with the correct effect context
+                // Even if the user has selected a different effect by the time this fires
+                const effectContext = metadata.effectContext;
+                const currentOnConfigChange = onConfigChangeRef.current;
+                
+                console.log('🔧 EffectConfigurer: Debounced update firing:', {
+                    effectId: effectContext?.effectId,
+                    effectIndex: effectContext?.effectIndex,
+                    effectName: effectContext?.effectName,
+                    configKeys: Object.keys(config),
+                    metadata
+                });
+                
+                eventCoordinator.coordinateConfigurationChange(
+                    config,
+                    effectContext,
+                    currentOnConfigChange,
+                    metadata
+                );
+            },
             enableBatching: true,
             maxBatchSize: 10
         });
@@ -97,6 +125,12 @@ function EffectConfigurer({
     const schemaRef = useRef(null);
     const previousResolution = useRef(projectState?.targetResolution);
     const defaultsLoadedForEffect = useRef(null); // Track which effect we've loaded defaults for
+    
+    // 🔒 CRITICAL: Keep onConfigChange ref in sync with prop
+    // The update coordinator callback reads this ref to get the current callback
+    useEffect(() => {
+        onConfigChangeRef.current = onConfigChange;
+    }, [onConfigChange]);
 
     // Cleanup update coordinator on unmount
     useEffect(() => {
@@ -216,24 +250,27 @@ function EffectConfigurer({
             setIsConfigComplete(validation.isComplete);
         }
 
-        // Schedule DEBOUNCED update through EffectUpdateCoordinator
-        // This prevents race conditions from rapid typing/changes
-        // UI updates are instant, but ProjectState updates are debounced
-        services.updateCoordinator.setOnUpdate((config, metadata) => {
-            services.eventCoordinator.coordinateConfigurationChange(
-                config,
-                selectedEffect,
-                onConfigChange,
-                metadata
-            );
-        });
-        
+        // 🔒 CRITICAL FIX: Schedule DEBOUNCED update through EffectUpdateCoordinator
+        // Store the effect context WITH the config so they stay paired together
+        // This prevents the config from one effect being applied to a different effect
         services.updateCoordinator.scheduleUpdate(
             updatedConfig,
-            { fieldName, fieldValue, source: 'user-input', timestamp: Date.now() }
+            { 
+                fieldName, 
+                fieldValue, 
+                source: 'user-input', 
+                timestamp: Date.now(),
+                // 🔒 CRITICAL: Capture effect context at schedule time (not execution time)
+                effectContext: {
+                    effectId: selectedEffect?.effectId,
+                    effectIndex: selectedEffect?.effectIndex,
+                    effectName: selectedEffect?.effectName,
+                    effectType: selectedEffect?.effectType
+                }
+            }
         );
 
-    }, [selectedEffect, onConfigChange, services]);
+    }, [services, selectedEffect]);
 
     // Configuration change handler with service coordination (for bulk updates)
     const handleConfigurationChange = useCallback((newConfig, metadata = {}) => {
@@ -249,24 +286,25 @@ function EffectConfigurer({
             setIsConfigComplete(validation.isComplete);
         }
 
-        // Schedule DEBOUNCED update through EffectUpdateCoordinator
-        // This prevents race conditions from rapid changes (e.g., preset application)
-        // UI updates are instant, but ProjectState updates are debounced
-        services.updateCoordinator.setOnUpdate((config, metadata) => {
-            services.eventCoordinator.coordinateConfigurationChange(
-                config,
-                selectedEffect,
-                onConfigChange,
-                metadata
-            );
-        });
-        
+        // 🔒 CRITICAL FIX: Schedule DEBOUNCED update through EffectUpdateCoordinator
+        // Store the effect context WITH the config so they stay paired together
+        // This prevents the config from one effect being applied to a different effect
         services.updateCoordinator.scheduleUpdate(
             newConfig,
-            { ...metadata, timestamp: Date.now() }
+            { 
+                ...metadata, 
+                timestamp: Date.now(),
+                // 🔒 CRITICAL: Capture effect context at schedule time (not execution time)
+                effectContext: {
+                    effectId: selectedEffect?.effectId,
+                    effectIndex: selectedEffect?.effectIndex,
+                    effectName: selectedEffect?.effectName,
+                    effectType: selectedEffect?.effectType
+                }
+            }
         );
 
-    }, [selectedEffect, onConfigChange, services]);
+    }, [services, selectedEffect]);
 
     // Effect addition handler with service coordination
     const handleAddEffect = useCallback(() => {

@@ -214,8 +214,8 @@ class EffectIPCSerializationService {
         }
 
         // Detect ColorPicker: has selectionType and colorValue properties
-        if (obj.hasOwnProperty('selectionType') && obj.hasOwnProperty('colorValue') &&
-            (obj.hasOwnProperty('getColor') || typeof obj.getColor !== 'undefined')) {
+        // Note: We don't check for getColor method because plain objects from renderer won't have it
+        if (obj.hasOwnProperty('selectionType') && obj.hasOwnProperty('colorValue')) {
             return 'ColorPicker';
         }
 

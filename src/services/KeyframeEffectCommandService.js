@@ -205,7 +205,11 @@ export class DeleteKeyframeEffectCommand extends Command {
             console.log('🗑️ DeleteKeyframeEffectCommand: Deleting keyframe effect');
             console.log('🗑️ DeleteKeyframeEffectCommand: Parent index:', parentIndex, 'Keyframe index:', keyframeIndex);
 
-            deletedKeyframeEffect = keyframeEffects[keyframeIndex];
+            // 🔒 CRITICAL: Deep clone to prevent reference sharing bugs
+            const effectToClone = keyframeEffects[keyframeIndex];
+            deletedKeyframeEffect = effectToClone instanceof Effect 
+                ? Effect.fromPOJO(JSON.parse(JSON.stringify(effectToClone.toPOJO())))
+                : Effect.fromPOJO(JSON.parse(JSON.stringify(effectToClone)));
             
             // Create new effects array with updated parent effect
             const newEffects = [...currentEffects];
@@ -429,8 +433,11 @@ export class UpdateKeyframeEffectCommand extends Command {
 
             const keyframeEffect = keyframeEffects[keyframeIndex];
             
-            // Store previous state for undo
-            previousState = { ...keyframeEffect };
+            // 🔒 CRITICAL: Deep clone to prevent reference sharing bugs
+            const effectToClone = keyframeEffect;
+            previousState = effectToClone instanceof Effect 
+                ? Effect.fromPOJO(JSON.parse(JSON.stringify(effectToClone.toPOJO())))
+                : Effect.fromPOJO(JSON.parse(JSON.stringify(effectToClone)));
 
             // Create updated keyframe effect
             const updatedKeyframeEffect = {

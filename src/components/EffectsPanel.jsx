@@ -212,6 +212,37 @@ export default function EffectsPanel({
         }
     }, [isReadOnly]);
 
+    // 🔒 CRITICAL: Update selectedEffect when effects are reordered
+    // This ensures the selection state stays synchronized with the actual effect positions
+    useEffect(() => {
+        if (!eventBusService) return;
+
+        const unsubscribe = eventBusService.subscribe('effect:reorder', (payload) => {
+            console.log('🎨 EffectsPanel: Effect reorder event received:', payload);
+            
+            // If we have a selected effect, update its index if it was affected by the reorder
+            if (selectedEffect && selectedEffect.effectId) {
+                const freshEffects = projectState?.getState()?.effects || [];
+                const newIndex = freshEffects.findIndex(e => e.id === selectedEffect.effectId);
+                
+                if (newIndex !== -1 && newIndex !== selectedEffect.effectIndex) {
+                    console.log('🎯 EffectsPanel: Updating selected effect index after reorder:', {
+                        effectId: selectedEffect.effectId,
+                        oldIndex: selectedEffect.effectIndex,
+                        newIndex: newIndex
+                    });
+                    
+                    setSelectedEffect({
+                        ...selectedEffect,
+                        effectIndex: newIndex
+                    });
+                }
+            }
+        }, { component: 'EffectsPanel' });
+
+        return unsubscribe;
+    }, [eventBusService, selectedEffect, projectState]);
+
     const loadEffects = async () => {
         try {
             const response = await window.api.discoverEffects();
@@ -237,12 +268,30 @@ export default function EffectsPanel({
     }, [eventBusService]);
 
     // Handle effect selection
+    // 🔒 CRITICAL: Store effect ID instead of index to prevent stale reference bugs
     const handleEffectSelect = useCallback((effectIndex, effectType = 'primary', subIndex = null) => {
+        // Get the effect ID from ProjectState
+        const freshEffects = projectState?.getState()?.effects || [];
+        const effect = freshEffects[effectIndex];
+        
+        if (!effect || !effect.id) {
+            console.error('❌ handleEffectSelect: Cannot select effect without ID', { effectIndex, effect });
+            return;
+        }
+        
         const selectionData = {
-            effectIndex,
+            effectId: effect.id, // PRIMARY identifier - stable across reorders
+            effectIndex, // HINT for optimization - may become stale after reorder
             effectType,
             subIndex
         };
+        
+        console.log('🎯 EffectsPanel: Effect selected:', {
+            effectId: effect.id,
+            effectIndex,
+            effectName: effect.name,
+            effectType
+        });
         
         setSelectedEffect(selectionData);
         
@@ -256,16 +305,36 @@ export default function EffectsPanel({
             source: 'EffectsPanel',
             component: 'EffectsPanel'
         });
-    }, [eventBusService, isReadOnly]);
+    }, [eventBusService, isReadOnly, projectState]);
 
     // Check if an effect is selected
+    // 🔒 CRITICAL: Compare using effect ID, not index (index can change after reorder)
     const isEffectSelected = useCallback((effectIndex, effectType = 'primary', subIndex = null) => {
         if (!selectedEffect) return false;
         
-        return selectedEffect.effectIndex === effectIndex &&
+        // Get the effect ID at the given index
+        const freshEffects = projectState?.getState()?.effects || [];
+        const effect = freshEffects[effectIndex];
+        
+        if (!effect || !effect.id) return false;
+        
+        // Compare using stable effect ID
+        const isSelected = selectedEffect.effectId === effect.id &&
                selectedEffect.effectType === effectType &&
                selectedEffect.subIndex === subIndex;
-    }, [selectedEffect]);
+        
+        if (isSelected) {
+            console.log('✅ isEffectSelected: Effect is selected:', {
+                effectIndex,
+                effectId: effect.id,
+                effectName: effect.name,
+                selectedEffectId: selectedEffect.effectId,
+                selectedEffectIndex: selectedEffect.effectIndex
+            });
+        }
+        
+        return isSelected;
+    }, [selectedEffect, projectState]);
 
     // Get the selected effect data for the config panel
     // CRITICAL FIX: Always fetch fresh data from ProjectState to avoid stale config
@@ -275,8 +344,23 @@ export default function EffectsPanel({
         // Get FRESH effects directly from ProjectState (single source of truth)
         const freshEffects = projectState.getState().effects || [];
         
-        const { effectIndex, effectType, subIndex } = selectedEffect;
+        // 🔒 CRITICAL: Resolve effect ID to current index (handles reordering)
+        const { effectId, effectType, subIndex } = selectedEffect;
+        const effectIndex = freshEffects.findIndex(e => e.id === effectId);
+        
+        if (effectIndex === -1) {
+            console.warn('⚠️ getSelectedEffectData: Selected effect not found (may have been deleted)', { effectId });
+            return null;
+        }
+        
         const effect = freshEffects[effectIndex];
+        
+        console.log('📋 getSelectedEffectData: Returning effect data for config panel:', {
+            effectId,
+            effectIndex,
+            effectName: effect?.name,
+            selectedEffectIndex: selectedEffect.effectIndex
+        });
         
         if (!effect) return null;
         
@@ -312,26 +396,37 @@ export default function EffectsPanel({
     const handleConfigPanelChange = useCallback((updatedConfig) => {
         if (!selectedEffect) return;
         
-        const { effectIndex, effectType, subIndex } = selectedEffect;
+        // 🔒 CRITICAL: Use effect ID from selectedEffect (already stored during selection)
+        // The ID is stable across reorders, while the index can change before debounced updates fire.
+        const { effectId, effectType, subIndex } = selectedEffect;
         
-        // CRITICAL FIX: Get the effect ID from ProjectState to prevent race conditions
-        // during remove/reorder operations. The ID is stable across reorders, while
-        // the index can change before debounced updates fire.
-        const freshEffects = projectState.getState().effects || [];
-        const effect = freshEffects[effectIndex];
-        
-        if (!effect || !effect.id) {
-            console.error('❌ EffectsPanel: Cannot update effect without ID', { 
-                effectIndex, 
-                effect 
-            });
+        if (!effectId) {
+            console.error('❌ EffectsPanel: Cannot update effect without ID', { selectedEffect });
             return;
         }
         
+        // Resolve effect ID to current index for the event payload
+        const freshEffects = projectState.getState().effects || [];
+        const effectIndex = freshEffects.findIndex(e => e.id === effectId);
+        
+        if (effectIndex === -1) {
+            console.error('❌ EffectsPanel: Selected effect not found (may have been deleted)', { effectId });
+            return;
+        }
+        
+        const effect = freshEffects[effectIndex];
+        console.log('🔧 EffectsPanel: Config change - emitting update for:', {
+            effectId,
+            effectIndex,
+            effectName: effect?.name,
+            effectType,
+            configKeys: Object.keys(updatedConfig)
+        });
+        
         // Emit config change event with effect ID for reliable tracking
         eventBusService.emit('effect:config:change', {
-            effectId: effect.id, // PRIMARY identifier - stable across reorders
-            effectIndex, // HINT for optimization - may be stale after reorder
+            effectId, // PRIMARY identifier - stable across reorders
+            effectIndex, // HINT for optimization - resolved fresh from ID
             effectType,
             subEffectIndex: subIndex, // Use subEffectIndex to match listener expectations
             config: updatedConfig
@@ -1002,7 +1097,7 @@ export default function EffectsPanel({
         return isFinal;
     };
 
-    const renderContextMenu = (effect, originalIndex) => {
+    const renderContextMenu = (effect, currentIndex) => {
         const isEffectFinal = isFinalEffect(effect);
         console.log('📋 EffectsPanel: Rendering context menu for effect:', {
             name: effect.name || effect.className,
@@ -1042,7 +1137,7 @@ export default function EffectsPanel({
                                         ) : (
                                             <GroupedContextMenuEffects
                                                 effects={secondaryEffects}
-                                                onSelect={(secondaryEffect) => onEffectAddSecondary && onEffectAddSecondary(secondaryEffect.name || secondaryEffect.className, 'secondary', originalIndex)}
+                                                onSelect={(secondaryEffect) => onEffectAddSecondary && onEffectAddSecondary(secondaryEffect.name || secondaryEffect.className, 'secondary', currentIndex)}
                                                 theme={theme}
                                                 itemStyles={itemStyles}
                                             />
@@ -1078,7 +1173,7 @@ export default function EffectsPanel({
                                         ) : (
                                             <GroupedContextMenuEffects
                                                 effects={keyframeEffects}
-                                                onSelect={(keyframeEffect) => onEffectAddKeyframe && onEffectAddKeyframe(keyframeEffect.name || keyframeEffect.className, 'keyframe', originalIndex)}
+                                                onSelect={(keyframeEffect) => onEffectAddKeyframe && onEffectAddKeyframe(keyframeEffect.name || keyframeEffect.className, 'keyframe', currentIndex)}
                                                 theme={theme}
                                                 itemStyles={itemStyles}
                                             />
@@ -1092,7 +1187,7 @@ export default function EffectsPanel({
                             <ContextMenu.Item
                                 style={itemStyles}
                                 onSelect={() => {
-                                    setBulkAddTargetIndex(originalIndex);
+                                    setBulkAddTargetIndex(currentIndex);
                                     setBulkAddModalOpen(true);
                                 }}
                             >
@@ -1106,17 +1201,25 @@ export default function EffectsPanel({
         );
     };
 
-    // Split effects into Primary and Final sections
-    const effectsWithIndices = effects.map((effect, originalIndex) => ({ effect, originalIndex }));
-    console.log('📋 EffectsPanel: effectsWithIndices:', effectsWithIndices.map(({ effect, originalIndex }) => `${originalIndex}: ${effect.name || effect.className}`));
+    // 🔒 CRITICAL FIX: Store effect IDs instead of indices to prevent stale index bugs
+    // After reordering, indices change but IDs remain stable
+    const effectsWithIds = effects.map((effect) => ({ effect, effectId: effect.id }));
+    console.log('📋 EffectsPanel: effectsWithIds:', effectsWithIds.map(({ effect, effectId }) => `${effectId}: ${effect.name || effect.className}`));
 
-    const primaryEffects = effectsWithIndices.filter(({ effect }) => !isFinalEffect(effect));
-    const finalEffects = effectsWithIndices.filter(({ effect }) => isFinalEffect(effect));
+    const primaryEffects = effectsWithIds.filter(({ effect }) => !isFinalEffect(effect));
+    const finalEffects = effectsWithIds.filter(({ effect }) => isFinalEffect(effect));
     console.log('📋 EffectsPanel: primaryEffects count:', primaryEffects.length);
     console.log('📋 EffectsPanel: finalEffects count:', finalEffects.length);
 
+    // Helper function to resolve effect ID to current index
+    const resolveEffectIndex = useCallback((effectId) => {
+        return effects.findIndex(e => e.id === effectId);
+    }, [effects]);
+
     // Reusable effect rendering function
-    const renderEffect = ({ effect, originalIndex }, sortedIndex, section) => {
+    const renderEffect = ({ effect, effectId }, sortedIndex, section) => {
+        // 🔒 CRITICAL: Resolve current index from effect ID at render time
+        const currentIndex = resolveEffectIndex(effectId);
         const isExpanded = expandedEffects.has(`${section}-${sortedIndex}`);
         const hasChildren =
             (effect.secondaryEffects?.length > 0) ||
@@ -1126,22 +1229,22 @@ export default function EffectsPanel({
         // CRITICAL FIX: Use actual effect type instead of hardcoded 'primary'
         // This ensures final image effects are treated correctly when applying presets
         const effectType = effect.type || 'primary';
-        const isSelected = isEffectSelected(originalIndex, effectType, null);
+        const isSelected = isEffectSelected(currentIndex, effectType, null);
 
         return (
-            <ContextMenu.Root key={`${section}-${originalIndex}`}>
+            <ContextMenu.Root key={`${section}-${effectId}`}>
                 <ContextMenu.Trigger asChild>
                     <Box
                         sx={{ mb: 0.25 }}
                         draggable={true}
-                        onDragStart={(e) => handleDragStart(e, originalIndex, section)}
+                        onDragStart={(e) => handleDragStart(e, currentIndex, section)}
                         onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, originalIndex, section)}
+                        onDrop={(e) => handleDrop(e, currentIndex, section)}
                     >
                         <Paper
                             elevation={0}
-                            onClick={() => handleEffectSelect(originalIndex, effectType, null)}
-                            onContextMenu={() => handleEffectSelect(originalIndex, effectType, null)}
+                            onClick={() => handleEffectSelect(currentIndex, effectType, null)}
+                            onContextMenu={() => handleEffectSelect(currentIndex, effectType, null)}
                             sx={{
                                 backgroundColor: isSelected 
                                     ? theme.palette.mode === 'dark'
@@ -1283,9 +1386,10 @@ export default function EffectsPanel({
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     if (isReadOnly) return;
-                                    console.log('🗑️ EffectsPanel: Delete button clicked for originalIndex:', originalIndex);
+                                    console.log('🗑️ EffectsPanel: Delete button clicked for effect ID:', effect.id);
                                     console.log('🗑️ EffectsPanel: Effect being deleted:', effect.name || effect.className);
-                                    onEffectDelete(originalIndex);
+                                    // 🔒 CRITICAL: Pass effect ID, not index
+                                    onEffectDelete(effect.id);
                                 }}
                                 title={isReadOnly ? "Read-only mode" : "Delete layer"}
                                 sx={{
@@ -1304,13 +1408,13 @@ export default function EffectsPanel({
                         </Paper>
                         {isExpanded && (
                             <>
-                                {renderSecondaryEffects(effect, originalIndex)}
-                                {renderKeyframeEffects(effect, originalIndex)}
+                                {renderSecondaryEffects(effect, currentIndex)}
+                                {renderKeyframeEffects(effect, currentIndex)}
                             </>
                         )}
                     </Box>
                 </ContextMenu.Trigger>
-                {renderContextMenu(effect, originalIndex)}
+                {renderContextMenu(effect, currentIndex)}
             </ContextMenu.Root>
         );
     };

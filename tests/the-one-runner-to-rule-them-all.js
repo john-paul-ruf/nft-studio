@@ -35,7 +35,7 @@ class RealTestRunner {
      */
     async discoverTests() {
         const testFiles = [];
-        const testDirs = ['integration', 'system', 'unit'];
+        const testDirs = ['integration', 'system', 'unit', 'regression'];
         
         for (const dir of testDirs) {
             const dirPath = path.join(__dirname, dir);

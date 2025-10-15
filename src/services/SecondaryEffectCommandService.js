@@ -192,7 +192,11 @@ export class DeleteSecondaryEffectCommand extends Command {
             console.log('🗑️ DeleteSecondaryEffectCommand: Deleting secondary effect');
             console.log('🗑️ DeleteSecondaryEffectCommand: Parent index:', parentIndex, 'Secondary index:', secondaryIndex);
 
-            deletedSecondaryEffect = parentEffect.secondaryEffects[secondaryIndex];
+            // 🔒 CRITICAL: Deep clone to prevent reference sharing bugs
+            const effectToClone = parentEffect.secondaryEffects[secondaryIndex];
+            deletedSecondaryEffect = effectToClone instanceof Effect 
+                ? Effect.fromPOJO(JSON.parse(JSON.stringify(effectToClone.toPOJO())))
+                : Effect.fromPOJO(JSON.parse(JSON.stringify(effectToClone)));
             
             // Create new effects array with updated parent effect
             const newEffects = [...currentEffects];
@@ -367,8 +371,11 @@ export class UpdateSecondaryEffectCommand extends Command {
 
             const secondaryEffect = parentEffect.secondaryEffects[secondaryIndex];
             
-            // Store previous state for undo
-            previousState = { ...secondaryEffect };
+            // 🔒 CRITICAL: Deep clone to prevent reference sharing bugs
+            const effectToClone = secondaryEffect;
+            previousState = effectToClone instanceof Effect 
+                ? Effect.fromPOJO(JSON.parse(JSON.stringify(effectToClone.toPOJO())))
+                : Effect.fromPOJO(JSON.parse(JSON.stringify(effectToClone)));
 
             // Create updated secondary effect
             const updatedSecondaryEffect = {

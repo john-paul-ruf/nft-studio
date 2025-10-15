@@ -83,12 +83,24 @@ export default class ProjectStateCore {
         const newEffectsCount = this.state?.effects?.length || 0;
         console.log('📝 ProjectStateCore.update: After update - effects count:', newEffectsCount);
         console.log('📝 ProjectStateCore.update: New effects:', this.state?.effects?.map(e => e.name || e.className) || []);
+        
+        // Log detailed config for each effect
+        if (this.state?.effects) {
+            this.state.effects.forEach((effect, idx) => {
+                console.log(`📝 ProjectStateCore.update: Effect[${idx}] config:`, {
+                    id: effect.id,
+                    name: effect.name || effect.className,
+                    configKeys: Object.keys(effect.config || {}),
+                    config: effect.config
+                });
+            });
+        }
 
         if (this.onUpdate) {
             console.log('📝 ProjectStateCore.update: Calling onUpdate callback');
             this.onUpdate(this.getState());
         } else {
-            console.log('📝 ProjectStateCore.update: No onUpdate callback set');
+            console.log('📝 ProjectStateCore.update: ⚠️ WARNING: No onUpdate callback set - changes will not propagate to UI!');
         }
     }
 

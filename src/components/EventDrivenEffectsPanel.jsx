@@ -50,8 +50,9 @@ export default function EventDrivenEffectsPanel({
     }, [eventBusService, pinSettingService]);
 
     // Event-emitting callback converters
-    const handleEffectDelete = useCallback((effectIndex) => {
-        eventBusService.emit('effectspanel:effect:delete', { effectIndex }, {
+    const handleEffectDelete = useCallback((effectId) => {
+        // 🔒 CRITICAL: Pass effect ID, not index
+        eventBusService.emit('effect:delete', { effectId }, {
             source: 'EventDrivenEffectsPanel',
             component: 'EventDrivenEffectsPanel'
         });

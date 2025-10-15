@@ -346,7 +346,26 @@ export default function useEffectOperations(projectState) {
 
         const unsubscribeEffectDelete = eventBusService.subscribe('effect:delete', (payload) => {
             console.log('🎭 useEffectOperations: Effect delete event received:', payload);
-            handleEffectDelete(payload.effectIndex);
+            
+            // 🔒 CRITICAL: Prefer effectId over effectIndex (ID-first pattern)
+            let effectIndex;
+            if (payload.effectId) {
+                const currentEffects = projectState.getState().effects || [];
+                effectIndex = currentEffects.findIndex(e => e.id === payload.effectId);
+                if (effectIndex === -1) {
+                    console.error('❌ effect:delete: Effect with ID not found:', payload.effectId);
+                    return;
+                }
+                console.log(`✅ effect:delete: Resolved effect ID "${payload.effectId}" to index ${effectIndex}`);
+            } else if (payload.effectIndex !== undefined) {
+                console.warn('⚠️ effect:delete event received with effectIndex only. Please pass effectId.');
+                effectIndex = payload.effectIndex;
+            } else {
+                console.error('❌ effect:delete: Neither effectId nor effectIndex provided');
+                return;
+            }
+            
+            handleEffectDelete(effectIndex);
         }, { component: 'useEffectOperations' });
 
         const unsubscribeEffectReorder = eventBusService.subscribe('effect:reorder', (payload) => {

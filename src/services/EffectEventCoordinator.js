@@ -162,8 +162,11 @@ export class EffectEventCoordinator {
         
         try {
             this.logger.log('📡 EffectEventCoordinator: Coordinating config change event:', {
-                effectName: selectedEffect?.name,
-                configKeys: Object.keys(newConfig || {})
+                effectId: selectedEffect?.effectId,
+                effectIndex: selectedEffect?.effectIndex,
+                effectName: selectedEffect?.effectName || selectedEffect?.name,
+                configKeys: Object.keys(newConfig || {}),
+                config: newConfig
             });
 
             // Emit through event bus
@@ -176,11 +179,17 @@ export class EffectEventCoordinator {
                     source: 'EffectEventCoordinator',
                     component: 'EffectConfigurer'
                 });
+                this.logger.log('📡 EffectEventCoordinator: Event emitted to event bus');
+            } else {
+                this.logger.warn('⚠️ EffectEventCoordinator: No event bus available - event not emitted!');
             }
 
             // Call backward compatibility callback
             if (onConfigChange) {
+                this.logger.log('📡 EffectEventCoordinator: Calling backward compatibility callback');
                 onConfigChange(newConfig);
+            } else {
+                this.logger.log('📡 EffectEventCoordinator: No callback provided');
             }
 
             const eventTime = performance.now() - startTime;

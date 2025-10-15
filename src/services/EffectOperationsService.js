@@ -273,8 +273,12 @@ class EffectOperationsService {
             if (!('secondaryEffects' in patchPOJO)) merged.secondaryEffects = prevPOJO?.secondaryEffects || [];
             if (!('keyframeEffects' in patchPOJO)) merged.keyframeEffects = prevPOJO?.keyframeEffects || [];
 
+            // 🔒 CRITICAL: Use effect ID (not index) to prevent stale reference bugs
+            // If effect has an ID, use it; otherwise fall back to index (legacy support)
+            const effectIdOrIndex = currentEffect?.id || index;
+            
             // Use command pattern for undo/redo support
-            const updateCommand = new UpdateEffectCommand(projectState, index, merged, effectName);
+            const updateCommand = new UpdateEffectCommand(projectState, effectIdOrIndex, merged, effectName);
             await this.commandService.execute(updateCommand);
 
             // Update metrics
@@ -423,10 +427,11 @@ class EffectOperationsService {
             const effectName = effect.name || effect.className || 'Effect';
             this.logger.info(`Toggling visibility for ${effectName} (ID: ${effect.id}) to ${updatedEffect.visible}`);
 
+            // 🔒 CRITICAL: Use effect ID (not index) to prevent stale reference bugs
             // Use UpdateEffectCommand for visibility toggle
             const updateCommand = new UpdateEffectCommand(
                 projectState,
-                resolvedIndex,
+                effect.id,
                 updatedEffect,
                 effectName
             );

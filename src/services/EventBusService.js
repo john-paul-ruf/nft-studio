@@ -158,5 +158,6 @@ class EventBusService {
     }
 }
 
-// Export singleton instance
+// Export both the class (for testing) and singleton instance (for production)
+export { EventBusService };
 export default new EventBusService();

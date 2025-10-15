@@ -321,5 +321,6 @@ export class Command {
     }
 }
 
-// Export singleton instance
+// Export both the class (for testing) and singleton instance (for production)
+export { CommandService };
 export default new CommandService();
