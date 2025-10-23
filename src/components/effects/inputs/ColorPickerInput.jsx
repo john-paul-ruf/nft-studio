@@ -1,24 +1,30 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
+import { Box, TextField, Typography, Select, MenuItem } from '@mui/material';
 import useDebounce from '../../../hooks/useDebounce.js';
+import './EffectInput.bem.css';
+import './color-picker-input.bem.css';
+
+// Default color for color picker when no value is provided
+const DEFAULT_COLOR_PICKER_COLOR = '#ff0000';
 
 function ColorPickerInput({ field, value, onChange }) {
     // Use a ref to always have the latest value
     const valueRef = useRef(value);
-    
+
     // Helper to get current value with defaults
     const getCurrentValue = useCallback(() => {
         // Use value prop directly if available (this ensures preset changes are reflected)
         return (value !== undefined && value !== null) ? value :
                (valueRef.current !== undefined && valueRef.current !== null) ? valueRef.current : {
             selectionType: field.bucketType || 'color-bucket',
-            colorValue: '#ff0000'
+            colorValue: DEFAULT_COLOR_PICKER_COLOR
         };
     }, [value, field.bucketType]);
     
     const currentValue = getCurrentValue();
     
     // State for text input to allow typing invalid values temporarily
-    const [textInputValue, setTextInputValue] = useState(currentValue.colorValue || '#ff0000');
+    const [textInputValue, setTextInputValue] = useState(currentValue.colorValue || DEFAULT_COLOR_PICKER_COLOR);
     
     // Track if text input is focused to prevent overwriting during typing
     const isTextInputFocusedRef = useRef(false);
@@ -36,7 +42,7 @@ function ColorPickerInput({ field, value, onChange }) {
     // Update text input when colorValue changes externally, but ONLY if not actively typing
     useEffect(() => {
         if (!isTextInputFocusedRef.current) {
-            setTextInputValue(currentValue.colorValue || '#ff0000');
+            setTextInputValue(currentValue.colorValue || DEFAULT_COLOR_PICKER_COLOR);
         }
     }, [currentValue.colorValue]);
 
@@ -65,7 +71,7 @@ function ColorPickerInput({ field, value, onChange }) {
         
         // If switching to 'color' and colorValue is null/undefined, set default
         if (newSelectionType === 'color' && !updatedValue.colorValue) {
-            updatedValue.colorValue = '#ff0000';
+            updatedValue.colorValue = DEFAULT_COLOR_PICKER_COLOR;
         }
         
         onChange(field.name, updatedValue);
@@ -111,66 +117,56 @@ function ColorPickerInput({ field, value, onChange }) {
         
         if (!isValidHexColor(textInputValue)) {
             // Revert to current valid value or default
-            const validColor = latestValue.colorValue || '#ff0000';
+            const validColor = latestValue.colorValue || DEFAULT_COLOR_PICKER_COLOR;
             setTextInputValue(validColor);
         }
     };
 
     return (
-        <div className="color-picker-input">
-            <label>{field.label}</label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <select
+        <Box className="color-picker-input effect-input">
+            <Typography variant="subtitle2" className="color-picker-input__label">
+                {field.label}
+            </Typography>
+            <Box className="color-picker-input__wrapper">
+                <Select
+                    fullWidth
+                    size="small"
+                    className="color-picker-input__select"
                     value={currentValue.selectionType || 'color-bucket'}
                     onChange={handleSelectionTypeChange}
-                    style={{
-                        background: 'rgba(255,255,255,0.1)',
-                        border: '1px solid #333',
-                        borderRadius: '4px',
-                        padding: '0.5rem',
-                        color: 'white'
-                    }}
                 >
                     {colorSelectionTypes.map(type => (
-                        <option key={type.value} value={type.value}>
+                        <MenuItem key={type.value} value={type.value}>
                             {type.label}
-                        </option>
+                        </MenuItem>
                     ))}
-                </select>
+                </Select>
                 {currentValue.selectionType === 'color' && (
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        <input
+                    <Box className="color-picker-input__controls">
+                        <Box
+                            className="color-picker-input__swatch"
+                            component="input"
                             type="color"
-                            value={currentValue.colorValue || '#ff0000'}
+                            value={currentValue.colorValue || DEFAULT_COLOR_PICKER_COLOR}
                             onChange={handleColorPickerChange}
-                            style={{
-                                width: '60px',
-                                height: '40px',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer'
-                            }}
                         />
-                        <input
-                            type="text"
+                        <TextField
+                            className="color-picker-input__text-input"
+                            fullWidth
+                            size="small"
                             value={textInputValue}
                             onFocus={handleTextInputFocus}
                             onChange={handleTextInputChange}
                             onBlur={handleTextInputBlur}
-                            placeholder="#ff0000"
-                            style={{ 
-                                flex: 1,
-                                background: 'rgba(255,255,255,0.1)',
-                                border: `1px solid ${isValidHexColor(textInputValue) ? '#333' : '#ff4444'}`,
-                                borderRadius: '4px',
-                                padding: '0.5rem',
-                                color: 'white'
-                            }}
+                            placeholder={DEFAULT_COLOR_PICKER_COLOR}
+                            error={!isValidHexColor(textInputValue)}
+                            helperText={!isValidHexColor(textInputValue) ? 'Invalid hex color' : ''}
+                            variant="outlined"
                         />
-                    </div>
+                    </Box>
                 )}
-            </div>
-        </div>
+            </Box>
+        </Box>
     );
 }
 

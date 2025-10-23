@@ -1,0 +1,1480 @@
+/**
+ * EffectsPanel - Organized BEM-Structured CSS
+ * 
+ * Phase 6: CSS Organization & Theme Support
+ * 
+ * Architecture:
+ * - BEM (Block-Element-Modifier) naming convention
+ * - CSS Variables for theme support (dark/light/high-contrast)
+ * - Consolidated from inline MUI styles
+ * - No dependencies on inline sx props
+ * 
+ * Theme Support:
+ * - Default: Dark theme (default CSS variables)
+ * - Light: [data-theme="light"]
+ * - High Contrast: [data-theme="high-contrast"]
+ * 
+ * Classes:
+ * - .effects-panel - Main container block
+ * - .effects-panel__* - Block elements
+ * - .effects-list__* - List elements
+ * - .effects-panel--* - Block modifiers
+ * - .effects-list__item--* - Item modifiers
+ */
+
+/* ============================================================================
+   CSS Variables - Dark Theme (Default)
+   ============================================================================ */
+
+:root {
+  /* === Colors - Background === */
+  --effects-panel-bg-primary: #262626;
+  --effects-panel-bg-secondary: #323232;
+  --effects-panel-bg-tertiary: #2a2a2a;
+  --effects-panel-bg-hover: #3a3a3a;
+  --effects-panel-bg-disabled: #1a1a1a;
+
+  /* === Colors - Text === */
+  --effects-panel-text-primary: #ffffff;
+  --effects-panel-text-secondary: #cccccc;
+  --effects-panel-text-muted: #888888;
+  --effects-panel-text-disabled: #666666;
+  --effects-panel-text-contrast: #111111;
+
+  /* === Colors - Borders === */
+  --effects-panel-border-color: #444444;
+  --effects-panel-border-light: #3a3a3a;
+  --effects-panel-border-focus: #4a90e2;
+  --effects-panel-border-divider: #444444;
+
+  /* === Colors - Accents & States === */
+  --effects-panel-accent-primary: #4a90e2;
+  --effects-panel-accent-success: #5cb85c;
+  --effects-panel-accent-hover: #5b9bf5;
+  --effects-panel-accent-active: #3a7bc8;
+
+  /* === Colors - Effects === */
+  --effects-panel-color-visibility: #4a90e2;
+  --effects-panel-color-visibility-hidden: #666666;
+  --effects-panel-color-badge-secondary: #5cb85c;
+  --effects-panel-color-badge-keyframe: #ff9800;
+
+  /* === Spacing === */
+  --effects-panel-spacing-xs: 4px;
+  --effects-panel-spacing-sm: 8px;
+  --effects-panel-spacing-md: 12px;
+  --effects-panel-spacing-lg: 16px;
+  --effects-panel-spacing-xl: 20px;
+
+  /* === Border Radius === */
+  --effects-panel-radius-sm: 3px;
+  --effects-panel-radius-md: 4px;
+  --effects-panel-radius-lg: 6px;
+
+  /* === Transitions === */
+  --effects-panel-transition-fast: 0.2s;
+  --effects-panel-transition-normal: 0.3s;
+  --effects-panel-transition-slow: 0.5s;
+
+  /* === Dimensions === */
+  --effects-panel-width: 350px;
+  --effects-panel-button-size: 20px;
+  --effects-panel-indent-size: 20px;
+  --effects-panel-secondary-indent: 20px;
+}
+
+/* ============================================================================
+   CSS Variables - Light Theme
+   ============================================================================ */
+
+[data-theme="light"] {
+  --effects-panel-bg-primary: #f5f5f5;
+  --effects-panel-bg-secondary: #eeeeee;
+  --effects-panel-bg-tertiary: #e8e8e8;
+  --effects-panel-bg-hover: #e0e0e0;
+  --effects-panel-bg-disabled: #fafafa;
+
+  --effects-panel-text-primary: #333333;
+  --effects-panel-text-secondary: #666666;
+  --effects-panel-text-muted: #999999;
+  --effects-panel-text-disabled: #cccccc;
+  --effects-panel-text-contrast: #ffffff;
+
+  --effects-panel-border-color: #cccccc;
+  --effects-panel-border-light: #dddddd;
+  --effects-panel-border-focus: #4a90e2;
+  --effects-panel-border-divider: #d0d0d0;
+
+  --effects-panel-accent-primary: #2b7de9;
+  --effects-panel-accent-success: #28a745;
+  --effects-panel-accent-hover: #357abd;
+  --effects-panel-accent-active: #1e5ba8;
+}
+
+/* ============================================================================
+   CSS Variables - High Contrast Theme
+   ============================================================================ */
+
+[data-theme="high-contrast"] {
+  --effects-panel-bg-primary: #000000;
+  --effects-panel-bg-secondary: #1a1a1a;
+  --effects-panel-bg-tertiary: #0f0f0f;
+  --effects-panel-bg-hover: #2a2a2a;
+  --effects-panel-bg-disabled: #050505;
+
+  --effects-panel-text-primary: #ffffff;
+  --effects-panel-text-secondary: #ffffff;
+  --effects-panel-text-muted: #ffffff;
+  --effects-panel-text-disabled: #888888;
+  --effects-panel-text-contrast: #000000;
+
+  --effects-panel-border-color: #ffffff;
+  --effects-panel-border-light: #666666;
+  --effects-panel-border-focus: #ffff00;
+  --effects-panel-border-divider: #ffffff;
+
+  --effects-panel-accent-primary: #ffff00;
+  --effects-panel-accent-success: #00ff00;
+  --effects-panel-accent-hover: #ffff00;
+  --effects-panel-accent-active: #cccc00;
+}
+
+/* ============================================================================
+   Block: .effects-panel
+   Main container for the entire Effects Panel
+   ============================================================================ */
+
+.effects-panel {
+  width: var(--effects-panel-width);
+  background-color: var(--effects-panel-bg-primary);
+  border-left: 1px solid var(--effects-panel-border-color);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  color: var(--effects-panel-text-primary);
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Source Sans Pro",
+    sans-serif;
+}
+
+/* ============================================================================
+   Element: .effects-panel__header
+   Header section with title and controls
+   ============================================================================ */
+
+.effects-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--effects-panel-spacing-md) var(--effects-panel-spacing-lg);
+  border-bottom: 1px solid var(--effects-panel-border-divider);
+  background-color: var(--effects-panel-bg-secondary);
+  flex-shrink: 0;
+}
+
+.effects-panel__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--effects-panel-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex: 1;
+}
+
+.effects-panel__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--effects-panel-spacing-sm);
+}
+
+/* ============================================================================
+   Element: .effects-panel__list
+   Container for effects list
+   ============================================================================ */
+
+.effects-panel__list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--effects-panel-spacing-sm);
+  background-color: var(--effects-panel-bg-primary);
+}
+
+.effects-panel__list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.effects-panel__list::-webkit-scrollbar-track {
+  background-color: var(--effects-panel-bg-primary);
+}
+
+.effects-panel__list::-webkit-scrollbar-thumb {
+  background-color: var(--effects-panel-border-light);
+  border-radius: 4px;
+}
+
+.effects-panel__list::-webkit-scrollbar-thumb:hover {
+  background-color: var(--effects-panel-border-color);
+}
+
+/* ============================================================================
+   Element: .effects-panel__empty-state
+   Empty state message when no effects
+   ============================================================================ */
+
+.effects-panel__empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--effects-panel-text-muted);
+  font-size: 13px;
+  text-align: center;
+  padding: var(--effects-panel-spacing-lg);
+  user-select: none;
+}
+
+/* ============================================================================
+   Element: .effects-panel__loading
+   Loading state
+   ============================================================================ */
+
+.effects-panel__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background-color: var(--effects-panel-bg-primary);
+}
+
+/* ============================================================================
+   Element: .effects-list__section
+   Section container (Primary/Final Effects)
+   ============================================================================ */
+
+.effects-list__section {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: var(--effects-panel-spacing-lg);
+}
+
+.effects-list__section-divider {
+  height: 1px;
+  background-color: var(--effects-panel-border-divider);
+  margin-bottom: var(--effects-panel-spacing-lg);
+}
+
+.effects-list__section-title {
+  color: var(--effects-panel-text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 10px;
+  margin-bottom: var(--effects-panel-spacing-sm);
+  display: block;
+  padding-left: var(--effects-panel-spacing-sm);
+  user-select: none;
+}
+
+.effects-list__items-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--effects-panel-spacing-xs);
+}
+
+/* ============================================================================
+   Block: .effects-list
+   Container for effect items
+   ============================================================================ */
+
+.effects-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--effects-panel-spacing-xs);
+}
+
+/* ============================================================================
+   Element: .effects-list__item
+   Individual effect row item
+   ============================================================================ */
+
+.effects-list__item {
+  background-color: var(--effects-panel-bg-secondary);
+  border: 1px solid var(--effects-panel-border-light);
+  border-radius: var(--effects-panel-radius-md);
+  padding: var(--effects-panel-spacing-sm);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: all var(--effects-panel-transition-fast);
+  position: relative;
+  user-select: none;
+  gap: var(--effects-panel-spacing-sm);
+}
+
+.effects-list__item:hover {
+  background-color: var(--effects-panel-bg-hover);
+  border-color: var(--effects-panel-accent-primary);
+}
+
+.effects-list__item:focus-within {
+  outline: 2px solid var(--effects-panel-accent-primary);
+  outline-offset: -1px;
+}
+
+/* Modifier: Primary effect type */
+.effects-list__item--primary {
+  background-color: var(--effects-panel-bg-secondary);
+  margin-left: 0;
+}
+
+/* Modifier: Secondary effect type */
+.effects-list__item--secondary {
+  background-color: var(--effects-panel-bg-tertiary);
+  margin-left: var(--effects-panel-indent-size);
+  margin-top: var(--effects-panel-spacing-xs);
+  border-left: 3px solid var(--effects-panel-accent-success);
+}
+
+/* Modifier: Keyframe effect type */
+.effects-list__item--keyframe {
+  background-color: var(--effects-panel-bg-tertiary);
+  margin-left: var(--effects-panel-indent-size);
+  margin-top: var(--effects-panel-spacing-xs);
+  border-left: 3px solid var(--effects-panel-color-badge-keyframe);
+}
+
+/* Modifier: Selected state */
+.effects-list__item--selected {
+  background-color: var(--effects-panel-bg-hover);
+  border-color: var(--effects-panel-accent-primary);
+  box-shadow: inset 0 0 0 2px var(--effects-panel-accent-primary);
+}
+
+/* Modifier: Expanded state */
+.effects-list__item--expanded .effects-list__item__expand-button {
+  transform: rotate(90deg);
+}
+
+/* Modifier: Disabled state */
+.effects-list__item--disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: var(--effects-panel-bg-disabled);
+}
+
+.effects-list__item--disabled:hover {
+  background-color: var(--effects-panel-bg-disabled);
+  border-color: var(--effects-panel-border-light);
+}
+
+/* ============================================================================
+   Element: .effects-list__item__expand-button
+   Expand/collapse button for nested effects
+   ============================================================================ */
+
+.effects-list__item__expand-button {
+  background: transparent;
+  border: none;
+  color: var(--effects-panel-text-muted);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0;
+  margin-right: var(--effects-panel-spacing-xs);
+  width: var(--effects-panel-button-size);
+  height: var(--effects-panel-button-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--effects-panel-transition-fast),
+              color var(--effects-panel-transition-fast);
+  flex-shrink: 0;
+}
+
+.effects-list__item__expand-button:hover {
+  color: var(--effects-panel-text-secondary);
+  transform: scale(1.1);
+}
+
+.effects-list__item__expand-button:active {
+  transform: scale(0.95);
+}
+
+.effects-list__item__expand-button--expanded {
+  transform: rotate(90deg);
+}
+
+/* ============================================================================
+   Element: .effects-list__item__indent
+   Visual indent marker for nested effects
+   ============================================================================ */
+
+.effects-list__item__indent {
+  color: var(--effects-panel-text-muted);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+/* ============================================================================
+   Element: .effects-list__item__label
+   Effect name and identification
+   ============================================================================ */
+
+.effects-list__item__label {
+  flex: 1;
+  color: var(--effects-panel-text-secondary);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: var(--effects-panel-spacing-sm);
+  min-width: 0;
+}
+
+.effects-list__item__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.effects-list__item__id {
+  font-size: 11px;
+  color: var(--effects-panel-text-muted);
+  font-family: "Monaco", "Courier New", monospace;
+  opacity: 0.7;
+}
+
+/* ============================================================================
+   Element: .effects-list__item__badge
+   Type badge (Secondary, Keyframe)
+   ============================================================================ */
+
+.effects-list__item__badge {
+  background-color: var(--effects-panel-accent-success);
+  color: var(--effects-panel-text-contrast);
+  padding: 2px 6px;
+  border-radius: var(--effects-panel-radius-sm);
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 600;
+  flex-shrink: 0;
+  letter-spacing: 0.5px;
+}
+
+.effects-list__item__badge--secondary {
+  background-color: var(--effects-panel-accent-success);
+}
+
+.effects-list__item__badge--keyframe {
+  background-color: var(--effects-panel-color-badge-keyframe);
+}
+
+.effects-list__item__badge--final {
+  background-color: var(--effects-panel-accent-success);
+  color: #fff;
+}
+
+/* ============================================================================
+   Element: .effects-list__item__visibility
+   Visibility toggle button
+   ============================================================================ */
+
+.effects-list__item__visibility {
+  background: transparent;
+  border: none;
+  color: var(--effects-panel-text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  width: var(--effects-panel-button-size);
+  height: var(--effects-panel-button-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--effects-panel-transition-fast),
+              opacity var(--effects-panel-transition-fast),
+              transform var(--effects-panel-transition-fast);
+  flex-shrink: 0;
+}
+
+.effects-list__item__visibility:hover {
+  color: var(--effects-panel-color-visibility);
+  opacity: 1;
+  transform: scale(1.15);
+}
+
+.effects-list__item__visibility:active {
+  transform: scale(0.95);
+}
+
+.effects-list__item__visibility--visible {
+  color: var(--effects-panel-color-visibility);
+  opacity: 1;
+}
+
+.effects-list__item__visibility--hidden {
+  color: var(--effects-panel-color-visibility-hidden);
+  opacity: 0.5;
+}
+
+/* ============================================================================
+   Element: .effects-list__item__delete-button
+   Delete button for removing effects
+   ============================================================================ */
+
+.effects-list__item__delete-button {
+  background: transparent;
+  border: none;
+  color: var(--effects-panel-text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  width: var(--effects-panel-button-size);
+  height: var(--effects-panel-button-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--effects-panel-transition-fast),
+              transform var(--effects-panel-transition-fast),
+              filter var(--effects-panel-transition-fast);
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.effects-list__item:hover .effects-list__item__delete-button {
+  opacity: 1;
+}
+
+.effects-list__item__delete-button:hover {
+  color: #ff6b6b;
+  transform: scale(1.1);
+  filter: brightness(1.2);
+}
+
+.effects-list__item__delete-button:active {
+  transform: scale(0.95);
+}
+
+/* ============================================================================
+   Element: .effects-list__item-wrapper
+   Wrapper for focus state management
+   ============================================================================ */
+
+.effects-list__item-wrapper {
+  outline: none;
+  margin-bottom: 2px;
+}
+
+.effects-list__item-wrapper:focus {
+  outline: 2px solid var(--effects-panel-border-focus);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   Element: .effects-list__item__visibility-button
+   Visibility toggle button styling
+   ============================================================================ */
+
+.effects-list__item__visibility-button {
+  margin-right: var(--effects-panel-spacing-xs);
+}
+
+.effects-list__item__visibility-button:hover {
+  color: var(--effects-panel-accent-primary) !important;
+}
+
+/* ============================================================================
+   Element: .effects-list__item__children
+   Container for nested secondary/keyframe effects
+   ============================================================================ */
+
+.effects-list__item__children {
+  margin-top: var(--effects-panel-spacing-xs);
+  display: flex;
+  flex-direction: column;
+  gap: var(--effects-panel-spacing-xs);
+}
+
+/* ============================================================================
+   Element: .effects-list__context-menu
+   Context menu styling
+   ============================================================================ */
+
+.effects-list__context-menu {
+  background-color: var(--effects-panel-bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--effects-panel-border-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 4px;
+  min-width: 200px;
+  z-index: 1300;
+}
+
+.effects-list__context-menu__item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--effects-panel-text-primary);
+  cursor: pointer;
+  border-radius: 4px;
+  outline: none;
+  gap: 8px;
+  transition: background-color var(--effects-panel-transition-fast);
+}
+
+.effects-list__context-menu__item:hover {
+  background-color: var(--effects-panel-bg-hover);
+}
+
+/* ============================================================================
+   Element: .effects-panel__config-drawer
+   Config drawer wrapper (Drawer PaperProps)
+   ============================================================================ */
+
+.effects-panel__config-drawer {
+  width: 350px;
+  background-color: var(--effects-panel-bg-primary);
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
+}
+
+@media (prefers-color-scheme: light) {
+  .effects-panel__config-drawer {
+    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.08);
+  }
+}
+
+/* ============================================================================
+   Element: .effects-panel__config
+   Configuration panel for selected effect
+   ============================================================================ */
+
+.effects-panel__config {
+  border-top: 1px solid var(--effects-panel-border-divider);
+  background-color: var(--effects-panel-bg-primary);
+  flex-shrink: 0;
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.effects-panel__config-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 24px;
+  text-align: center;
+  color: var(--effects-panel-text-muted);
+  font-size: 14px;
+}
+
+.effects-panel__config__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--effects-panel-spacing-md) var(--effects-panel-spacing-lg);
+  border-bottom: 1px solid var(--effects-panel-border-divider);
+}
+
+.effects-panel__config__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--effects-panel-text-primary);
+}
+
+.effects-panel__config__close-button {
+  background: transparent;
+  border: none;
+  color: var(--effects-panel-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--effects-panel-transition-fast),
+              transform var(--effects-panel-transition-fast);
+}
+
+.effects-panel__config__close-button:hover {
+  color: var(--effects-panel-text-secondary);
+  transform: rotate(90deg);
+}
+
+.effects-panel__config__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--effects-panel-spacing-md);
+}
+
+.effects-panel__config__footer {
+  padding: var(--effects-panel-spacing-md) var(--effects-panel-spacing-lg);
+  border-top: 1px solid var(--effects-panel-border-divider);
+  display: flex;
+  gap: var(--effects-panel-spacing-sm);
+}
+
+/* ============================================================================
+   Utilities & Helper Classes
+   ============================================================================ */
+
+.effects-panel__hidden {
+  display: none !important;
+}
+
+.effects-panel__disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+.effects-panel__dragging {
+  opacity: 0.5;
+}
+
+/* ============================================================================
+   Responsive Design
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .effects-panel {
+    width: 100%;
+  }
+
+  .effects-list__item--secondary,
+  .effects-list__item--keyframe {
+    margin-left: var(--effects-panel-spacing-lg);
+  }
+
+  .effects-panel__title {
+    font-size: 13px;
+  }
+
+  .effects-list__item {
+    padding: var(--effects-panel-spacing-xs);
+  }
+}
+
+@media (max-width: 480px) {
+  .effects-panel {
+    width: 100vw;
+  }
+
+  .effects-list__item__id {
+    display: none;
+  }
+
+  .effects-list__item__indent {
+    display: none;
+  }
+}
+
+/* ============================================================================
+   Animations
+   ============================================================================ */
+
+@keyframes effects-panel-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes effects-panel-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.effects-list__item {
+  animation: effects-panel-slide-in var(--effects-panel-transition-normal) ease-out;
+}
+
+/* ============================================================================
+   Accessibility
+   ============================================================================ */
+
+.effects-list__item:focus-visible {
+  outline: 2px solid var(--effects-panel-accent-primary);
+  outline-offset: 2px;
+}
+
+.effects-list__item__expand-button:focus-visible,
+.effects-list__item__visibility:focus-visible,
+.effects-list__item__delete-button:focus-visible {
+  outline: 2px solid var(--effects-panel-accent-primary);
+  outline-offset: 2px;
+}
+
+/* High contrast mode for accessibility */
+@media (prefers-contrast: more) {
+  .effects-list__item {
+    border-width: 2px;
+  }
+
+  .effects-list__item--selected {
+    box-shadow: inset 0 0 0 3px var(--effects-panel-accent-primary);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================================
+   EffectConfigurer Component Styles (Phase 6.3)
+   ============================================================================ */
+
+/* Main container - base wrapper for EffectConfigurer */
+.effect-configurer__container {
+  padding: var(--effects-panel-spacing-md);
+}
+
+/* Empty state message - when no effect is selected */
+.effect-configurer__empty-state {
+  padding: var(--effects-panel-spacing-md);
+  text-align: center;
+}
+
+/* Header section - displays effect name and ID */
+.effect-configurer__header {
+  margin-bottom: var(--effects-panel-spacing-md);
+}
+
+/* Form section - configuration form wrapper */
+.effect-configurer__form-section {
+  margin-bottom: var(--effects-panel-spacing-lg);
+}
+
+/* Percent chance section - chance control wrapper */
+.effect-configurer__percent-section {
+  margin-bottom: var(--effects-panel-spacing-lg);
+}
+
+/* Attached effects section - attached effects wrapper */
+.effect-configurer__attached-section {
+  margin-bottom: var(--effects-panel-spacing-lg);
+}
+
+/* Action buttons container - flex layout for buttons */
+.effect-configurer__actions {
+  display: flex;
+  gap: var(--effects-panel-spacing-md);
+  flex-wrap: wrap;
+}
+
+/* Individual action button - consistent button sizing */
+.effect-configurer__action-button {
+  min-width: 120px;
+}
+
+/* Error validation box - displays validation errors */
+.effect-configurer__error-box {
+  margin-bottom: var(--effects-panel-spacing-md);
+  padding: var(--effects-panel-spacing-md);
+  background-color: #ffebee;
+  border-radius: var(--effects-panel-radius-md);
+  color: #c62828;
+}
+
+[data-theme="dark"] .effect-configurer__error-box,
+:root .effect-configurer__error-box {
+  background-color: #4a2c2c;
+  color: #ff9999;
+}
+
+[data-theme="light"] .effect-configurer__error-box {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+[data-theme="high-contrast"] .effect-configurer__error-box {
+  background-color: #000000;
+  color: #ffff00;
+  border: 2px solid #ff4444;
+}
+
+/* Status/info box - displays status information */
+.effect-configurer__status-box {
+  margin-bottom: var(--effects-panel-spacing-md);
+  padding: var(--effects-panel-spacing-sm);
+  background-color: #e3f2fd;
+  border-radius: var(--effects-panel-radius-md);
+  color: #1565c0;
+  font-size: 12px;
+}
+
+[data-theme="dark"] .effect-configurer__status-box,
+:root .effect-configurer__status-box {
+  background-color: #1a2a3a;
+  color: #90caf9;
+}
+
+[data-theme="light"] .effect-configurer__status-box {
+  background-color: #e3f2fd;
+  color: #1565c0;
+}
+
+[data-theme="high-contrast"] .effect-configurer__status-box {
+  background-color: #000000;
+  color: #ffff00;
+  border: 2px solid #4a90e2;
+}
+
+/* ============================================================================
+   SecondaryEffectsList Component Styles (Phase 6.3)
+   ============================================================================ */
+
+/* Container wrapper */
+.secondary-effects-list__container {
+  margin-left: 8px;
+  margin-top: 4px;
+}
+
+/* Drag container */
+.secondary-effects-list__item__drag-container {
+  cursor: grab;
+}
+
+.secondary-effects-list__item__drag-container:active {
+  cursor: grabbing;
+}
+
+/* Main item - selected state */
+.secondary-effects-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  margin-bottom: 2px;
+  border: 1px solid var(--effects-panel-border-color);
+  border-radius: var(--effects-panel-border-radius);
+  background-color: var(--effects-panel-bg-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.secondary-effects-list__item[data-theme="dark"] {
+  background-color: #2a2a2a;
+}
+
+.secondary-effects-list__item[data-theme="light"] {
+  background-color: #f8f8f8;
+}
+
+.secondary-effects-list__item--selected {
+  border: 2px solid var(--effects-panel-accent-primary);
+  background-color: var(--effects-panel-selected-bg);
+}
+
+[data-theme="dark"] .secondary-effects-list__item--selected {
+  background-color: rgba(255, 183, 77, 0.24);
+  border-color: #ffb74d;
+}
+
+[data-theme="light"] .secondary-effects-list__item--selected {
+  background-color: rgba(255, 152, 0, 0.12);
+  border-color: #f57c00;
+}
+
+.secondary-effects-list__item:hover {
+  background-color: var(--effects-panel-hover-bg);
+}
+
+.secondary-effects-list__item--selected:hover {
+  background-color: var(--effects-panel-selected-hover-bg);
+}
+
+[data-theme="dark"] .secondary-effects-list__item--selected:hover {
+  background-color: rgba(255, 183, 77, 0.32);
+}
+
+[data-theme="light"] .secondary-effects-list__item--selected:hover {
+  background-color: rgba(255, 152, 0, 0.16);
+}
+
+/* Icon and name container */
+.secondary-effects-list__item__icon-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.secondary-effects-list__item__arrow-icon {
+  font-size: 14px;
+  color: var(--effects-panel-text-secondary);
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+/* Effect name typography */
+.secondary-effects-list__item__name {
+  color: var(--effects-panel-text-primary);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Effect ID chip */
+.secondary-effects-list__item__id-chip {
+  height: 16px;
+  font-size: 9px;
+  font-weight: 500;
+  padding: 0 4px;
+  border: 1px solid var(--effects-panel-border-color);
+  border-radius: 2px;
+  background-color: var(--effects-panel-chip-bg);
+  color: var(--effects-panel-chip-text);
+  font-family: "SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .secondary-effects-list__item__id-chip {
+  background-color: rgba(255, 183, 77, 0.16);
+  color: #ffb74d;
+}
+
+[data-theme="light"] .secondary-effects-list__item__id-chip {
+  background-color: rgba(255, 152, 0, 0.08);
+  color: #f57c00;
+}
+
+.secondary-effects-list__item__id-chip:hover {
+  transform: scale(1.05);
+  transition: all 0.2s ease-in-out;
+}
+
+/* Actions container */
+.secondary-effects-list__item__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Visibility toggle button */
+.secondary-effects-list__item__visibility-btn {
+  padding: 0;
+  color: var(--effects-panel-icon-color);
+  opacity: 0.7;
+  transition: all 0.2s;
+}
+
+.secondary-effects-list__item__visibility-btn:not(:disabled):hover {
+  color: var(--effects-panel-accent-primary);
+  opacity: 1;
+}
+
+.secondary-effects-list__item__visibility-btn:disabled {
+  color: var(--effects-panel-text-disabled);
+  opacity: 0.3;
+  cursor: default;
+}
+
+.secondary-effects-list__item__visibility-btn[aria-label*="Hide"] {
+  opacity: 0.5;
+}
+
+/* Delete button */
+.secondary-effects-list__item__delete-btn {
+  padding: 0;
+  color: var(--effects-panel-text-secondary);
+  opacity: 0.7;
+  transition: all 0.2s;
+}
+
+.secondary-effects-list__item__delete-btn:not(:disabled):hover {
+  color: var(--effects-panel-error-color);
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.secondary-effects-list__item__delete-btn:disabled {
+  color: var(--effects-panel-text-disabled);
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* Context menu styling */
+.secondary-effects-list__context-menu {
+  background-color: var(--effects-panel-bg-primary);
+  border: 1px solid var(--effects-panel-border-color);
+  border-radius: 6px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.16);
+  padding: 4px;
+  min-width: 200px;
+  z-index: 1300;
+}
+
+/* Context menu item */
+.secondary-effects-list__context-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--effects-panel-text-primary);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.secondary-effects-list__context-item:hover {
+  background-color: var(--effects-panel-hover-bg);
+}
+
+.secondary-effects-list__context-item:disabled,
+.secondary-effects-list__context-item[aria-disabled="true"] {
+  color: var(--effects-panel-text-disabled);
+  cursor: default;
+}
+
+/* ============================================================================
+   KeyframeEffectsList Styles
+   ============================================================================ */
+
+/* Main container with left margin (indentation for nested keyframes) */
+.keyframe-effects-list__container {
+  margin-left: 16px;
+  margin-top: 4px;
+}
+
+/* Draggable item wrapper with grab cursor */
+.keyframe-effects-list__item__drag-container {
+  cursor: grab;
+}
+
+.keyframe-effects-list__item__drag-container:active {
+  cursor: grabbing;
+}
+
+/* Main keyframe item container */
+.keyframe-effects-list__item {
+  padding: 8px;
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+  border: 1px solid var(--effects-panel-border-color);
+  background-color: var(--effects-panel-bg-secondary);
+}
+
+[data-theme="light"] .keyframe-effects-list__item {
+  background-color: #f8f8f8;
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"] .keyframe-effects-list__item {
+  background-color: #2a2a2a;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Selected state */
+.keyframe-effects-list__item--selected {
+  background-color: var(--selected-background);
+  border: 2px solid var(--selected-border);
+}
+
+[data-theme="light"] .keyframe-effects-list__item--selected {
+  background-color: rgba(76, 175, 80, 0.12);
+  border-color: #388e3c;
+}
+
+[data-theme="dark"] .keyframe-effects-list__item--selected {
+  background-color: rgba(129, 199, 132, 0.24);
+  border-color: #81c784;
+}
+
+/* Hover state */
+[data-theme="light"] .keyframe-effects-list__item:not(.keyframe-effects-list__item--selected):hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .keyframe-effects-list__item:not(.keyframe-effects-list__item--selected):hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="light"] .keyframe-effects-list__item--selected:hover {
+  background-color: rgba(76, 175, 80, 0.16);
+}
+
+[data-theme="dark"] .keyframe-effects-list__item--selected:hover {
+  background-color: rgba(129, 199, 132, 0.32);
+}
+
+/* Icon and name container */
+.keyframe-effects-list__item__icon-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Arrow forward icon styling */
+.keyframe-effects-list__item__arrow-icon {
+  font-size: 14px;
+  margin-right: 8px;
+  flex-shrink: 0;
+  color: var(--effects-panel-text-secondary);
+}
+
+[data-theme="light"] .keyframe-effects-list__item__arrow-icon {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="dark"] .keyframe-effects-list__item__arrow-icon {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Effect name text with ellipsis */
+.keyframe-effects-list__item__name {
+  color: var(--effects-panel-text-primary);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-theme="light"] .keyframe-effects-list__item__name {
+  color: rgba(0, 0, 0, 0.87);
+}
+
+[data-theme="dark"] .keyframe-effects-list__item__name {
+  color: rgba(255, 255, 255, 0.87);
+}
+
+/* ID badge styling */
+.keyframe-effects-list__item__id-chip {
+  height: 16px;
+  padding: 0 4px;
+  font-size: 9px;
+  font-weight: 500;
+  font-family: "SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace;
+  letter-spacing: 0.3px;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--effects-panel-border-color);
+  white-space: nowrap;
+}
+
+[data-theme="light"] .keyframe-effects-list__item__id-chip {
+  background-color: rgba(76, 175, 80, 0.08);
+  color: #388e3c;
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"] .keyframe-effects-list__item__id-chip {
+  background-color: rgba(129, 199, 132, 0.16);
+  color: #81c784;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.keyframe-effects-list__item__id-chip:hover {
+  transform: scale(1.05);
+  transition: all 0.2s ease-in-out;
+}
+
+/* Actions button container */
+.keyframe-effects-list__item__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Visibility toggle button */
+.keyframe-effects-list__item__visibility-btn {
+  padding: 0;
+  opacity: 1;
+  transition: all 0.2s;
+}
+
+[data-theme="light"] .keyframe-effects-list__item__visibility-btn {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="dark"] .keyframe-effects-list__item__visibility-btn {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Visible state */
+.keyframe-effects-list__item__visibility-btn:not([disabled]):not(.keyframe-effects-list__item__visibility-btn--hidden) {
+  opacity: 1;
+}
+
+[data-theme="light"] .keyframe-effects-list__item__visibility-btn:not([disabled]):not(.keyframe-effects-list__item__visibility-btn--hidden) {
+  color: #1976d2;
+}
+
+[data-theme="dark"] .keyframe-effects-list__item__visibility-btn:not([disabled]):not(.keyframe-effects-list__item__visibility-btn--hidden) {
+  color: #90caf9;
+}
+
+/* Hidden state */
+.keyframe-effects-list__item__visibility-btn--hidden {
+  opacity: 0.5;
+}
+
+/* Disabled (read-only) state */
+.keyframe-effects-list__item__visibility-btn[disabled] {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+[data-theme="light"] .keyframe-effects-list__item__visibility-btn[disabled] {
+  color: rgba(0, 0, 0, 0.38);
+}
+
+[data-theme="dark"] .keyframe-effects-list__item__visibility-btn[disabled] {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+/* Hover state (not disabled) */
+.keyframe-effects-list__item__visibility-btn:hover:not([disabled]) {
+  opacity: 1;
+}
+
+[data-theme="light"] .keyframe-effects-list__item__visibility-btn:hover:not([disabled]) {
+  color: #1976d2;
+}
+
+[data-theme="dark"] .keyframe-effects-list__item__visibility-btn:hover:not([disabled]) {
+  color: #90caf9;
+}
+
+/* Delete button styling */
+.keyframe-effects-list__item__delete-btn {
+  padding: 0;
+  opacity: 0.7;
+  transition: all 0.2s;
+}
+
+[data-theme="light"] .keyframe-effects-list__item__delete-btn {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="dark"] .keyframe-effects-list__item__delete-btn {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Disabled (read-only) state */
+.keyframe-effects-list__item__delete-btn[disabled] {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+[data-theme="light"] .keyframe-effects-list__item__delete-btn[disabled] {
+  color: rgba(0, 0, 0, 0.38);
+}
+
+[data-theme="dark"] .keyframe-effects-list__item__delete-btn[disabled] {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+/* Hover state (not disabled) */
+.keyframe-effects-list__item__delete-btn:hover:not([disabled]) {
+  opacity: 1;
+  transform: scale(1.1);
+  color: #d32f2f;
+}
+
+[data-theme="light"] .keyframe-effects-list__item__delete-btn:hover:not([disabled]) {
+  color: #d32f2f;
+}
+
+[data-theme="dark"] .keyframe-effects-list__item__delete-btn:hover:not([disabled]) {
+  color: #ef5350;
+}
+
+/* Context menu styling */
+.keyframe-effects-list__context-menu {
+  background-color: var(--effects-panel-bg-primary);
+  border-radius: 6px;
+  border: 1px solid var(--effects-panel-border-color);
+  box-shadow: 0 5px 5px -3px rgba(0, 0, 0, 0.2),
+              0 8px 10px 1px rgba(0, 0, 0, 0.14),
+              0 3px 14px 2px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  min-width: 200px;
+  z-index: 1300;
+}
+
+[data-theme="light"] .keyframe-effects-list__context-menu {
+  background-color: #fff;
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"] .keyframe-effects-list__context-menu {
+  background-color: #424242;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Context menu item */
+.keyframe-effects-list__context-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+[data-theme="light"] .keyframe-effects-list__context-item:not([disabled]) {
+  color: rgba(0, 0, 0, 0.87);
+}
+
+[data-theme="light"] .keyframe-effects-list__context-item:not([disabled]):hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .keyframe-effects-list__context-item:not([disabled]) {
+  color: rgba(255, 255, 255, 0.87);
+}
+
+[data-theme="dark"] .keyframe-effects-list__context-item:not([disabled]):hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Disabled state */
+.keyframe-effects-list__context-item[disabled] {
+  cursor: default;
+  opacity: 0.5;
+}
+
+[data-theme="light"] .keyframe-effects-list__context-item[disabled] {
+  color: rgba(0, 0, 0, 0.38);
+}
+
+[data-theme="dark"] .keyframe-effects-list__context-item[disabled] {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+/* ============================================================================
+   Print Styles
+   ============================================================================ */
+
+@media print {
+  .effects-panel {
+    display: none;
+  }
+}

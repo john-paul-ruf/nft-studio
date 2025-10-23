@@ -17,6 +17,7 @@ import {
     useTheme
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
+import './EffectAttachmentModal.bem.css';
 
 function EffectAttachmentModal({
     isOpen,
@@ -50,12 +51,12 @@ function EffectAttachmentModal({
         secondary: {
             title: isEditing ? '✨ Edit Secondary Effect' : '✨ Attach Secondary Effect',
             description: 'Secondary effects enhance the primary effect (glow, blur, fade, etc.)',
-            color: '#28a745'
+            colorVar: 'var(--effect-attachment-secondary-color)'
         },
         keyFrame: {
             title: isEditing ? '🔑 Edit Key Frame Effect' : '🔑 Attach Key Frame Effect',
             description: 'Time-based animation effects applied to the primary effect',
-            color: '#007bff'
+            colorVar: 'var(--effect-attachment-keyframe-color)'
         }
     };
 
@@ -101,55 +102,41 @@ function EffectAttachmentModal({
             }}
         >
             <DialogTitle
-                sx={{
-                    background: `linear-gradient(135deg, ${info.color}20 0%, ${info.color}10 100%)`,
-                    borderBottom: `1px solid ${info.color}40`,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                }}
+                className={`effect-attachment__title ${attachmentType === 'keyFrame' ? 'effect-attachment__keyframe-type' : ''}`}
             >
                 <Box>
-                    <Typography variant="h6" sx={{ color: info.color }}>
+                    <Typography variant="h6" className="effect-attachment__title-text">
                         {info.title}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
+                    <Typography variant="body2" className="effect-attachment__description">
                         {info.description}
                     </Typography>
                 </Box>
                 <IconButton
                     onClick={handleClose}
                     size="small"
-                    sx={{ color: theme.palette.text.secondary }}
+                    className="effect-attachment__close-btn"
                 >
                     <Close />
                 </IconButton>
             </DialogTitle>
 
-            <DialogContent dividers sx={{ p: 3 }}>
+            <DialogContent dividers className="effect-attachment__content">
                 {step === 1 ? (
                     // Effect Selection
                     <Box>
                         {effects.length > 0 ? (
-                            <Grid container spacing={2}>
+                            <Grid container spacing={2} className="effect-attachment__effects-grid">
                                 {effects.map(effect => (
                                     <Grid item xs={12} sm={6} md={4} key={effect.name || effect.displayName}>
                                         <Card
-                                            sx={{
-                                                height: '100%',
-                                                transition: 'all 0.2s',
-                                                border: `1px solid ${theme.palette.divider}`,
-                                                '&:hover': {
-                                                    borderColor: info.color,
-                                                    backgroundColor: `${info.color}10`
-                                                }
-                                            }}
+                                            className={attachmentType === 'secondary' ? 'effect-attachment__secondary-card' : 'effect-attachment__keyframe-card'}
                                         >
                                             <CardActionArea
                                                 onClick={() => handleEffectSelect(effect)}
-                                                sx={{ height: '100%', p: 2 }}
+                                                className="effect-attachment__effect-action-area"
                                             >
-                                                <CardContent sx={{ p: 0 }}>
+                                                <CardContent className="effect-attachment__effect-content">
                                                     <Typography variant="subtitle1" gutterBottom>
                                                         {effect.displayName || effect.name}
                                                     </Typography>
@@ -167,14 +154,10 @@ function EffectAttachmentModal({
                         ) : (
                             <Alert
                                 severity="info"
-                                sx={{
-                                    justifyContent: 'center',
-                                    backgroundColor: 'transparent',
-                                    color: theme.palette.text.secondary
-                                }}
+                                className="effect-attachment__empty-alert"
                             >
                                 <Box textAlign="center">
-                                    <Typography variant="h3" sx={{ mb: 2 }}>📭</Typography>
+                                    <Typography variant="h3" className="effect-attachment__empty-icon">📭</Typography>
                                     <Typography variant="h6" gutterBottom>
                                         No {attachmentType} effects available
                                     </Typography>
@@ -187,7 +170,7 @@ function EffectAttachmentModal({
                     </Box>
                 ) : (
                     // Effect Configuration
-                    <Box sx={{ maxHeight: '60vh', overflow: 'auto' }}>
+                    <Box className="effect-attachment__config-area">
                         <EffectConfigurer
                             selectedEffect={selectedEffect}
                             projectState={projectState}
@@ -201,11 +184,11 @@ function EffectAttachmentModal({
                 )}
             </DialogContent>
 
-            <DialogActions sx={{ px: 3, py: 2 }}>
+            <DialogActions className="effect-attachment__actions">
                 <Button
                     onClick={handleBack}
                     variant="outlined"
-                    sx={{ mr: 'auto' }}
+                    className="effect-attachment__back-btn"
                 >
                     {step === 1 ? 'Cancel' : 'Back to Selection'}
                 </Button>
@@ -214,12 +197,7 @@ function EffectAttachmentModal({
                     <Button
                         onClick={handleClose}
                         variant="contained"
-                        sx={{
-                            background: `linear-gradient(135deg, ${info.color} 0%, ${info.color}cc 100%)`,
-                            '&:hover': {
-                                background: `linear-gradient(135deg, ${info.color}dd 0%, ${info.color} 100%)`
-                            }
-                        }}
+                        className={attachmentType === 'secondary' ? 'effect-attachment__secondary-btn' : 'effect-attachment__keyframe-btn'}
                     >
                         Close
                     </Button>

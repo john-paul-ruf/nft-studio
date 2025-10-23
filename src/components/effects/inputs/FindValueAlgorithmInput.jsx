@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './FindValueAlgorithmInput.bem.css';
 
 /**
  * Input component for FindValueAlgorithm arrays
@@ -102,23 +103,11 @@ function FindValueAlgorithmInput({ field, value, onChange }) {
 
     if (loading) {
         return (
-            <div style={{ marginBottom: '1rem' }}>
-                <label style={{
-                    color: '#ffffff',
-                    marginBottom: '0.5rem',
-                    display: 'block',
-                    fontWeight: '500'
-                }}>
+            <div className="find-value-algorithm-input">
+                <label className="find-value-algorithm-input__label">
                     {field.label}
                 </label>
-                <div style={{
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    borderRadius: '6px',
-                    padding: '2rem',
-                    textAlign: 'center',
-                    color: '#ccc'
-                }}>
+                <div className="find-value-algorithm-input__loading">
                     Loading algorithms...
                 </div>
             </div>
@@ -126,95 +115,36 @@ function FindValueAlgorithmInput({ field, value, onChange }) {
     }
 
     return (
-        <div style={{ marginBottom: '1rem' }}>
-            <label style={{
-                color: '#ffffff',
-                marginBottom: '0.5rem',
-                display: 'block',
-                fontWeight: '500'
-            }}>
+        <div className="find-value-algorithm-input">
+            <label className="find-value-algorithm-input__label">
                 {field.label}
             </label>
 
             {error && (
-                <div style={{
-                    marginBottom: '0.5rem',
-                    padding: '0.5rem',
-                    background: 'rgba(255, 193, 7, 0.1)',
-                    border: '1px solid rgba(255, 193, 7, 0.3)',
-                    borderRadius: '4px',
-                    color: '#ffc107',
-                    fontSize: '0.8rem'
-                }}>
+                <div className="find-value-algorithm-input__error-message">
                     ⚠️ Could not load algorithms from engine: {error}. Using fallback algorithms.
                 </div>
             )}
 
             {/* Selected Algorithms Display */}
             {currentSelection.length > 0 && (
-                <div style={{
-                    marginBottom: '0.5rem',
-                    padding: '0.5rem',
-                    background: 'rgba(255,255,255,0.05)',
-                    borderRadius: '6px',
-                    border: '1px solid rgba(255,255,255,0.1)'
-                }}>
-                    <div style={{
-                        fontSize: '0.8rem',
-                        color: '#cccccc',
-                        marginBottom: '0.5rem'
-                    }}>
+                <div className="find-value-algorithm-input__selected-container">
+                    <div className="find-value-algorithm-input__section-label">
                         Selected Algorithms:
                     </div>
-                    <div style={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: '0.5rem'
-                    }}>
+                    <div className="find-value-algorithm-input__selected-wrapper">
                         {currentSelection.map((algorithm) => (
                             <div
                                 key={algorithm}
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    padding: '0.3rem 0.6rem',
-                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                    borderRadius: '4px',
-                                    color: 'white',
-                                    fontSize: '0.85rem',
-                                    fontWeight: 'bold'
-                                }}
+                                className="find-value-algorithm-input__tag"
                             >
-                                <span>{algorithm}</span>
+                                <span className="find-value-algorithm-input__tag-name">{algorithm}</span>
                                 <button
+                                    className="find-value-algorithm-input__tag-remove"
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         handleRemove(algorithm);
-                                    }}
-                                    style={{
-                                        background: 'rgba(255,255,255,0.2)',
-                                        border: 'none',
-                                        borderRadius: '50%',
-                                        width: '18px',
-                                        height: '18px',
-                                        color: 'white',
-                                        cursor: 'pointer',
-                                        fontSize: '12px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        lineHeight: '1',
-                                        transition: 'all 0.2s ease'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.target.style.background = 'rgba(255,255,255,0.3)';
-                                        e.target.style.transform = 'scale(1.1)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.target.style.background = 'rgba(255,255,255,0.2)';
-                                        e.target.style.transform = 'scale(1)';
                                     }}
                                     title={`Remove ${algorithm}`}
                                 >
@@ -228,17 +158,8 @@ function FindValueAlgorithmInput({ field, value, onChange }) {
 
             {/* Available Algorithms by Category */}
             {Object.keys(categories).length > 0 && (
-                <div style={{
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    borderRadius: '6px',
-                    padding: '1rem'
-                }}>
-                    <div style={{
-                        fontSize: '0.8rem',
-                        color: '#cccccc',
-                        marginBottom: '0.75rem'
-                    }}>
+                <div className="find-value-algorithm-input__available-container">
+                    <div className="find-value-algorithm-input__section-label">
                         Available Algorithms:
                     </div>
 
@@ -248,61 +169,21 @@ function FindValueAlgorithmInput({ field, value, onChange }) {
                         if (availableInCategory.length === 0) return null;
 
                         return (
-                            <div key={category} style={{ marginBottom: '1rem' }}>
-                                <div style={{
-                                    fontSize: '0.75rem',
-                                    color: '#999',
-                                    fontWeight: 'bold',
-                                    marginBottom: '0.5rem',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.5px'
-                                }}>
+                            <div key={category} className="find-value-algorithm-input__category-section">
+                                <div className="find-value-algorithm-input__category-title">
                                     {category}
                                 </div>
-                                <div style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                                    gap: '0.5rem'
-                                }}>
+                                <div className="find-value-algorithm-input__category-grid">
                                     {availableInCategory.map(algorithm => (
                                         <button
                                             key={algorithm}
+                                            className="find-value-algorithm-input__option-button"
                                             onClick={() => handleAdd(algorithm)}
-                                            style={{
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                alignItems: 'flex-start',
-                                                gap: '0.25rem',
-                                                padding: '0.5rem',
-                                                background: 'rgba(255,255,255,0.1)',
-                                                border: '1px solid rgba(255,255,255,0.2)',
-                                                borderRadius: '4px',
-                                                color: '#fff',
-                                                cursor: 'pointer',
-                                                fontSize: '0.85rem',
-                                                transition: 'all 0.2s ease',
-                                                textAlign: 'left'
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.target.style.background = 'rgba(255,255,255,0.15)';
-                                                e.target.style.borderColor = '#667eea';
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.target.style.background = 'rgba(255,255,255,0.1)';
-                                                e.target.style.borderColor = 'rgba(255,255,255,0.2)';
-                                            }}
                                         >
-                                            <span style={{
-                                                fontFamily: 'monospace',
-                                                fontWeight: 'bold'
-                                            }}>
+                                            <span className="find-value-algorithm-input__option-name">
                                                 {algorithm}
                                             </span>
-                                            <span style={{
-                                                fontSize: '0.7rem',
-                                                color: '#aaa',
-                                                fontStyle: 'italic'
-                                            }}>
+                                            <span className="find-value-algorithm-input__option-description">
                                                 {getAlgorithmDescription(algorithm)}
                                             </span>
                                         </button>
@@ -315,24 +196,13 @@ function FindValueAlgorithmInput({ field, value, onChange }) {
             )}
 
             {/* Status and Warnings */}
-            <div style={{ marginTop: '0.5rem' }}>
+            <div className="find-value-algorithm-input__status-wrapper">
                 {currentSelection.length === 0 && (
-                    <div style={{
-                        padding: '0.5rem',
-                        background: 'rgba(255,69,0,0.1)',
-                        border: '1px solid rgba(255,69,0,0.3)',
-                        borderRadius: '4px',
-                        color: '#ff6347',
-                        fontSize: '0.8rem',
-                        marginBottom: '0.5rem'
-                    }}>
+                    <div className="find-value-algorithm-input__warning-message">
                         ⚠️ At least one algorithm should be selected
                     </div>
                 )}
-                <div style={{
-                    fontSize: '0.75rem',
-                    color: '#999'
-                }}>
+                <div className="find-value-algorithm-input__status-text">
                     Selected: {currentSelection.length} algorithm{currentSelection.length !== 1 ? 's' : ''} • {unselectedOptions.length} available to add
                 </div>
             </div>

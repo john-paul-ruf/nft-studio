@@ -1,0 +1,81 @@
+/**
+ * ProjectSettingsDialog BEM CSS
+ * Styles for project settings dialog component using design tokens
+ * 
+ * Design Tokens Used:
+ * - --background-paper: Dialog paper background color
+ * - --text-primary: Dialog primary text color
+ * - --text-secondary: Close button secondary text color
+ * - --action-hover: Button hover state background
+ * 
+ * Block: .project-settings-dialog__*
+ * Elements:
+ * - paper: Dialog paper container (MUI Dialog)
+ * - close-button: Close button in dialog title (MUI IconButton)
+ */
+
+/**
+ * Dialog paper container
+ * Main dialog styling with token-based background and text colors
+ */
+.project-settings-dialog__paper {
+    background-color: var(--background-paper) !important;
+    color: var(--text-primary) !important;
+}
+
+/**
+ * Close button
+ * Top-right close button with token-based secondary text color
+ */
+.project-settings-dialog__close-button {
+    color: var(--text-secondary) !important;
+}
+
+.project-settings-dialog__close-button:hover {
+    background-color: var(--action-hover) !important;
+}
+
+/**
+ * Dialog title
+ * Header with flex layout and bottom padding separator
+ */
+.project-settings-dialog__title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: var(--space-1);
+}
+
+/**
+ * Dialog content
+ * Main content area with padding
+ */
+.project-settings-dialog__content {
+    padding-top: var(--space-4);
+}
+
+/**
+ * Form container
+ * Flex column layout for form fields with consistent spacing
+ */
+.project-settings-dialog__form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+/**
+ * Folder icon button
+ * Small right margin for alignment with text field
+ */
+.project-settings-dialog__folder-icon {
+    margin-right: var(--space-1);
+}
+
+/**
+ * Dialog actions
+ * Footer section with padding
+ */
+.project-settings-dialog__actions {
+    padding: var(--space-2) var(--space-4) var(--space-4) var(--space-4);
+}

@@ -1,0 +1,198 @@
+/**
+ * Specialty Effects Modal Component - BEM CSS
+ * Modal for creating and distributing specialty effects across geometric patterns
+ * Features: Multi-step wizard, effect configuration, distribution settings
+ * 
+ * CSS Variables (Theme-Dependent, Set at Runtime):
+ * - --specialty-modal-bg: Modal background color (from theme.palette.background.paper)
+ * - --specialty-modal-text-secondary: Secondary text color (from theme.palette.text.secondary)
+ * - --specialty-modal-divider: Divider color (from theme.palette.divider)
+ * - --specialty-modal-preview-bg: Preview section background (from theme.palette.action.hover)
+ * 
+ * CSS Variables (Static):
+ * - --specialty-modal-accent-color: Specialty purple accent color (#9c27b0)
+ * - --space-*: Design tokens for spacing (--space-0-5, --space-1, --space-2, --space-4)
+ */
+
+:root {
+    --specialty-modal-accent-color: #9c27b0;
+    --specialty-modal-bg: #ffffff;
+    --specialty-modal-text-secondary: #666666;
+    --specialty-modal-divider: #e0e0e0;
+    --specialty-modal-preview-bg: #f5f5f5;
+}
+
+/* ============================================================================
+   Dialog Paper Container
+   ========================================================================== */
+
+.specialty-modal__paper {
+    background-color: var(--specialty-modal-bg, var(--color-bg-secondary)) !important;
+}
+
+/* ============================================================================
+   Dialog Title Section - Flex Layout
+   ========================================================================== */
+
+.specialty-modal__title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--specialty-modal-accent-color, #9c27b0) 12.5%, transparent) 0%,
+        color-mix(in srgb, var(--specialty-modal-accent-color, #9c27b0) 6.25%, transparent) 100%
+    ) !important;
+    border-bottom: 1px solid color-mix(
+        in srgb,
+        var(--specialty-modal-accent-color, #9c27b0) 25%,
+        transparent
+    ) !important;
+}
+
+.specialty-modal__title-text {
+    color: var(--specialty-modal-accent-color, #9c27b0) !important;
+}
+
+/* ============================================================================
+   Secondary Text Elements - Color & Margin
+   ========================================================================== */
+
+.specialty-modal__secondary-text {
+    color: var(--specialty-modal-text-secondary, var(--color-fg-secondary)) !important;
+    margin-top: var(--space-0-5) !important;
+}
+
+/* ============================================================================
+   Close Button
+   ========================================================================== */
+
+.specialty-modal__close-button {
+    color: var(--specialty-modal-text-secondary, var(--color-fg-secondary)) !important;
+}
+
+/* ============================================================================
+   Dialog Content - Padding
+   ========================================================================== */
+
+.specialty-modal__content {
+    padding: var(--space-4) !important;
+}
+
+/* ============================================================================
+   Section Subtitle - Margin Bottom
+   ========================================================================== */
+
+.specialty-modal__section-subtitle {
+    margin-bottom: var(--space-4) !important;
+}
+
+/* ============================================================================
+   Effect Selection Card - Height, Transition, Border
+   ========================================================================== */
+
+.specialty-modal__effect-card {
+    height: 100%;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid var(--specialty-modal-divider, var(--color-border)) !important;
+}
+
+.specialty-modal__effect-card:hover {
+    border-color: var(--specialty-modal-accent-color, #9c27b0) !important;
+    background-color: color-mix(
+        in srgb,
+        var(--specialty-modal-accent-color, #9c27b0) 10%,
+        transparent
+    ) !important;
+}
+
+/* ============================================================================
+   Card Action Area - Height & Padding
+   ========================================================================== */
+
+.specialty-modal__effect-card-action {
+    height: 100%;
+    padding: var(--space-2);
+}
+
+/* ============================================================================
+   Card Content - No Padding Override
+   ========================================================================== */
+
+.specialty-modal__effect-card-content {
+    padding: 0 !important;
+}
+
+/* ============================================================================
+   Section Box - Margin Top
+   ========================================================================== */
+
+.specialty-modal__section-box {
+    margin-top: var(--space-4);
+}
+
+/* ============================================================================
+   Form Label - Margin Bottom
+   ========================================================================== */
+
+.specialty-modal__form-label {
+    margin-bottom: var(--space-1) !important;
+}
+
+/* ============================================================================
+   Divider - Margin Vertical
+   ========================================================================== */
+
+.specialty-modal__divider {
+    margin-top: var(--space-4) !important;
+    margin-bottom: var(--space-4) !important;
+}
+
+/* ============================================================================
+   Preview Summary Paper - Background & Padding
+   ========================================================================== */
+
+.specialty-modal__preview {
+    background-color: var(--specialty-modal-preview-bg, var(--color-bg-hover)) !important;
+    padding: var(--space-2) !important;
+}
+
+/* ============================================================================
+   Dialog Actions Container - Padding
+   ========================================================================== */
+
+.specialty-modal__actions {
+    padding-left: var(--space-4) !important;
+    padding-right: var(--space-4) !important;
+    padding-top: var(--space-2) !important;
+    padding-bottom: var(--space-2) !important;
+}
+
+/* ============================================================================
+   Cancel/Back Button - Margin Right Auto
+   ========================================================================== */
+
+.specialty-modal__cancel-button {
+    margin-right: auto;
+}
+
+/* ============================================================================
+   Gradient Button Styling (Next/Create) with Dynamic Accent Color
+   ========================================================================== */
+
+.specialty-modal__gradient-button {
+    background: linear-gradient(
+        135deg,
+        var(--specialty-modal-accent-color) 0%,
+        color-mix(in srgb, var(--specialty-modal-accent-color) 80%, transparent) 100%
+    ) !important;
+    transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.specialty-modal__gradient-button:hover:not(:disabled) {
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--specialty-modal-accent-color) 87%, transparent) 0%,
+        var(--specialty-modal-accent-color) 100%
+    ) !important;
+}

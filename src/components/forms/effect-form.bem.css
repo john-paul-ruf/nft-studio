@@ -1,0 +1,84 @@
+/**
+ * EffectFormRenderer BEM Stylesheet
+ * 
+ * Purpose: Styles for the effect configuration form renderer component.
+ * Responsible for layout, spacing, and loading state visualization.
+ * 
+ * Block: effect-form
+ * - Main container for effect configuration forms
+ * - Handles spacing between form fields
+ * - Manages loading and empty states
+ * 
+ * Modifiers:
+ * - effect-form--loading: Loading state with placeholder content
+ * 
+ * Design Tokens Used:
+ * - --space-2, --space-3, --space-4: Spacing increments (8px, 12px, 16px)
+ * - --color-surface-1: Paper/surface background color
+ * - --color-border: Border colors for dividers
+ * - --color-text-primary: Primary text color
+ * - --color-text-secondary: Secondary/muted text
+ * - --shadow-2: Elevation shadow
+ * - --radius-md: Border radius for containers
+ * 
+ * Theme Support:
+ * - Fully compatible with light/dark/high-contrast themes via CSS variables
+ * - No hardcoded colors; all values reference design tokens
+ * - Automatically switches when [data-theme] attribute changes
+ */
+
+/* ============================================================================
+   MAIN CONTAINER
+   ============================================================================ */
+
+.effect-form {
+    margin-top: var(--space-4);
+}
+
+/* ============================================================================
+   FORM FIELDS STACK
+   ============================================================================ */
+
+.effect-form__fields {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+/* ============================================================================
+   LOADING STATE
+   ============================================================================ */
+
+.effect-form--loading {
+    margin-top: var(--space-4);
+}
+
+.effect-form__loading-container {
+    padding: var(--space-5);
+    text-align: center;
+    background-color: var(--color-surface-1);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-md);
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    box-shadow: var(--shadow-2);
+}
+
+.effect-form__loading-spinner {
+    margin-bottom: var(--space-3);
+    color: var(--color-primary);
+}
+
+.effect-form__loading-title {
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-1);
+    font-weight: 500;
+}
+
+.effect-form__loading-subtitle {
+    color: var(--color-text-secondary);
+    font-size: 0.875rem;
+}

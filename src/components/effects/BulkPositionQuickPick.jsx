@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Box, Typography, ToggleButtonGroup, ToggleButton, Grid, Button } from '@mui/material';
+import './bulk-position-quick-pick.bem.css';
 
 function BulkPositionQuickPick({ projectState, onPositionSelect }) {
     const [selectedCategory, setSelectedCategory] = useState('basic');
@@ -73,8 +74,8 @@ function BulkPositionQuickPick({ projectState, onPositionSelect }) {
     };
 
     return (
-        <Box>
-            <Typography variant="subtitle2" sx={{ mb: 2 }}>
+        <Box className="bulk-position-quick-pick">
+            <Typography variant="subtitle2" className="bulk-position-quick-pick__title">
                 Quick Position Selection
             </Typography>
 
@@ -86,42 +87,41 @@ function BulkPositionQuickPick({ projectState, onPositionSelect }) {
                 aria-label="position category"
                 size="small"
                 fullWidth
-                sx={{ mb: 2 }}
+                className="bulk-position-quick-pick__category-selector"
             >
                 {Object.entries(categoryInfo).map(([key, info]) => (
-                    <ToggleButton value={key} key={key} sx={{ textTransform: 'none' }}>
+                    <ToggleButton 
+                        value={key} 
+                        key={key} 
+                        className="bulk-position-quick-pick__category-button"
+                    >
                         {info.label}
                     </ToggleButton>
                 ))}
             </ToggleButtonGroup>
 
             {/* Category Description */}
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: '0.75rem' }}>
+            <Typography variant="body2" color="text.secondary" className="bulk-position-quick-pick__description">
                 {categoryInfo[selectedCategory].description}
             </Typography>
 
             {/* Position Grid */}
-            <Grid container spacing={1}>
+            <Grid container spacing={1} className="bulk-position-quick-pick__grid">
                 {presets[selectedCategory].map((preset) => (
                     <Grid item xs={4} key={preset.name}>
                         <Button
                             variant="outlined"
                             fullWidth
                             onClick={() => handlePresetSelect(preset)}
-                            sx={{
-                                py: 1.5,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                textTransform: 'none',
-                                fontSize: '0.75rem'
-                            }}
+                            className="bulk-position-quick-pick__position-button"
                         >
-                            <Box sx={{ fontSize: '1.5rem', mb: 0.5 }}>{preset.icon}</Box>
-                            <Box sx={{ fontSize: '0.65rem', lineHeight: 1.2 }}>
+                            <Box className="bulk-position-quick-pick__position-icon">
+                                {preset.icon}
+                            </Box>
+                            <Box className="bulk-position-quick-pick__position-name">
                                 {preset.name}
                             </Box>
-                            <Box sx={{ fontSize: '0.6rem', color: 'text.secondary', mt: 0.5 }}>
+                            <Box className="bulk-position-quick-pick__position-coords">
                                 ({Math.round(preset.x)}, {Math.round(preset.y)})
                             </Box>
                         </Button>
@@ -130,7 +130,7 @@ function BulkPositionQuickPick({ projectState, onPositionSelect }) {
             </Grid>
 
             {/* Canvas Info */}
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2, textAlign: 'center', fontSize: '0.7rem' }}>
+            <Typography variant="body2" color="text.secondary" className="bulk-position-quick-pick__canvas-info">
                 Canvas: {width} × {height} {projectState &&
                     (projectState.getIsHorizontal() ? '(Horizontal)' : '(Vertical)')}
             </Typography>

@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import './EffectInput.bem.css';
+import './PercentageInput.bem.css';
 
 function PercentageInput({ field, value, onChange }) {
     const currentValue = value !== undefined ? value : field.default || 0.5;
@@ -55,9 +57,9 @@ function PercentageInput({ field, value, onChange }) {
     };
 
     return (
-        <div className="percentage-input">
-            <label>{field.label}</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div className="effect-input effect-input__percentage">
+            <label className="effect-input__percentage-label">{field.label}</label>
+            <div className="effect-input__percentage-container">
                 <input
                     type="range"
                     min={-10}
@@ -69,36 +71,16 @@ function PercentageInput({ field, value, onChange }) {
                         onChange(field.name, newValue);
                         setInputValue((newValue * 100).toString());
                     }}
-                    style={{
-                        flex: 1,
-                        background: 'linear-gradient(to right, #667eea 0%, #764ba2 100%)',
-                        height: '6px',
-                        borderRadius: '3px'
-                    }}
+                    className="effect-input__percentage-slider"
                 />
                 <input
                     type="text"
                     value={inputValue}
                     onChange={handleInputChange}
                     onFocus={(e) => e.target.select()}
-                    style={{
-                        width: '70px',
-                        textAlign: 'center',
-                        background: 'rgba(255,255,255,0.1)',
-                        border: '1px solid rgba(255,255,255,0.2)',
-                        color: '#fff',
-                        padding: '0.25rem 0.5rem',
-                        borderRadius: '4px',
-                        fontWeight: 'bold',
-                        fontSize: '0.9rem'
-                    }}
+                    className="effect-input__percentage-text-input"
                 />
-                <span style={{
-                    color: '#67eea5',
-                    fontWeight: 'bold',
-                    fontSize: '0.9rem',
-                    minWidth: '20px'
-                }}>
+                <span className="effect-input__percentage-symbol">
                     %
                 </span>
             </div>

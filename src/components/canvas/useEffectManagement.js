@@ -75,6 +75,7 @@ export default function useEffectManagement(projectState) {
     const [availableEffects, setAvailableEffects] = useState({
         primary: [],
         secondary: [],
+        keyFrame: [],
         finalImage: []
     });
     const [effectsLoaded, setEffectsLoaded] = useState(false);
@@ -85,18 +86,32 @@ export default function useEffectManagement(projectState) {
     // Load available effects
     const loadAvailableEffects = useCallback(async () => {
         try {
+            console.log('🎭 useEffectManagement: Loading available effects from IPC...');
             const result = await window.api.getAvailableEffects();
             console.log('🎭 Available effects result:', result);
             if (result.success) {
                 setAvailableEffects({
                     primary: result.effects.primary || [],
                     secondary: result.effects.secondary || [],
-                    finalImage: result.effects.finalImage || []
+                    finalImage: result.effects.finalImage || [],
+                    keyFrame: result.effects.keyFrame || []
                 });
+                console.log('✅ Available effects loaded successfully:', {
+                    primary: result.effects.primary?.length || 0,
+                    secondary: result.effects.secondary?.length || 0,
+                    finalImage: result.effects.finalImage?.length || 0,
+                    keyFrame: result.effects.keyFrame?.length || 0
+                });
+                setEffectsLoaded(true);
+            } else {
+                console.error('🎭 Failed to load available effects:', result.error);
+                // Set effects as loaded even on error, with empty arrays
                 setEffectsLoaded(true);
             }
         } catch (error) {
-            console.error('Failed to load available effects:', error);
+            console.error('🎭 Failed to load available effects (exception):', error);
+            // Set effects as loaded even on error to prevent infinite loading state
+            setEffectsLoaded(true);
         }
     }, []);
 
@@ -110,6 +125,7 @@ export default function useEffectManagement(projectState) {
                 setAvailableEffects({
                     primary: result.effects.primary || [],
                     secondary: result.effects.secondary || [],
+                    keyFrame: result.effects.keyFrame || [],
                     finalImage: result.effects.finalImage || []
                 });
                 console.log('✅ Available effects refreshed successfully');

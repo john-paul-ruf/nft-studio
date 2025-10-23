@@ -23,6 +23,7 @@ import {
 } from '@mui/icons-material';
 import EventCaptureService from '../services/EventCaptureService';
 import EventFilterService from '../services/EventFilterService';
+import './EventBusMonitor.bem.css';
 
 export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, setIsMinimized, isForResumedProject = false, renderLoopActive = false }) {
     const [events, setEvents] = useState([]);
@@ -624,17 +625,26 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
         }
     };
 
+    // CSS variables for event category colors (memoized to prevent re-renders)
+    const eventCategoryColors = React.useMemo(() => ({
+        ERROR: 'var(--event-bus-monitor-color-error)',
+        WARNING: 'var(--event-bus-monitor-color-warning)',
+        SUCCESS: 'var(--event-bus-monitor-color-success)',
+        CONSOLE: 'var(--event-bus-monitor-color-info)',
+        DEFAULT: 'var(--event-bus-monitor-text-secondary)'
+    }), []);
+
     // Get console-style level color
     const getLevelColor = (category) => {
         const metadata = EventFilterService.getCategoryMetadata(category);
-        if (!metadata) return '#888';
+        if (!metadata) return eventCategoryColors.DEFAULT;
         
         // Map to console-style colors
-        if (category === 'ERROR') return '#f44336';
-        if (category === 'WARNING') return '#ff9800';
-        if (category === 'SUCCESS') return '#4caf50';
-        if (category === 'CONSOLE') return '#2196f3';
-        return metadata.color || '#888';
+        if (category === 'ERROR') return eventCategoryColors.ERROR;
+        if (category === 'WARNING') return eventCategoryColors.WARNING;
+        if (category === 'SUCCESS') return eventCategoryColors.SUCCESS;
+        if (category === 'CONSOLE') return eventCategoryColors.CONSOLE;
+        return metadata.color || eventCategoryColors.DEFAULT;
     };
 
     // Format message for console display
@@ -740,71 +750,39 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
             <Box 
                 key={renderKey} // Force complete re-render when renderKey changes
                 ref={eventListRef}
-                sx={{ 
-                    height: 'calc(100vh - 200px)',
-                    overflow: 'auto',
-                    bgcolor: '#1e1e1e',
-                    fontFamily: 'Consolas, Monaco, "Courier New", monospace',
-                    fontSize: '12px',
-                    color: '#cccccc',
-                    userSelect: 'text',
-                    cursor: 'text'
-                }}
+                className="event-bus-monitor__console"
             >
                 {events.length === 0 && (
-                    <Box sx={{ p: 2, color: '#888', textAlign: 'center' }}>
+                    <Box className="event-bus-monitor__console-empty">
                         Console is empty. Waiting for events...
                     </Box>
                 )}
                 
                 {events.length > 0 && filteredEvents.length === 0 && (
-                    <Box sx={{ p: 2, color: '#888', textAlign: 'center' }}>
+                    <Box className="event-bus-monitor__console-no-results">
                         No events match your search query "{searchQuery}"
                     </Box>
                 )}
                 
                 {filteredEvents.map((event) => {
                     const isExpanded = expandedEvents.has(event.id);
-                    const levelColor = getLevelColor(event.category);
                     const message = formatMessage(event);
+                    const categoryClass = `event-bus-monitor__event-details--${event.category.toLowerCase()}`;
                     
                     return (
                         <Box 
                             key={event.id}
-                            sx={{
-                                borderBottom: '1px solid #2a2a2a',
-                                '&:hover': {
-                                    bgcolor: '#252525'
-                                },
-                                '&:hover .copy-button': {
-                                    opacity: 1
-                                }
-                            }}
+                            className="event-bus-monitor__event"
                         >
                             {/* Console line */}
                             <Box 
                                 onClick={() => toggleEventExpansion(event.id)}
-                                sx={{ 
-                                    display: 'flex', 
-                                    alignItems: 'flex-start', 
-                                    gap: 1.5,
-                                    py: 0.5,
-                                    px: 1,
-                                    cursor: 'pointer',
-                                    position: 'relative'
-                                }}
+                                className="event-bus-monitor__event-line"
                             >
                                 {/* Timestamp */}
                                 <Typography 
                                     component="span"
-                                    sx={{ 
-                                        color: '#6e7681',
-                                        fontSize: '11px',
-                                        minWidth: '90px',
-                                        flexShrink: 0,
-                                        fontFamily: 'inherit',
-                                        userSelect: 'text'
-                                    }}
+                                    className="event-bus-monitor__event-timestamp"
                                 >
                                     {new Date(event.timestamp).toLocaleTimeString('en-US', {
                                         hour12: false,
@@ -818,46 +796,24 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                                 {/* Message */}
                                 <Typography 
                                     component="span"
-                                    sx={{ 
-                                        color: '#d4d4d4',
-                                        flex: 1,
-                                        wordBreak: 'break-word',
-                                        fontFamily: 'inherit',
-                                        userSelect: 'text',
-                                        lineHeight: 1.5
-                                    }}
+                                    className="event-bus-monitor__event-message"
                                 >
                                     {message}
                                 </Typography>
                                 
                                 {/* Copy button */}
                                 <IconButton
-                                    className="copy-button"
+                                    className="event-bus-monitor__event-copy-button"
                                     size="small"
                                     onClick={(e) => copyEventToClipboard(event, e)}
-                                    sx={{
-                                        opacity: 0,
-                                        transition: 'opacity 0.2s',
-                                        color: '#6e7681',
-                                        padding: '2px',
-                                        '&:hover': {
-                                            color: '#d4d4d4',
-                                            bgcolor: '#3a3a3a'
-                                        }
-                                    }}
                                 >
-                                    <ContentCopy sx={{ fontSize: '14px' }} />
+                                    <ContentCopy className="event-bus-monitor__icon--small" />
                                 </IconButton>
                                 
                                 {/* Expand indicator */}
                                 <Typography 
                                     component="span"
-                                    sx={{ 
-                                        color: '#6e7681',
-                                        fontSize: '10px',
-                                        flexShrink: 0,
-                                        fontFamily: 'inherit'
-                                    }}
+                                    className="event-bus-monitor__event-expand-indicator"
                                 >
                                     {isExpanded ? '▼' : '▶'}
                                 </Typography>
@@ -866,30 +822,11 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                             {/* Expanded details */}
                             {isExpanded && (
                                 <Box 
-                                    sx={{ 
-                                        mt: 0.5,
-                                        mb: 0.5,
-                                        ml: 4,
-                                        mr: 1,
-                                        p: 1.5,
-                                        bgcolor: '#0d1117',
-                                        borderLeft: `3px solid ${levelColor}`,
-                                        borderRadius: '4px',
-                                        border: '1px solid #30363d'
-                                    }}
+                                    className={`event-bus-monitor__event-details ${categoryClass}`}
                                 >
                                     <Typography 
                                         component="pre"
-                                        sx={{
-                                            fontFamily: 'inherit',
-                                            fontSize: '11px',
-                                            color: '#8b949e',
-                                            margin: 0,
-                                            whiteSpace: 'pre-wrap',
-                                            wordBreak: 'break-word',
-                                            userSelect: 'text',
-                                            lineHeight: 1.6
-                                        }}
+                                        className="event-bus-monitor__event-details-json"
                                     >
                                         {JSON.stringify(event.eventData, null, 2)}
                                     </Typography>
@@ -927,62 +864,33 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                 maxWidth={false}
                 fullWidth
                 PaperProps={{
-                    sx: {
-                        width: '95vw',
-                        height: '90vh',
-                        maxWidth: 'none',
-                        maxHeight: 'none'
-                    }
+                    className: 'event-bus-monitor__dialog'
                 }}
             >
             {/* Simplified toolbar */}
-            <Box sx={{ 
-                display: 'flex', 
-                flexDirection: 'column',
-                bgcolor: isRenderLoopActive ? '#3d2d2d' : '#2d2d2d',
-                color: '#cccccc',
-                borderBottom: '1px solid #1e1e1e',
-                transition: 'background-color 0.3s ease'
-            }}>
+            <Box className={`event-bus-monitor__toolbar ${isRenderLoopActive ? 'event-bus-monitor__toolbar--active' : ''}`}>
                 {/* Top row - Title and controls */}
-                <Box sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between',
-                    px: 2,
-                    py: 1
-                }}>
-                    <Typography sx={{ fontSize: '13px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box className="event-bus-monitor__toolbar-top">
+                    <Typography className="event-bus-monitor__title">
                         {isRenderLoopActive && (
-                            <span style={{ 
-                                display: 'inline-block', 
-                                width: '8px', 
-                                height: '8px', 
-                                borderRadius: '50%', 
-                                backgroundColor: '#f44336',
-                                animation: 'pulse 1.5s ease-in-out infinite'
-                            }} />
+                            <span className="event-bus-monitor__status-indicator" />
                         )}
                         Console ({filterEvents(events).length}{events.length !== filterEvents(events).length ? ` / ${events.length}` : ''} events)
                         {isRenderLoopActive && (
-                            <span style={{ color: '#f44336', fontSize: '11px', fontWeight: 600 }}>
+                            <span className="event-bus-monitor__status-label">
                                 • RENDERING
                             </span>
                         )}
                     </Typography>
 
-                    <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Box className="event-bus-monitor__controls">
                         {/* Copy All Button */}
                         <Tooltip title="Copy all visible events to clipboard">
                             <IconButton 
                                 onClick={copyAllToClipboard}
                                 size="small"
                                 disabled={filterEvents(events).length === 0}
-                                sx={{ 
-                                    color: '#cccccc',
-                                    '&:hover': { bgcolor: '#3d3d3d' },
-                                    '&:disabled': { color: '#555' }
-                                }}
+                                className="event-bus-monitor__button"
                             >
                                 <ContentCopy fontSize="small" />
                             </IconButton>
@@ -995,11 +903,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                                     onClick={stopRenderLoop} 
                                     size="small"
                                     disabled={isStoppingRenderLoop}
-                                    sx={{ 
-                                        color: '#f44336',
-                                        '&:hover': { bgcolor: '#3d3d3d' },
-                                        '&:disabled': { color: '#555' }
-                                    }}
+                                    className="event-bus-monitor__button event-bus-monitor__button--error"
                                 >
                                     <Stop fontSize="small" />
                                 </IconButton>
@@ -1012,11 +916,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                                 onClick={emergencyStopRenderLoop} 
                                 size="small"
                                 disabled={isStoppingRenderLoop}
-                                sx={{ 
-                                    color: '#ff5722',
-                                    '&:hover': { bgcolor: '#3d3d3d' },
-                                    '&:disabled': { color: '#555' }
-                                }}
+                                className="event-bus-monitor__button event-bus-monitor__button--warning"
                             >
                                 <Warning fontSize="small" />
                             </IconButton>
@@ -1026,10 +926,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                             <IconButton 
                                 onClick={toggleBuffering}
                                 size="small"
-                                sx={{ 
-                                    color: isBufferingPaused ? '#ff9800' : '#4caf50',
-                                    '&:hover': { bgcolor: '#3d3d3d' }
-                                }}
+                                className={`event-bus-monitor__button ${isBufferingPaused ? 'event-bus-monitor__button--warning' : 'event-bus-monitor__button--success'}`}
                             >
                                 {isBufferingPaused ? <PlayArrow fontSize="small" /> : <Pause fontSize="small" />}
                             </IconButton>
@@ -1044,26 +941,9 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                                     const nextIndex = (currentIndex + 1) % delays.length;
                                     setDisplayBufferDelay(delays[nextIndex]);
                                 }}
-                                sx={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 0.5,
-                                    px: 1,
-                                    py: 0.5,
-                                    bgcolor: '#2d2d2d',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontSize: '11px',
-                                    color: '#888',
-                                    border: '1px solid #444',
-                                    '&:hover': {
-                                        bgcolor: '#3d3d3d',
-                                        color: '#aaa',
-                                        borderColor: '#666'
-                                    }
-                                }}
+                                className="event-bus-monitor__buffer-control"
                             >
-                                <Typography sx={{ fontSize: '11px', fontWeight: 500 }}>
+                                <Typography className="event-bus-monitor__buffer-label">
                                     Buffer: {displayBufferDelay}ms
                                 </Typography>
                             </Box>
@@ -1073,13 +953,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                             <IconButton 
                                 onClick={clearEvents}
                                 size="small"
-                                sx={{ 
-                                    color: '#ffa726',
-                                    '&:hover': { 
-                                        bgcolor: '#3d3d3d',
-                                        color: '#ffb74d'
-                                    } 
-                                }}
+                                className="event-bus-monitor__button"
                             >
                                 <DeleteSweep fontSize="small" />
                             </IconButton>
@@ -1089,7 +963,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                             <IconButton 
                                 onClick={onClose}
                                 size="small"
-                                sx={{ color: '#cccccc', '&:hover': { bgcolor: '#3d3d3d' } }}
+                                className="event-bus-monitor__button"
                             >
                                 <Close fontSize="small" />
                             </IconButton>
@@ -1098,8 +972,9 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                 </Box>
                 
                 {/* Search bar */}
-                <Box sx={{ px: 2, pb: 1 }}>
+                <Box className="event-bus-monitor__search-row">
                     <TextField
+                        className="event-bus-monitor__search-field"
                         fullWidth
                         size="small"
                         placeholder="Filter console output..."
@@ -1108,7 +983,7 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                         InputProps={{
                             startAdornment: (
                                 <InputAdornment position="start">
-                                    <Search sx={{ fontSize: '18px', color: '#6e7681' }} />
+                                    <Search className="event-bus-monitor__icon--large" />
                                 </InputAdornment>
                             ),
                             endAdornment: searchQuery && (
@@ -1116,42 +991,18 @@ export default function EventBusMonitor({ open, onClose, onOpen, isMinimized, se
                                     <IconButton
                                         size="small"
                                         onClick={() => setSearchQuery('')}
-                                        sx={{ 
-                                            padding: '4px',
-                                            color: '#6e7681',
-                                            '&:hover': { color: '#d4d4d4' }
-                                        }}
+                                        className="event-bus-monitor__search-clear-button"
                                     >
-                                        <Clear sx={{ fontSize: '16px' }} />
+                                        <Clear className="event-bus-monitor__icon--medium" />
                                     </IconButton>
                                 </InputAdornment>
                             )
-                        }}
-                        sx={{
-                            '& .MuiOutlinedInput-root': {
-                                bgcolor: '#1e1e1e',
-                                color: '#d4d4d4',
-                                fontFamily: 'Consolas, Monaco, "Courier New", monospace',
-                                fontSize: '12px',
-                                '& fieldset': {
-                                    borderColor: '#30363d'
-                                },
-                                '&:hover fieldset': {
-                                    borderColor: '#6e7681'
-                                },
-                                '&.Mui-focused fieldset': {
-                                    borderColor: '#58a6ff'
-                                }
-                            },
-                            '& .MuiOutlinedInput-input': {
-                                padding: '6px 8px'
-                            }
                         }}
                     />
                 </Box>
             </Box>
 
-            <DialogContent sx={{ p: 0, bgcolor: '#1e1e1e' }}>
+            <DialogContent className="event-bus-monitor__dialog-content">
                 {/* Console output */}
                 {renderConsole()}
             </DialogContent>

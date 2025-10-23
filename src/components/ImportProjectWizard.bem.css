@@ -1,0 +1,622 @@
+/* ===================================================================
+   Import Project Wizard - BEM CSS Module
+   
+   A multi-step form wizard for importing projects from settings files.
+   Includes progress tracking, form validation feedback, and file selection.
+   
+   Block: import-wizard
+   =================================================================== */
+
+/* ===================================================================
+   ANIMATIONS
+   =================================================================== */
+
+@keyframes import-wizard-fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes import-wizard-slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes import-wizard-step-highlight {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* ===================================================================
+   OVERLAY
+   
+   Fixed position backdrop with semi-transparent background.
+   Prevents interaction with content behind wizard.
+   =================================================================== */
+
+.import-wizard-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: color-mix(in oklab, var(--color-bg) 50%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: import-wizard-fade-in var(--duration-2) var(--ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .import-wizard-overlay {
+        animation: none;
+    }
+}
+
+/* ===================================================================
+   MAIN DIALOG CONTAINER
+   
+   Central dialog box with fixed width, responsive max-width.
+   Flex column for vertical layout of sections.
+   =================================================================== */
+
+.import-wizard {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    width: 600px;
+    max-width: 90vw;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    color: var(--color-fg);
+    box-shadow: var(--shadow-lg);
+    animation: import-wizard-slide-up var(--duration-3) var(--ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .import-wizard {
+        animation: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .import-wizard {
+        width: 95vw;
+        max-height: 95vh;
+        border-radius: var(--radius-md);
+    }
+}
+
+/* ===================================================================
+   HEADER SECTION
+   
+   Title and close button. Bordered separator below.
+   =================================================================== */
+
+.import-wizard__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-lg);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.import-wizard__title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-primary);
+    letter-spacing: -0.02em;
+}
+
+.import-wizard__close-button {
+    background: none;
+    border: none;
+    color: var(--color-fg);
+    font-size: 1.75rem;
+    line-height: 1;
+    cursor: pointer;
+    width: var(--space-lg);
+    height: var(--space-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    transition: all var(--duration-1) var(--ease-standard);
+    flex-shrink: 0;
+}
+
+.import-wizard__close-button:hover {
+    background: color-mix(in oklab, var(--color-fg) 10%, transparent);
+    color: var(--color-primary);
+}
+
+.import-wizard__close-button:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+.import-wizard__close-button:active {
+    transform: scale(0.95);
+}
+
+/* ===================================================================
+   PROGRESS SECTION
+   
+   Visual indicator of wizard progress with step indicators.
+   Shows completed, current, and upcoming steps.
+   =================================================================== */
+
+.import-wizard__progress {
+    padding: var(--space-lg);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.import-wizard__progress-step {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    opacity: 0.5;
+    transition: opacity var(--duration-2) var(--ease-standard);
+}
+
+.import-wizard__progress-step--active {
+    opacity: 1;
+}
+
+.import-wizard__progress-step--current {
+    opacity: 1;
+}
+
+.import-wizard__progress-step--current .import-wizard__step-number {
+    background: var(--color-primary);
+    color: var(--color-bg-contrast);
+    animation: import-wizard-step-highlight var(--duration-2) var(--ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .import-wizard__progress-step--current .import-wizard__step-number {
+        animation: none;
+    }
+}
+
+/* ===================================================================
+   STEP NUMBER INDICATOR
+   
+   Circular badge showing step number (1, 2, 3, etc.)
+   Filled with primary color when current or completed.
+   =================================================================== */
+
+.import-wizard__step-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--color-border);
+    color: var(--color-fg-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    transition: all var(--duration-2) var(--ease-standard);
+}
+
+/* ===================================================================
+   STEP INFO
+   
+   Title and description text for each step.
+   =================================================================== */
+
+.import-wizard__step-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+
+.import-wizard__step-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--color-fg);
+}
+
+.import-wizard__step-description {
+    font-size: 0.85rem;
+    color: var(--color-fg-secondary);
+    opacity: 0.8;
+}
+
+/* ===================================================================
+   CONTENT AREA
+   
+   Main scrollable content area where form fields appear.
+   Minimum height to prevent layout jump between steps.
+   =================================================================== */
+
+.import-wizard__content {
+    flex: 1;
+    padding: var(--space-lg);
+    min-height: 140px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+/* ===================================================================
+   WIZARD STEP FORM
+   
+   Container for a single step's form content.
+   =================================================================== */
+
+.import-wizard__step {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+/* ===================================================================
+   FORM LABEL
+   
+   Label wrapper for form fields.
+   Flexbox column for vertical arrangement.
+   =================================================================== */
+
+.import-wizard__form-label {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    font-weight: 500;
+    color: var(--color-fg);
+}
+
+/* ===================================================================
+   FORM INPUT
+   
+   Text input field with theme-aware background and borders.
+   Focus state highlights with primary color.
+   =================================================================== */
+
+.import-wizard__form-input {
+    padding: var(--space-md);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-secondary);
+    color: var(--color-fg);
+    font-size: 0.95rem;
+    font-family: inherit;
+    transition: all var(--duration-1) var(--ease-standard);
+}
+
+.import-wizard__form-input::placeholder {
+    color: var(--color-fg-secondary);
+    opacity: 0.6;
+}
+
+.import-wizard__form-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 30%, transparent);
+}
+
+.import-wizard__form-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: color-mix(in oklab, var(--color-bg-secondary) 50%, transparent);
+}
+
+@media (max-width: 640px) {
+    .import-wizard__form-input {
+        padding: var(--space-sm);
+        font-size: 1rem; /* Prevents mobile zoom on focus */
+    }
+}
+
+/* ===================================================================
+   FILE PICKER
+   
+   Container for file input with browse button.
+   Flex layout with input and button side-by-side.
+   =================================================================== */
+
+.import-wizard__file-picker {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: stretch;
+}
+
+.import-wizard__file-picker .import-wizard__form-input {
+    flex: 1;
+}
+
+@media (max-width: 480px) {
+    .import-wizard__file-picker {
+        flex-direction: column;
+    }
+}
+
+/* ===================================================================
+   SELECT/BROWSE BUTTON
+   
+   Secondary button for file/folder selection dialogs.
+   Matches form input height and styling.
+   =================================================================== */
+
+.import-wizard__select-button {
+    background: var(--color-bg-tertiary);
+    color: var(--color-fg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-md) var(--space-lg);
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all var(--duration-1) var(--ease-standard);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.import-wizard__select-button:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--color-fg) 10%, var(--color-bg-tertiary));
+    border-color: var(--color-fg-secondary);
+}
+
+.import-wizard__select-button:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+.import-wizard__select-button:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.import-wizard__select-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+    .import-wizard__select-button {
+        padding: var(--space-sm) var(--space-md);
+        font-size: 0.9rem;
+    }
+}
+
+/* ===================================================================
+   FILE INFO
+   
+   Metadata display below file inputs.
+   Shows selected file name and other feedback.
+   =================================================================== */
+
+.import-wizard__file-info {
+    font-size: 0.85rem;
+    color: var(--color-fg-secondary);
+    padding: var(--space-sm);
+    border-radius: var(--radius-sm);
+    background: color-mix(in oklab, var(--color-fg-secondary) 5%, transparent);
+}
+
+/* ===================================================================
+   ERROR MESSAGE
+   
+   Error state display with error background and text color.
+   Visible when form validation fails.
+   =================================================================== */
+
+.import-wizard__error-message {
+    background: color-mix(in oklab, #ff6b6b 15%, var(--color-bg));
+    color: #ff6b6b;
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    border: 1px solid color-mix(in oklab, #ff6b6b 30%, transparent);
+    font-size: 0.9rem;
+    line-height: 1.4;
+    animation: import-wizard-slide-up var(--duration-2) var(--ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .import-wizard__error-message {
+        animation: none;
+    }
+}
+
+/* ===================================================================
+   ACTIONS FOOTER
+   
+   Button container at bottom of dialog.
+   Right-aligned button layout with proper spacing.
+   =================================================================== */
+
+.import-wizard__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-md);
+    padding: var(--space-lg);
+    border-top: 1px solid var(--color-border);
+    flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+    .import-wizard__actions {
+        gap: var(--space-sm);
+    }
+}
+
+/* ===================================================================
+   WIZARD BUTTONS
+   
+   Primary action (Next/Import) and secondary actions (Back/Cancel).
+   Different styling for primary vs secondary variants.
+   =================================================================== */
+
+.import-wizard__button {
+    padding: var(--space-md) var(--space-lg);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: all var(--duration-1) var(--ease-standard);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.import-wizard__button:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-primary);
+}
+
+.import-wizard__button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.import-wizard__button:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+/* ===================================================================
+   PRIMARY BUTTON VARIANT
+   
+   Main action button (Next, Import).
+   Uses primary color background with high contrast text.
+   =================================================================== */
+
+.import-wizard__button--primary {
+    background: var(--color-primary);
+    color: var(--color-bg-contrast);
+    border: 1px solid transparent;
+}
+
+.import-wizard__button--primary:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--color-primary) 110%, transparent);
+    box-shadow: 0 4px 12px color-mix(in oklab, var(--color-primary) 40%, transparent);
+}
+
+/* ===================================================================
+   SECONDARY BUTTON VARIANT
+   
+   Cancel, Back buttons.
+   Subtle background with text color.
+   =================================================================== */
+
+.import-wizard__button--secondary {
+    background: var(--color-bg-tertiary);
+    color: var(--color-fg);
+    border: 1px solid var(--color-border);
+}
+
+.import-wizard__button--secondary:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--color-fg) 8%, var(--color-bg-tertiary));
+    border-color: var(--color-fg-secondary);
+}
+
+@media (max-width: 640px) {
+    .import-wizard__button {
+        padding: var(--space-sm) var(--space-md);
+        font-size: 0.9rem;
+    }
+}
+
+/* ===================================================================
+   SCROLLBAR STYLING
+   
+   Custom scrollbar for content area.
+   Theme-aware with primary color on hover.
+   =================================================================== */
+
+.import-wizard__content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.import-wizard__content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.import-wizard__content::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--color-fg) 30%, transparent);
+    border-radius: 4px;
+    transition: background var(--duration-1) var(--ease-standard);
+}
+
+.import-wizard__content::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--color-primary) 60%, transparent);
+}
+
+/* ===================================================================
+   HIGH CONTRAST MODE
+   
+   Enhanced borders and focus states for accessibility.
+   Applied when @media (prefers-contrast: more) or similar.
+   =================================================================== */
+
+@media (prefers-contrast: more) {
+    .import-wizard {
+        border-width: 2px;
+    }
+
+    .import-wizard__header,
+    .import-wizard__progress,
+    .import-wizard__actions {
+        border-width: 2px;
+    }
+
+    .import-wizard__form-input:focus,
+    .import-wizard__button:focus-visible {
+        box-shadow: inset 0 0 0 3px var(--color-primary);
+    }
+}
+
+/* ===================================================================
+   DARK MODE THEME
+   
+   Specific adjustments for dark theme.
+   Applied when [data-theme="dark"] on root element.
+   =================================================================== */
+
+[data-theme="dark"] .import-wizard__select-button:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--color-primary) 20%, var(--color-bg-tertiary));
+}
+
+/* ===================================================================
+   HIGH CONTRAST THEME
+   
+   Specific adjustments for high contrast mode.
+   Applied when [data-theme="high-contrast"] on root element.
+   =================================================================== */
+
+[data-theme="high-contrast"] .import-wizard__form-input,
+[data-theme="high-contrast"] .import-wizard__select-button {
+    border-width: 2px;
+}
+
+[data-theme="high-contrast"] .import-wizard__button {
+    border-width: 2px;
+}

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import * as ContextMenu from '@radix-ui/react-context-menu';
-import { useTheme } from '@mui/material';
 import {
     Edit,
     Add,
@@ -8,6 +7,7 @@ import {
     Schedule,
     ChevronRight
 } from '@mui/icons-material';
+import './EffectContextMenu.bem.css';
 
 export default function EffectContextMenu({
     position,
@@ -16,7 +16,6 @@ export default function EffectContextMenu({
     onEdit,
     onClose
 }) {
-    const theme = useTheme();
     const [secondaryEffects, setSecondaryEffects] = useState([]);
     const [keyframeEffects, setKeyframeEffects] = useState([]);
     const [isOpen, setIsOpen] = useState(true);
@@ -56,40 +55,6 @@ export default function EffectContextMenu({
         }
     }, [position]);
 
-    const menuStyles = {
-        backgroundColor: theme.palette.mode === 'dark' ? '#323232' : theme.palette.background.paper,
-        border: `1px solid ${theme.palette.divider}`,
-        borderRadius: '6px',
-        boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.2)',
-        padding: '4px',
-        minWidth: '200px',
-        zIndex: 1300,
-    };
-
-    const itemStyles = {
-        display: 'flex',
-        alignItems: 'center',
-        padding: '8px 12px',
-        fontSize: '14px',
-        color: theme.palette.text.primary,
-        cursor: 'pointer',
-        borderRadius: '4px',
-        outline: 'none',
-        gap: '8px',
-        '&:hover': {
-            backgroundColor: theme.palette.action.hover,
-        },
-        '&:focus': {
-            backgroundColor: theme.palette.action.hover,
-        },
-    };
-
-    const separatorStyles = {
-        height: '1px',
-        backgroundColor: theme.palette.divider,
-        margin: '4px 0',
-    };
-
     return (
         <>
             <div ref={virtualTrigger} />
@@ -99,33 +64,28 @@ export default function EffectContextMenu({
                 </ContextMenu.Trigger>
 
                 <ContextMenu.Portal>
-                    <ContextMenu.Content style={menuStyles} onEscapeKeyDown={handleClose}>
-                        <ContextMenu.Item style={itemStyles} onSelect={onEdit}>
-                            <Edit fontSize="small" />
+                    <ContextMenu.Content className="effect-context-menu" onEscapeKeyDown={handleClose}>
+                        <ContextMenu.Item className="effect-context-menu__item" onSelect={onEdit}>
+                            <Edit fontSize="small" className="effect-context-menu__item-icon" />
                             Edit Effect
                         </ContextMenu.Item>
 
-                        <ContextMenu.Separator style={separatorStyles} />
+                        <ContextMenu.Separator className="effect-context-menu__separator" />
 
                         <ContextMenu.Sub>
-                            <ContextMenu.SubTrigger style={{...itemStyles, justifyContent: 'space-between'}}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <Add fontSize="small" />
+                            <ContextMenu.SubTrigger className="effect-context-menu__sub-trigger">
+                                <div className="effect-context-menu__sub-trigger-content">
+                                    <Add fontSize="small" className="effect-context-menu__item-icon" />
                                     Add Secondary Effect
                                 </div>
-                                <ChevronRight fontSize="small" />
+                                <ChevronRight fontSize="small" className="effect-context-menu__sub-trigger-icon" />
                             </ContextMenu.SubTrigger>
                             <ContextMenu.Portal>
-                                <ContextMenu.SubContent style={{...menuStyles, minWidth: '180px'}}>
+                                <ContextMenu.SubContent className="effect-context-menu__sub-content">
                                     {secondaryEffects.length === 0 ? (
                                         <ContextMenu.Item
                                             disabled
-                                            style={{
-                                                ...itemStyles,
-                                                fontStyle: 'italic',
-                                                color: theme.palette.text.disabled,
-                                                cursor: 'default'
-                                            }}
+                                            className="effect-context-menu__item"
                                         >
                                             No secondary effects available
                                         </ContextMenu.Item>
@@ -133,7 +93,7 @@ export default function EffectContextMenu({
                                         secondaryEffects.map((effect, index) => (
                                             <ContextMenu.Item
                                                 key={index}
-                                                style={itemStyles}
+                                                className="effect-context-menu__item"
                                                 onSelect={() => {
                                                     onAddSecondary(effect);
                                                     handleClose();
@@ -147,27 +107,22 @@ export default function EffectContextMenu({
                             </ContextMenu.Portal>
                         </ContextMenu.Sub>
 
-                        <ContextMenu.Separator style={separatorStyles} />
+                        <ContextMenu.Separator className="effect-context-menu__separator" />
 
                         <ContextMenu.Sub>
-                            <ContextMenu.SubTrigger style={{...itemStyles, justifyContent: 'space-between'}}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <Schedule fontSize="small" />
+                            <ContextMenu.SubTrigger className="effect-context-menu__sub-trigger">
+                                <div className="effect-context-menu__sub-trigger-content">
+                                    <Schedule fontSize="small" className="effect-context-menu__item-icon" />
                                     Add Keyframe Effect
                                 </div>
-                                <ChevronRight fontSize="small" />
+                                <ChevronRight fontSize="small" className="effect-context-menu__sub-trigger-icon" />
                             </ContextMenu.SubTrigger>
                             <ContextMenu.Portal>
-                                <ContextMenu.SubContent style={{...menuStyles, minWidth: '180px'}}>
+                                <ContextMenu.SubContent className="effect-context-menu__sub-content">
                                     {keyframeEffects.length === 0 ? (
                                         <ContextMenu.Item
                                             disabled
-                                            style={{
-                                                ...itemStyles,
-                                                fontStyle: 'italic',
-                                                color: theme.palette.text.disabled,
-                                                cursor: 'default'
-                                            }}
+                                            className="effect-context-menu__item"
                                         >
                                             No keyframe effects available
                                         </ContextMenu.Item>
@@ -175,7 +130,7 @@ export default function EffectContextMenu({
                                         keyframeEffects.map((effect, index) => (
                                             <ContextMenu.Item
                                                 key={index}
-                                                style={itemStyles}
+                                                className="effect-context-menu__item"
                                                 onSelect={() => {
                                                     onAddKeyframe(effect);
                                                     handleClose();

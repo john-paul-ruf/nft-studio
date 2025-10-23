@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import CenterUtils from '../../../utils/CenterUtils.js';
 import useDebounce from '../../../hooks/useDebounce.js';
+import './EffectInput.bem.css';
+import './PositionInput.bem.css';
 
 function PositionInput({ field, value, onChange, projectState }) {
     const [showPresets, setShowPresets] = useState(false);
@@ -316,25 +318,18 @@ function PositionInput({ field, value, onChange, projectState }) {
     };
 
     return (
-        <div className="position-input">
-            <label>{field.label}</label>
+        <div className="effect-input effect-input__position">
+            <label className="effect-input__position-label">{field.label}</label>
 
             {/* Position Type Selector */}
-            <div style={{ marginBottom: '0.5rem' }}>
-                <label style={{ fontSize: '0.8rem', color: '#ccc', display: 'block', marginBottom: '0.25rem' }}>
+            <div className="position-input__type-selector">
+                <label className="position-input__type-label">
                     Position Type
                 </label>
                 <select
                     value={positionType}
                     onChange={(e) => handlePositionTypeChange(e.target.value)}
-                    style={{
-                        width: '100%',
-                        background: 'rgba(255,255,255,0.1)',
-                        border: '1px solid #333',
-                        borderRadius: '4px',
-                        padding: '0.5rem',
-                        color: '#ffffff'
-                    }}
+                    className="position-input__type-select"
                 >
                     <option value="position">Static Position</option>
                     <option value="arc-path">Arc Path</option>
@@ -345,58 +340,25 @@ function PositionInput({ field, value, onChange, projectState }) {
             {positionType === 'position' && (
                 <>
                     {/* Quick Position Presets */}
-                    <div style={{ marginBottom: '0.5rem' }}>
+                    <div>
                         <button
                             type="button"
                             onClick={() => setShowPresets(!showPresets)}
-                            style={{
-                                background: 'rgba(255,255,255,0.1)',
-                                border: '1px solid #333',
-                                borderRadius: '4px',
-                                padding: '0.25rem 0.5rem',
-                                fontSize: '0.8rem',
-                                cursor: 'pointer',
-                                color: 'white'
-                            }}
+                            className="position-input__presets-trigger"
                         >
                             📍 Quick Positions
                         </button>
 
                         {showPresets && (
-                            <div style={{
-                                marginTop: '0.5rem',
-                                padding: '0.5rem',
-                                background: 'rgba(0,0,0,0.3)',
-                                borderRadius: '4px',
-                                border: '1px solid #333'
-                            }}>
+                            <div className="position-input__presets-dropdown">
                                 {/* Category Tabs */}
-                                <div style={{
-                                    display: 'flex',
-                                    gap: '0.25rem',
-                                    marginBottom: '0.5rem',
-                                    borderBottom: '1px solid #555',
-                                    paddingBottom: '0.5rem'
-                                }}>
+                                <div className="position-input__category-tabs">
                                     {Object.entries(presetCategories).map(([key, category]) => (
                                         <button
                                             key={key}
                                             type="button"
                                             onClick={() => setSelectedCategory(key)}
-                                            style={{
-                                                background: selectedCategory === key ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)',
-                                                border: selectedCategory === key ? '1px solid #777' : '1px solid #555',
-                                                borderRadius: '3px',
-                                                padding: '0.25rem 0.5rem',
-                                                cursor: 'pointer',
-                                                color: selectedCategory === key ? '#fff' : '#ccc',
-                                                fontSize: '0.7rem',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.25rem',
-                                                flex: 1,
-                                                justifyContent: 'center'
-                                            }}
+                                            className={`position-input__category-tab ${selectedCategory === key ? 'position-input__category-tab--active' : ''}`}
                                         >
                                             <span>{category.icon}</span>
                                             <span>{category.name}</span>
@@ -405,56 +367,30 @@ function PositionInput({ field, value, onChange, projectState }) {
                                 </div>
 
                                 {/* Current Category Presets */}
-                                <div style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: 'repeat(3, 1fr)',
-                                    gap: '0.25rem',
-                                    fontSize: '0.7rem'
-                                }}>
+                                <div className="position-input__presets-grid">
                                     {getCurrentCategoryPresets.map(preset => (
                                         <button
                                             key={preset.name}
                                             type="button"
                                             onClick={() => handlePresetSelect(preset)}
-                                            style={{
-                                                background: 'rgba(255,255,255,0.1)',
-                                                border: '1px solid #555',
-                                                borderRadius: '3px',
-                                                padding: '0.25rem',
-                                                cursor: 'pointer',
-                                                color: 'white',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.25rem',
-                                                justifyContent: 'center'
-                                            }}
+                                            className="position-input__preset-button"
                                             title={`${Math.round(preset.x)}, ${Math.round(preset.y)}`}
                                         >
-                                            <span>{preset.icon}</span>
-                                            <span style={{ fontSize: '0.6rem' }}>{preset.name}</span>
+                                            <span className="position-input__preset-button-icon">{preset.icon}</span>
+                                            <span className="position-input__preset-button-name">{preset.name}</span>
                                         </button>
                                     ))}
                                 </div>
 
                                 {/* Category Description */}
-                                <div style={{
-                                    marginTop: '0.5rem',
-                                    fontSize: '0.6rem',
-                                    color: '#888',
-                                    textAlign: 'center'
-                                }}>
+                                <div className="position-input__category-description">
                                     {selectedCategory === 'basic' && 'Standard composition positions'}
                                     {selectedCategory === 'thirds' && 'Photography rule of thirds (33% / 67% points)'}
                                     {selectedCategory === 'golden' && 'Golden ratio composition (38.2% / 61.8% points)'}
                                     {selectedCategory === 'edge' && 'Positions near canvas edges (5% / 95% points)'}
                                 </div>
 
-                                <div style={{
-                                    marginTop: '0.25rem',
-                                    fontSize: '0.6rem',
-                                    color: '#888',
-                                    textAlign: 'center'
-                                }}>
+                                <div className="position-input__canvas-info">
                                     Canvas: {safeWidth} × {safeHeight} {projectState &&
                                         (projectState.getIsHorizontal() ? '(Horizontal)' : '(Vertical)')}
                                 </div>
@@ -463,16 +399,9 @@ function PositionInput({ field, value, onChange, projectState }) {
                     </div>
 
                     {/* Manual Position Input */}
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1fr',
-                        gap: '0.5rem',
-                        background: 'rgba(255,255,255,0.05)',
-                        padding: '0.5rem',
-                        borderRadius: '4px'
-                    }}>
-                        <div>
-                            <label style={{ fontSize: '0.8rem', color: '#ccc' }}>X Position</label>
+                    <div className="position-input__manual-input-grid">
+                        <div className="position-input__input-group">
+                            <label className="position-input__input-label">X Position</label>
                             <input
                                 type="number"
                                 value={displayX}
@@ -495,11 +424,11 @@ function PositionInput({ field, value, onChange, projectState }) {
                                         setDisplayX(String(currentValue.x || 0));
                                     }
                                 }}
-                                style={{ width: '100%' }}
+                                className="position-input__coordinate-input"
                             />
                         </div>
-                        <div>
-                            <label style={{ fontSize: '0.8rem', color: '#ccc' }}>Y Position</label>
+                        <div className="position-input__input-group">
+                            <label className="position-input__input-label">Y Position</label>
                             <input
                                 type="number"
                                 value={displayY}
@@ -522,18 +451,13 @@ function PositionInput({ field, value, onChange, projectState }) {
                                         setDisplayY(String(currentValue.y || 0));
                                     }
                                 }}
-                                style={{ width: '100%' }}
+                                className="position-input__coordinate-input"
                             />
                         </div>
                     </div>
 
                     {/* Current Position Display */}
-                    <div style={{
-                        marginTop: '0.25rem',
-                        fontSize: '0.7rem',
-                        color: '#888',
-                        textAlign: 'center'
-                    }}>
+                    <div className="position-input__current-position">
                         Current: ({currentValue.x}, {currentValue.y})
                     </div>
                 </>
@@ -542,58 +466,25 @@ function PositionInput({ field, value, onChange, projectState }) {
             {positionType === 'arc-path' && (
                 <>
                     {/* Arc Path Center Quick Presets */}
-                    <div style={{ marginBottom: '0.5rem' }}>
+                    <div>
                         <button
                             type="button"
                             onClick={() => setShowPresets(!showPresets)}
-                            style={{
-                                background: 'rgba(255,255,255,0.1)',
-                                border: '1px solid #333',
-                                borderRadius: '4px',
-                                padding: '0.25rem 0.5rem',
-                                fontSize: '0.8rem',
-                                cursor: 'pointer',
-                                color: 'white'
-                            }}
+                            className="position-input__presets-trigger"
                         >
                             📍 Center Quick Picks
                         </button>
 
                         {showPresets && (
-                            <div style={{
-                                marginTop: '0.5rem',
-                                padding: '0.5rem',
-                                background: 'rgba(0,0,0,0.3)',
-                                borderRadius: '4px',
-                                border: '1px solid #333'
-                            }}>
+                            <div className="position-input__presets-dropdown">
                                 {/* Category Tabs */}
-                                <div style={{
-                                    display: 'flex',
-                                    gap: '0.25rem',
-                                    marginBottom: '0.5rem',
-                                    borderBottom: '1px solid #555',
-                                    paddingBottom: '0.5rem'
-                                }}>
+                                <div className="position-input__category-tabs">
                                     {Object.entries(presetCategories).map(([key, category]) => (
                                         <button
                                             key={key}
                                             type="button"
                                             onClick={() => setSelectedCategory(key)}
-                                            style={{
-                                                background: selectedCategory === key ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)',
-                                                border: selectedCategory === key ? '1px solid #777' : '1px solid #555',
-                                                borderRadius: '3px',
-                                                padding: '0.25rem 0.5rem',
-                                                cursor: 'pointer',
-                                                color: selectedCategory === key ? '#fff' : '#ccc',
-                                                fontSize: '0.7rem',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.25rem',
-                                                flex: 1,
-                                                justifyContent: 'center'
-                                            }}
+                                            className={`position-input__category-tab ${selectedCategory === key ? 'position-input__category-tab--active' : ''}`}
                                         >
                                             <span>{category.icon}</span>
                                             <span>{category.name}</span>
@@ -602,56 +493,30 @@ function PositionInput({ field, value, onChange, projectState }) {
                                 </div>
 
                                 {/* Current Category Presets */}
-                                <div style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: 'repeat(3, 1fr)',
-                                    gap: '0.25rem',
-                                    fontSize: '0.7rem'
-                                }}>
+                                <div className="position-input__presets-grid">
                                     {getCurrentCategoryPresets.map(preset => (
                                         <button
                                             key={preset.name}
                                             type="button"
                                             onClick={() => handleArcCenterPresetSelect(preset)}
-                                            style={{
-                                                background: 'rgba(255,255,255,0.1)',
-                                                border: '1px solid #555',
-                                                borderRadius: '3px',
-                                                padding: '0.25rem',
-                                                cursor: 'pointer',
-                                                color: 'white',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.25rem',
-                                                justifyContent: 'center'
-                                            }}
+                                            className="position-input__preset-button"
                                             title={`Center: ${Math.round(preset.x)}, ${Math.round(preset.y)}`}
                                         >
-                                            <span>{preset.icon}</span>
-                                            <span style={{ fontSize: '0.6rem' }}>{preset.name}</span>
+                                            <span className="position-input__preset-button-icon">{preset.icon}</span>
+                                            <span className="position-input__preset-button-name">{preset.name}</span>
                                         </button>
                                     ))}
                                 </div>
 
                                 {/* Category Description */}
-                                <div style={{
-                                    marginTop: '0.5rem',
-                                    fontSize: '0.6rem',
-                                    color: '#888',
-                                    textAlign: 'center'
-                                }}>
+                                <div className="position-input__category-description">
                                     {selectedCategory === 'basic' && 'Standard composition positions for arc center'}
                                     {selectedCategory === 'thirds' && 'Photography rule of thirds for arc center (33% / 67% points)'}
                                     {selectedCategory === 'golden' && 'Golden ratio composition for arc center (38.2% / 61.8% points)'}
                                     {selectedCategory === 'edge' && 'Arc center positions near canvas edges (5% / 95% points)'}
                                 </div>
 
-                                <div style={{
-                                    marginTop: '0.25rem',
-                                    fontSize: '0.6rem',
-                                    color: '#888',
-                                    textAlign: 'center'
-                                }}>
+                                <div className="position-input__canvas-info">
                                     Canvas: {safeWidth} × {safeHeight} {projectState &&
                                         (projectState.getIsHorizontal() ? '(Horizontal)' : '(Vertical)')}
                                 </div>
@@ -660,20 +525,15 @@ function PositionInput({ field, value, onChange, projectState }) {
                     </div>
 
                     {/* Arc Path Controls */}
-                    <div style={{
-                        background: 'rgba(255,255,255,0.05)',
-                        padding: '0.5rem',
-                        borderRadius: '4px',
-                        marginBottom: '0.5rem'
-                    }}>
+                    <div className="position-input__arcpath-controls">
                         {/* Center Point */}
-                        <div style={{ marginBottom: '0.5rem' }}>
-                            <label style={{ fontSize: '0.8rem', color: '#ccc', display: 'block', marginBottom: '0.25rem' }}>
+                        <div className="position-input__arcpath-group">
+                            <label className="position-input__arcpath-group-label">
                                 Center Point
                             </label>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                            <div className="position-input__center-point-grid">
                                 <div>
-                                    <label style={{ fontSize: '0.7rem', color: '#999' }}>X</label>
+                                    <label className="position-input__arcpath-group-label--small">X</label>
                                     <input
                                         type="number"
                                         value={displayCenterX}
@@ -696,11 +556,11 @@ function PositionInput({ field, value, onChange, projectState }) {
                                                 setDisplayCenterX(String(currentValue.center?.x || 0));
                                             }
                                         }}
-                                        style={{ width: '100%' }}
+                                        className="position-input__coordinate-input"
                                     />
                                 </div>
                                 <div>
-                                    <label style={{ fontSize: '0.7rem', color: '#999' }}>Y</label>
+                                    <label className="position-input__arcpath-group-label--small">Y</label>
                                     <input
                                         type="number"
                                         value={displayCenterY}
@@ -723,15 +583,15 @@ function PositionInput({ field, value, onChange, projectState }) {
                                                 setDisplayCenterY(String(currentValue.center?.y || 0));
                                             }
                                         }}
-                                        style={{ width: '100%' }}
+                                        className="position-input__coordinate-input"
                                     />
                                 </div>
                             </div>
                         </div>
 
                         {/* Radius */}
-                        <div style={{ marginBottom: '0.5rem' }}>
-                            <label style={{ fontSize: '0.8rem', color: '#ccc', display: 'block', marginBottom: '0.25rem' }}>
+                        <div className="position-input__arcpath-group">
+                            <label className="position-input__arcpath-group-label">
                                 Radius: {currentValue.radius || 0}px
                             </label>
                             <input
@@ -740,14 +600,14 @@ function PositionInput({ field, value, onChange, projectState }) {
                                 max={Math.max(safeWidth, safeHeight)}
                                 value={currentValue.radius || 100}
                                 onChange={(e) => handleArcPathChange('radius', parseInt(e.target.value))}
-                                style={{ width: '100%' }}
+                                className="position-input__radius-input"
                             />
                         </div>
 
                         {/* Angles */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                            <div>
-                                <label style={{ fontSize: '0.8rem', color: '#ccc' }}>Start Angle (°)</label>
+                        <div className="position-input__angles-grid">
+                            <div className="position-input__angle-group">
+                                <label className="position-input__angle-label">Start Angle (°)</label>
                                 <input
                                     type="number"
                                     value={displayStartAngle}
@@ -770,11 +630,11 @@ function PositionInput({ field, value, onChange, projectState }) {
                                             setDisplayStartAngle(String(currentValue.startAngle || 0));
                                         }
                                     }}
-                                    style={{ width: '100%' }}
+                                    className="position-input__angle-input"
                                 />
                             </div>
-                            <div>
-                                <label style={{ fontSize: '0.8rem', color: '#ccc' }}>End Angle (°)</label>
+                            <div className="position-input__angle-group">
+                                <label className="position-input__angle-label">End Angle (°)</label>
                                 <input
                                     type="number"
                                     value={displayEndAngle}
@@ -797,27 +657,20 @@ function PositionInput({ field, value, onChange, projectState }) {
                                             setDisplayEndAngle(String(currentValue.endAngle || 360));
                                         }
                                     }}
-                                    style={{ width: '100%' }}
+                                    className="position-input__angle-input"
                                 />
                             </div>
                         </div>
 
                         {/* Direction */}
-                        <div>
-                            <label style={{ fontSize: '0.8rem', color: '#ccc', display: 'block', marginBottom: '0.25rem' }}>
+                        <div className="position-input__arcpath-group">
+                            <label className="position-input__arcpath-group-label">
                                 Direction
                             </label>
                             <select
                                 value={currentValue.direction || 1}
                                 onChange={(e) => handleArcPathChange('direction', parseInt(e.target.value))}
-                                style={{
-                                    width: '100%',
-                                    background: 'rgba(255,255,255,0.1)',
-                                    border: '1px solid #333',
-                                    borderRadius: '4px',
-                                    padding: '0.25rem',
-                                    color: '#ffffff'
-                                }}
+                                className="position-input__direction-select"
                             >
                                 <option value={1}>Clockwise</option>
                                 <option value={-1}>Counter-clockwise</option>
@@ -826,23 +679,14 @@ function PositionInput({ field, value, onChange, projectState }) {
                     </div>
 
                     {/* Arc Path Info */}
-                    <div style={{
-                        fontSize: '0.7rem',
-                        color: '#888',
-                        textAlign: 'center'
-                    }}>
+                    <div className="position-input__arcpath-info">
                         Arc: {currentValue.radius || 0}px radius, {currentValue.startAngle || 0}° to {currentValue.endAngle || 360}°
                     </div>
                 </>
             )}
 
             {/* Canvas Info */}
-            <div style={{
-                marginTop: '0.5rem',
-                fontSize: '0.6rem',
-                color: '#888',
-                textAlign: 'center'
-            }}>
+            <div className="position-input__global-canvas-info">
                 Canvas: {safeWidth} × {safeHeight} {projectState &&
                     (projectState.getIsHorizontal() ? '(Horizontal)' : '(Vertical)')}
             </div>

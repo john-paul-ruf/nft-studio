@@ -1,0 +1,110 @@
+/* ================================================================
+   Dynamic Range Input - BEM CSS Architecture
+   Block: dynamic-range-input
+   
+   Purpose: Styling for dual-range (bottom/top) input component
+   with grid-based layout and color-coded sections
+   ================================================================ */
+
+/* Root Container */
+.dynamic-range-input {
+    margin-bottom: 1rem;
+}
+
+/* Main Label */
+.dynamic-range-input__label {
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+    display: block;
+    font-weight: 500;
+}
+
+/* Main Section Container */
+.dynamic-range-input__section {
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 1rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Section Wrapper (Bottom/Top Range containers) */
+.dynamic-range-input__section-wrapper {
+    margin-bottom: 0.75rem;
+}
+
+/* Last section wrapper has no margin */
+.dynamic-range-input__section-wrapper:last-child {
+    margin-bottom: 0;
+}
+
+/* Section Title Labels (Bottom Range, Top Range) */
+.dynamic-range-input__section-title {
+    font-size: 0.9rem;
+    font-weight: bold;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+/* Bottom Range section title - green color */
+.dynamic-range-input__section-title--bottom {
+    color: #9ae6b4;
+}
+
+/* Top Range section title - pink color */
+.dynamic-range-input__section-title--top {
+    color: #fbb6ce;
+}
+
+/* Input Grid Container */
+.dynamic-range-input__inputs-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+/* Input Field Label (Lower, Upper) */
+.dynamic-range-input__input-label {
+    font-size: 0.7rem;
+    color: #ccc;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+/* Number Input Fields */
+.dynamic-range-input__input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    padding: 0.5rem;
+    color: #ffffff;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+/* Input Field Focus State */
+.dynamic-range-input__input:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+}
+
+/* Input Field Hover State */
+.dynamic-range-input__input:hover:not(:focus) {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Disabled Input State */
+.dynamic-range-input__input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Input Placeholder Text */
+.dynamic-range-input__input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}

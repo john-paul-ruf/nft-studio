@@ -3,7 +3,7 @@ import PreferencesService from '../services/PreferencesService.js';
 import ResolutionMapper from '../utils/ResolutionMapper.js';
 import ProjectState from '../models/ProjectState.js';
 import useDebounce from '../hooks/useDebounce.js';
-import './ProjectWizard.css';
+import './ProjectWizard.bem.css';
 
 export default function ProjectWizard({ projectStateManager, onComplete, onCancel }) {
     const [step, setStep] = useState(1);
@@ -121,26 +121,26 @@ export default function ProjectWizard({ projectStateManager, onComplete, onCance
     };
 
     return (
-        <div className="wizard-container">
-            <div className="wizard-content">
-                <div className="wizard-header">
-                    <h2>New Project</h2>
-                    <div className="wizard-steps">
-                        <div className={`step ${step >= 1 ? 'active' : ''}`}>1</div>
-                        <div className={`step-line ${step >= 2 ? 'active' : ''}`}></div>
-                        <div className={`step ${step >= 2 ? 'active' : ''}`}>2</div>
-                        <div className={`step-line ${step >= 3 ? 'active' : ''}`}></div>
-                        <div className={`step ${step >= 3 ? 'active' : ''}`}>3</div>
+        <div className="page-wizard">
+            <div className="page-wizard__dialog">
+                <div className="page-wizard__header">
+                    <h2 className="page-wizard__title">New Project</h2>
+                    <div className="page-wizard__steps">
+                        <div className={`page-wizard__step ${step >= 1 ? 'page-wizard__step--active' : ''}`}>1</div>
+                        <div className={`page-wizard__line ${step >= 2 ? 'page-wizard__line--active' : ''}`}></div>
+                        <div className={`page-wizard__step ${step >= 2 ? 'page-wizard__step--active' : ''}`}>2</div>
+                        <div className={`page-wizard__line ${step >= 3 ? 'page-wizard__line--active' : ''}`}></div>
+                        <div className={`page-wizard__step ${step >= 3 ? 'page-wizard__step--active' : ''}`}>3</div>
                     </div>
                 </div>
 
-                <div className="wizard-body">
+                <div className="page-wizard__body">
                     {step === 1 && (
-                        <div className="wizard-step-content">
-                            <label className="wizard-label">Artist Name</label>
+                        <div className="page-wizard__content">
+                            <label className="page-wizard__label">Artist Name</label>
                             <input
                                 type="text"
-                                className="wizard-input"
+                                className="page-wizard__input"
                                 value={artistName}
                                 onChange={(e) => {
                                     const value = e.target.value;
@@ -154,11 +154,11 @@ export default function ProjectWizard({ projectStateManager, onComplete, onCance
                     )}
 
                     {step === 2 && (
-                        <div className="wizard-step-content">
-                            <label className="wizard-label">Project Name</label>
+                        <div className="page-wizard__content">
+                            <label className="page-wizard__label">Project Name</label>
                             <input
                                 type="text"
-                                className="wizard-input"
+                                className="page-wizard__input"
                                 value={projectName}
                                 onChange={(e) => {
                                     const value = e.target.value;
@@ -172,18 +172,18 @@ export default function ProjectWizard({ projectStateManager, onComplete, onCance
                     )}
 
                     {step === 3 && (
-                        <div className="wizard-step-content">
-                            <label className="wizard-label">Project Directory</label>
-                            <div className="directory-selector">
+                        <div className="page-wizard__content">
+                            <label className="page-wizard__label">Project Directory</label>
+                            <div className="page-wizard__directory-selector">
                                 <input
                                     type="text"
-                                    className="wizard-input"
+                                    className="page-wizard__input"
                                     value={projectDirectory}
                                     readOnly
                                     placeholder="Select project directory"
                                 />
                                 <button
-                                    className="browse-button"
+                                    className="page-wizard__browse-button"
                                     onClick={selectDirectory}
                                 >
                                     Browse
@@ -193,18 +193,18 @@ export default function ProjectWizard({ projectStateManager, onComplete, onCance
                     )}
                 </div>
 
-                <div className="wizard-footer">
-                    <button className="wizard-button cancel" onClick={onCancel}>
+                <div className="page-wizard__footer">
+                    <button className="page-wizard__button page-wizard__button--cancel" onClick={onCancel}>
                         Cancel
                     </button>
-                    <div className="wizard-nav-buttons">
+                    <div className="page-wizard__nav-buttons">
                         {step > 1 && (
-                            <button className="wizard-button back" onClick={handleBack}>
+                            <button className="page-wizard__button page-wizard__button--back" onClick={handleBack}>
                                 Back
                             </button>
                         )}
                         <button
-                            className="wizard-button next"
+                            className="page-wizard__button page-wizard__button--next"
                             onClick={handleNext}
                             disabled={!canProceed() || isCompleting}
                         >

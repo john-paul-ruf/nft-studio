@@ -354,8 +354,8 @@ async function testEffectDeletion() {
     // Add effects to the real project state
     projectState.update({
         effects: [
-            { id: 'test-id-1', name: 'TestEffect1' },
-            { id: 'test-id-2', name: 'TestEffect2' }
+            { id: 'test-id-1', name: 'TestEffect1', type: 'primary', config: {}, className: 'TestEffect1' },
+            { id: 'test-id-2', name: 'TestEffect2', type: 'primary', config: {}, className: 'TestEffect2' }
         ]
     });
 
@@ -396,9 +396,9 @@ async function testEffectReordering() {
     // Add effects to the real project state
     projectState.update({
         effects: [
-            { id: 'test-id-1', name: 'TestEffect1' },
-            { id: 'test-id-2', name: 'TestEffect2' },
-            { id: 'test-id-3', name: 'TestEffect3' }
+            { id: 'test-id-1', name: 'TestEffect1', type: 'primary', config: {}, className: 'TestEffect1' },
+            { id: 'test-id-2', name: 'TestEffect2', type: 'primary', config: {}, className: 'TestEffect2' },
+            { id: 'test-id-3', name: 'TestEffect3', type: 'primary', config: {}, className: 'TestEffect3' }
         ]
     });
 

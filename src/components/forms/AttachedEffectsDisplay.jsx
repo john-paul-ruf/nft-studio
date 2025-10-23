@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Paper, Typography, Button, Chip } from '@mui/material';
+import './AttachedEffectsDisplay.bem.css';
 
 /**
  * AttachedEffectsDisplay Component
@@ -29,47 +30,33 @@ const AttachedEffectsDisplay = ({
     return (
         <Paper
             elevation={2}
-            sx={{
-                mt: 3,
-                p: 3,
-                background: 'rgba(255, 193, 7, 0.1)',
-                borderRadius: 2,
-                border: '1px solid rgba(255, 193, 7, 0.3)'
-            }}
+            className="attached-effects__container"
         >
-            <Typography variant="h6" sx={{ color: '#ffc107', mb: 2 }}>
+            <Typography variant="h6" className="attached-effects__title">
                 Attached Effects
             </Typography>
 
             {/* Secondary Effects */}
-            <Box sx={{ mb: 2 }}>
+            <Box className="attached-effects__section attached-effects__section-spacing">
                 <Box
                     display="flex"
                     justifyContent="space-between"
                     alignItems="center"
-                    sx={{ mb: 1 }}
+                    className="attached-effects__section-header attached-effects__section-header-spacing"
                 >
-                    <Typography variant="subtitle2" sx={{ color: '#28a745', fontWeight: 600 }}>
+                    <Typography variant="subtitle2" className="attached-effects__secondary-title">
                         ✨ Secondary Effects ({(attachedEffects?.secondary || []).length})
                     </Typography>
                     <Button
                         onClick={() => onOpenAttachmentModal('secondary')}
                         variant="contained"
                         size="small"
-                        sx={{
-                            background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
-                            fontSize: '0.75rem',
-                            py: 0.5,
-                            px: 1.5,
-                            '&:hover': {
-                                background: 'linear-gradient(135deg, #20c997 0%, #28a745 100%)',
-                            }
-                        }}
+                        className="attached-effects__secondary-btn"
                     >
                         + Attach Secondary
                     </Button>
                 </Box>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, minHeight: '2rem' }}>
+                <Box className="attached-effects__effects-container">
                     {(attachedEffects?.secondary || []).map(effect => (
                         <Chip
                             key={effect.id}
@@ -77,25 +64,11 @@ const AttachedEffectsDisplay = ({
                             onClick={() => onEditAttachedEffect('secondary', effect)}
                             onDelete={() => onRemoveAttachedEffect && onRemoveAttachedEffect('secondary', effect.id)}
                             clickable
-                            sx={{
-                                backgroundColor: 'rgba(40, 167, 69, 0.2)',
-                                color: '#28a745',
-                                fontSize: '0.75rem',
-                                '&:hover': {
-                                    backgroundColor: 'rgba(40, 167, 69, 0.3)',
-                                    transform: 'scale(1.05)',
-                                },
-                                '& .MuiChip-deleteIcon': {
-                                    color: '#dc3545',
-                                    '&:hover': {
-                                        color: '#c82333',
-                                    }
-                                }
-                            }}
+                            className="attached-effects__secondary-chip"
                         />
                     ))}
                     {(attachedEffects?.secondary || []).length === 0 && (
-                        <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic', py: 1 }}>
+                        <Typography variant="body2" className="attached-effects__empty-state">
                             No secondary effects attached
                         </Typography>
                     )}
@@ -103,34 +76,26 @@ const AttachedEffectsDisplay = ({
             </Box>
 
             {/* Key Frame Effects */}
-            <Box>
+            <Box className="attached-effects__section">
                 <Box
                     display="flex"
                     justifyContent="space-between"
                     alignItems="center"
-                    sx={{ mb: 1 }}
+                    className="attached-effects__section-header attached-effects__section-header-spacing"
                 >
-                    <Typography variant="subtitle2" sx={{ color: '#007bff', fontWeight: 600 }}>
+                    <Typography variant="subtitle2" className="attached-effects__keyframe-title">
                         🔑 Key Frame Effects ({(attachedEffects?.keyFrame || []).length})
                     </Typography>
                     <Button
                         onClick={() => onOpenAttachmentModal('keyFrame')}
                         variant="contained"
                         size="small"
-                        sx={{
-                            background: 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)',
-                            fontSize: '0.75rem',
-                            py: 0.5,
-                            px: 1.5,
-                            '&:hover': {
-                                background: 'linear-gradient(135deg, #0056b3 0%, #007bff 100%)',
-                            }
-                        }}
+                        className="attached-effects__keyframe-btn"
                     >
                         + Attach Key Frame
                     </Button>
                 </Box>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, minHeight: '2rem' }}>
+                <Box className="attached-effects__effects-container">
                     {(attachedEffects?.keyFrame || []).map(effect => (
                         <Chip
                             key={effect.id}
@@ -138,25 +103,11 @@ const AttachedEffectsDisplay = ({
                             onClick={() => onEditAttachedEffect('keyFrame', effect)}
                             onDelete={() => onRemoveAttachedEffect && onRemoveAttachedEffect('keyFrame', effect.id)}
                             clickable
-                            sx={{
-                                backgroundColor: 'rgba(0, 123, 255, 0.2)',
-                                color: '#007bff',
-                                fontSize: '0.75rem',
-                                '&:hover': {
-                                    backgroundColor: 'rgba(0, 123, 255, 0.3)',
-                                    transform: 'scale(1.05)',
-                                },
-                                '& .MuiChip-deleteIcon': {
-                                    color: '#dc3545',
-                                    '&:hover': {
-                                        color: '#c82333',
-                                    }
-                                }
-                            }}
+                            className="attached-effects__keyframe-chip"
                         />
                     ))}
                     {(attachedEffects?.keyFrame || []).length === 0 && (
-                        <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic', py: 1 }}>
+                        <Typography variant="body2" className="attached-effects__empty-state">
                             No key frame effects attached
                         </Typography>
                     )}

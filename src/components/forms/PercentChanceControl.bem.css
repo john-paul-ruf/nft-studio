@@ -1,0 +1,95 @@
+/**
+ * PercentChanceControl Component - BEM CSS
+ * Probability control interface with slider and numeric input
+ * Features: Validation, decimal clamping, debounced updates
+ * 
+ * Design Tokens Used:
+ * - --color-primary: Primary accent color for slider
+ * - --text-primary: Primary text color for headings
+ * - --text-secondary: Secondary text color for labels
+ * - --divider: Border color for container
+ * - --shadow-light: Light shadow for backgrounds
+ */
+
+/* ============================================================================
+   Container
+   ========================================================================== */
+
+.percent-chance__container {
+    background: var(--background-paper) !important;
+    border: 1px solid var(--divider) !important;
+    margin-top: var(--space-4);
+    padding: var(--space-4);
+    border-radius: var(--radius-md);
+}
+
+/* ============================================================================
+   Title
+   ========================================================================== */
+
+.percent-chance__title {
+    color: var(--text-primary) !important;
+    margin-bottom: var(--space-4);
+}
+
+/* ============================================================================
+   Label
+   ========================================================================== */
+
+.percent-chance__label {
+    color: var(--text-secondary) !important;
+    min-width: 120px;
+}
+
+/* ============================================================================
+   Controls Container
+   ========================================================================== */
+
+.percent-chance__controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+/* ============================================================================
+   Slider
+   ========================================================================== */
+
+.percent-chance__slider {
+    color: var(--color-primary) !important;
+    flex: 1;
+}
+
+.percent-chance__slider .MuiSlider-track {
+    background-color: var(--color-primary) !important;
+}
+
+.percent-chance__slider .MuiSlider-rail {
+    background-color: var(--divider) !important;
+}
+
+/* ============================================================================
+   Input Field
+   ========================================================================== */
+
+.percent-chance__input {
+    width: 80px;
+}
+
+.percent-chance__input .MuiInputBase-root {
+    background-color: var(--background-default) !important;
+    color: var(--text-primary) !important;
+}
+
+.percent-chance__input input {
+    text-align: center;
+}
+
+/* ============================================================================
+   Percent Symbol
+   ========================================================================== */
+
+.percent-chance__percent-symbol {
+    color: var(--text-secondary) !important;
+    margin-left: var(--space-1);
+}

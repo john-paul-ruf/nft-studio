@@ -1,0 +1,254 @@
+/* MultiStepInput.bem.css - BEM-based styling for multi-step timeline input */
+
+.multi-step-input {
+    margin-bottom: 1rem;
+}
+
+/* Header section with label and action buttons */
+.multi-step-input__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.multi-step-input__label {
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+/* Button container */
+.multi-step-input__button-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Base button styling */
+.multi-step-input__button {
+    border: none;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    color: white;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+/* Add step button */
+.multi-step-input__button--add {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+.multi-step-input__button--add:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+.multi-step-input__button--add:active {
+    transform: translateY(0);
+}
+
+/* Normalize button */
+.multi-step-input__button--normalize {
+    background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+}
+
+.multi-step-input__button--normalize:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+}
+
+.multi-step-input__button--normalize:active {
+    transform: translateY(0);
+}
+
+/* Remove step button */
+.multi-step-input__button--remove {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+}
+
+.multi-step-input__button--remove:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+.multi-step-input__button--remove:active {
+    transform: translateY(0);
+}
+
+/* Timeline progress bar section */
+.multi-step-input__timeline {
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    border: 2px solid;
+}
+
+.multi-step-input__timeline--normalized {
+    border-color: #28a745;
+}
+
+.multi-step-input__timeline--incomplete {
+    border-color: #ffc107;
+}
+
+/* Timeline header */
+.multi-step-input__timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.multi-step-input__timeline-label {
+    color: #cccccc;
+    font-size: 0.9rem;
+}
+
+.multi-step-input__timeline-percentage {
+    font-weight: bold;
+}
+
+.multi-step-input__timeline-percentage--normalized {
+    color: #28a745;
+}
+
+.multi-step-input__timeline-percentage--incomplete {
+    color: #ffc107;
+}
+
+/* Progress bar container */
+.multi-step-input__progress-bar {
+    height: 20px;
+    background: #333;
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+}
+
+/* Individual step segment in progress bar */
+.multi-step-input__step-segment {
+    height: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+/* Steps configuration container */
+.multi-step-input__steps-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Individual step card */
+.multi-step-input__step-card {
+    padding: 1rem;
+    border-radius: 8px;
+    border: 2px solid;
+}
+
+/* Step card header (title + remove button) */
+.multi-step-input__step-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.multi-step-input__step-title {
+    margin: 0;
+    font-size: 1rem;
+}
+
+/* Timeline range (percentage inputs) */
+.multi-step-input__timeline-range {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.multi-step-input__range-section {
+    display: flex;
+    flex-direction: column;
+}
+
+.multi-step-input__range-label {
+    color: #cccccc;
+    font-size: 0.9rem;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.multi-step-input__range-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 0.5rem;
+    color: #ffffff;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.multi-step-input__range-input:focus {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: #555;
+    outline: none;
+}
+
+/* Algorithm type section */
+.multi-step-input__algorithm-section {
+    margin-bottom: 1rem;
+}
+
+.multi-step-input__algorithm-label {
+    color: #cccccc;
+    font-size: 0.9rem;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.multi-step-input__algorithm-select {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 0.5rem;
+    color: #ffffff;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.multi-step-input__algorithm-select:focus {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: #555;
+    outline: none;
+}
+
+.multi-step-input__algorithm-select:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.multi-step-input__algorithm-select option {
+    background: #333;
+    color: #fff;
+}
+
+/* Range input component wrappers */
+.multi-step-input__max-range-section {
+    margin-bottom: 1rem;
+}
+
+.multi-step-input__times-range-section {
+    margin-bottom: 0;
+}

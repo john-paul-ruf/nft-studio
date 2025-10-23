@@ -1,0 +1,110 @@
+/**
+ * EffectsPanelErrorBoundary.bem.css
+ * 
+ * BEM styling for the EffectsPanelErrorBoundary component.
+ * Handles fallback UI error display with error message and stack trace formatting.
+ */
+
+/* Block: Error fallback container */
+.error-boundary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: var(--space-3);
+    background-color: var(--background-default);
+}
+
+/* Block: Paper/Card element */
+.error-boundary__paper {
+    padding: var(--space-3);
+    max-width: 500px;
+    text-align: center;
+}
+
+/* Error icon */
+.error-boundary__icon {
+    font-size: 48px;
+    margin-bottom: var(--space-2);
+}
+
+/* Main error title */
+.error-boundary__title {
+    margin-bottom: var(--space-1);
+    font-weight: 600;
+}
+
+/* Error description text */
+.error-boundary__description {
+    margin-bottom: var(--space-2);
+    opacity: 0.9;
+}
+
+/* Error display container */
+.error-boundary__error-display {
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: var(--space-2);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--space-2);
+    text-align: left;
+    font-family: monospace;
+    font-size: 11px;
+    max-height: 200px;
+    overflow: auto;
+}
+
+/* Error message section label */
+.error-boundary__error-label {
+    font-weight: 600;
+    margin-bottom: var(--space-1);
+}
+
+/* Error message text content */
+.error-boundary__error-message {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Component stack section label */
+.error-boundary__stack-label {
+    font-weight: 600;
+    margin-top: var(--space-1);
+    margin-bottom: var(--space-1);
+}
+
+/* Component stack trace text */
+.error-boundary__stack-trace {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 10px;
+}
+
+/* Action buttons container */
+.error-boundary__actions {
+    display: flex;
+    gap: var(--space-2);
+    justify-content: center;
+}
+
+/* Reset button styling */
+.error-boundary__button-reset {
+    background-color: var(--error-light);
+    color: var(--error-dark);
+}
+
+.error-boundary__button-reset:hover {
+    background-color: var(--error-lighter, var(--error-light));
+}
+
+/* Export button styling */
+.error-boundary__button-export {
+    color: var(--error-contrast-text);
+    border-color: var(--error-contrast-text);
+}
+
+/* Footer text */
+.error-boundary__footer {
+    display: block;
+    margin-top: var(--space-2);
+    opacity: 0.7;
+}

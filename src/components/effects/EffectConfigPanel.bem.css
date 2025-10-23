@@ -1,0 +1,88 @@
+/**
+ * EffectConfigPanel Component - BEM CSS
+ * Flyout drawer configuration panel for effects
+ * Features: Responsive width, smooth transitions, keyboard support
+ * 
+ * CSS Variables (Theme-Dependent):
+ * - --effect-config-panel-bg: Background color (from theme.palette.background.paper)
+ * - --effect-config-panel-border: Border color (from theme.palette.divider)
+ */
+
+/* ============================================================================
+   Main Container
+   ========================================================================== */
+
+.effect-config-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    min-width: 100%;
+    overflow: hidden;
+    background-color: var(--effect-config-panel-bg, var(--color-bg-paper));
+    border-left: 1px solid;
+    border-color: var(--effect-config-panel-border, var(--color-border));
+    transition: width 0.3s ease-in-out, min-width 0.3s ease-in-out;
+    box-sizing: border-box;
+}
+
+/* Expanded state - width varies by breakpoint */
+.effect-config-panel[style*="--effect-config-panel-width: auto"] {
+    min-width: auto;
+}
+
+/* ============================================================================
+   Responsive Width States - Media Queries (MUI Breakpoints)
+   ========================================================================== */
+
+/* Extra small screens (xs: < 600px) - 100% width when expanded */
+@media (max-width: 599px) {
+    .effect-config-panel[style*="--effect-config-panel-width: auto"] {
+        width: 100%;
+    }
+}
+
+/* Small screens (sm: 600px - 960px) - 400px width when expanded */
+@media (min-width: 600px) and (max-width: 959px) {
+    .effect-config-panel[style*="--effect-config-panel-width: auto"] {
+        width: 400px;
+    }
+}
+
+/* Medium screens and up (md: >= 960px) - 450px width when expanded */
+@media (min-width: 960px) {
+    .effect-config-panel[style*="--effect-config-panel-width: auto"] {
+        width: 450px;
+    }
+}
+
+/* ============================================================================
+   Flyout Container
+   ========================================================================== */
+
+.effect-config-panel__flyout {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+}
+
+/* ============================================================================
+   Configuration Content Area (Scrollable)
+   ========================================================================== */
+
+.effect-config-panel__content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* ============================================================================
+   Loading State
+   ========================================================================== */
+
+.effect-config-panel__loading {
+    color: var(--effect-config-panel-text-secondary, var(--color-text-secondary));
+    text-align: center;
+    padding: var(--space-4);
+}

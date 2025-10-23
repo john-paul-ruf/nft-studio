@@ -1,0 +1,22 @@
+/* Effects List Components — Icon Sizing Classes */
+
+/* Small icons (14px) - used in KeyframeEffectsList and SecondaryEffectsList */
+.effects-list__icon--small {
+    font-size: 14px;
+}
+
+/* Medium icons (16px) - used in EffectItem */
+.effects-list__icon--medium {
+    font-size: 16px;
+}
+
+/* Icon with margin - for context menu items */
+.effects-list__icon--with-margin-right {
+    margin-right: var(--space-1);
+}
+
+/* Context menu delete icon styling */
+.effects-list__context-item-icon {
+    font-size: 14px;
+    margin-right: var(--space-1);
+}

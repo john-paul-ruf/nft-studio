@@ -1,4 +1,5 @@
-import React, { forwardRef, useEffect } from 'react';
+import React, { forwardRef, useEffect, useMemo } from 'react';
+import './CanvasViewport.bem.css';
 
 const CanvasViewport = forwardRef(({
     dimensions,
@@ -70,24 +71,22 @@ const CanvasViewport = forwardRef(({
         }
     }, [renderResult, dimensions]);
 
+    const frameHolderClassName = [
+        'canvas-viewport__frame-holder',
+        isDragging && 'canvas-viewport__frame-holder--dragging'
+    ].filter(Boolean).join(' ');
+
     return (
         <div
-            className="canvas-area"
-            style={{
-                backgroundColor: currentTheme.palette.background.default,
-                color: currentTheme.palette.text.primary,
-            }}
+            className="canvas-viewport__area"
         >
             <div
                 ref={frameHolderRef}
-                className="frame-holder"
+                className={frameHolderClassName}
                 style={{
-                    width: `${dimensions.w}px`,
-                    height: `${dimensions.h}px`,
-                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                    transformOrigin: 'center',
-                    cursor: isDragging ? 'grabbing' : 'grab',
-                    transition: isDragging ? 'none' : 'transform 0.1s ease'
+                    width: `var(--frame-holder-width)`,
+                    height: `var(--frame-holder-height)`,
+                    transform: `var(--frame-holder-transform)`,
                 }}
                 onMouseDown={onMouseDown}
                 onWheel={onWheel}
@@ -96,16 +95,16 @@ const CanvasViewport = forwardRef(({
                     ref={canvasRef}
                     width={dimensions.w}
                     height={dimensions.h}
-                    className="render-canvas"
+                    className="canvas-viewport__render-canvas"
                 />
                 {isRendering && (
-                    <div className="canvas-overlay">
-                        <div className="render-spinner-container">
-                            <div className="render-spinner">
-                                <div className="spinner-circle"></div>
-                                <div className="spinner-timer">{renderTimer}s</div>
+                    <div className="canvas-viewport__overlay">
+                        <div className="canvas-viewport__spinner-container">
+                            <div className="canvas-viewport__spinner">
+                                <div className="canvas-viewport__spinner-circle"></div>
+                                <div className="canvas-viewport__spinner-timer">{renderTimer}s</div>
                             </div>
-                            <div className="render-message">Generating frame...</div>
+                            <div className="canvas-viewport__render-message">Generating frame...</div>
                         </div>
                     </div>
                 )}

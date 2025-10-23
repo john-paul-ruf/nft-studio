@@ -1,0 +1,134 @@
+/**
+ * BEM Classes for BulkAddKeyframeModal
+ * Manages layout, spacing, and styling for bulk keyframe effect addition workflow
+ */
+
+/* Dialog Container */
+.bulk-add-keyframe-modal {
+  /* Inherits from Dialog/Paper default styles */
+}
+
+.bulk-add-keyframe-modal__header {
+  padding-bottom: var(--space-1);
+}
+
+.bulk-add-keyframe-modal__header-content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.bulk-add-keyframe-modal__content {
+  padding-top: var(--space-3);
+}
+
+.bulk-add-keyframe-modal__actions {
+  padding-left: var(--space-3);
+  padding-right: var(--space-3);
+  padding-bottom: var(--space-3);
+}
+
+.bulk-add-keyframe-modal__actions-spacer {
+  flex: 1;
+}
+
+/* Step Content Wrappers */
+.bulk-add-keyframe-modal__step-content {
+  /* Base step container */
+}
+
+.bulk-add-keyframe-modal__description {
+  margin-bottom: var(--space-3);
+}
+
+/* Step 0: Effect Selection */
+.bulk-add-keyframe-modal__effects-grid {
+  /* Grid container is handled by MUI Grid component */
+}
+
+.bulk-add-keyframe-modal__effect-card {
+  /* Base card styling */
+  border: 2px solid transparent;
+  transition: all var(--duration-2) var(--ease-standard);
+}
+
+.bulk-add-keyframe-modal__effect-card--selected {
+  border: 2px solid var(--color-primary) !important;
+  background-color: color-mix(in srgb, var(--color-primary) 10%, transparent) !important;
+}
+
+.bulk-add-keyframe-modal__effect-card-content {
+  text-align: center;
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-3);
+}
+
+.bulk-add-keyframe-modal__effect-icon {
+  font-size: 40px;
+  margin-bottom: var(--space-2);
+  color: var(--color-text-secondary);
+  transition: color var(--duration-2) var(--ease-standard);
+}
+
+.bulk-add-keyframe-modal__effect-icon--selected {
+  color: var(--color-primary);
+}
+
+.bulk-add-keyframe-modal__no-effects-message {
+  text-align: center;
+  padding-top: var(--space-4);
+  padding-bottom: var(--space-4);
+}
+
+/* Step 1: Configuration */
+.bulk-add-keyframe-modal__position-picker-container {
+  margin-bottom: var(--space-3);
+}
+
+.bulk-add-keyframe-modal__position-divider {
+  margin-top: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+/* Step 2: Frame Range */
+.bulk-add-keyframe-modal__frame-range-section {
+  margin-bottom: var(--space-4);
+}
+
+.bulk-add-keyframe-modal__frame-range-label {
+  margin-bottom: var(--space-2);
+}
+
+.bulk-add-keyframe-modal__frame-range-slider {
+  margin-bottom: var(--space-2);
+}
+
+.bulk-add-keyframe-modal__frame-inputs-container {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.bulk-add-keyframe-modal__frame-input {
+  flex: 1;
+}
+
+.bulk-add-keyframe-modal__num-effects-input {
+  margin-bottom: var(--space-3);
+}
+
+.bulk-add-keyframe-modal__summary-box {
+  padding: var(--space-2);
+  background-color: var(--background-default);
+  border-radius: var(--radius-md);
+}
+
+.bulk-add-keyframe-modal__summary-chip {
+  margin-left: var(--space-1);
+  margin-right: var(--space-1);
+}
+
+/* Stepper */
+.bulk-add-keyframe-modal__stepper {
+  margin-bottom: var(--space-4);
+}

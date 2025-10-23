@@ -1,4 +1,6 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
+import './EffectInput.bem.css';
+import './PercentageRangeInput.bem.css';
 
 function PercentageRangeInput({ field, value, onChange }) {
     // Use a ref to always have the latest value
@@ -261,48 +263,28 @@ function PercentageRangeInput({ field, value, onChange }) {
     };
 
     return (
-        <div className="percentage-range-input">
-            <label style={{ color: '#ffffff', marginBottom: '0.5rem', display: 'block' }}>
+        <div className="effect-input effect-input__percentage-range">
+            <label className="percentage-range-input__label">
                 {field.label}
             </label>
-            <div style={{
-                background: 'rgba(255,255,255,0.05)',
-                padding: '0.75rem',
-                borderRadius: '4px',
-                border: '1px solid rgba(255,255,255,0.1)'
-            }}>
-                <div style={{ marginBottom: '0.75rem' }}>
-                    <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: '0.25rem'
-                    }}>
-                        <label style={{ fontSize: '0.8rem', color: '#ccc' }}>
+            <div className="percentage-range-input__controls">
+                <div className="percentage-range-input__section-wrapper">
+                    <div className="percentage-range-input__section-header">
+                        <label className="percentage-range-input__section-label">
                             Lower bound
                         </label>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <div className="percentage-range-input__input-row">
                             <input
                                 type="text"
                                 value={lowerInputValue}
                                 onChange={handleLowerInputChange}
                                 onFocus={(e) => e.target.select()}
-                                style={{
-                                    width: '50px',
-                                    textAlign: 'center',
-                                    background: 'rgba(255,255,255,0.1)',
-                                    border: '1px solid rgba(255,255,255,0.2)',
-                                    color: '#67eea5',
-                                    padding: '0.15rem 0.25rem',
-                                    borderRadius: '3px',
-                                    fontWeight: 'bold',
-                                    fontSize: '0.75rem'
-                                }}
+                                className="percentage-range-input__input"
                             />
-                            <span style={{ fontSize: '0.75rem', color: '#67eea5', fontWeight: 'bold' }}>%</span>
+                            <span className="percentage-range-input__percent-symbol">%</span>
                         </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <div className="percentage-range-input__side-row">
                         <select
                             value={currentValue.lower?.side || 'shortest'}
                             onChange={(e) => {
@@ -321,56 +303,33 @@ function PercentageRangeInput({ field, value, onChange }) {
                                 console.log(`[PercentageRangeInput] ${field.name} lower side changed to:`, newSide, 'Full value:', newValue);
                                 onChange(field.name, newValue);
                             }}
-                            style={{
-                                background: 'rgba(255,255,255,0.1)',
-                                color: '#fff',
-                                border: '1px solid rgba(255,255,255,0.2)',
-                                borderRadius: '4px',
-                                padding: '0.25rem',
-                                fontSize: '0.8rem',
-                                minWidth: '100px'
-                            }}
+                            className="percentage-range-input__side-select"
                         >
-                            <option value="shortest" style={{ background: '#333', color: '#fff' }}>Shortest Side</option>
-                            <option value="longest" style={{ background: '#333', color: '#fff' }}>Longest Side</option>
+                            <option value="shortest">Shortest Side</option>
+                            <option value="longest">Longest Side</option>
                         </select>
-                        <span style={{ fontSize: '0.8rem', color: '#888', alignSelf: 'center' }}>
+                        <span className="percentage-range-input__canvas-label">
                             of canvas
                         </span>
                     </div>
                 </div>
-                <div>
-                    <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: '0.25rem'
-                    }}>
-                        <label style={{ fontSize: '0.8rem', color: '#ccc' }}>
+                <div className="percentage-range-input__section-wrapper">
+                    <div className="percentage-range-input__section-header">
+                        <label className="percentage-range-input__section-label">
                             Upper bound
                         </label>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <div className="percentage-range-input__input-row">
                             <input
                                 type="text"
                                 value={upperInputValue}
                                 onChange={handleUpperInputChange}
                                 onFocus={(e) => e.target.select()}
-                                style={{
-                                    width: '50px',
-                                    textAlign: 'center',
-                                    background: 'rgba(255,255,255,0.1)',
-                                    border: '1px solid rgba(255,255,255,0.2)',
-                                    color: '#67eea5',
-                                    padding: '0.15rem 0.25rem',
-                                    borderRadius: '3px',
-                                    fontWeight: 'bold',
-                                    fontSize: '0.75rem'
-                                }}
+                                className="percentage-range-input__input"
                             />
-                            <span style={{ fontSize: '0.75rem', color: '#67eea5', fontWeight: 'bold' }}>%</span>
+                            <span className="percentage-range-input__percent-symbol">%</span>
                         </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <div className="percentage-range-input__side-row">
                         <select
                             value={currentValue.upper?.side || 'longest'}
                             onChange={(e) => {
@@ -389,30 +348,17 @@ function PercentageRangeInput({ field, value, onChange }) {
                                 console.log(`[PercentageRangeInput] ${field.name} upper side changed to:`, newSide, 'Full value:', newValue);
                                 onChange(field.name, newValue);
                             }}
-                            style={{
-                                background: 'rgba(255,255,255,0.1)',
-                                color: '#fff',
-                                border: '1px solid rgba(255,255,255,0.2)',
-                                borderRadius: '4px',
-                                padding: '0.25rem',
-                                fontSize: '0.8rem',
-                                minWidth: '100px'
-                            }}
+                            className="percentage-range-input__side-select"
                         >
-                            <option value="shortest" style={{ background: '#333', color: '#fff' }}>Shortest Side</option>
-                            <option value="longest" style={{ background: '#333', color: '#fff' }}>Longest Side</option>
+                            <option value="shortest">Shortest Side</option>
+                            <option value="longest">Longest Side</option>
                         </select>
-                        <span style={{ fontSize: '0.8rem', color: '#888', alignSelf: 'center' }}>
+                        <span className="percentage-range-input__canvas-label">
                             of canvas
                         </span>
                     </div>
                 </div>
-                <div style={{
-                    marginTop: '0.5rem',
-                    fontSize: '0.7rem',
-                    color: '#888',
-                    textAlign: 'center'
-                }}>
+                <div className="percentage-range-input__range-display">
                     Range: {formatPercentage(currentValue.lower?.percent || 0)}% ({currentValue.lower?.side || 'shortest'}) - {formatPercentage(currentValue.upper?.percent || 0)}% ({currentValue.upper?.side || 'longest'})
                 </div>
             </div>

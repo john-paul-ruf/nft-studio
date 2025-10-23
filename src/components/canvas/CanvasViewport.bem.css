@@ -1,0 +1,483 @@
+/**
+ * Canvas Viewport Component - BEM CSS
+ * Interactive canvas area for rendering NFT frames with zoom/pan controls
+ * Features: Responsive canvas display, loading spinner overlay, interactive interactions
+ * 
+ * CSS Variables (Theme-Dependent):
+ * - --canvas-viewport-bg: Canvas area background color
+ * - --canvas-viewport-text: Canvas area text color
+ * - --frame-holder-width: Width of frame container (dynamic)
+ * - --frame-holder-height: Height of frame container (dynamic)
+ * - --frame-holder-transform: Transform translate and scale for frame container (dynamic)
+ */
+
+/* ============================================================================
+   Root Container & Layout
+   ========================================================================== */
+
+.canvas-viewport {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    background-color: var(--color-bg-secondary);
+}
+
+/* ============================================================================
+   Canvas Area (Checkerboard Background for Transparency)
+   ========================================================================== */
+
+.canvas-viewport__area {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: auto;
+    padding: var(--space-lg);
+    
+    /* Theme-dependent colors */
+    background-color: var(--canvas-viewport-bg, var(--color-bg)) !important;
+    color: var(--canvas-viewport-text, var(--color-fg)) !important;
+    
+    /* Smooth scrolling for panning */
+    scroll-behavior: smooth;
+}
+
+/* Custom scrollbar styling */
+.canvas-viewport__area::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.canvas-viewport__area::-webkit-scrollbar-track {
+    background: var(--color-bg-secondary);
+}
+
+.canvas-viewport__area::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: var(--radius-sm);
+    transition: background var(--duration-1) var(--ease-standard);
+}
+
+.canvas-viewport__area::-webkit-scrollbar-thumb:hover {
+    background: var(--color-primary);
+}
+
+/* ============================================================================
+   Frame Holder (Interactive Canvas Container)
+   ========================================================================== */
+
+.canvas-viewport__frame-holder {
+    position: relative;
+    flex-shrink: 0;
+    background-color: #000000;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+    
+    /* Dynamic dimensions from CSS variables */
+    width: var(--frame-holder-width, 1920px);
+    height: var(--frame-holder-height, 1080px);
+    
+    /* Dynamic transform from CSS variables */
+    transform: var(--frame-holder-transform, translate(0px, 0px) scale(1));
+    
+    /* Transform origin for zoom/pan interactions */
+    transform-origin: center;
+    
+    /* Smooth transitions when not dragging */
+    transition: transform var(--duration-2) var(--ease-standard);
+    
+    /* Interactive cursor states */
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    
+    /* Prevent text selection during interactions */
+    -webkit-touch-callout: none;
+    -webkit-user-drag: none;
+}
+
+/* Active dragging state - immediate response, no transition */
+.canvas-viewport__frame-holder.canvas-viewport__frame-holder--dragging {
+    cursor: grabbing;
+    transition: none;
+}
+
+/* Enhanced focus state for keyboard navigation */
+.canvas-viewport__frame-holder:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* ============================================================================
+   Canvas Element
+   ========================================================================== */
+
+.canvas-viewport__render-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    
+    /* Smooth rendering during zoom/pan */
+    image-rendering: auto;
+    
+    /* Prevent selection during interaction */
+    user-select: none;
+}
+
+/* High-DPI canvas optimization */
+@media (resolution: 2dppx) {
+    .canvas-viewport__render-canvas {
+        image-rendering: -webkit-optimize-contrast;
+    }
+}
+
+/* ============================================================================
+   Loading Overlay
+   ========================================================================== */
+
+.canvas-viewport__overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: color-mix(in oklab, #000 70%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    
+    /* Smooth fade-in animation */
+    animation: canvas-viewport-overlay-fade 250ms var(--ease-standard) forwards;
+    backdrop-filter: blur(2px);
+}
+
+@keyframes canvas-viewport-overlay-fade {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .canvas-viewport__overlay {
+        animation: none;
+        opacity: 1;
+    }
+}
+
+/* ============================================================================
+   Spinner Container & Layout
+   ========================================================================== */
+
+.canvas-viewport__spinner-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-lg);
+    
+    /* Animation entrance */
+    animation: canvas-viewport-spinner-pop 300ms var(--ease-standard) forwards;
+    transform-origin: center;
+}
+
+@keyframes canvas-viewport-spinner-pop {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .canvas-viewport__spinner-container {
+        animation: none;
+        opacity: 1;
+    }
+}
+
+/* ============================================================================
+   Spinner Wrapper (Position Relative for Absolute Timer)
+   ========================================================================== */
+
+.canvas-viewport__spinner {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* ============================================================================
+   Animated Spinner Circle
+   ========================================================================== */
+
+.canvas-viewport__spinner-circle {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-width: 6px;
+    border-style: solid;
+    
+    /* Design token color for success/render state */
+    border-color: color-mix(in oklab, var(--color-primary) 30%, transparent);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    
+    /* Smooth continuous rotation */
+    animation: canvas-viewport-spinner-rotate 1.2s linear infinite;
+    
+    /* GPU acceleration for smooth rotation */
+    transform: translateZ(0);
+    will-change: transform;
+}
+
+@keyframes canvas-viewport-spinner-rotate {
+    0% {
+        transform: rotate(0deg) translateZ(0);
+    }
+    100% {
+        transform: rotate(360deg) translateZ(0);
+    }
+}
+
+/* Reduced motion: static spinner with minimal visual change */
+@media (prefers-reduced-motion: reduce) {
+    .canvas-viewport__spinner-circle {
+        animation: canvas-viewport-spinner-pulse 1.5s var(--ease-standard) infinite;
+    }
+}
+
+@keyframes canvas-viewport-spinner-pulse {
+    0%, 100% {
+        opacity: 1;
+        border-top-color: var(--color-primary);
+    }
+    50% {
+        opacity: 0.6;
+        border-top-color: color-mix(in oklab, var(--color-primary) 60%, transparent);
+    }
+}
+
+/* ============================================================================
+   Timer Display (Absolute Centered in Spinner)
+   ========================================================================== */
+
+.canvas-viewport__spinner-timer {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    
+    /* Visual styling */
+    color: var(--color-primary);
+    font-size: 24px;
+    font-weight: 700;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', monospace;
+    text-align: center;
+    line-height: 1;
+    
+    /* Subtle glow effect */
+    text-shadow: 
+        0 0 10px color-mix(in oklab, var(--color-primary) 50%, transparent),
+        0 0 20px color-mix(in oklab, var(--color-primary) 20%, transparent);
+    
+    /* High z-index to appear above circle */
+    z-index: 10;
+    
+    /* Pulse effect on timer */
+    animation: canvas-viewport-timer-pulse 1s var(--ease-standard) infinite;
+    
+    /* Ensure mono rendering for timer consistency */
+    font-variant-numeric: tabular-nums;
+}
+
+@keyframes canvas-viewport-timer-pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .canvas-viewport__spinner-timer {
+        animation: none;
+        opacity: 1;
+        text-shadow: none;
+    }
+}
+
+/* High contrast mode: enhanced timer visibility */
+@media (prefers-contrast: more) {
+    .canvas-viewport__spinner-timer {
+        text-shadow: 
+            0 0 15px var(--color-primary),
+            0 0 30px var(--color-primary);
+        font-weight: 900;
+    }
+}
+
+/* ============================================================================
+   Loading Message
+   ========================================================================== */
+
+.canvas-viewport__render-message {
+    color: var(--color-fg);
+    font-size: 16px;
+    font-weight: 500;
+    text-align: center;
+    letter-spacing: 0.25px;
+    
+    /* Smooth entrance animation */
+    animation: canvas-viewport-message-fade 400ms var(--ease-standard) 100ms both;
+}
+
+@keyframes canvas-viewport-message-fade {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .canvas-viewport__render-message {
+        animation: none;
+        opacity: 1;
+    }
+}
+
+/* ============================================================================
+   Responsive Design
+   ========================================================================== */
+
+/* Tablet & Small Screens */
+@media (max-width: 768px) {
+    .canvas-viewport__area {
+        padding: var(--space-md);
+    }
+    
+    .canvas-viewport__frame-holder {
+        border-radius: var(--radius-sm);
+    }
+    
+    .canvas-viewport__spinner {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .canvas-viewport__spinner-circle {
+        border-width: 5px;
+    }
+    
+    .canvas-viewport__spinner-timer {
+        font-size: 20px;
+    }
+    
+    .canvas-viewport__render-message {
+        font-size: 14px;
+    }
+}
+
+/* Mobile Screens */
+@media (max-width: 480px) {
+    .canvas-viewport__area {
+        padding: var(--space-sm);
+    }
+    
+    .canvas-viewport__spinner {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .canvas-viewport__spinner-circle {
+        border-width: 4px;
+    }
+    
+    .canvas-viewport__spinner-timer {
+        font-size: 16px;
+    }
+    
+    .canvas-viewport__render-message {
+        font-size: 13px;
+    }
+    
+    .canvas-viewport__spinner-container {
+        gap: var(--space-md);
+    }
+}
+
+/* ============================================================================
+   Accessibility & Color Contrast
+   ========================================================================== */
+
+/* High contrast mode: enhanced borders and visibility */
+@media (prefers-contrast: more) {
+    .canvas-viewport__area {
+        border: 1px solid var(--color-fg);
+    }
+    
+    .canvas-viewport__frame-holder {
+        border-width: 2px;
+        border-color: var(--color-fg);
+    }
+    
+    .canvas-viewport__overlay {
+        background: color-mix(in oklab, #000 85%, transparent);
+    }
+}
+
+/* Forced colors mode (Windows high contrast) */
+@media (forced-colors: active) {
+    .canvas-viewport__frame-holder {
+        border: 2px solid CanvasText;
+    }
+    
+    .canvas-viewport__spinner-circle {
+        border-top-color: Highlight;
+        border-color: SelectedItemText;
+    }
+    
+    .canvas-viewport__spinner-timer {
+        color: Highlight;
+        text-shadow: none;
+    }
+}
+
+/* ============================================================================
+   Print Styles (When component is printed)
+   ========================================================================== */
+
+@media print {
+    .canvas-viewport__overlay {
+        display: none;
+    }
+    
+    .canvas-viewport__spinner-container {
+        display: none;
+    }
+}

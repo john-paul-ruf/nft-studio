@@ -382,57 +382,111 @@ export class DeleteEffectCommand extends Command {
 
 /**
  * Command to reorder effects in the main effects list
+ * 🔒 CRITICAL: Uses effect IDs (not indices) to prevent stale reference bugs after reordering
  */
 export class ReorderEffectsCommand extends Command {
-    constructor(projectState, fromIndex, toIndex) {
+    constructor(projectState, fromIdOrIndex, toIdOrIndex) {
         let movedEffect = null;
+        let resolvedFromIndex = null;
+        let resolvedToIndex = null;
 
         const executeAction = () => {
             const currentEffects = projectState.getState().effects || [];
 
-            if (fromIndex < 0 || fromIndex >= currentEffects.length ||
-                toIndex < 0 || toIndex >= currentEffects.length) {
-                throw new Error(`Invalid indices for reorder: from ${fromIndex} to ${toIndex}`);
+            // 🔒 CRITICAL: Resolve effect IDs to current indices at execution time
+            // This prevents stale index bugs when effects are reordered between command creation and execution
+            let fromIdx, toIdx;
+            
+            if (typeof fromIdOrIndex === 'string') {
+                // ID-based resolution (preferred, stable across reorders)
+                fromIdx = currentEffects.findIndex(e => e.id === fromIdOrIndex);
+                if (fromIdx === -1) {
+                    throw new Error(`Effect with ID ${fromIdOrIndex} not found (may have been deleted)`);
+                }
+                console.log('🔄 ReorderEffectsCommand: Resolved fromId to index:', {
+                    effectId: fromIdOrIndex,
+                    resolvedIndex: fromIdx
+                });
+            } else {
+                // Index-based resolution (legacy, may be stale)
+                fromIdx = fromIdOrIndex;
+                console.warn('⚠️ ReorderEffectsCommand: Using index-based resolution for fromIndex (may be unreliable after reorders)');
             }
 
-            movedEffect = currentEffects[fromIndex];
+            if (typeof toIdOrIndex === 'string') {
+                // ID-based resolution (preferred, stable across reorders)
+                toIdx = currentEffects.findIndex(e => e.id === toIdOrIndex);
+                if (toIdx === -1) {
+                    throw new Error(`Effect with ID ${toIdOrIndex} not found (may have been deleted)`);
+                }
+                console.log('🔄 ReorderEffectsCommand: Resolved toId to index:', {
+                    effectId: toIdOrIndex,
+                    resolvedIndex: toIdx
+                });
+            } else {
+                // Index-based resolution (legacy, may be stale)
+                toIdx = toIdOrIndex;
+                console.warn('⚠️ ReorderEffectsCommand: Using index-based resolution for toIndex (may be unreliable after reorders)');
+            }
+
+            if (fromIdx < 0 || fromIdx >= currentEffects.length ||
+                toIdx < 0 || toIdx >= currentEffects.length) {
+                throw new Error(`Invalid indices for reorder: from ${fromIdx} to ${toIdx}`);
+            }
+
+            // Store resolved indices for undo operation
+            resolvedFromIndex = fromIdx;
+            resolvedToIndex = toIdx;
+
+            movedEffect = currentEffects[fromIdx];
+            
+            // Safety check: ensure we have a valid effect to move
+            if (!movedEffect) {
+                throw new Error(`No effect found at index ${fromIdx}`);
+            }
+
             const newEffects = [...currentEffects];
-            const [removed] = newEffects.splice(fromIndex, 1);
-            newEffects.splice(toIndex, 0, removed);
+            const [removed] = newEffects.splice(fromIdx, 1);
+            newEffects.splice(toIdx, 0, removed);
 
             console.log('🔄 ReorderEffectsCommand: Reordering effects', {
-                fromIndex,
-                toIndex,
-                movedEffect: movedEffect.name || movedEffect.className
+                fromIndex: fromIdx,
+                toIndex: toIdx,
+                effectId: movedEffect?.id,
+                effectName: movedEffect?.name || movedEffect?.className || 'Unknown'
             });
 
             projectState.update({ effects: newEffects });
 
             // Emit event for UI updates
             EventBusService.emit('effects:reordered', {
-                fromIndex,
-                toIndex,
+                fromIndex: fromIdx,
+                toIndex: toIdx,
                 effect: movedEffect,
                 total: newEffects.length
             }, { source: 'ReorderEffectsCommand' });
 
-            return { success: true, fromIndex, toIndex };
+            return { success: true, fromIndex: fromIdx, toIndex: toIdx };
         };
 
         const undoAction = () => {
+            if (resolvedFromIndex === null || resolvedToIndex === null) {
+                throw new Error('Cannot undo: effect indices were never resolved (command may not have executed)');
+            }
+
             const currentEffects = projectState.getState().effects || [];
             const newEffects = [...currentEffects];
 
             // Move back: remove from toIndex and insert at fromIndex
-            const [removed] = newEffects.splice(toIndex, 1);
-            newEffects.splice(fromIndex, 0, removed);
+            const [removed] = newEffects.splice(resolvedToIndex, 1);
+            newEffects.splice(resolvedFromIndex, 0, removed);
 
             projectState.update({ effects: newEffects });
 
             // Emit event for UI updates
             EventBusService.emit('effects:reordered', {
-                fromIndex: toIndex,
-                toIndex: fromIndex,
+                fromIndex: resolvedToIndex,
+                toIndex: resolvedFromIndex,
                 effect: movedEffect,
                 total: newEffects.length
             }, { source: 'ReorderEffectsCommand' });
@@ -440,15 +494,38 @@ export class ReorderEffectsCommand extends Command {
             return { success: true };
         };
 
+        // Generate description at construction time (before resolution)
         const currentEffects = projectState.getState().effects || [];
-        const effect = currentEffects[fromIndex];
+        let descriptionIndex;
+        
+        if (typeof fromIdOrIndex === 'string') {
+            descriptionIndex = currentEffects.findIndex(e => e.id === fromIdOrIndex);
+        } else {
+            descriptionIndex = fromIdOrIndex;
+        }
+        
+        const effect = descriptionIndex >= 0 && descriptionIndex < currentEffects.length
+            ? currentEffects[descriptionIndex]
+            : null;
+        const toDescriptionIndex = typeof toIdOrIndex === 'string' 
+            ? currentEffects.findIndex(e => e.id === toIdOrIndex) 
+            : toIdOrIndex;
+        
         const description = effect
-            ? CommandDescriptionHelper.describeReorder(effect, fromIndex, toIndex)
-            : `Moved effect from position ${fromIndex + 1} to ${toIndex + 1}`;
+            ? CommandDescriptionHelper.describeReorder(effect, descriptionIndex, toDescriptionIndex)
+            : `Moved effect`;
 
         super('effect.reorder', executeAction, undoAction, description);
-        this.fromIndex = fromIndex;
-        this.toIndex = toIndex;
+        
+        // Store both the original parameters and resolved indices for compatibility
+        this.fromIdOrIndex = fromIdOrIndex; // Store ID or index for reference
+        this.toIdOrIndex = toIdOrIndex;     // Store ID or index for reference
+        
+        // For backward compatibility, also store as fromIndex/toIndex
+        // These are resolved at construction time and may become stale
+        this.fromIndex = typeof fromIdOrIndex === 'string' ? descriptionIndex : fromIdOrIndex;
+        this.toIndex = typeof toIdOrIndex === 'string' ? toDescriptionIndex : toIdOrIndex;
+        
         this.isEffectCommand = true;
     }
 }

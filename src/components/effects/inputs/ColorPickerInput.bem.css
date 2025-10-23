@@ -1,0 +1,36 @@
+/**
+ * Color Picker Input Component - BEM CSS
+ * Color selection input with bucket type and specific color modes
+ * Features: Color swatch preview, hex text input, mode selection
+ * 
+ * CSS Variables (Theme-Independent):
+ * - --color-picker-default-color: Default color for picker when no value set (#ff0000 - red)
+ */
+
+:root {
+    --color-picker-default-color: #ff0000;
+}
+
+/* ============================================================================
+   Color Picker Controls & Swatch
+   ========================================================================== */
+
+.effect-input__color-swatch {
+    /* Color input element - browser native */
+}
+
+.effect-input__color-text-input {
+    /* Text input for hex color codes */
+}
+
+.effect-input__color-picker-controls {
+    /* Container for color swatch and text input */
+}
+
+.effect-input__color-select {
+    /* Selection dropdown for color bucket vs specific color mode */
+}
+
+.effect-input__color-label {
+    /* Label text for color picker input */
+}

@@ -24,6 +24,7 @@ import {
     CheckCircleOutline
 } from '@mui/icons-material';
 import { useServices } from '../contexts/ServiceContext.js';
+import './UndoRedoControls.bem.css';
 
 export default function UndoRedoControls() {
     const { eventBusService, commandService } = useServices();
@@ -163,26 +164,16 @@ export default function UndoRedoControls() {
     };
 
     return (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <Box className="undo-redo__container">
             {/* Undo Button Group */}
-            <Box sx={{ display: 'flex', alignItems: 'center', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+            <Box className="undo-redo__group undo-redo__group--undo">
                 <Tooltip title={undoState.canUndo ? `Undo: ${undoState.lastCommandDescription}` : 'Nothing to undo'}>
                     <span>
                         <IconButton
                             size="small"
                             onClick={handleUndo}
                             disabled={!undoState.canUndo}
-                            sx={{
-                                color: undoState.canUndo ? 'text.primary' : 'text.disabled',
-                                borderRadius: 0,
-                                '&:hover': {
-                                    backgroundColor: undoState.canUndo ? 'action.hover' : 'transparent',
-                                },
-                                '&:disabled': {
-                                    color: 'text.disabled',
-                                    opacity: 0.4
-                                }
-                            }}
+                            className="undo-redo__button"
                         >
                             <Undo fontSize="small" />
                         </IconButton>
@@ -197,19 +188,7 @@ export default function UndoRedoControls() {
                             size="small"
                             onClick={(e) => setUndoMenuAnchor(e.currentTarget)}
                             disabled={!undoState.canUndo}
-                            sx={{
-                                color: undoState.canUndo ? 'text.primary' : 'text.disabled',
-                                borderRadius: 0,
-                                minWidth: 24,
-                                px: 0.5,
-                                '&:hover': {
-                                    backgroundColor: undoState.canUndo ? 'action.hover' : 'transparent',
-                                },
-                                '&:disabled': {
-                                    color: 'text.disabled',
-                                    opacity: 0.4
-                                }
-                            }}
+                            className="undo-redo__dropdown-trigger"
                         >
                             <ArrowDropDown fontSize="small" />
                         </IconButton>
@@ -218,24 +197,14 @@ export default function UndoRedoControls() {
             </Box>
 
             {/* Redo Button Group */}
-            <Box sx={{ display: 'flex', alignItems: 'center', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+            <Box className="undo-redo__group undo-redo__group--redo">
                 <Tooltip title={undoState.canRedo ? `Redo: ${undoState.redoStack[0]?.description}` : 'Nothing to redo'}>
                     <span>
                         <IconButton
                             size="small"
                             onClick={handleRedo}
                             disabled={!undoState.canRedo}
-                            sx={{
-                                color: undoState.canRedo ? 'text.primary' : 'text.disabled',
-                                borderRadius: 0,
-                                '&:hover': {
-                                    backgroundColor: undoState.canRedo ? 'action.hover' : 'transparent',
-                                },
-                                '&:disabled': {
-                                    color: 'text.disabled',
-                                    opacity: 0.4
-                                }
-                            }}
+                            className="undo-redo__button"
                         >
                             <Redo fontSize="small" />
                         </IconButton>
@@ -250,19 +219,7 @@ export default function UndoRedoControls() {
                             size="small"
                             onClick={(e) => setRedoMenuAnchor(e.currentTarget)}
                             disabled={!undoState.canRedo}
-                            sx={{
-                                color: undoState.canRedo ? 'text.primary' : 'text.disabled',
-                                borderRadius: 0,
-                                minWidth: 24,
-                                px: 0.5,
-                                '&:hover': {
-                                    backgroundColor: undoState.canRedo ? 'action.hover' : 'transparent',
-                                },
-                                '&:disabled': {
-                                    color: 'text.disabled',
-                                    opacity: 0.4
-                                }
-                            }}
+                            className="undo-redo__dropdown-trigger"
                         >
                             <ArrowDropDown fontSize="small" />
                         </IconButton>
@@ -286,8 +243,8 @@ export default function UndoRedoControls() {
                     }
                 }}
             >
-                <Box sx={{ px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-                    <Typography variant="subtitle2" color="text.secondary">
+                <Box className="undo-redo__history-header">
+                    <Typography variant="subtitle2" className="undo-redo__history-header-text">
                         Undo History ({undoState.undoStack.length} action{undoState.undoStack.length !== 1 ? 's' : ''})
                     </Typography>
                 </Box>
@@ -302,13 +259,9 @@ export default function UndoRedoControls() {
                         <MenuItem
                             key={`undo-${action.timestamp}`}
                             onClick={() => handleUndoToIndex(undoState.undoStack.length - index - 1)}
-                            sx={{
-                                '&:hover': {
-                                    backgroundColor: 'action.hover'
-                                }
-                            }}
+                            className="undo-redo__history-item"
                         >
-                            <ListItemIcon sx={{ minWidth: 32 }}>
+                            <ListItemIcon className="undo-redo__history-icon">
                                 <History fontSize="small" />
                             </ListItemIcon>
                             <ListItemText
@@ -342,8 +295,8 @@ export default function UndoRedoControls() {
                     }
                 }}
             >
-                <Box sx={{ px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-                    <Typography variant="subtitle2" color="text.secondary">
+                <Box className="undo-redo__history-header">
+                    <Typography variant="subtitle2" className="undo-redo__history-header-text">
                         Redo History ({undoState.redoStack.length} action{undoState.redoStack.length !== 1 ? 's' : ''})
                     </Typography>
                 </Box>
@@ -358,13 +311,9 @@ export default function UndoRedoControls() {
                         <MenuItem
                             key={`redo-${action.timestamp}`}
                             onClick={() => handleRedoToIndex(undoState.redoStack.length - index - 1)}
-                            sx={{
-                                '&:hover': {
-                                    backgroundColor: 'action.hover'
-                                }
-                            }}
+                            className="undo-redo__history-item"
                         >
-                            <ListItemIcon sx={{ minWidth: 32 }}>
+                            <ListItemIcon className="undo-redo__history-icon">
                                 <CheckCircleOutline fontSize="small" color="success" />
                             </ListItemIcon>
                             <ListItemText

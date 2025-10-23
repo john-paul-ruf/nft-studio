@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Box, TextField, Typography } from '@mui/material';
 import NumberFormatter from '../../../utils/NumberFormatter.js';
 import useDebounce from '../../../hooks/useDebounce.js';
+import './EffectInput.bem.css';
 
 function RangeInput({ field, value, onChange }) {
     const currentValue = value || field.default || { lower: 0, upper: 0 };
@@ -113,57 +115,53 @@ function RangeInput({ field, value, onChange }) {
     };
 
     return (
-        <div className="range-input" style={{ marginBottom: '1rem' }}>
-            <label style={{
-                color: '#ffffff',
-                marginBottom: '0.5rem',
-                display: 'block',
-                fontWeight: '500'
-            }}>
+        <Box className="effect-input effect-input__range">
+            <Typography 
+                variant="subtitle2" 
+                className="effect-input__range-label"
+            >
                 {field.label}
-            </label>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '0.8rem', color: '#cccccc', display: 'block', marginBottom: '0.25rem' }}>Lower</label>
-                    <input
+            </Typography>
+            <Box className="effect-input__range-inputs">
+                <Box className="effect-input__range-input-group">
+                    <TextField
                         type="number"
-                        step={NumberFormatter.getStepForValue(currentValue.lower || 0)}
+                        size="small"
+                        fullWidth
+                        inputProps={{
+                            step: NumberFormatter.getStepForValue(currentValue.lower || 0)
+                        }}
                         value={displayLower}
                         onFocus={handleLowerFocus}
                         onChange={handleLowerChange}
                         onBlur={handleLowerBlur}
-                        style={{
-                            width: '100%',
-                            background: 'rgba(255,255,255,0.1)',
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            borderRadius: '4px',
-                            padding: '0.5rem',
-                            color: '#ffffff'
-                        }}
+                        label="Lower"
+                        variant="outlined"
                     />
-                </div>
-                <span style={{ color: '#cccccc', margin: '0 0.5rem', marginTop: '1rem' }}>—</span>
-                <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '0.8rem', color: '#cccccc', display: 'block', marginBottom: '0.25rem' }}>Upper</label>
-                    <input
+                </Box>
+                <Typography 
+                    className="effect-input__range-separator"
+                >
+                    —
+                </Typography>
+                <Box className="effect-input__range-input-group">
+                    <TextField
                         type="number"
-                        step={NumberFormatter.getStepForValue(currentValue.upper || 0)}
+                        size="small"
+                        fullWidth
+                        inputProps={{
+                            step: NumberFormatter.getStepForValue(currentValue.upper || 0)
+                        }}
                         value={displayUpper}
                         onFocus={handleUpperFocus}
                         onChange={handleUpperChange}
                         onBlur={handleUpperBlur}
-                        style={{
-                            width: '100%',
-                            background: 'rgba(255,255,255,0.1)',
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            borderRadius: '4px',
-                            padding: '0.5rem',
-                            color: '#ffffff'
-                        }}
+                        label="Upper"
+                        variant="outlined"
                     />
-                </div>
-            </div>
-        </div>
+                </Box>
+            </Box>
+        </Box>
     );
 }
 

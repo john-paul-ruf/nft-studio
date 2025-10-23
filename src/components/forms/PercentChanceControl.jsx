@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Paper, Typography, Slider, TextField } from '@mui/material';
 import useDebounce from '../../hooks/useDebounce.js';
+import './PercentChanceControl.bem.css';
 
 /**
  * PercentChanceControl Component
@@ -19,6 +20,7 @@ import useDebounce from '../../hooks/useDebounce.js';
  * @param {Function} props.onChange - Callback when value changes
  */
 const PercentChanceControl = ({ value, onChange }) => {
+
     // Local state for display value to allow free typing
     const [displayValue, setDisplayValue] = useState(value.toString());
 
@@ -71,24 +73,15 @@ const PercentChanceControl = ({ value, onChange }) => {
     return (
         <Paper
             elevation={2}
-            sx={{
-                mt: 3,
-                p: 3,
-                background: 'rgba(102, 126, 234, 0.1)',
-                borderRadius: 2,
-                border: '1px solid rgba(102, 126, 234, 0.3)'
-            }}
+            className="percent-chance__container"
         >
-            <Typography variant="h6" sx={{ color: '#ffffff', mb: 2 }}>
+            <Typography variant="h6" className="percent-chance__title">
                 Effect Probability
             </Typography>
-            <Box display="flex" alignItems="center" gap={2}>
+            <Box className="percent-chance__controls">
                 <Typography
                     variant="body2"
-                    sx={{
-                        color: '#cccccc',
-                        minWidth: '120px'
-                    }}
+                    className="percent-chance__label"
                 >
                     Chance to occur:
                 </Typography>
@@ -98,16 +91,7 @@ const PercentChanceControl = ({ value, onChange }) => {
                     min={0}
                     max={100}
                     step={1}
-                    sx={{
-                        flex: 1,
-                        color: 'rgba(102, 126, 234, 0.8)',
-                        '& .MuiSlider-track': {
-                            backgroundColor: 'rgba(102, 126, 234, 0.8)',
-                        },
-                        '& .MuiSlider-rail': {
-                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                        }
-                    }}
+                    className="percent-chance__slider"
                 />
                 <TextField
                     type="number"
@@ -117,24 +101,14 @@ const PercentChanceControl = ({ value, onChange }) => {
                     onBlur={handleTextFieldBlur}
                     inputProps={{
                         min: 0,
-                        max: 100,
-                        style: { textAlign: 'center' }
+                        max: 100
                     }}
-                    sx={{
-                        width: '80px',
-                        '& .MuiInputBase-root': {
-                            backgroundColor: 'rgba(255,255,255,0.1)',
-                            color: '#ffffff'
-                        }
-                    }}
+                    className="percent-chance__input"
                     InputProps={{
                         endAdornment: (
                             <Typography
                                 variant="body2"
-                                sx={{
-                                    color: '#cccccc',
-                                    ml: 0.5
-                                }}
+                                className="percent-chance__percent-symbol"
                             >
                                 %
                             </Typography>

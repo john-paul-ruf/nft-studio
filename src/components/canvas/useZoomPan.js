@@ -43,7 +43,7 @@ export default function useZoomPan() {
     }, []);
 
     const handleWheel = useCallback((e) => {
-        if (e.target.closest('.frame-holder') || e.target.closest('.render-canvas')) {
+        if (e.target.closest('.canvas-viewport__frame-holder') || e.target.closest('.canvas-viewport__render-canvas')) {
             e.preventDefault();
             const delta = e.deltaY > 0 ? 0.9 : 1.1;
             setZoom(prev => Math.max(0.1, Math.min(prev * delta, 10)));

@@ -17,15 +17,15 @@ import {
     Step,
     StepLabel,
     Chip,
-    Divider,
-    useTheme
+    Divider
 } from '@mui/material';
-import { PlayArrow, Settings, Schedule } from '@mui/icons-material';
+import { PlayArrow, Schedule } from '@mui/icons-material';
 import EffectConfigurer from './EffectConfigurer.jsx';
 import BulkPositionQuickPick from './BulkPositionQuickPick.jsx';
 import PreferencesService from '../../services/PreferencesService.js';
 import ConfigIntrospector from '../../utils/ConfigIntrospector.js';
 import useDebounce from '../../hooks/useDebounce.js';
+import './bulk-add-keyframe-modal.bem.css';
 
 const steps = ['Select Effect', 'Configure Effect', 'Set Keyframe Range'];
 
@@ -36,7 +36,6 @@ export default function BulkAddKeyframeModal({
     keyframeEffects = [],
     projectState
 }) {
-    const theme = useTheme();
     const [activeStep, setActiveStep] = useState(0);
     const [selectedEffect, setSelectedEffect] = useState(null);
     const [effectConfig, setEffectConfig] = useState(null);
@@ -202,49 +201,39 @@ export default function BulkAddKeyframeModal({
         switch (activeStep) {
             case 0:
                 return (
-                    <Box>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    <Box className="bulk-add-keyframe-modal__step-content">
+                        <Typography variant="body2" color="text.secondary" className="bulk-add-keyframe-modal__description">
                             Select the keyframe effect you want to add multiple times:
                         </Typography>
-                        <Grid container spacing={2}>
-                            {keyframeEffects.map((effect, index) => (
-                                <Grid item xs={12} sm={6} md={4} key={index}>
-                                    <Card
-                                        variant={selectedEffect?.registryKey === (effect.registryKey || effect.name || effect.className) ? "outlined" : "elevation"}
-                                        sx={{
-                                            border: selectedEffect?.registryKey === (effect.registryKey || effect.name || effect.className)
-                                                ? `2px solid ${theme.palette.primary.main}` 
-                                                : 'none',
-                                            backgroundColor: selectedEffect?.registryKey === (effect.registryKey || effect.name || effect.className)
-                                                ? theme.palette.primary.main + '10' 
-                                                : 'inherit'
-                                        }}
-                                    >
-                                        <CardActionArea onClick={() => handleEffectSelect(effect)}>
-                                            <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                                                <Schedule 
-                                                    sx={{ 
-                                                        fontSize: 40, 
-                                                        color: selectedEffect?.registryKey === (effect.registryKey || effect.name || effect.className)
-                                                            ? theme.palette.primary.main 
-                                                            : theme.palette.text.secondary,
-                                                        mb: 1 
-                                                    }} 
-                                                />
-                                                <Typography variant="h6" component="div">
-                                                    {effect.displayName || effect.name || effect.className}
-                                                </Typography>
-                                                <Typography variant="body2" color="text.secondary">
-                                                    {effect.description || 'Keyframe effect'}
-                                                </Typography>
-                                            </CardContent>
-                                        </CardActionArea>
-                                    </Card>
-                                </Grid>
-                            ))}
+                        <Grid container spacing={2} className="bulk-add-keyframe-modal__effects-grid">
+                            {keyframeEffects.map((effect, index) => {
+                                const isSelected = selectedEffect?.registryKey === (effect.registryKey || effect.name || effect.className);
+                                return (
+                                    <Grid item xs={12} sm={6} md={4} key={index}>
+                                        <Card
+                                            className={`bulk-add-keyframe-modal__effect-card ${isSelected ? 'bulk-add-keyframe-modal__effect-card--selected' : ''}`}
+                                            variant={isSelected ? "outlined" : "elevation"}
+                                        >
+                                            <CardActionArea onClick={() => handleEffectSelect(effect)}>
+                                                <CardContent className="bulk-add-keyframe-modal__effect-card-content">
+                                                    <Schedule 
+                                                        className={`bulk-add-keyframe-modal__effect-icon ${isSelected ? 'bulk-add-keyframe-modal__effect-icon--selected' : ''}`}
+                                                    />
+                                                    <Typography variant="h6" component="div">
+                                                        {effect.displayName || effect.name || effect.className}
+                                                    </Typography>
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        {effect.description || 'Keyframe effect'}
+                                                    </Typography>
+                                                </CardContent>
+                                            </CardActionArea>
+                                        </Card>
+                                    </Grid>
+                                );
+                            })}
                         </Grid>
                         {keyframeEffects.length === 0 && (
-                            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+                            <Typography variant="body2" color="text.secondary" className="bulk-add-keyframe-modal__no-effects-message">
                                 No keyframe effects available
                             </Typography>
                         )}
@@ -253,8 +242,8 @@ export default function BulkAddKeyframeModal({
 
             case 1:
                 return (
-                    <Box>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    <Box className="bulk-add-keyframe-modal__step-content">
+                        <Typography variant="body2" color="text.secondary" className="bulk-add-keyframe-modal__description">
                             Configure the settings for <strong>{selectedEffect?.displayName || selectedEffect?.name}</strong>:
                         </Typography>
 
@@ -264,7 +253,7 @@ export default function BulkAddKeyframeModal({
                             key.toLowerCase().includes('location') ||
                             key.toLowerCase().includes('placement')
                         ) && (
-                            <Box sx={{ mb: 3 }}>
+                            <Box className="bulk-add-keyframe-modal__position-picker-container">
                                 <BulkPositionQuickPick
                                     projectState={projectState}
                                     onPositionSelect={(position) => {
@@ -301,7 +290,7 @@ export default function BulkAddKeyframeModal({
                                         }
                                     }}
                                 />
-                                <Divider sx={{ my: 3 }} />
+                                <Divider className="bulk-add-keyframe-modal__position-divider" />
                             </Box>
                         )}
 
@@ -320,13 +309,13 @@ export default function BulkAddKeyframeModal({
 
             case 2:
                 return (
-                    <Box>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    <Box className="bulk-add-keyframe-modal__step-content">
+                        <Typography variant="body2" color="text.secondary" className="bulk-add-keyframe-modal__description">
                             Set the frame range and number of keyframe effects to add:
                         </Typography>
                         
-                        <Box sx={{ mb: 4 }}>
-                            <Typography variant="subtitle2" sx={{ mb: 2 }}>
+                        <Box className="bulk-add-keyframe-modal__frame-range-section">
+                            <Typography variant="subtitle2" className="bulk-add-keyframe-modal__frame-range-label">
                                 Frame Range: {frameRange[0]} - {frameRange[1]}
                             </Typography>
                             <Slider
@@ -339,9 +328,9 @@ export default function BulkAddKeyframeModal({
                                     { value: 0, label: '0' },
                                     { value: maxFrames, label: maxFrames.toString() }
                                 ]}
-                                sx={{ mb: 2 }}
+                                className="bulk-add-keyframe-modal__frame-range-slider"
                             />
-                            <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+                            <Box className="bulk-add-keyframe-modal__frame-inputs-container">
                                 <TextField
                                     label="Start Frame"
                                     type="number"
@@ -372,6 +361,7 @@ export default function BulkAddKeyframeModal({
                                     }}
                                     size="small"
                                     inputProps={{ min: 0, max: frameRange[1] }}
+                                    className="bulk-add-keyframe-modal__frame-input"
                                 />
                                 <TextField
                                     label="End Frame"
@@ -403,11 +393,12 @@ export default function BulkAddKeyframeModal({
                                     }}
                                     size="small"
                                     inputProps={{ min: frameRange[0], max: maxFrames }}
+                                    className="bulk-add-keyframe-modal__frame-input"
                                 />
                             </Box>
                         </Box>
 
-                        <Box sx={{ mb: 3 }}>
+                        <Box className="bulk-add-keyframe-modal__num-effects-input">
                             <TextField
                                 label="Number of Effects to Add"
                                 type="number"
@@ -437,13 +428,13 @@ export default function BulkAddKeyframeModal({
                             />
                         </Box>
 
-                        <Box sx={{ p: 2, backgroundColor: theme.palette.background.default, borderRadius: 1 }}>
+                        <Box className="bulk-add-keyframe-modal__summary-box">
                             <Typography variant="body2" color="text.secondary">
                                 <strong>Summary:</strong> Adding {numEffects} instances of{' '}
                                 <Chip 
                                     label={selectedEffect?.displayName || selectedEffect?.name} 
                                     size="small" 
-                                    sx={{ mx: 0.5 }}
+                                    className="bulk-add-keyframe-modal__summary-chip"
                                 />
                                 with random frames between {frameRange[0]} and {frameRange[1]}
                             </Typography>
@@ -462,22 +453,16 @@ export default function BulkAddKeyframeModal({
             onClose={onClose}
             maxWidth="md"
             fullWidth
-            PaperProps={{
-                sx: {
-                    backgroundColor: theme.palette.background.paper,
-                    backgroundImage: 'none'
-                }
-            }}
         >
-            <DialogTitle sx={{ pb: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <DialogTitle className="bulk-add-keyframe-modal__header">
+                <Box className="bulk-add-keyframe-modal__header-content">
                     <Schedule color="primary" />
                     <Typography variant="h6">Bulk Add Keyframe Effects</Typography>
                 </Box>
             </DialogTitle>
 
-            <DialogContent sx={{ pt: 2 }}>
-                <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+            <DialogContent className="bulk-add-keyframe-modal__content">
+                <Stepper activeStep={activeStep} className="bulk-add-keyframe-modal__stepper">
                     {steps.map((label, index) => (
                         <Step key={label}>
                             <StepLabel>{label}</StepLabel>
@@ -488,11 +473,11 @@ export default function BulkAddKeyframeModal({
                 {renderStepContent()}
             </DialogContent>
 
-            <DialogActions sx={{ px: 3, pb: 3 }}>
+            <DialogActions className="bulk-add-keyframe-modal__actions">
                 <Button onClick={onClose} color="inherit">
                     Cancel
                 </Button>
-                <Box sx={{ flex: 1 }} />
+                <Box className="bulk-add-keyframe-modal__actions-spacer" />
                 {activeStep > 0 && (
                     <Button onClick={handleBack} color="inherit">
                         Back

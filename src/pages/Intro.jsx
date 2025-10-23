@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import PreferencesService from '../services/PreferencesService.js';
 import { useServices } from '../contexts/ServiceContext.js';
 import ImportProjectWizard from '../components/ImportProjectWizard.jsx';
-import './Intro.css';
+import './Intro.bem.css';
 
 export default function Intro({ onNewProject, onEditProject, onImportProject }) {
     const { eventBusService } = useServices();
@@ -60,47 +60,47 @@ export default function Intro({ onNewProject, onEditProject, onImportProject }) 
 
 
     return (
-        <div className="intro-screen">
-            <div className="intro-content">
-                <h1 className="intro-title">NFT Studio</h1>
-                <div className="intro-buttons">
+        <div className="page-intro">
+            <div className="page-intro__content">
+                <h1 className="page-intro__title">NFT Studio</h1>
+                <div className="page-intro__buttons">
                     <button
-                        className="intro-button new-project"
+                        className="page-intro__button"
                         onClick={onNewProject}
                         disabled={!preferencesInitialized}
                     >
-                        <svg className="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg className="page-intro__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M12 5v14M5 12h14"/>
                         </svg>
                         <span>New Project</span>
                     </button>
                     <button
-                        className="intro-button edit-project"
+                        className="page-intro__button"
                         onClick={onEditProject}
                         disabled={!preferencesInitialized}
                     >
-                        <svg className="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg className="page-intro__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2-2v-7"/>
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                         </svg>
                         <span>Edit Project</span>
                     </button>
                     <button
-                        className="intro-button resume-loop"
+                        className="page-intro__button page-intro__button--accent"
                         onClick={handleResumeLoop}
                         disabled={!preferencesInitialized}
                     >
-                        <svg className="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg className="page-intro__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M8 5v14l11-7z"/>
                         </svg>
                         <span>Resume Loop</span>
                     </button>
                     <button
-                        className="intro-button import-project"
+                        className="page-intro__button"
                         onClick={() => setShowImportWizard(true)}
                         disabled={!preferencesInitialized}
                     >
-                        <svg className="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg className="page-intro__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                             <polyline points="14,2 14,8 20,8"/>
                             <line x1="16" y1="13" x2="8" y2="13"/>

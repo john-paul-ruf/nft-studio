@@ -1,0 +1,354 @@
+/**
+ * ArrayInput Component Styles
+ * BEM: array-input
+ * 
+ * Complex component with drag & drop, inline editing, and mixed type support
+ * Uses consistent spacing, border styles, and color tokens from design system
+ */
+
+/* ============================================================================
+   ROOT CONTAINER
+   ============================================================================ */
+
+.array-input {
+  margin-bottom: 1rem;
+}
+
+/* ============================================================================
+   LABEL & DESCRIPTION
+   ============================================================================ */
+
+.array-input__label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: #ccc;
+  font-weight: 500;
+}
+
+.array-input__description {
+  font-size: 0.8rem;
+  color: #888;
+  font-weight: normal;
+  margin-left: 0.5rem;
+}
+
+/* ============================================================================
+   ITEMS CONTAINER
+   ============================================================================ */
+
+.array-input__items {
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.array-input__items-header {
+  font-size: 0.8rem;
+  color: #aaa;
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.array-input__items-hint {
+  font-size: 0.7rem;
+  color: #666;
+}
+
+.array-input__items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* ============================================================================
+   INDIVIDUAL ITEM ROW
+   ============================================================================ */
+
+.array-input__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  cursor: grab;
+  transition: all 0.2s ease;
+}
+
+.array-input__item:active {
+  cursor: grabbing;
+}
+
+.array-input__item--dragging {
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 0.5;
+  transform: rotate(2deg);
+}
+
+.array-input__item--drag-over {
+  background: rgba(102, 126, 234, 0.2);
+  border: 2px dashed #667eea;
+}
+
+.array-input__item--editing {
+  cursor: text;
+}
+
+/* ============================================================================
+   ITEM DRAG HANDLE
+   ============================================================================ */
+
+.array-input__item-drag-handle {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  cursor: grab;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+/* ============================================================================
+   ITEM INDEX BADGE
+   ============================================================================ */
+
+.array-input__item-index {
+  min-width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.array-input__item-index--number {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+}
+
+.array-input__item-index--string {
+  background: rgba(33, 150, 243, 0.2);
+  color: #2196f3;
+}
+
+/* ============================================================================
+   ITEM VALUE CONTAINER
+   ============================================================================ */
+
+.array-input__item-value {
+  flex: 1;
+  min-width: 0;
+}
+
+.array-input__item-value-display {
+  color: #fff;
+  font-size: 0.85rem;
+}
+
+.array-input__item-value-display--number {
+  font-family: monospace;
+}
+
+.array-input__item-value-edit {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid #667eea;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  color: #fff;
+  font-size: 0.85rem;
+  outline: none;
+  font-family: inherit;
+}
+
+.array-input__item-value-edit::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.array-input__item-value-edit:focus {
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
+}
+
+/* ============================================================================
+   ITEM TYPE BADGE
+   ============================================================================ */
+
+.array-input__item-type-badge {
+  padding: 0.2rem 0.4rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.array-input__item-type-badge--number {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+}
+
+.array-input__item-type-badge--string {
+  background: rgba(33, 150, 243, 0.2);
+  color: #2196f3;
+}
+
+/* ============================================================================
+   ITEM REMOVE BUTTON
+   ============================================================================ */
+
+.array-input__item-remove {
+  width: 24px;
+  height: 24px;
+  background: rgba(244, 67, 54, 0.2);
+  border: none;
+  border-radius: 50%;
+  color: #f44336;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.array-input__item-remove:hover {
+  background: rgba(244, 67, 54, 0.3);
+  transform: scale(1.1);
+}
+
+.array-input__item-remove:active {
+  transform: scale(0.95);
+}
+
+/* ============================================================================
+   ADD NEW ITEM SECTION
+   ============================================================================ */
+
+.array-input__add-section {
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.array-input__add-label {
+  font-size: 0.8rem;
+  color: #aaa;
+  margin-bottom: 0.5rem;
+}
+
+.array-input__add-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.array-input__add-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 0.5rem;
+  color: #fff;
+  font-size: 0.85rem;
+  outline: none;
+  font-family: inherit;
+}
+
+.array-input__add-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.array-input__add-input:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.array-input__add-type-selector {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 0.5rem;
+  color: #fff;
+  font-size: 0.8rem;
+  outline: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.array-input__add-type-selector:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.array-input__add-type-selector option {
+  background: #222;
+  color: #fff;
+}
+
+.array-input__add-button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.array-input__add-button--enabled {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  cursor: pointer;
+}
+
+.array-input__add-button--enabled:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.array-input__add-button--enabled:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.2);
+}
+
+.array-input__add-button--disabled {
+  background: rgba(255, 255, 255, 0.1);
+  color: #666;
+  cursor: not-allowed;
+}
+
+/* ============================================================================
+   HELP TEXT
+   ============================================================================ */
+
+.array-input__help {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #888;
+  line-height: 1.4;
+}
+
+.array-input__help-item {
+  margin-bottom: 0.25rem;
+}
+
+.array-input__help-item--empty {
+  color: #666;
+  font-style: italic;
+}

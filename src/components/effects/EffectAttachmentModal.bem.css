@@ -1,0 +1,210 @@
+/**
+ * EffectAttachmentModal Component - BEM CSS
+ * Modal for attaching secondary and keyframe effects to primary effects
+ * 
+ * Features:
+ * - Type-specific styling (secondary/keyframe) with color-coded UI
+ * - Gradient buttons with hover effects
+ * - Card selection with type-aware theming
+ * - Responsive layout (xs: full width, sm: 90%, md: 80vw, lg: 70vw)
+ * 
+ * CSS Variables (Color Design Tokens):
+ * - --effect-attachment-secondary-color: Secondary effect color (#28a745 green)
+ * - --effect-attachment-keyframe-color: Keyframe effect color (#007bff blue)
+ * - --space-1, --space-2, --space-3, --space-4: Spacing tokens
+ * - --color-text-secondary: Secondary text color for accessibility
+ * 
+ * Block: effect-attachment-modal
+ * Elements:
+ * - __title: Dialog title with type-specific color
+ * - __description: Type description text (secondary text color)
+ * - __close-btn: Close button in title
+ * - __content: Dialog content area with padding
+ * - __effects-grid: Grid container for effect cards
+ * - __effect-action-area: Card action area with full height and padding
+ * - __effect-content: Card content (zero padding override)
+ * - __empty-alert: Empty state alert box
+ * - __empty-icon: Large emoji icon for empty state
+ * - __config-area: Scrollable configuration area
+ * - __actions: Dialog action buttons footer
+ * - __back-btn: Back button (with flex-grow auto margin)
+ * Modifiers:
+ * - __secondary-card, __secondary-btn: Secondary effect styling
+ * - __keyframe-card, __keyframe-btn: Keyframe effect styling
+ */
+
+/* ============================================================================
+   CSS Variables - Color Design Tokens
+   ========================================================================== */
+
+:root {
+    --effect-attachment-secondary-color: #28a745;
+    --effect-attachment-keyframe-color: #007bff;
+}
+
+/* ============================================================================
+   Title Section
+   ========================================================================== */
+
+.effect-attachment__title {
+    background: linear-gradient(
+        135deg,
+        var(--effect-attachment-secondary-color, #28a745)20 0%,
+        var(--effect-attachment-secondary-color, #28a745)10 100%
+    ) !important;
+    border-bottom: 1px solid var(--effect-attachment-secondary-color, #28a745)40 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+}
+
+.effect-attachment__title.effect-attachment__keyframe-type {
+    background: linear-gradient(
+        135deg,
+        var(--effect-attachment-keyframe-color, #007bff)20 0%,
+        var(--effect-attachment-keyframe-color, #007bff)10 100%
+    ) !important;
+    border-bottom: 1px solid var(--effect-attachment-keyframe-color, #007bff)40 !important;
+}
+
+.effect-attachment__title-text {
+    color: var(--effect-attachment-secondary-color, #28a745) !important;
+}
+
+.effect-attachment__keyframe-type .effect-attachment__title-text {
+    color: var(--effect-attachment-keyframe-color, #007bff) !important;
+}
+
+/* Description text below title — secondary text color with top margin */
+.effect-attachment__description {
+    color: var(--color-text-secondary) !important;
+    margin-top: calc(var(--space-1) * 0.5) !important;
+}
+
+/* Close button in title — secondary text color */
+.effect-attachment__close-btn {
+    color: var(--color-text-secondary) !important;
+}
+
+/* ============================================================================
+   Dialog Content & Layout
+   ========================================================================== */
+
+/* Main content area with padding */
+.effect-attachment__content {
+    padding: var(--space-4) !important;
+}
+
+/* ============================================================================
+   Effect Selection Cards & Grid
+   ========================================================================== */
+
+.effect-attachment__effects-grid {
+    /* Grid already styled by MUI Grid, no additional styling needed */
+}
+
+.effect-attachment__secondary-card {
+    height: 100% !important;
+    transition: all 0.2s !important;
+    border: 1px solid #e0e0e0 !important;
+}
+
+.effect-attachment__secondary-card:hover {
+    border-color: var(--effect-attachment-secondary-color, #28a745) !important;
+    background-color: var(--effect-attachment-secondary-color, #28a745)10 !important;
+}
+
+.effect-attachment__keyframe-card {
+    height: 100% !important;
+    transition: all 0.2s !important;
+    border: 1px solid #e0e0e0 !important;
+}
+
+.effect-attachment__keyframe-card:hover {
+    border-color: var(--effect-attachment-keyframe-color, #007bff) !important;
+    background-color: var(--effect-attachment-keyframe-color, #007bff)10 !important;
+}
+
+/* Card action area — full height with padding */
+.effect-attachment__effect-action-area {
+    height: 100% !important;
+    padding: var(--space-2) !important;
+}
+
+/* Card content — zero padding override */
+.effect-attachment__effect-content {
+    padding: 0 !important;
+}
+
+/* ============================================================================
+   Empty State Alert
+   ========================================================================== */
+
+.effect-attachment__empty-alert {
+    justify-content: center !important;
+    background-color: transparent !important;
+    color: var(--color-text-secondary) !important;
+}
+
+/* Empty state emoji icon — margin-bottom */
+.effect-attachment__empty-icon {
+    margin-bottom: var(--space-2) !important;
+}
+
+/* ============================================================================
+   Configuration Area (Scrollable)
+   ========================================================================== */
+
+.effect-attachment__config-area {
+    max-height: 60vh;
+    overflow: auto;
+}
+
+/* ============================================================================
+   Dialog Actions Footer
+   ========================================================================== */
+
+.effect-attachment__actions {
+    padding: var(--space-2) var(--space-4) !important;
+}
+
+/* Back button with auto right margin */
+.effect-attachment__back-btn {
+    margin-right: auto !important;
+}
+
+/* ============================================================================
+   Gradient Buttons
+   ========================================================================== */
+
+.effect-attachment__secondary-btn {
+    background: linear-gradient(
+        135deg,
+        var(--effect-attachment-secondary-color, #28a745) 0%,
+        var(--effect-attachment-secondary-color, #28a745)cc 100%
+    ) !important;
+}
+
+.effect-attachment__secondary-btn:hover {
+    background: linear-gradient(
+        135deg,
+        var(--effect-attachment-secondary-color, #28a745)dd 0%,
+        var(--effect-attachment-secondary-color, #28a745) 100%
+    ) !important;
+}
+
+.effect-attachment__keyframe-btn {
+    background: linear-gradient(
+        135deg,
+        var(--effect-attachment-keyframe-color, #007bff) 0%,
+        var(--effect-attachment-keyframe-color, #007bff)cc 100%
+    ) !important;
+}
+
+.effect-attachment__keyframe-btn:hover {
+    background: linear-gradient(
+        135deg,
+        var(--effect-attachment-keyframe-color, #007bff)dd 0%,
+        var(--effect-attachment-keyframe-color, #007bff) 100%
+    ) !important;
+}

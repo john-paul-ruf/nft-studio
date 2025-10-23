@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { Close, FolderOpen } from '@mui/icons-material';
 import useDebounce from '../hooks/useDebounce.js';
+import './ProjectSettingsDialog.bem.css';
 
 /**
  * ProjectSettingsDialog - Edit project settings using ProjectState as single source of truth
@@ -101,25 +102,17 @@ export default function ProjectSettingsDialog({
             maxWidth="sm"
             fullWidth
             PaperProps={{
-                sx: {
-                    backgroundColor: currentTheme?.palette?.background?.paper || 'background.paper',
-                    color: currentTheme?.palette?.text?.primary || 'text.primary'
-                }
+                className: 'project-settings-dialog__paper'
             }}
         >
             <DialogTitle
-                sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    pb: 1
-                }}
+                className="project-settings-dialog__title"
             >
                 <Typography variant="h6">Project Settings</Typography>
                 <IconButton
                     onClick={handleCancel}
                     size="small"
-                    sx={{ color: 'text.secondary' }}
+                    className="project-settings-dialog__close-button"
                 >
                     <Close />
                 </IconButton>
@@ -127,8 +120,8 @@ export default function ProjectSettingsDialog({
 
             <Divider />
 
-            <DialogContent sx={{ pt: 3 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <DialogContent className="project-settings-dialog__content">
+                <Box className="project-settings-dialog__form">
                     <TextField
                         label="Project Name"
                         value={formData.projectName}
@@ -161,7 +154,7 @@ export default function ProjectSettingsDialog({
                                     <IconButton
                                         onClick={handleSelectOutputDirectory}
                                         edge="end"
-                                        sx={{ mr: 1 }}
+                                        className="project-settings-dialog__folder-icon"
                                     >
                                         <FolderOpen />
                                     </IconButton>
@@ -172,7 +165,7 @@ export default function ProjectSettingsDialog({
                 </Box>
             </DialogContent>
 
-            <DialogActions sx={{ px: 3, pb: 3 }}>
+            <DialogActions className="project-settings-dialog__actions">
                 <Button
                     onClick={handleCancel}
                     color="inherit"

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { ConfigIntrospector } from '../../utils/ConfigIntrospector.js';
 import EffectFormRenderer from '../forms/EffectFormRenderer.jsx';
 import AttachedEffectsDisplay from '../forms/AttachedEffectsDisplay.jsx';
@@ -15,29 +16,55 @@ import EffectUpdateCoordinator from '../../services/EffectUpdateCoordinator.js';
 import {
     Box,
     Typography,
-    Paper,
     Button,
+    Alert,
     useTheme
 } from '@mui/material';
 import { RestartAlt } from '@mui/icons-material';
 import { Dialog, DialogTitle, DialogContent, DialogActions, TextField } from '@mui/material';
 
+// CSS Import - Centralized styles organized by component
+import './EffectsPanel.bem.css';
+import './EffectConfigurer.bem.css';
+
 /**
- * EffectConfigurer - Refactored Service Orchestrator
+ * EffectConfigurer - Service-Orchestrated Form Configuration Component
  * 
- * This component has been refactored from a 532-line god object into a service orchestrator
- * that coordinates four focused services:
+ * Provides a comprehensive configuration interface for effects with full validation,
+ * preset management, and coordinated state updates.
  * 
- * 1. EffectFormValidator - Handles all form validation logic
- * 2. EffectConfigurationManager - Manages configuration schemas and defaults
- * 3. EffectEventCoordinator - Coordinates all event emission and handling
- * 4. EffectUpdateCoordinator - Orchestrates debounced updates and state synchronization
+ * ## Architecture
+ * - **Service Orchestration**: Coordinates four focused services (Validator, ConfigManager, EventCoordinator, UpdateCoordinator)
+ * - **Debounced Updates**: Uses EffectUpdateCoordinator to prevent rapid-fire state changes
+ * - **Automatic Validation**: Real-time form validation with error display
+ * - **Preset System**: Save/load effect configurations as reusable presets
+ * - **Theme Integration**: Uses Material-UI theme variables for consistent styling
  * 
- * The component now focuses on:
- * - UI rendering and user interaction
- * - Service coordination and orchestration
- * - React state management and lifecycle
- * - Backward compatibility with existing props and callbacks
+ * ## Critical Patterns
+ * 🔒 **Effect Context Storage**: Effect ID and metadata captured at schedule time (not execution time)
+ *    to prevent stale reference bugs after effect reordering
+ * 🔒 **Callback Ref**: `onConfigChangeRef` kept in sync to support dynamic callback updates
+ *    while maintaining stable effect context pairing
+ * 
+ * ## Usage Example
+ * ```jsx
+ * <EffectConfigurer
+ *   selectedEffect={{effectId: '123', name: 'Blur'}}
+ *   projectState={projectState}
+ *   onConfigChange={(config) => updateEffect(config)}
+ *   initialConfig={{radius: 10}}
+ * />
+ * ```
+ * 
+ * @component
+ * @param {Object} props - Component props
+ * @param {Object} props.selectedEffect - The currently selected effect
+ * @param {string} props.selectedEffect.effectId - Stable unique identifier
+ * @param {string} props.selectedEffect.registryKey - Effect type identifier
+ * @param {Object} props.projectState - Project state for context
+ * @param {Function} props.onConfigChange - Configuration change callback
+ * @param {Function} [props.onAddEffect] - Add effect callback
+ * @returns {React.ReactElement}
  */
 function EffectConfigurer({
     selectedEffect,
@@ -55,9 +82,9 @@ function EffectConfigurer({
     initialPercentChance = null,
     useWideLayout = false
 }) {
-    const theme = useTheme();
     const { eventBusService } = useServices();
-    
+    const theme = useTheme();
+
     // 🔒 CRITICAL: Store onConfigChange in ref for the update coordinator callback
     // The effect context is captured at schedule time and stored in metadata
     const onConfigChangeRef = useRef(onConfigChange);
@@ -124,7 +151,8 @@ function EffectConfigurer({
     const configRef = useRef(effectConfig);
     const schemaRef = useRef(null);
     const previousResolution = useRef(projectState?.targetResolution);
-    const defaultsLoadedForEffect = useRef(null); // Track which effect we've loaded defaults for
+    const defaultsLoadedForEffect = useRef(null); // Track which effect (by ID) we've loaded defaults for
+    const prevEffectIdRef = useRef(null); // Track last effect ID to detect selection changes
     
     // 🔒 CRITICAL: Keep onConfigChange ref in sync with prop
     // The update coordinator callback reads this ref to get the current callback
@@ -156,14 +184,43 @@ function EffectConfigurer({
     // This ensures that when editing an existing effect, we use the config from ProjectState
     // and that we pick up scaled positions after resolution changes
     useEffect(() => {
+        const currentId = selectedEffect?.effectId || null;
+        const effectChanged = prevEffectIdRef.current && currentId && prevEffectIdRef.current !== currentId;
+
+        // If selection changed while a debounced update is pending, flush it so A's config is applied to A
+        if (effectChanged) {
+            try {
+                services.updateCoordinator.flush?.();
+            } catch (e) {
+                console.warn('EffectConfigurer: flush on selection change failed', e);
+            }
+            // Reset user-modified flag when switching effects to avoid blocking sync to the new effect's config
+            services.updateCoordinator.setUserModified?.(false);
+            // Apply the newly selected effect's initial config immediately for UI correctness
+            if (initialConfig && Object.keys(initialConfig).length > 0) {
+                setEffectConfig(initialConfig);
+                configRef.current = initialConfig;
+                services.updateCoordinator.setEditingExistingEffect?.(true);
+                defaultsLoadedForEffect.current = currentId;
+            } else {
+                setEffectConfig({});
+                configRef.current = {};
+                services.updateCoordinator.resetFlags?.();
+                defaultsLoadedForEffect.current = null;
+            }
+            prevEffectIdRef.current = currentId;
+            return; // Prevent further syncing logic in this run
+        }
+        prevEffectIdRef.current = currentId;
+
         if (initialConfig && Object.keys(initialConfig).length > 0) {
             // Deep comparison to avoid unnecessary updates
             const configChanged = JSON.stringify(initialConfig) !== JSON.stringify(configRef.current);
             
-            // CRITICAL: Don't revert if user has modified the config (e.g., applied a preset)
             // Only sync if this is a genuine external change (like resolution scaling)
             if (configChanged && !services.updateCoordinator.getUserModified()) {
                 console.log('📝 EffectConfigurer: Syncing with initialConfig (editing existing effect)', {
+                    effectId: selectedEffect?.effectId,
                     effect: selectedEffect?.registryKey,
                     initialConfig
                 });
@@ -171,15 +228,17 @@ function EffectConfigurer({
                 configRef.current = initialConfig;
                 // Mark that we're editing an existing effect and should never load defaults
                 services.updateCoordinator.setEditingExistingEffect(true);
-                defaultsLoadedForEffect.current = selectedEffect?.registryKey;
+                defaultsLoadedForEffect.current = selectedEffect?.effectId;
             } else if (configChanged && services.updateCoordinator.getUserModified()) {
                 console.log('🚫 EffectConfigurer: Skipping sync - user has modified config', {
+                    effectId: selectedEffect?.effectId,
                     effect: selectedEffect?.registryKey
                 });
             }
         } else if (!initialConfig || Object.keys(initialConfig).length === 0) {
             // Reset when switching to a new effect without initialConfig
             console.log('🆕 EffectConfigurer: Resetting config (new effect)', {
+                effectId: selectedEffect?.effectId,
                 effect: selectedEffect?.registryKey
             });
             setEffectConfig({});
@@ -187,7 +246,7 @@ function EffectConfigurer({
             services.updateCoordinator.resetFlags(); // Reset all flags
             defaultsLoadedForEffect.current = null;
         }
-    }, [initialConfig, selectedEffect?.registryKey, resolutionKey, services.updateCoordinator]);
+    }, [initialConfig, selectedEffect?.effectId, resolutionKey, services.updateCoordinator]);
 
     // Load configuration schema when effect changes
     useEffect(() => {
@@ -464,33 +523,51 @@ function EffectConfigurer({
         return services.eventCoordinator.getEventMetrics();
     }, [services.eventCoordinator]);
 
-    // Render validation errors
+    // Render validation errors with theme-aware styling
     const renderValidationErrors = () => {
         if (Object.keys(validationErrors).length === 0) return null;
 
         return (
-            <Box sx={{ mb: 2, p: 2, bgcolor: 'error.light', borderRadius: 1 }}>
-                <Typography variant="subtitle2" color="error.contrastText">
+            <Alert 
+                severity="error" 
+                className="effect-configurer__error-alert"
+                role="alert"
+                aria-live="polite"
+            >
+                <Typography 
+                    variant="subtitle2" 
+                    className="effect-configurer__error-title"
+                >
                     Configuration Errors:
                 </Typography>
                 {Object.entries(validationErrors).map(([field, error]) => (
-                    <Typography key={field} variant="body2" color="error.contrastText">
+                    <Typography 
+                        key={field} 
+                        variant="body2" 
+                        className="effect-configurer__error-message"
+                    >
                         • {field}: {error}
                     </Typography>
                 ))}
-            </Box>
+            </Alert>
         );
     };
 
-    // Render configuration status
+    // Render configuration status with theme-aware styling
     const renderConfigurationStatus = () => {
         const validationMetrics = getValidationMetrics();
         const configMetrics = getConfigurationMetrics();
         const eventMetrics = getEventMetrics();
 
         return (
-            <Box sx={{ mb: 2, p: 1, bgcolor: 'info.light', borderRadius: 1 }}>
-                <Typography variant="caption" color="info.contrastText">
+            <Box
+                className="effect-configurer__status"
+                role="status"
+            >
+                <Typography 
+                    variant="caption" 
+                    className="effect-configurer__status-text"
+                >
                     Status: {isConfigComplete ? '✅ Complete' : '⚠️ Incomplete'} | 
                     Validations: {validationMetrics.validationsPerformed} | 
                     Configs: {configMetrics.configurationsProcessed} | 
@@ -503,8 +580,12 @@ function EffectConfigurer({
     // Early return if no effect selected
     if (!selectedEffect) {
         return (
-            <Box sx={{ p: 2, textAlign: 'center' }}>
-                <Typography variant="body1" color="text.secondary">
+            <Box
+                className="effect-configurer__empty-state"
+                role="status"
+                aria-label="No effect selected"
+            >
+                <Typography variant="body2" color="text.secondary">
                     Select an effect to configure
                 </Typography>
             </Box>
@@ -513,14 +594,9 @@ function EffectConfigurer({
 
     return (
         <>
-            <Box sx={{ p: 2 }}>
-                {/* Effect Header */}
-                <Box sx={{ mb: 2 }}>
-                    <Typography variant="h6" gutterBottom>
-                        {selectedEffect.name} - {selectedEffect.id}
-                    </Typography>
-                </Box>
-
+            <Box
+                className="effectConfigurer effect-configurer__container"
+            >
                 {/* Preset Selector */}
                 <PresetSelector
                     selectedEffect={selectedEffect}
@@ -530,9 +606,9 @@ function EffectConfigurer({
                 {/* Validation Errors */}
                 {renderValidationErrors()}
 
-                {/* Configuration Form */}
+                {/* Configuration Form - Scrollable Area */}
                 {configSchema && (
-                    <Box sx={{ mb: 3 }}>
+                    <Box className="effect-configurer__form-area">
                         <EffectFormRenderer
                             configSchema={configSchema}
                             effectConfig={effectConfig}
@@ -540,22 +616,22 @@ function EffectConfigurer({
                             projectState={projectState}
                             validationErrors={validationErrors}
                         />
-                    </Box>
-                )}
-
-                {/* Percent Chance Control */}
-                {!isModal && (
-                    <Box sx={{ mb: 3 }}>
-                        <PercentChanceControl
-                            value={percentChance}
-                            onChange={setPercentChance}
-                        />
+                        
+                        {/* Percent Chance Control - Now Part of Scrollable Area */}
+                        {!isModal && (
+                            <Box className="effect-configurer__percent-chance-wrapper">
+                                <PercentChanceControl
+                                    value={percentChance}
+                                    onChange={setPercentChance}
+                                />
+                            </Box>
+                        )}
                     </Box>
                 )}
 
                 {/* Attached Effects Display */}
                 {attachedEffects && attachedEffects.length > 0 && (
-                    <Box sx={{ mb: 3 }}>
+                    <Box className="effect-configurer__attached-effects-wrapper">
                         <AttachedEffectsDisplay
                             effects={attachedEffects}
                             onRemove={onRemoveAttachedEffect}
@@ -564,25 +640,17 @@ function EffectConfigurer({
                 )}
 
                 {/* Action Buttons */}
-                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                    {/* Add Effect Button */}
-                    {onAddEffect && (
-                        <Button
-                            variant="contained"
-                            onClick={handleAddEffect}
-                            disabled={!isConfigComplete}
-                            sx={{ minWidth: 120 }}
-                        >
-                            Add Effect
-                        </Button>
-                    )}
-
+                <Box
+                    className="effect-configurer__actions"
+                >
                     {/* Save Preset Button */}
                     <Button
                         variant="outlined"
+                        size="small"
                         onClick={openSavePresetDialog}
                         disabled={!isConfigComplete}
-                        sx={{ minWidth: 120 }}
+                        aria-label="Save current configuration as preset"
+                        className="effect-configurer__save-preset-button"
                     >
                         Save Preset
                     </Button>
@@ -590,37 +658,141 @@ function EffectConfigurer({
                     {/* Reset Defaults Button */}
                     <Button
                         variant="outlined"
+                        size="small"
                         startIcon={<RestartAlt />}
                         onClick={handleResetDefaults}
-                        sx={{ minWidth: 120 }}
+                        aria-label="Reset configuration to defaults"
+                        className="effect-configurer__reset-button"
                     >
-                        Reset Defaults
+                        Reset
                     </Button>
                 </Box>
             </Box>
 
             {/* Save Preset Dialog */}
-            <Dialog open={saveDialogOpen} onClose={() => setSaveDialogOpen(false)} maxWidth="xs" fullWidth>
-                <DialogTitle>Save Preset</DialogTitle>
-                <DialogContent>
+            <Dialog 
+                open={saveDialogOpen} 
+                onClose={() => setSaveDialogOpen(false)} 
+                maxWidth="xs" 
+                fullWidth
+                aria-labelledby="save-preset-dialog"
+            >
+                <DialogTitle id="save-preset-dialog" className="effect-configurer__dialog-title">
+                    Save Configuration as Preset
+                </DialogTitle>
+                <DialogContent className="effect-configurer__dialog-content">
                     <TextField
                         autoFocus
                         fullWidth
                         label="Preset name"
+                        placeholder="Enter unique name"
                         value={presetName}
                         onChange={(e) => setPresetName(e.target.value)}
                         error={!!saveError}
-                        helperText={saveError || 'Enter a unique name'}
+                        helperText={saveError || 'Enter a unique name (1-64 characters)'}
                         inputProps={{ maxLength: 64 }}
+                        size="small"
+                        aria-label="Preset name input"
                     />
                 </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setSaveDialogOpen(false)}>Cancel</Button>
-                    <Button variant="contained" onClick={handleConfirmSavePreset}>Save</Button>
+                <DialogActions className="effect-configurer__dialog-actions">
+                    <Button 
+                        onClick={() => setSaveDialogOpen(false)}
+                        variant="outlined"
+                    >
+                        Cancel
+                    </Button>
+                    <Button 
+                        variant="contained" 
+                        onClick={handleConfirmSavePreset}
+                        disabled={!presetName.trim()}
+                    >
+                        Save
+                    </Button>
                 </DialogActions>
             </Dialog>
         </>
     );
 }
+
+/**
+ * PropTypes validation for EffectConfigurer
+ * 
+ * Documents expected prop shapes and validates at runtime.
+ * Following patterns from refactored EffectsPanel components.
+ */
+EffectConfigurer.propTypes = {
+    /** Currently selected effect for configuration */
+    selectedEffect: PropTypes.shape({
+        effectId: PropTypes.string.isRequired,
+        registryKey: PropTypes.string,
+        name: PropTypes.string,
+        effectType: PropTypes.string,
+        effectIndex: PropTypes.number,
+        id: PropTypes.string, // Fallback for legacy prop name
+    }),
+    
+    /** Project state for context and resolution information */
+    projectState: PropTypes.shape({
+        targetResolution: PropTypes.string,
+        getTargetResolution: PropTypes.func,
+        getIsHorizontal: PropTypes.func,
+    }),
+    
+    /** Callback when configuration changes */
+    onConfigChange: PropTypes.func,
+    
+    /** Callback when effect should be added */
+    onAddEffect: PropTypes.func,
+    
+    /** Is this component running in modal mode */
+    isModal: PropTypes.bool,
+    
+    /** Effect type for new effect creation */
+    effectType: PropTypes.string,
+    
+    /** Available effects for selection */
+    availableEffects: PropTypes.arrayOf(PropTypes.shape({
+        id: PropTypes.string.isRequired,
+        name: PropTypes.string,
+    })),
+    
+    /** Attached sub-effects */
+    attachedEffects: PropTypes.array,
+    
+    /** Callback to attach effects */
+    onAttachEffect: PropTypes.func,
+    
+    /** Callback to remove attached effects */
+    onRemoveAttachedEffect: PropTypes.func,
+    
+    /** Initial configuration values */
+    initialConfig: PropTypes.object,
+    
+    /** Initial percent chance value */
+    initialPercentChance: PropTypes.number,
+    
+    /** Use wide layout instead of standard */
+    useWideLayout: PropTypes.bool,
+};
+
+/**
+ * Default props
+ */
+EffectConfigurer.defaultProps = {
+    selectedEffect: null,
+    projectState: null,
+    onConfigChange: () => {},
+    onAddEffect: null,
+    isModal: false,
+    effectType: null,
+    availableEffects: null,
+    attachedEffects: null,
+    onAttachEffect: null,
+    onRemoveAttachedEffect: null,
+    initialConfig: null,
+    initialPercentChance: null,
+    useWideLayout: false,
+};
 
 export default EffectConfigurer;

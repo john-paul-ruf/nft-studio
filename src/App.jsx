@@ -7,6 +7,7 @@ import Canvas from './pages/Canvas.jsx';
 import ProjectState from './models/ProjectState.js';
 import ProjectPersistenceService from './services/ProjectPersistenceService.js';
 import ApplicationFactory from './ApplicationFactory.js';
+import './App.bem.css';
 
 /**
  * Main application router component
@@ -283,8 +284,51 @@ function App() {
     // Initialize application factory
     const contextValue = ApplicationFactory.createReactContextValue();
 
+    // Dev-only theme toggles per Styles Refactor Plan (temporary)
+    const isDev = process.env.NODE_ENV !== 'production';
+    const [theme, setTheme] = React.useState(() => {
+        try {
+            return localStorage.getItem('devTheme') || 'dark';
+        } catch (_) {
+            return 'dark';
+        }
+    });
+
+    useEffect(() => {
+        try {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('devTheme', theme);
+        } catch (_) {}
+    }, [theme]);
+
     return (
         <ServiceProvider value={contextValue}>
+            {isDev && (
+                <div
+                    className="app__theme-toggles"
+                    aria-label="Theme toggles (dev)"
+                >
+                    <span className="app__theme-label">Theme:</span>
+                    <button
+                        onClick={() => setTheme('light')}
+                        className={`app__theme-button app__theme-button--spaced ${theme === 'light' ? 'app__theme-button--active' : ''}`}
+                    >
+                        Light
+                    </button>
+                    <button
+                        onClick={() => setTheme('dark')}
+                        className={`app__theme-button app__theme-button--spaced ${theme === 'dark' ? 'app__theme-button--active' : ''}`}
+                    >
+                        Dark
+                    </button>
+                    <button
+                        onClick={() => setTheme('high-contrast')}
+                        className={`app__theme-button ${theme === 'high-contrast' ? 'app__theme-button--active' : ''}`}
+                    >
+                        HC
+                    </button>
+                </div>
+            )}
             <AppRouter />
         </ServiceProvider>
     );

@@ -1,0 +1,698 @@
+/**
+ * EFFECT INPUT LIBRARY — BEM Consolidated Styles (Phase 1)
+ * =========================================================
+ * 
+ * CONSOLIDATION OVERVIEW:
+ * This file consolidates all input type variations under a single `effect-input` block.
+ * Previously scattered classes (readonly-input, text-input, json-input, etc.) are now
+ * unified under proper BEM naming: effect-input__readonly, effect-input__text, etc.
+ * 
+ * DESIGN PRINCIPLE:
+ * - Single source of truth for all input styling
+ * - Supports 10+ input types (readonly, text, json, range, percentage, color, point2d, etc.)
+ * - All styles use design tokens from src/styles.css (no hardcoded values)
+ * - Full theme support via [data-theme] attribute
+ * 
+ * USAGE IN COMPONENTS:
+ * 1. Import this file in any component that renders inputs:
+ *    import './EffectInput.bem.css';
+ * 
+ * 2. Use BEM classes in JSX:
+ *    <Box className="effect-input effect-input__text">
+ *        <Typography className="effect-input__text-label">{field.label}</Typography>
+ *        <TextField ... />
+ *    </Box>
+ * 
+ * 3. Apply state modifiers when needed:
+ *    <Box className={`effect-input effect-input__text ${field.readonly ? 'effect-input--disabled' : ''}`}>
+ * 
+ * INPUT TYPES SUPPORTED (With BEM class names):
+ * - readonly         → .effect-input__readonly
+ * - text             → .effect-input__text
+ * - json             → .effect-input__json
+ * - range            → .effect-input__range
+ * - point2d          → .effect-input__point2d
+ * - position         → .effect-input__position
+ * - percentage       → .effect-input__percentage
+ * - percentage-range → .effect-input__percentage-range
+ * - color            → .effect-input__color
+ * - dynamic-range    → .effect-input__dynamic-range
+ * 
+ * STATE MODIFIERS (Applied to .effect-input):
+ * - .effect-input--disabled   → Disables input with opacity + pointer-events
+ * - .effect-input--invalid    → Applies error color styling
+ * - .effect-input__label--required → Adds red asterisk after label
+ * 
+ * ELEMENT CONVENTIONS (Per type):
+ * - .__{type}-label        → Field label
+ * - .__{type}-value        → Display-only value (for readonly)
+ * - .__{type}-controls     → Container for input controls
+ * - .__{type}-input        → Individual input field
+ * - .__{type}-input-group  → Wrapper for grouped inputs
+ * - .__{type}-section      → Logical section (e.g., dynamic-range sections)
+ * 
+ * THEME SUPPORT:
+ * All colors reference tokens that automatically adapt to:
+ * - Dark theme (default): #1a1a1a bg, #e0e0e0 text
+ * - Light theme:         #fafafa bg, #1a1a1a text
+ * - High-contrast theme: #ffffff bg, #000000 text
+ * 
+ * To switch themes: document.documentElement.setAttribute('data-theme', 'light|dark|high-contrast')
+ * 
+ * VENDOR INTEGRATION:
+ * - MUI TextField/Select: Scoped under specific effect-input__* classes
+ * - Focus rings: Applied consistently via CSS instead of MUI sx prop
+ * - Transitions: Use design tokens (--duration-2, --ease-standard, etc.)
+ * 
+ * FILES USING THIS LIBRARY:
+ * - ConfigInputFactory.jsx (readonly, text, json types)
+ * - RangeInput.jsx
+ * - Point2DInput.jsx
+ * - PositionInput.jsx
+ * - ColorPickerInput.jsx
+ * - PercentageInput.jsx
+ * - PercentageRangeInput.jsx
+ * - DynamicRangeInput.jsx
+ * 
+ * All styles use design tokens from src/styles.css
+ */
+
+/* Base container for all input types */
+.effect-input {
+    margin-bottom: var(--space-4);
+}
+
+/* === READONLY INPUT === */
+.effect-input__readonly {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.effect-input__readonly-label {
+    display: block;
+    color: var(--color-fg);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.effect-input__readonly-value {
+    padding: var(--space-3);
+    background-color: var(--background-paper);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-style: italic;
+    font-family: monospace;
+    font-size: 0.85rem;
+}
+
+/* === TEXT INPUT === */
+.effect-input__text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.effect-input__text-label {
+    display: block;
+    color: var(--color-fg);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+/* MUI TextField scoped under text input */
+.effect-input__text .MuiOutlinedInput-root {
+    background-color: var(--background-paper);
+    transition: all var(--duration-2) var(--ease-standard);
+}
+
+.effect-input__text .MuiOutlinedInput-root:hover fieldset {
+    border-color: var(--color-primary);
+}
+
+.effect-input__text .MuiOutlinedInput-root.Mui-focused fieldset {
+    border-color: var(--color-primary);
+}
+
+/* === JSON INPUT === */
+.effect-input__json {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.effect-input__json-label {
+    display: block;
+    color: var(--color-fg);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.effect-input__json-warning {
+    background-color: rgba(212, 156, 61, 0.1);
+    border: 1px solid var(--warning-main);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+    margin-bottom: var(--space-3);
+    color: var(--warning-main);
+    font-size: 0.85rem;
+}
+
+/* MUI TextField scoped under json input */
+.effect-input__json .MuiOutlinedInput-root {
+    background-color: var(--background-paper);
+    font-family: monospace;
+    font-size: 0.85rem;
+    transition: all var(--duration-2) var(--ease-standard);
+}
+
+.effect-input__json .MuiOutlinedInput-root:hover fieldset {
+    border-color: var(--color-primary);
+}
+
+.effect-input__json .MuiOutlinedInput-root.Mui-focused fieldset {
+    border-color: var(--color-primary);
+}
+
+.effect-input__json .MuiOutlinedInput-input {
+    font-family: monospace;
+    font-size: 0.85rem;
+}
+
+/* === RANGE INPUT === */
+.effect-input__range {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.effect-input__range-label {
+    display: block;
+    color: var(--color-fg);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.effect-input__range-inputs {
+    display: flex;
+    gap: var(--space-2);
+    align-items: flex-start;
+}
+
+.effect-input__range-input-group {
+    flex: 1;
+}
+
+.effect-input__range-separator {
+    color: var(--text-secondary);
+    margin-top: var(--space-5);
+    font-weight: 500;
+}
+
+/* MUI TextField scoped under range input */
+.effect-input__range .MuiOutlinedInput-root {
+    background-color: var(--background-paper);
+    transition: all var(--duration-2) var(--ease-standard);
+}
+
+.effect-input__range .MuiOutlinedInput-root:hover fieldset {
+    border-color: var(--color-primary);
+}
+
+.effect-input__range .MuiOutlinedInput-root.Mui-focused fieldset {
+    border-color: var(--color-primary);
+}
+
+/* === PERCENTAGE RANGE INPUT === */
+.effect-input__percentage-range {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+.effect-input__percentage-range-label {
+    display: block;
+    color: var(--color-fg);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.effect-input__percentage-range-controls {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+}
+
+.effect-input__percentage-range-input-group {
+    flex: 1;
+}
+
+.effect-input__percentage-range-input {
+    width: 100%;
+    padding: var(--space-3);
+    background-color: var(--background-paper);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-fg);
+    font-family: inherit;
+    font-size: 0.95rem;
+    transition: all var(--duration-2) var(--ease-standard);
+}
+
+.effect-input__percentage-range-input:hover {
+    border-color: var(--color-primary);
+}
+
+.effect-input__percentage-range-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(90, 139, 181, 0.1);
+}
+
+/* === POINT2D INPUT === */
+.effect-input__point2d {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.effect-input__point2d-label {
+    display: block;
+    color: var(--color-fg);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.effect-input__point2d-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+}
+
+/* MUI TextField scoped under point2d input */
+.effect-input__point2d .MuiOutlinedInput-root {
+    background-color: var(--background-paper);
+    transition: all var(--duration-2) var(--ease-standard);
+}
+
+.effect-input__point2d .MuiOutlinedInput-root:hover fieldset {
+    border-color: var(--color-primary);
+}
+
+.effect-input__point2d .MuiOutlinedInput-root.Mui-focused fieldset {
+    border-color: var(--color-primary);
+}
+
+/* Point2D Preset Section */
+.effect-input__point2d-presets {
+    margin-top: var(--space-2);
+    padding: var(--space-2);
+    background-color: var(--action-hover);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+}
+
+.effect-input__point2d-preset-button {
+    font-size: 0.75rem;
+    py: 0.5;
+    text-transform: none;
+    background-color: var(--action-hover);
+}
+
+.effect-input__point2d-preset-grid {
+    margin-bottom: var(--space-2);
+}
+
+.effect-input__point2d-preset-info {
+    display: block;
+    text-align: center;
+    color: var(--color-text-secondary);
+    margin-top: var(--space-2);
+    font-size: 0.75rem;
+}
+
+.effect-input__point2d-position-display {
+    display: block;
+    text-align: center;
+    color: var(--color-text-secondary);
+    font-family: monospace;
+    font-size: 0.75rem;
+    margin-top: var(--space-2);
+}
+
+.effect-input__point2d-quick-button {
+    background-color: var(--action-hover);
+    text-transform: none;
+    font-size: 0.85rem;
+}
+
+/* === RANGE INPUT === */
+.effect-input__range {
+    margin-bottom: var(--space-3);
+}
+
+.effect-input__range-label {
+    display: block;
+    color: var(--color-fg);
+    font-weight: 500;
+    font-size: 0.9rem;
+    margin-bottom: var(--space-1);
+}
+
+.effect-input__range-inputs {
+    display: flex;
+    gap: var(--space-2);
+    align-items: flex-start;
+}
+
+.effect-input__range-input-group {
+    flex: 1;
+}
+
+.effect-input__range-input-group .MuiOutlinedInput-root {
+    background-color: var(--background-paper);
+    transition: all var(--duration-2) var(--ease-standard);
+}
+
+.effect-input__range-input-group .MuiOutlinedInput-root:hover fieldset {
+    border-color: var(--color-primary);
+}
+
+.effect-input__range-input-group .MuiOutlinedInput-root.Mui-focused fieldset {
+    border-color: var(--color-primary);
+}
+
+.effect-input__range-separator {
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    margin-top: var(--space-2);
+}
+
+/* === NUMBER INPUT === */
+.effect-input__number-input {
+    width: 120px;
+}
+
+.effect-input__number-slider-group {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.effect-input__number-slider {
+    flex: 1;
+}
+
+.effect-input__number-input-compact {
+    width: 80px;
+}
+
+/* === CONFIG INPUT FACTORY === */
+.effect-input__text-input .MuiOutlinedInput-root,
+.effect-input__number-input .MuiOutlinedInput-root,
+.effect-input__json .MuiOutlinedInput-root {
+    background-color: var(--background-paper);
+    transition: all var(--duration-2) var(--ease-standard);
+}
+
+.effect-input__text-input .MuiOutlinedInput-root:hover fieldset,
+.effect-input__number-input .MuiOutlinedInput-root:hover fieldset,
+.effect-input__json .MuiOutlinedInput-root:hover fieldset {
+    border-color: var(--color-primary);
+}
+
+.effect-input__text-input .MuiOutlinedInput-root.Mui-focused fieldset,
+.effect-input__number-input .MuiOutlinedInput-root.Mui-focused fieldset,
+.effect-input__json .MuiOutlinedInput-root.Mui-focused fieldset {
+    border-color: var(--color-primary);
+}
+
+.effect-input__json {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.effect-input__json-label {
+    display: block;
+    color: var(--color-fg);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.effect-input__json-warning {
+    padding: var(--space-2);
+    background-color: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
+}
+
+.effect-input__json .MuiOutlinedInput-root {
+    font-family: monospace;
+    font-size: 0.85rem;
+}
+
+.effect-input__json .MuiOutlinedInput-input {
+    font-family: monospace;
+    font-size: 0.85rem;
+}
+
+.effect-input__json-textarea.MuiOutlinedInput-root {
+    font-family: monospace;
+    font-size: 0.85rem;
+}
+
+.effect-input__json-textarea .MuiOutlinedInput-input {
+    font-family: monospace;
+    font-size: 0.85rem;
+}
+
+/* === PERCENTAGE INPUT === */
+.effect-input__percentage {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+.effect-input__percentage-label {
+    display: block;
+    color: var(--color-fg);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.effect-input__percentage-input {
+    width: 100%;
+    padding: var(--space-3);
+    background-color: var(--background-paper);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-fg);
+    font-family: inherit;
+    font-size: 0.95rem;
+    transition: all var(--duration-2) var(--ease-standard);
+}
+
+.effect-input__percentage-input:hover {
+    border-color: var(--color-primary);
+}
+
+.effect-input__percentage-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(90, 139, 181, 0.1);
+}
+
+/* === COLOR PICKER INPUT === */
+.effect-input__color {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.effect-input__color-label {
+    display: block;
+    color: var(--color-fg);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.effect-input__color-select {
+    background-color: var(--background-paper);
+    transition: all var(--duration-2) var(--ease-standard);
+}
+
+.effect-input__color-select .MuiOutlinedInput-root:hover fieldset {
+    border-color: var(--color-primary);
+}
+
+.effect-input__color-select .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+    border-color: var(--color-primary);
+}
+
+.effect-input__color-picker-controls {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+}
+
+.effect-input__color-swatch {
+    width: 60px;
+    height: 40px;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all var(--duration-2) var(--ease-standard);
+}
+
+.effect-input__color-swatch:hover {
+    box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.effect-input__color-text-input {
+    flex: 1;
+}
+
+/* MUI TextField scoped under color text input */
+.effect-input__color-text-input .MuiOutlinedInput-root {
+    background-color: var(--background-paper);
+    transition: all var(--duration-2) var(--ease-standard);
+}
+
+.effect-input__color-text-input .MuiOutlinedInput-root:hover fieldset {
+    border-color: var(--color-primary);
+}
+
+.effect-input__color-text-input .MuiOutlinedInput-root.Mui-focused fieldset {
+    border-color: var(--color-primary);
+}
+
+/* === DYNAMIC RANGE INPUT === */
+.effect-input__dynamic-range {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+.effect-input__dynamic-range-label {
+    display: block;
+    color: var(--color-fg);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.effect-input__dynamic-range-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    background-color: var(--background-paper);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+.effect-input__dynamic-range-section-title {
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.effect-input__dynamic-range-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+}
+
+.effect-input__dynamic-range-input {
+    width: 100%;
+    padding: var(--space-2);
+    background-color: var(--surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-fg);
+    font-family: monospace;
+    font-size: 0.9rem;
+    transition: all var(--duration-2) var(--ease-standard);
+}
+
+.effect-input__dynamic-range-input:hover {
+    border-color: var(--color-primary);
+}
+
+.effect-input__dynamic-range-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(90, 139, 181, 0.1);
+}
+
+/* === POSITION INPUT === */
+.effect-input__position {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+.effect-input__position-label {
+    display: block;
+    color: var(--color-fg);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.effect-input__position-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+}
+
+.effect-input__position-input {
+    width: 100%;
+    padding: var(--space-3);
+    background-color: var(--background-paper);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-fg);
+    font-family: monospace;
+    font-size: 0.9rem;
+    transition: all var(--duration-2) var(--ease-standard);
+}
+
+.effect-input__position-input:hover {
+    border-color: var(--color-primary);
+}
+
+.effect-input__position-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(90, 139, 181, 0.1);
+}
+
+/* === STATE MODIFIERS === */
+.effect-input--disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.effect-input--invalid {
+    color: var(--color-danger);
+}
+
+.effect-input__label--required::after {
+    content: ' *';
+    color: var(--color-danger);
+}
+
+/* === UTILITY: MUI FOCUS RING (Used across all input types) === */
+.effect-input .MuiOutlinedInput-root.Mui-focused {
+    box-shadow: 0 0 0 2px rgba(90, 139, 181, 0.1);
+}

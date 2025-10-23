@@ -88,7 +88,31 @@ class EffectsHandlers {
 
         ipcMain.handle('get-available-effects', async (event) => {
             try {
-                const effects = await this.effectsManager.getAvailableEffects();
+                // Retry logic: effects might not be loaded on first request
+                let effects = await this.effectsManager.getAvailableEffects();
+                let retries = 0;
+                const maxRetries = 5;
+                
+                // If we got empty effects, wait a bit and retry
+                // This handles the case where effects registry is still initializing
+                while (
+                    (
+                        !effects.primary || 
+                        !effects.secondary || 
+                        effects.primary.length === 0
+                    ) && 
+                    retries < maxRetries
+                ) {
+                    SafeConsole.log(`📊 [EffectsHandlers] Effects not loaded yet, retrying... (${retries + 1}/${maxRetries})`);
+                    await new Promise(resolve => setTimeout(resolve, 200 * (retries + 1)));
+                    effects = await this.effectsManager.getAvailableEffects();
+                    retries++;
+                }
+                
+                if (retries > 0 && effects.primary && effects.primary.length > 0) {
+                    SafeConsole.log(`✅ [EffectsHandlers] Effects loaded successfully after ${retries} retries`);
+                }
+                
                 return {
                     success: true,
                     effects: effects
@@ -98,7 +122,7 @@ class EffectsHandlers {
                 return {
                     success: false,
                     error: error.message,
-                    effects: { primary: [], secondary: [] }
+                    effects: { primary: [], secondary: [], finalImage: [], keyFrame: [] }
                 };
             }
         });

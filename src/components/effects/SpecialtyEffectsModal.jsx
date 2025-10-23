@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -24,6 +24,7 @@ import {
     Paper
 } from '@mui/material';
 import { Close, ArrowBack, ArrowForward } from '@mui/icons-material';
+import './SpecialtyEffectsModal.bem.css';
 import NumberInput from './inputs/NumberInput.jsx';
 import Point2DInput from './inputs/Point2DInput.jsx';
 import EffectConfigurer from './EffectConfigurer.jsx';
@@ -38,6 +39,18 @@ function SpecialtyEffectsModal({
     projectState
 }) {
     const theme = useTheme();
+    const dialogPaperRef = useRef(null);
+
+    // Update CSS variables dynamically based on theme changes
+    useEffect(() => {
+        if (dialogPaperRef.current) {
+            dialogPaperRef.current.style.setProperty('--specialty-modal-bg', theme.palette.background.paper);
+            dialogPaperRef.current.style.setProperty('--specialty-modal-text-secondary', theme.palette.text.secondary);
+            dialogPaperRef.current.style.setProperty('--specialty-modal-divider', theme.palette.divider);
+            dialogPaperRef.current.style.setProperty('--specialty-modal-preview-bg', theme.palette.action.hover);
+        }
+    }, [theme]);
+
     const [step, setStep] = useState(1); // 1: select effect, 2: configure effect, 3: distribution config, 4: position config
     const [selectedEffect, setSelectedEffect] = useState(null);
     const [effectConfig, setEffectConfig] = useState(null);
@@ -113,7 +126,7 @@ function SpecialtyEffectsModal({
     const typeInfo = {
         title: '⭐ Create Specialty Effects',
         description: 'Distribute multiple effects along geometric patterns',
-        color: '#9c27b0'
+        colorVar: 'var(--specialty-modal-accent-color)'
     };
 
     const handleEffectSelect = async (effect) => {
@@ -209,27 +222,20 @@ function SpecialtyEffectsModal({
             maxWidth="lg"
             fullWidth
             PaperProps={{
+                ref: dialogPaperRef,
+                className: 'specialty-modal__paper',
                 sx: {
-                    backgroundColor: theme.palette.background.paper,
                     backgroundImage: 'none',
                     minHeight: '60vh'
                 }
             }}
         >
-            <DialogTitle
-                sx={{
-                    background: `linear-gradient(135deg, ${typeInfo.color}20 0%, ${typeInfo.color}10 100%)`,
-                    borderBottom: `1px solid ${typeInfo.color}40`,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                }}
-            >
+            <DialogTitle className="specialty-modal__title">
                 <Box>
-                    <Typography variant="h6" sx={{ color: typeInfo.color }}>
+                    <Typography variant="h6" className="specialty-modal__title-text">
                         {typeInfo.title}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
+                    <Typography variant="body2" className="specialty-modal__secondary-text">
                         Step {step} of 4: {
                             step === 1 ? 'Select Effect' :
                             step === 2 ? 'Configure Effect' :
@@ -241,42 +247,32 @@ function SpecialtyEffectsModal({
                 <IconButton
                     onClick={handleClose}
                     size="small"
-                    sx={{ color: theme.palette.text.secondary }}
+                    className="specialty-modal__close-button"
                 >
                     <Close />
                 </IconButton>
             </DialogTitle>
 
-            <DialogContent dividers sx={{ p: 3 }}>
+            <DialogContent dividers className="specialty-modal__content">
                 {step === 1 && (
                     // Effect Selection
                     <Box>
                         <Typography variant="h6" gutterBottom>
                             Choose Effect Type
                         </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                        <Typography variant="body2" color="text.secondary" className="specialty-modal__section-subtitle">
                             Select the effect you want to distribute along a geometric pattern
                         </Typography>
                         {effects.length > 0 ? (
                             <Grid container spacing={2}>
                                 {effects.map(effect => (
                                     <Grid item xs={12} sm={6} md={4} key={effect.registryKey}>
-                                        <Card
-                                            sx={{
-                                                height: '100%',
-                                                transition: 'all 0.2s',
-                                                border: `1px solid ${theme.palette.divider}`,
-                                                '&:hover': {
-                                                    borderColor: typeInfo.color,
-                                                    backgroundColor: `${typeInfo.color}10`
-                                                }
-                                            }}
-                                        >
+                                        <Card className="specialty-modal__effect-card">
                                             <CardActionArea
                                                 onClick={() => handleEffectSelect(effect)}
-                                                sx={{ height: '100%', p: 2 }}
+                                                className="specialty-modal__effect-card-action"
                                             >
-                                                <CardContent sx={{ p: 0 }}>
+                                                <CardContent className="specialty-modal__effect-card-content">
                                                     <Typography variant="subtitle1" gutterBottom>
                                                         {effect.displayName || effect.registryKey}
                                                     </Typography>
@@ -305,7 +301,7 @@ function SpecialtyEffectsModal({
                         <Typography variant="h6" gutterBottom>
                             Configure Effect
                         </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                        <Typography variant="body2" color="text.secondary" className="specialty-modal__section-subtitle">
                             Configure the settings for this effect. These settings will be applied to all distributed instances.
                         </Typography>
 
@@ -320,7 +316,7 @@ function SpecialtyEffectsModal({
                             />
                         )}
 
-                        <Box sx={{ mt: 3 }}>
+                        <Box className="specialty-modal__section-box">
                             <Typography variant="body2" color="text.secondary">
                                 Effect: <strong>{selectedEffect?.displayName || selectedEffect?.registryKey}</strong>
                             </Typography>
@@ -337,7 +333,7 @@ function SpecialtyEffectsModal({
                         <Typography variant="h6" gutterBottom>
                             Configure Distribution
                         </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                        <Typography variant="body2" color="text.secondary" className="specialty-modal__section-subtitle">
                             Set up how many effects to create and their distribution pattern
                         </Typography>
 
@@ -359,7 +355,7 @@ function SpecialtyEffectsModal({
 
                             <Grid item xs={12} md={6}>
                                 <FormControl component="fieldset">
-                                    <FormLabel component="legend" sx={{ mb: 1 }}>
+                                    <FormLabel component="legend" className="specialty-modal__form-label">
                                         Distribution Pattern
                                     </FormLabel>
                                     <RadioGroup
@@ -381,7 +377,7 @@ function SpecialtyEffectsModal({
                             </Grid>
                         </Grid>
 
-                        <Box sx={{ mt: 3 }}>
+                        <Box className="specialty-modal__section-box">
                             <Typography variant="body2" color="text.secondary">
                                 Selected: <strong>{selectedEffect?.displayName || selectedEffect?.registryKey}</strong>
                             </Typography>
@@ -398,7 +394,7 @@ function SpecialtyEffectsModal({
                         <Typography variant="h6" gutterBottom>
                             Set Positions
                         </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                        <Typography variant="body2" color="text.secondary" className="specialty-modal__section-subtitle">
                             Define the {distributionType === 'line' ? 'start and end points' : 'center point and radius'}
                         </Typography>
 
@@ -459,13 +455,13 @@ function SpecialtyEffectsModal({
                             )}
                         </Grid>
 
-                        <Divider sx={{ my: 3 }} />
+                        <Divider className="specialty-modal__divider" />
 
                         <Box>
                             <Typography variant="subtitle2" gutterBottom>
                                 Preview Summary
                             </Typography>
-                            <Paper sx={{ p: 2, backgroundColor: theme.palette.action.hover }}>
+                            <Paper className="specialty-modal__preview">
                                 <Typography variant="body2">
                                     <strong>Effect:</strong> {selectedEffect?.displayName || selectedEffect?.registryKey}
                                 </Typography>
@@ -484,12 +480,12 @@ function SpecialtyEffectsModal({
                 )}
             </DialogContent>
 
-            <DialogActions sx={{ px: 3, py: 2 }}>
+            <DialogActions className="specialty-modal__actions">
                 <Button
                     onClick={handleBack}
                     variant="outlined"
                     startIcon={step > 1 ? <ArrowBack /> : <Close />}
-                    sx={{ mr: 'auto' }}
+                    className="specialty-modal__cancel-button"
                 >
                     {step > 1 ? 'Back' : 'Cancel'}
                 </Button>
@@ -500,12 +496,7 @@ function SpecialtyEffectsModal({
                         variant="contained"
                         endIcon={<ArrowForward />}
                         disabled={(step === 1 && !selectedEffect) || (step === 2 && !effectConfig)}
-                        sx={{
-                            background: `linear-gradient(135deg, ${typeInfo.color} 0%, ${typeInfo.color}cc 100%)`,
-                            '&:hover': {
-                                background: `linear-gradient(135deg, ${typeInfo.color}dd 0%, ${typeInfo.color} 100%)`
-                            }
-                        }}
+                        className="specialty-modal__gradient-button"
                     >
                         Next
                     </Button>
@@ -513,12 +504,7 @@ function SpecialtyEffectsModal({
                     <Button
                         onClick={handleCreate}
                         variant="contained"
-                        sx={{
-                            background: `linear-gradient(135deg, ${typeInfo.color} 0%, ${typeInfo.color}cc 100%)`,
-                            '&:hover': {
-                                background: `linear-gradient(135deg, ${typeInfo.color}dd 0%, ${typeInfo.color} 100%)`
-                            }
-                        }}
+                        className="specialty-modal__gradient-button"
                     >
                         Create Specialty Effects
                     </Button>

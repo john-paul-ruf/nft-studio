@@ -230,13 +230,15 @@ export async function testEffectConfigurerEffectAttachmentModal(testEnv) {
         throw new Error('EffectAttachmentModal missing modal/dialog component');
     }
     
-    // Verify EffectConfigurer uses EffectAttachmentModal
+    // Verify EffectConfigurer integrates with attachment modals through EffectEventCoordinator
     const configurerPath = '/Users/the.phoenix/WebstormProjects/nft-studio/src/components/effects/EffectConfigurer.jsx';
     const configurerSource = await fs.readFile(configurerPath, 'utf-8');
-    const usesModal = configurerSource.includes('EffectAttachmentModal');
     
-    if (!usesModal) {
-        throw new Error('EffectConfigurer does not use EffectAttachmentModal');
+    // After Phase 6.3, EffectConfigurer delegates modal coordination to EffectEventCoordinator service
+    const usesEventCoordinator = configurerSource.includes('EffectEventCoordinator');
+    
+    if (!usesEventCoordinator) {
+        throw new Error('EffectConfigurer should use EffectEventCoordinator for modal coordination');
     }
     
     console.log('✅ Effect attachment modal integration verified');
@@ -293,34 +295,32 @@ export async function testEffectConfigurerEventBusIntegration(testEnv) {
 }
 
 /**
- * Test 9: Material-UI Integration
- * Verifies UI component integration
+ * Test 9: CSS and Material-UI Integration
+ * Verifies UI styling approach (CSS-based after Phase 6.3 migration)
  */
 export async function testEffectConfigurerMaterialUIIntegration(testEnv) {
-    console.log('🧪 Testing EffectConfigurer Material-UI integration...');
+    console.log('🧪 Testing EffectConfigurer CSS and Material-UI integration...');
     
-    // Verify component file contains Material-UI imports
+    // Verify component file uses CSS-based styling (post Phase 6.3)
     const fs = await import('fs/promises');
     const path = '/Users/the.phoenix/WebstormProjects/nft-studio/src/components/effects/EffectConfigurer.jsx';
     const componentSource = await fs.readFile(path, 'utf-8');
     
-    // Check for Material-UI patterns
-    const hasMuiImport = componentSource.includes('@mui/material');
-    const hasThemeUsage = componentSource.includes('useTheme');
-    const hasBoxComponent = componentSource.includes('<Box');
+    // Check for CSS integration patterns
+    const hasCssImport = componentSource.includes('.css');
     const hasTypographyComponent = componentSource.includes('<Typography');
     const hasButtonComponent = componentSource.includes('<Button');
+    const hasDialogComponent = componentSource.includes('<Dialog');
     
-    if (!hasMuiImport) {
-        throw new Error('Missing @mui/material import');
+    // After Phase 6.3 migration, inline sx props removed and CSS classes used instead
+    const hasRemovableSxProps = componentSource.includes('sx={');
+    
+    if (hasRemovableSxProps) {
+        throw new Error('EffectConfigurer still uses inline sx props - Phase 6.3 migration incomplete');
     }
     
-    if (!hasThemeUsage) {
-        throw new Error('Missing useTheme hook');
-    }
-    
-    if (!hasBoxComponent) {
-        throw new Error('Missing Box component usage');
+    if (!hasCssImport) {
+        throw new Error('Missing CSS import for styling');
     }
     
     if (!hasTypographyComponent) {
@@ -331,11 +331,15 @@ export async function testEffectConfigurerMaterialUIIntegration(testEnv) {
         throw new Error('Missing Button component usage');
     }
     
-    console.log('✅ Material-UI integration verified');
+    if (!hasDialogComponent) {
+        throw new Error('Missing Dialog component usage');
+    }
+    
+    console.log('✅ CSS and Material-UI integration verified');
     
     return {
         success: true,
-        message: 'Material-UI integration validated'
+        message: 'CSS and Material-UI integration validated - Phase 6.3 compliant'
     };
 }
 

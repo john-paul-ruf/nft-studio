@@ -1,0 +1,62 @@
+/**
+ * EffectItem.bem.css
+ * 
+ * BEM styling for the EffectItem component.
+ * Handles effect row controls (expand, visibility, delete) with state variations.
+ */
+
+/* Block: Effect item controls */
+
+/* Expand/Collapse button styling */
+.effects-list__item__expand-button {
+    /* Default state */
+}
+
+/* Expand button - read-only state (disabled) */
+.effects-list__item__expand-button[data-read-only="true"] {
+    opacity: 0.3 !important;
+    cursor: not-allowed !important;
+}
+
+/* Expand button - interactive state (enabled) */
+.effects-list__item__expand-button[data-read-only="false"] {
+    opacity: 1 !important;
+    cursor: pointer !important;
+}
+
+/* Visibility button styling */
+.effects-list__item__visibility-button {
+    /* Default state */
+}
+
+/* Visibility button - read-only state (disabled) */
+.effects-list__item__visibility-button[data-read-only="true"] {
+    opacity: 0.3 !important;
+}
+
+/* Visibility button - hidden/inactive state */
+.effects-list__item__visibility-button[data-visible="false"] {
+    opacity: 0.5 !important;
+}
+
+/* Visibility button - visible/active state */
+.effects-list__item__visibility-button[data-visible="true"][data-read-only="false"] {
+    opacity: 1 !important;
+}
+
+/* Delete button styling */
+.effects-list__item__delete-button {
+    opacity: 0.7 !important;
+}
+
+/* Delete button - read-only state (disabled) */
+.effects-list__item__delete-button[data-read-only="true"] {
+    opacity: 0.3 !important;
+}
+
+/* Delete confirmation warning text */
+.effect-item__delete-warning {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--effects-panel-text-secondary);
+}

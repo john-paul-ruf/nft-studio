@@ -1,0 +1,70 @@
+/**
+ * ConfigInputFactory BEM Stylesheet
+ * 
+ * Purpose: Styles for the ConfigInputFactory component, which generates
+ * appropriate input components based on field type (readonly, text, json, etc.)
+ * 
+ * Block: effect-input
+ * - Unified container styling for all factory-generated input types
+ * - Handles spacing, typography, and layout for wrapped inputs
+ * 
+ * Usage:
+ * - Readonly fields: <Box className="effect-input effect-input__readonly">
+ * - Text inputs: <Box className="effect-input effect-input__text">
+ * - JSON textareas: <Box className="effect-input effect-input__json">
+ * 
+ * Design Tokens Used:
+ * - --space-1, --space-2: Margin and padding increments (4px, 8px)
+ * - --color-text-primary: Primary text color (e.g., #000000 light, #ffffff dark)
+ * - --color-text-secondary: Secondary/muted text (e.g., #666666 light, #999999 dark)
+ * - --color-warning: Warning state color (e.g., #ff9800 orange)
+ * 
+ * Theme Support:
+ * - Fully compatible with light/dark/high-contrast themes via CSS variables
+ * - No hardcoded colors; all values reference design tokens
+ * - Automatically switches when [data-theme] attribute changes
+ */
+
+/* ============================================================================
+   READONLY INPUT TYPE
+   ============================================================================ */
+
+.effect-input.effect-input__readonly {
+    margin-bottom: var(--space-2);
+}
+
+.effect-input__readonly-label {
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-1);
+}
+
+.effect-input__readonly-value {
+    color: var(--color-text-secondary);
+}
+
+/* ============================================================================
+   TEXT INPUT TYPE
+   ============================================================================ */
+
+.effect-input.effect-input__text {
+    margin-bottom: var(--space-2);
+}
+
+/* ============================================================================
+   JSON INPUT TYPE
+   ============================================================================ */
+
+.effect-input.effect-input__json {
+    margin-bottom: var(--space-2);
+}
+
+.effect-input__json-label {
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-1);
+}
+
+.effect-input__json-warning {
+    color: var(--color-warning);
+    font-size: 0.85rem;
+    margin-bottom: var(--space-1);
+}

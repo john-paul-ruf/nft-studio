@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Box, Typography, TextField, Slider, FormControl, FormHelperText } from '@mui/material';
 import NumberFormatter from '../../../utils/NumberFormatter.js';
 import useDebounce from '../../../hooks/useDebounce.js';
+import './EffectInput.bem.css';
 
 function NumberInput({ field, value, onChange }) {
     const currentValue = value !== undefined ? value : field.default || 0;
@@ -97,7 +98,7 @@ function NumberInput({ field, value, onChange }) {
                         step: step,
                         style: { textAlign: 'center' }
                     }}
-                    sx={{ width: 120 }}
+                    className="effect-input__number-input"
                 />
             </FormControl>
         );
@@ -109,14 +110,14 @@ function NumberInput({ field, value, onChange }) {
             <Typography variant="body2" gutterBottom>
                 {field.label}
             </Typography>
-            <Box display="flex" alignItems="center" gap={2}>
+            <Box className="effect-input__number-slider-group">
                 <Slider
                     value={currentValue}
                     onChange={handleSliderChange}
                     min={0}
                     max={maxValue}
                     step={step}
-                    sx={{ flex: 1 }}
+                    className="effect-input__number-slider"
                 />
                 <TextField
                     type="number"
@@ -129,7 +130,7 @@ function NumberInput({ field, value, onChange }) {
                         step: step,
                         style: { textAlign: 'center' }
                     }}
-                    sx={{ width: 80 }}
+                    className="effect-input__number-input-compact"
                 />
             </Box>
         </FormControl>

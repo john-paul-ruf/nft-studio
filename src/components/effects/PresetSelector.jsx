@@ -17,6 +17,7 @@ import {
 } from '@mui/material';
 import { AutoAwesome } from '@mui/icons-material';
 import PresetConfigDeserializer from '../../utils/PresetConfigDeserializer';
+import './PresetSelector.bem.css';
 
 /**
  * PresetSelector Component
@@ -240,11 +241,11 @@ function PresetSelector({ selectedEffect, onPresetSelect }) {
     }
 
     return (
-        <Box sx={{ mb: 2 }}>
+        <Box className="preset-selector">
             <FormControl fullWidth size="small">
                 <InputLabel id="preset-selector-label">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <AutoAwesome sx={{ fontSize: 16 }} />
+                    <Box className="preset-selector__label-content">
+                        <AutoAwesome className="preset-selector__label-icon" />
                         <span>Apply Preset</span>
                     </Box>
                 </InputLabel>
@@ -255,13 +256,7 @@ function PresetSelector({ selectedEffect, onPresetSelect }) {
                     onChange={handlePresetChange}
                     disabled={loading}
                     label="Apply Preset"
-                    sx={{
-                        '& .MuiSelect-select': {
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1
-                        }
-                    }}
+                    className="preset-selector__select-input"
                 >
                     <MenuItem value="">
                         <em>Select a preset...</em>
@@ -279,8 +274,8 @@ function PresetSelector({ selectedEffect, onPresetSelect }) {
                                 placement="right"
                                 arrow
                             >
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                                    <AutoAwesome sx={{ fontSize: 16, opacity: 0.7 }} />
+                                <Box className="preset-selector__menu-item-content">
+                                    <AutoAwesome className="preset-selector__menu-item-icon" />
                                     <Typography variant="body2">
                                         {preset.name}
                                     </Typography>
@@ -301,8 +296,8 @@ function PresetSelector({ selectedEffect, onPresetSelect }) {
                                 placement="right"
                                 arrow
                             >
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                                    <AutoAwesome sx={{ fontSize: 16, opacity: 0.7 }} />
+                                <Box className="preset-selector__menu-item-content">
+                                    <AutoAwesome className="preset-selector__menu-item-icon" />
                                     <Typography variant="body2">
                                         {preset.name}
                                     </Typography>
@@ -314,7 +309,7 @@ function PresetSelector({ selectedEffect, onPresetSelect }) {
             </FormControl>
 
             {/* Actions for user presets: rename / delete */}
-            <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Box className="preset-selector__actions">
                 <Button
                     size="small"
                     variant="outlined"
@@ -338,7 +333,7 @@ function PresetSelector({ selectedEffect, onPresetSelect }) {
                 <Typography 
                     variant="caption" 
                     color="text.secondary" 
-                    sx={{ mt: 0.5, display: 'block' }}
+                    className="preset-selector__applied-message"
                 >
                     Preset applied. You can further customize the values below.
                 </Typography>
@@ -365,7 +360,7 @@ function PresetSelector({ selectedEffect, onPresetSelect }) {
 
             {/* Snackbar */}
             <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={closeSnackbar}>
-                <Alert onClose={closeSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+                <Alert onClose={closeSnackbar} severity={snackbar.severity} className="preset-selector__alert">
                     {snackbar.message}
                 </Alert>
             </Snackbar>

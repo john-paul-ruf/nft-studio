@@ -1,0 +1,312 @@
+/* Color Scheme Creator — BEM styles using design tokens */
+
+.color-scheme-creator__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.color-scheme-creator {
+  background: var(--color-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  max-width: 700px;
+  max-height: 80vh;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-2);
+}
+
+/* Header */
+.color-scheme-creator__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-5);
+}
+
+.color-scheme-creator__title {
+  margin: 0;
+  color: var(--color-fg);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.color-scheme-creator__close-button {
+  background: none;
+  border: none;
+  color: var(--color-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--duration-2) ease;
+}
+
+.color-scheme-creator__close-button:hover {
+  color: var(--color-fg);
+}
+
+/* Section spacing */
+.color-scheme-creator__section {
+  margin-bottom: var(--space-6);
+}
+
+/* Scheme Info */
+.color-scheme-creator__field {
+  margin-bottom: var(--space-4);
+}
+
+.color-scheme-creator__label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-size: 0.9rem;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.color-scheme-creator__input,
+.color-scheme-creator__select {
+  width: 100%;
+  background: color-mix(in oklab, var(--color-fg) 10%, var(--color-bg));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  color: var(--color-fg);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color var(--duration-2) ease, box-shadow var(--duration-2) ease;
+}
+
+.color-scheme-creator__input:focus,
+.color-scheme-creator__select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-primary) 30%, transparent);
+}
+
+/* Section headers */
+.color-scheme-creator__section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-fg);
+  margin-bottom: var(--space-4);
+}
+
+/* Preset Palettes */
+.color-scheme-creator__preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-2);
+}
+
+.color-scheme-creator__preset-button {
+  background: color-mix(in oklab, var(--color-fg) 10%, var(--color-bg));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  color: var(--color-fg);
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--duration-2) ease;
+}
+
+.color-scheme-creator__preset-button:hover {
+  background: color-mix(in oklab, var(--color-fg) 15%, var(--color-bg));
+  border-color: var(--color-primary);
+}
+
+.color-scheme-creator__preset-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-fg);
+}
+
+.color-scheme-creator__preset-swatches {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  justify-content: center;
+}
+
+.color-scheme-creator__preset-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  background: var(--swatch-color, #999) !important;
+}
+
+/* Color Buckets */
+.color-scheme-creator__bucket {
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  background: color-mix(in oklab, var(--color-fg) 5%, var(--color-bg));
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.color-scheme-creator__bucket-header {
+  margin-bottom: var(--space-3);
+}
+
+.color-scheme-creator__bucket-title {
+  margin: 0 0 var(--space-1) 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-fg);
+}
+
+.color-scheme-creator__bucket-description {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.color-scheme-creator__color-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+/* Color Chip */
+.color-scheme-creator__color-chip {
+  display: flex;
+  align-items: center;
+  background: color-mix(in oklab, var(--color-fg) 10%, var(--color-bg));
+  border-radius: var(--radius-full);
+  padding: var(--space-1) var(--space-2);
+  gap: var(--space-2);
+}
+
+.color-scheme-creator__color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  flex-shrink: 0;
+  background: var(--swatch-color, #999) !important;
+}
+
+.color-scheme-creator__color-value {
+  font-size: 0.7rem;
+  color: var(--color-fg);
+  font-family: monospace;
+}
+
+.color-scheme-creator__color-remove-btn {
+  background: none;
+  border: none;
+  color: var(--color-danger);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0;
+  transition: opacity var(--duration-2) ease;
+}
+
+.color-scheme-creator__color-remove-btn:disabled {
+  color: var(--color-muted);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.color-scheme-creator__color-remove-btn:hover:not(:disabled) {
+  opacity: 0.8;
+}
+
+/* Add New Color */
+.color-scheme-creator__add-color-controls {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.color-scheme-creator__color-picker {
+  width: 50px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.color-scheme-creator__color-input {
+  background: color-mix(in oklab, var(--color-fg) 10%, var(--color-bg));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  color: var(--color-fg);
+  font-family: monospace;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color var(--duration-2) ease;
+}
+
+.color-scheme-creator__color-input:focus {
+  border-color: var(--color-primary);
+}
+
+.color-scheme-creator__add-button {
+  background: linear-gradient(135deg, color-mix(in oklab, var(--color-primary) 80%, #000 20%), var(--color-secondary));
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-4);
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+  transition: filter var(--duration-2) ease, transform 60ms ease;
+  flex-shrink: 0;
+}
+
+.color-scheme-creator__add-button:hover {
+  filter: brightness(1.05);
+}
+
+.color-scheme-creator__add-button:active {
+  transform: translateY(1px);
+}
+
+/* Actions */
+.color-scheme-creator__actions {
+  display: flex;
+  gap: var(--space-4);
+  justify-content: flex-end;
+}
+
+.color-scheme-creator__button {
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-5);
+  font-size: 0.95rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all var(--duration-2) ease;
+}
+
+.color-scheme-creator__button--secondary {
+  background: color-mix(in oklab, var(--color-fg) 10%, var(--color-bg));
+  color: var(--color-fg);
+  border: 1px solid var(--color-border);
+}
+
+.color-scheme-creator__button--secondary:hover {
+  background: color-mix(in oklab, var(--color-fg) 15%, var(--color-bg));
+  border-color: var(--color-primary);
+}
+
+.color-scheme-creator__button--primary {
+  background: linear-gradient(135deg, var(--color-success) 0%, color-mix(in oklab, var(--color-success) 90%, #000 10%) 100%);
+  color: white;
+}
+
+.color-scheme-creator__button--primary:hover {
+  filter: brightness(1.05);
+}
+
+.color-scheme-creator__button--primary:active {
+  transform: translateY(1px);
+}

@@ -1,0 +1,327 @@
+/* ============================================================================
+   POSITION INPUT - BEM CSS
+   ============================================================================
+   Component for managing static position and arc-path positioning in effects.
+   Handles 4 preset categories (Basic, Rule of Thirds, Golden Ratio, Edge)
+   and manual X/Y coordinate input or arc-path parameters.
+   
+   BLOCK: .position-input
+   ========================================================================== */
+
+/* ROOT CONTAINER */
+.position-input {
+    /* Base container - no specific styles needed as parent has them */
+}
+
+/* POSITION TYPE SELECTOR SECTION */
+.position-input__type-selector {
+    margin-bottom: 0.5rem;
+}
+
+.position-input__type-label {
+    font-size: 0.8rem;
+    color: #ccc;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.position-input__type-select {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 0.5rem;
+    color: #ffffff;
+    font-size: inherit;
+    cursor: pointer;
+}
+
+/* POSITION TYPE SECTION (static position mode) */
+.position-input__position-section {
+    /* No wrapper styles needed */
+}
+
+/* Quick Presets Button */
+.position-input__presets-trigger {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    color: white;
+    margin-bottom: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.position-input__presets-trigger:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.position-input__presets-trigger:active {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Presets Dropdown Container */
+.position-input__presets-dropdown {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    border: 1px solid #333;
+}
+
+/* Category Tabs */
+.position-input__category-tabs {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #555;
+    padding-bottom: 0.5rem;
+}
+
+.position-input__category-tab {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #555;
+    border-radius: 3px;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    color: #ccc;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex: 1;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.position-input__category-tab:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.position-input__category-tab--active {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid #777;
+    color: #fff;
+}
+
+/* Presets Grid */
+.position-input__presets-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.25rem;
+    font-size: 0.7rem;
+    margin-bottom: 0.5rem;
+}
+
+.position-input__preset-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid #555;
+    border-radius: 3px;
+    padding: 0.25rem;
+    cursor: pointer;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    justify-content: center;
+    transition: all 0.2s ease;
+    font-size: 0.7rem;
+}
+
+.position-input__preset-button:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: #777;
+}
+
+.position-input__preset-button:active {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.position-input__preset-button-icon {
+    display: inline;
+}
+
+.position-input__preset-button-name {
+    font-size: 0.6rem;
+    display: inline;
+}
+
+/* Category Description */
+.position-input__category-description {
+    margin-top: 0.5rem;
+    font-size: 0.6rem;
+    color: #888;
+    text-align: center;
+}
+
+.position-input__canvas-info {
+    margin-top: 0.25rem;
+    font-size: 0.6rem;
+    color: #888;
+    text-align: center;
+}
+
+/* Manual Position Input Section */
+.position-input__manual-input-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+
+.position-input__input-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.position-input__input-label {
+    font-size: 0.8rem;
+    color: #ccc;
+    margin-bottom: 0.25rem;
+}
+
+.position-input__coordinate-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 0.5rem;
+    color: #ffffff;
+    font-size: inherit;
+}
+
+.position-input__coordinate-input:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: #777;
+    outline: none;
+}
+
+/* Current Position Display */
+.position-input__current-position {
+    margin-top: 0.25rem;
+    font-size: 0.7rem;
+    color: #888;
+    text-align: center;
+}
+
+/* ARC-PATH SPECIFIC STYLES */
+
+/* Arc-Path Type Section */
+.position-input__arcpath-section {
+    /* No wrapper styles needed */
+}
+
+/* Arc Path Controls Container */
+.position-input__arcpath-controls {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+/* Arc Path Control Group */
+.position-input__arcpath-group {
+    margin-bottom: 0.5rem;
+}
+
+.position-input__arcpath-group:last-child {
+    margin-bottom: 0;
+}
+
+.position-input__arcpath-group-label {
+    font-size: 0.8rem;
+    color: #ccc;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.position-input__arcpath-group-label--small {
+    font-size: 0.7rem;
+    color: #999;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+/* Center Point Controls */
+.position-input__center-point-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+}
+
+/* Radius Slider */
+.position-input__radius-input {
+    width: 100%;
+    cursor: pointer;
+}
+
+/* Angles Grid */
+.position-input__angles-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.position-input__angle-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.position-input__angle-label {
+    font-size: 0.8rem;
+    color: #ccc;
+    margin-bottom: 0.25rem;
+}
+
+.position-input__angle-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 0.5rem;
+    color: #ffffff;
+    font-size: inherit;
+}
+
+.position-input__angle-input:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: #777;
+    outline: none;
+}
+
+/* Direction Select */
+.position-input__direction-select {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 0.25rem;
+    color: #ffffff;
+    font-size: inherit;
+    cursor: pointer;
+}
+
+.position-input__direction-select:focus {
+    background: rgba(255, 255, 255, 0.15);
+    outline: none;
+}
+
+/* Arc Path Info Display */
+.position-input__arcpath-info {
+    font-size: 0.7rem;
+    color: #888;
+    text-align: center;
+}
+
+/* Global Canvas Info */
+.position-input__global-canvas-info {
+    margin-top: 0.5rem;
+    font-size: 0.6rem;
+    color: #888;
+    text-align: center;
+}

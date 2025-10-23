@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import RangeInput from './RangeInput.jsx';
 import useDebounce from '../../../hooks/useDebounce.js';
+import './MultiStepInput.bem.css';
 
 function MultiStepInput({ field, value, onChange, projectData }) {
     const [steps, setSteps] = useState(value || field.default || []);
@@ -99,43 +100,22 @@ function MultiStepInput({ field, value, onChange, projectData }) {
     const isNormalized = Math.abs(totalPercentage - 100) < 0.01;
 
     return (
-        <div style={{ marginBottom: '1rem' }}>
-            <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '1rem'
-            }}>
-                <label style={{ color: '#ffffff', fontSize: '1rem', fontWeight: 'bold' }}>
+        <div className="multi-step-input">
+            <div className="multi-step-input__header">
+                <label className="multi-step-input__label">
                     {field.label}
                 </label>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div className="multi-step-input__button-group">
                     <button
                         onClick={addStep}
-                        style={{
-                            background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
-                            border: 'none',
-                            borderRadius: '4px',
-                            padding: '0.25rem 0.5rem',
-                            color: 'white',
-                            fontSize: '0.8rem',
-                            cursor: 'pointer'
-                        }}
+                        className="multi-step-input__button multi-step-input__button--add"
                     >
                         + Add Step
                     </button>
                     {!isNormalized && (
                         <button
                             onClick={normalizePercentages}
-                            style={{
-                                background: 'linear-gradient(135deg, #ffc107 0%, #fd7e14 100%)',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '0.25rem 0.5rem',
-                                color: 'white',
-                                fontSize: '0.8rem',
-                                cursor: 'pointer'
-                            }}
+                            className="multi-step-input__button multi-step-input__button--normalize"
                         >
                             Normalize to 100%
                         </button>
@@ -144,34 +124,14 @@ function MultiStepInput({ field, value, onChange, projectData }) {
             </div>
 
             {/* Timeline Progress Bar */}
-            <div style={{
-                marginBottom: '1rem',
-                padding: '0.5rem',
-                background: 'rgba(255,255,255,0.05)',
-                borderRadius: '4px',
-                border: `2px solid ${isNormalized ? '#28a745' : '#ffc107'}`
-            }}>
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '0.5rem'
-                }}>
-                    <span style={{ color: '#cccccc', fontSize: '0.9rem' }}>Timeline Coverage:</span>
-                    <span style={{
-                        color: isNormalized ? '#28a745' : '#ffc107',
-                        fontWeight: 'bold'
-                    }}>
+            <div className={`multi-step-input__timeline ${isNormalized ? 'multi-step-input__timeline--normalized' : 'multi-step-input__timeline--incomplete'}`}>
+                <div className="multi-step-input__timeline-header">
+                    <span className="multi-step-input__timeline-label">Timeline Coverage:</span>
+                    <span className={`multi-step-input__timeline-percentage ${isNormalized ? 'multi-step-input__timeline-percentage--normalized' : 'multi-step-input__timeline-percentage--incomplete'}`}>
                         {totalPercentage.toFixed(1)}%
                     </span>
                 </div>
-                <div style={{
-                    height: '20px',
-                    background: '#333',
-                    borderRadius: '10px',
-                    overflow: 'hidden',
-                    display: 'flex'
-                }}>
+                <div className="multi-step-input__progress-bar">
                     {steps.map((step, index) => {
                         const stepDuration = step.maxPercentage - step.minPercentage;
                         const hue = (index * 137.5) % 360; // Golden angle for color distribution
@@ -179,17 +139,10 @@ function MultiStepInput({ field, value, onChange, projectData }) {
                         return (
                             <div
                                 key={index}
+                                className="multi-step-input__step-segment"
                                 style={{
                                     width: `${stepDuration}%`,
-                                    background: `hsl(${hue}, 70%, 50%)`,
-                                    height: '100%',
-                                    border: '1px solid rgba(255,255,255,0.2)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '0.7rem',
-                                    color: 'white',
-                                    textShadow: '1px 1px 2px rgba(0,0,0,0.7)'
+                                    background: `hsl(${hue}, 70%, 50%)`
                                 }}
                                 title={`Step ${index + 1}: ${step.minPercentage}% - ${step.maxPercentage}%`}
                             >
@@ -201,7 +154,7 @@ function MultiStepInput({ field, value, onChange, projectData }) {
             </div>
 
             {/* Steps Configuration */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div className="multi-step-input__steps-container">
                 {steps.map((step, index) => {
                     const stepDuration = step.maxPercentage - step.minPercentage;
                     const hue = (index * 137.5) % 360;
@@ -209,38 +162,23 @@ function MultiStepInput({ field, value, onChange, projectData }) {
                     return (
                         <div
                             key={index}
+                            className="multi-step-input__step-card"
                             style={{
-                                padding: '1rem',
-                                border: `2px solid hsl(${hue}, 50%, 30%)`,
-                                borderRadius: '8px',
-                                background: `hsla(${hue}, 50%, 5%, 0.3)`
+                                borderColor: `hsl(${hue}, 50%, 30%)`,
+                                backgroundColor: `hsla(${hue}, 50%, 5%, 0.3)`
                             }}
                         >
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                marginBottom: '1rem'
-                            }}>
-                                <h4 style={{
-                                    color: `hsl(${hue}, 70%, 70%)`,
-                                    margin: 0,
-                                    fontSize: '1rem'
-                                }}>
+                            <div className="multi-step-input__step-header">
+                                <h4 
+                                    className="multi-step-input__step-title"
+                                    style={{ color: `hsl(${hue}, 70%, 70%)` }}
+                                >
                                     Step {index + 1} ({stepDuration.toFixed(1)}% of timeline)
                                 </h4>
                                 {steps.length > 1 && (
                                     <button
                                         onClick={() => removeStep(index)}
-                                        style={{
-                                            background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)',
-                                            border: 'none',
-                                            borderRadius: '4px',
-                                            padding: '0.25rem 0.5rem',
-                                            color: 'white',
-                                            fontSize: '0.8rem',
-                                            cursor: 'pointer'
-                                        }}
+                                        className="multi-step-input__button multi-step-input__button--remove"
                                     >
                                         Remove
                                     </button>
@@ -248,19 +186,15 @@ function MultiStepInput({ field, value, onChange, projectData }) {
                             </div>
 
                             {/* Timeline Range */}
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: '1fr 1fr',
-                                gap: '1rem',
-                                marginBottom: '1rem'
-                            }}>
-                                <div>
-                                    <label style={{ color: '#cccccc', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
+                            <div className="multi-step-input__timeline-range">
+                                <div className="multi-step-input__range-section">
+                                    <label className="multi-step-input__range-label">
                                         Start %
                                     </label>
                                     <input
                                         type="number"
                                         step="0.1"
+                                        className="multi-step-input__range-input"
                                         value={percentageInputs[`${index}-min`] !== undefined 
                                             ? percentageInputs[`${index}-min`] 
                                             : step.minPercentage}
@@ -287,23 +221,16 @@ function MultiStepInput({ field, value, onChange, projectData }) {
                                                 });
                                             }
                                         }}
-                                        style={{
-                                            width: '100%',
-                                            background: 'rgba(255,255,255,0.1)',
-                                            border: '1px solid #333',
-                                            borderRadius: '4px',
-                                            padding: '0.5rem',
-                                            color: '#ffffff'
-                                        }}
                                     />
                                 </div>
-                                <div>
-                                    <label style={{ color: '#cccccc', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
+                                <div className="multi-step-input__range-section">
+                                    <label className="multi-step-input__range-label">
                                         End %
                                     </label>
                                     <input
                                         type="number"
                                         step="0.1"
+                                        className="multi-step-input__range-input"
                                         value={percentageInputs[`${index}-max`] !== undefined 
                                             ? percentageInputs[`${index}-max`] 
                                             : step.maxPercentage}
@@ -330,37 +257,22 @@ function MultiStepInput({ field, value, onChange, projectData }) {
                                                 });
                                             }
                                         }}
-                                        style={{
-                                            width: '100%',
-                                            background: 'rgba(255,255,255,0.1)',
-                                            border: '1px solid #333',
-                                            borderRadius: '4px',
-                                            padding: '0.5rem',
-                                            color: '#ffffff'
-                                        }}
                                     />
                                 </div>
                             </div>
 
                             {/* Algorithm Type */}
-                            <div style={{ marginBottom: '1rem' }}>
-                                <label style={{ color: '#cccccc', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
+                            <div className="multi-step-input__algorithm-section">
+                                <label className="multi-step-input__algorithm-label">
                                     Algorithm Type
                                 </label>
                                 <select
                                     value={step.type}
                                     onChange={(e) => updateStep(index, 'type', e.target.value)}
-                                    style={{
-                                        width: '100%',
-                                        background: 'rgba(255,255,255,0.1)',
-                                        border: '1px solid #333',
-                                        borderRadius: '4px',
-                                        padding: '0.5rem',
-                                        color: '#ffffff'
-                                    }}
+                                    className="multi-step-input__algorithm-select"
                                 >
                                     {algorithmTypes.map(type => (
-                                        <option key={type} value={type} style={{ background: '#333', color: '#fff' }}>
+                                        <option key={type} value={type}>
                                             {type}
                                         </option>
                                     ))}
@@ -368,7 +280,7 @@ function MultiStepInput({ field, value, onChange, projectData }) {
                             </div>
 
                             {/* Max Range */}
-                            <div style={{ marginBottom: '1rem' }}>
+                            <div className="multi-step-input__max-range-section">
                                 <RangeInput
                                     field={{
                                         name: `step-${index}-max`,
@@ -382,7 +294,7 @@ function MultiStepInput({ field, value, onChange, projectData }) {
                             </div>
 
                             {/* Times Range */}
-                            <div>
+                            <div className="multi-step-input__times-range-section">
                                 <RangeInput
                                     field={{
                                         name: `step-${index}-times`,

@@ -33,6 +33,7 @@ import {
     Refresh
 } from '@mui/icons-material';
 import useDebounce from '../hooks/useDebounce.js';
+import './plugin-manager-dialog.bem.css';
 
 function TabPanel({ children, value, index, ...other }) {
     return (
@@ -43,7 +44,7 @@ function TabPanel({ children, value, index, ...other }) {
             aria-labelledby={`plugin-tab-${index}`}
             {...other}
         >
-            {value === index && <Box sx={{ p: 2 }}>{children}</Box>}
+            {value === index && <Box className="plugin-manager-dialog__tab-panel">{children}</Box>}
         </div>
     );
 }
@@ -202,16 +203,13 @@ export default function PluginManagerDialog({ open, onClose }) {
             maxWidth="md"
             fullWidth
             PaperProps={{
-                sx: {
-                    backgroundColor: 'background.paper',
-                    minHeight: '600px'
-                }
+                className: 'plugin-manager-dialog__paper'
             }}
         >
-            <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Extension />
+            <DialogTitle className="plugin-manager-dialog__title">
+                <Extension className="plugin-manager-dialog__title-icon" />
                 Plugin Manager
-                <Box sx={{ flexGrow: 1 }} />
+                <Box className="plugin-manager-dialog__spacer" />
                 <Tooltip title="Refresh plugin list">
                     <IconButton onClick={handleRefresh} size="small">
                         <Refresh />
@@ -221,29 +219,29 @@ export default function PluginManagerDialog({ open, onClose }) {
 
             <DialogContent>
                 {error && (
-                    <Alert severity="error" onClose={() => setError('')} sx={{ mb: 2 }}>
+                    <Alert severity="error" onClose={() => setError('')} className="plugin-manager-dialog__alert">
                         {error}
                     </Alert>
                 )}
 
                 {success && (
-                    <Alert severity="success" onClose={() => setSuccess('')} sx={{ mb: 2 }}>
+                    <Alert severity="success" onClose={() => setSuccess('')} className="plugin-manager-dialog__alert">
                         {success}
                     </Alert>
                 )}
 
-                <Tabs value={tabValue} onChange={handleTabChange} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                <Tabs value={tabValue} onChange={handleTabChange} className="plugin-manager-dialog__tabs">
                     <Tab label="Installed Plugins" />
                     <Tab label="Add Plugin" />
                 </Tabs>
 
                 <TabPanel value={tabValue} index={0}>
                     {loading ? (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                        <Box className="plugin-manager-dialog__loading">
                             <CircularProgress />
                         </Box>
                     ) : plugins.length === 0 ? (
-                        <Typography variant="body2" color="text.secondary" align="center" sx={{ p: 4 }}>
+                        <Typography variant="body2" color="text.secondary" align="center" className="plugin-manager-dialog__empty-state">
                             No plugins installed. Go to "Add Plugin" tab to install plugins.
                         </Typography>
                     ) : (
@@ -253,7 +251,7 @@ export default function PluginManagerDialog({ open, onClose }) {
                                     <ListItem>
                                         <ListItemText
                                             primary={
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <Box className="plugin-manager-dialog__plugin-header">
                                                     {plugin.name}
                                                     {plugin.version && (
                                                         <Chip label={plugin.version} size="small" />
@@ -293,7 +291,7 @@ export default function PluginManagerDialog({ open, onClose }) {
                                                     edge="end"
                                                     aria-label="delete"
                                                     onClick={() => handleRemovePlugin(plugin.name)}
-                                                    sx={{ ml: 1 }}
+                                                    className="plugin-manager-dialog__plugin-action"
                                                 >
                                                     <Delete />
                                                 </IconButton>
@@ -308,7 +306,7 @@ export default function PluginManagerDialog({ open, onClose }) {
                 </TabPanel>
 
                 <TabPanel value={tabValue} index={1}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <Box className="plugin-manager-dialog__form-section">
                         <Box>
                             <Typography variant="h6" gutterBottom>
                                 Install from NPM
@@ -316,7 +314,7 @@ export default function PluginManagerDialog({ open, onClose }) {
                             <Typography variant="body2" color="text.secondary" gutterBottom>
                                 Install a plugin package from the NPM registry
                             </Typography>
-                            <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                            <Box className="plugin-manager-dialog__form-box plugin-manager-dialog__form-box--input-row">
                                 <TextField
                                     fullWidth
                                     label="NPM Package Name"
@@ -355,7 +353,7 @@ export default function PluginManagerDialog({ open, onClose }) {
                                 startIcon={<FolderOpen />}
                                 onClick={handleSelectLocalPlugin}
                                 disabled={loading}
-                                sx={{ mt: 2 }}
+                                className="plugin-manager-dialog__button plugin-manager-dialog__button--browse"
                             >
                                 Browse Local Files
                             </Button>

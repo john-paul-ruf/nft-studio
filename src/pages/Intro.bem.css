@@ -1,0 +1,121 @@
+/* Page Intro — BEM styles using design tokens */
+
+.page-intro {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+    /* Future: use tokens for gradient when added */
+}
+
+.page-intro__content {
+    text-align: center;
+}
+
+.page-intro__title {
+    font-size: 48px;
+    color: var(--color-fg);
+    margin-bottom: var(--space-6);
+    font-weight: 300;
+    letter-spacing: 2px;
+}
+
+.page-intro__buttons {
+    display: flex;
+    gap: var(--space-6);
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* Base button element */
+.page-intro__button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-5);
+    padding: 40px 50px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    color: var(--color-fg);
+    font-size: 18px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: all var(--duration-3) var(--ease-standard);
+    min-width: 200px;
+    min-height: 44px;
+    font-family: inherit;
+}
+
+/* Hover state */
+.page-intro__button:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--color-fg) 5%, var(--color-bg));
+    border-color: color-mix(in oklab, var(--color-fg) 15%, var(--color-border));
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Focus state (keyboard accessibility) */
+.page-intro__button:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.3);
+}
+
+/* Icon element */
+.page-intro__icon {
+    width: 48px;
+    height: 48px;
+    color: var(--color-muted);
+    transition: color var(--duration-3) var(--ease-standard);
+    stroke: currentColor;
+}
+
+.page-intro__button:hover:not(:disabled) .page-intro__icon {
+    color: var(--color-fg);
+}
+
+/* Button text (span within button) */
+.page-intro__button > span {
+    font-size: 20px;
+}
+
+/* Disabled state */
+.page-intro__button--disabled,
+.page-intro__button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.page-intro__button--disabled:hover,
+.page-intro__button:disabled:hover {
+    background: var(--color-bg);
+    border-color: var(--color-border);
+    transform: none;
+    box-shadow: none;
+}
+
+.page-intro__button--disabled .page-intro__icon,
+.page-intro__button:disabled .page-intro__icon {
+    color: var(--color-muted);
+}
+
+/* Accent modifier (e.g., Resume Loop with primary highlight) */
+.page-intro__button--accent {
+    border-color: var(--color-primary);
+}
+
+.page-intro__button--accent:hover:not(:disabled) {
+    border-color: color-mix(in oklab, var(--color-primary) 120%, var(--color-primary));
+    background: color-mix(in oklab, var(--color-primary) 8%, var(--color-bg));
+}
+
+.page-intro__button--accent .page-intro__icon {
+    color: var(--color-primary);
+}
+
+.page-intro__button--accent:hover:not(:disabled) .page-intro__icon {
+    color: color-mix(in oklab, var(--color-primary) 120%, var(--color-primary));
+}

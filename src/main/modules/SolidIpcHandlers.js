@@ -26,8 +26,15 @@ class SolidIpcHandlers {
 
     /**
      * Register all IPC handlers using dependency injection
+     * IMPORTANT: This method must be awaited or called with proper async handling
      */
-    registerHandlers() {
+    async registerHandlers() {
+        // Wait for ServiceFactory to be fully initialized (effects loaded)
+        if (this.serviceFactory.initializationPromise) {
+            await this.serviceFactory.initializationPromise;
+            SafeConsole.log('✅ [SolidIpcHandlers] ServiceFactory initialized, registering handlers...');
+        }
+
         // Get services from factory (Dependency Inversion)
         const fileOperations = this.serviceFactory.getFileOperations();
         const projectManager = this.serviceFactory.getProjectManager();
@@ -49,6 +56,7 @@ class SolidIpcHandlers {
             handler.register();
         });
 
+        SafeConsole.log('✅ [SolidIpcHandlers] All IPC handlers registered successfully');
     }
 
     /**

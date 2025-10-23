@@ -78,12 +78,13 @@ function createWindow () {
 let ipcHandlers = null
 
 // App event handlers
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Create SOLID IPC handlers manager
   ipcHandlers = new SolidIpcHandlers()
 
   // Register all IPC handlers using dependency injection
-  ipcHandlers.registerHandlers()
+  // This is now async - waits for effects to be initialized
+  await ipcHandlers.registerHandlers()
 
   // Create the main window
   createWindow()

@@ -1,0 +1,361 @@
+/* Canvas Toolbar — BEM styles scoped to block, using design tokens */
+
+/* ============================================================================
+   BASE BLOCK - AppBar wrapper
+   ============================================================================ */
+
+.canvas-toolbar-appbar {
+  background-color: var(--background-paper) !important;
+  border-bottom: 1px solid var(--divider) !important;
+  color: var(--text-primary) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.canvas-toolbar-appbar.MuiAppBar-root {
+  background-color: var(--background-paper) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Override MUI's colorPrimary - this is the main culprit */
+.canvas-toolbar-appbar.MuiAppBar-colorPrimary {
+  background-color: var(--background-paper) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Override MUI default colors */
+.canvas-toolbar-appbar[class*="MuiPaper"] {
+  background-color: var(--background-paper) !important;
+}
+
+/* ============================================================================
+   TOOLBAR
+   ============================================================================ */
+
+.canvas-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  background-color: var(--background-paper);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--text-primary);
+  min-height: 60px;
+  padding: 0;
+}
+
+/* ============================================================================
+   GROUPS & SPACING
+   ============================================================================ */
+
+.canvas-toolbar__group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.canvas-toolbar__spacer {
+  flex: 1 1 auto;
+}
+
+/* ============================================================================
+   CONTROL SECTIONS
+   ============================================================================ */
+
+/* Resolution dropdown group */
+.canvas-toolbar__resolution-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.canvas-toolbar__resolution-form {
+  min-width: 140px;
+}
+
+.canvas-toolbar__resolution-select {
+  font-size: 13px;
+}
+
+.canvas-toolbar__resolution-select.canvas-toolbar__resolution-select--readonly .MuiSelect-select {
+  color: var(--text-disabled);
+}
+
+/* Frames & frame number inputs */
+.canvas-toolbar__frames-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.canvas-toolbar__frames-label {
+  color: var(--text-secondary);
+  min-width: 50px;
+  font-size: 12px;
+}
+
+.canvas-toolbar__frames-input {
+  width: 160px;
+}
+
+.canvas-toolbar__frames-input.canvas-toolbar__frames-input--readonly .MuiInputBase-input {
+  color: var(--text-disabled);
+}
+
+.canvas-toolbar__frame-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.canvas-toolbar__frame-label {
+  color: var(--text-secondary);
+  min-width: 40px;
+  font-size: 12px;
+}
+
+.canvas-toolbar__frame-input {
+  width: 160px;
+}
+
+/* ============================================================================
+   ICON BUTTONS
+   ============================================================================ */
+
+.canvas-toolbar__icon-button {
+  border-radius: var(--radius-md);
+  transition: all var(--duration-2) var(--ease-standard);
+  color: var(--text-primary);
+}
+
+.canvas-toolbar__icon-button:hover:not(:disabled) {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.canvas-toolbar__icon-button--readonly {
+  color: var(--text-disabled);
+}
+
+.canvas-toolbar__icon-button--readonly.Mui-disabled {
+  color: var(--text-disabled);
+}
+
+/* Render button */
+.canvas-toolbar__render-button {
+  color: var(--text-primary);
+  background-color: transparent;
+}
+
+.canvas-toolbar__render-button:hover:not(:disabled) {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+/* Zoom button */
+.canvas-toolbar__zoom-button {
+  color: var(--text-primary);
+  background-color: transparent;
+  position: relative;
+}
+
+.canvas-toolbar__zoom-button:hover:not(:disabled) {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+/* Orientation toggle button */
+.canvas-toolbar__icon-button--orientation {
+  min-width: 40px;
+  height: 32px;
+}
+
+/* Color scheme button */
+.canvas-toolbar__color-scheme-button {
+  color: var(--text-primary);
+  background-color: transparent;
+  position: relative;
+}
+
+.canvas-toolbar__color-scheme-button--readonly {
+  color: var(--text-disabled);
+}
+
+.canvas-toolbar__color-scheme-button:disabled {
+  color: var(--text-disabled);
+}
+
+.canvas-toolbar__color-scheme-button:hover:not(:disabled):not(.canvas-toolbar__color-scheme-button--readonly) {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+/* Pin button - special styling */
+.canvas-toolbar__pin-button {
+  transition: all var(--duration-2) var(--ease-standard);
+}
+
+.canvas-toolbar__pin-button--pinned {
+  color: var(--warning-main);
+  background-color: var(--warning-dark);
+  animation: canvas-toolbar__pulse 2s ease-in-out infinite;
+}
+
+.canvas-toolbar__pin-button--pinned:hover {
+  background-color: var(--warning-main);
+  color: white;
+}
+
+.canvas-toolbar__pin-button:not(.canvas-toolbar__pin-button--pinned):hover:not(:disabled) {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+@keyframes canvas-toolbar__pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Save button */
+.canvas-toolbar__save-button {
+  color: var(--text-primary);
+  background-color: transparent;
+}
+
+.canvas-toolbar__save-button:hover:not(:disabled) {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+/* Settings & utility buttons */
+.canvas-toolbar__utility-button {
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  transition: all var(--duration-2) var(--ease-standard);
+}
+
+.canvas-toolbar__utility-button:hover:not(:disabled) {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.canvas-toolbar__utility-button--readonly {
+  color: var(--text-disabled);
+}
+
+.canvas-toolbar__utility-button--readonly.Mui-disabled {
+  color: var(--text-disabled);
+}
+
+/* ============================================================================
+   STATUS INDICATORS
+   ============================================================================ */
+
+.canvas-toolbar__status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.canvas-toolbar__status-text {
+  font-size: 12px;
+}
+
+.canvas-toolbar__status-text--saving {
+  color: var(--warning-main);
+}
+
+.canvas-toolbar__status-text--saved {
+  color: var(--success-main);
+}
+
+/* ============================================================================
+   VENDOR COMPONENT SCOPING (Radix UI)
+   ============================================================================ */
+
+/* Dropdown Content */
+.canvas-toolbar .radix-dropdown-content {
+  background-color: var(--background-paper);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  min-width: 160px;
+  box-shadow: 0px 10px 38px -10px var(--shadow-dark, rgba(22, 23, 24, 0.35)), 0px 10px 20px -15px var(--shadow-medium, rgba(22, 23, 24, 0.2));
+  z-index: 9999;
+}
+
+/* Dropdown Items */
+.canvas-toolbar .radix-dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  outline: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  transition: background-color var(--duration-1) var(--ease-standard);
+}
+
+.canvas-toolbar .radix-dropdown-item:hover:not([disabled]) {
+  background-color: var(--action-hover);
+}
+
+.canvas-toolbar .radix-dropdown-item[disabled] {
+  cursor: not-allowed;
+  color: var(--text-disabled);
+  opacity: 0.5;
+}
+
+/* Effect Item Wrapper */
+.canvas-toolbar__effect-item {
+  display: flex;
+  align-items: center;
+  padding: var(--space-1, 6px) var(--space-2, 12px);
+  font-size: 13px;
+  cursor: pointer;
+  width: 100%;
+}
+
+/* Dropdown arrow icon */
+.canvas-toolbar__dropdown-arrow {
+  font-size: 16px;
+}
+
+/* Dropdown Submenu */
+.canvas-toolbar .radix-dropdown-submenu-content {
+  background-color: var(--background-paper);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0px 8px 24px var(--shadow-medium, rgba(0, 0, 0, 0.2));
+  padding: var(--space-1);
+  min-width: 220px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 10000;
+}
+
+/* ============================================================================
+   MUI COMPONENT SCOPING
+   ============================================================================ */
+
+/* Menu positioning wrapper */
+.canvas-toolbar__menu-wrapper {
+  position: relative;
+}
+
+/* Zoom Menu - standard menu styling */
+.canvas-toolbar__zoom-menu {
+  background-color: var(--background-paper) !important;
+  border: 1px solid var(--color-border) !important;
+}
+
+/* Menu Paper customization */
+.canvas-toolbar .MuiMenu-paper {
+  width: 500px !important;
+  min-width: 500px !important;
+  max-height: calc(100vh - 100px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  margin-top: var(--space-2) !important;
+  background-color: var(--background-paper) !important;
+  border: 1px solid var(--color-border) !important;
+}

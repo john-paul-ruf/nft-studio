@@ -1,0 +1,165 @@
+/**
+ * PercentageRangeInput Component - BEM CSS
+ * Manages dual-slider percentage range input with side selection
+ * and percentage display
+ */
+
+/* ============================================================================
+   Root Container and Label
+   ========================================================================== */
+
+.percentage-range-input__label {
+    color: var(--color-fg);
+    margin-bottom: var(--space-2);
+    display: block;
+    font-size: 0.9rem;
+}
+
+/* ============================================================================
+   Main Controls Container
+   ========================================================================== */
+
+.percentage-range-input__controls {
+    background: color-mix(in oklab, var(--color-surface-1) 5%, transparent);
+    padding: var(--space-3);
+    border-radius: var(--radius-sm);
+    border: 1px solid color-mix(in oklab, var(--color-border) 50%, transparent);
+}
+
+/* ============================================================================
+   Bound Section Wrapper
+   ========================================================================== */
+
+.percentage-range-input__section-wrapper {
+    margin-bottom: var(--space-3);
+}
+
+.percentage-range-input__section-wrapper:last-of-type {
+    margin-bottom: 0;
+}
+
+/* ============================================================================
+   Bound Section Header (Lower/Upper Bound)
+   ========================================================================== */
+
+.percentage-range-input__section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-1);
+}
+
+.percentage-range-input__section-label {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+}
+
+/* ============================================================================
+   Input Row (Input + % symbol)
+   ========================================================================== */
+
+.percentage-range-input__input-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+/* ============================================================================
+   Percentage Input Field
+   ========================================================================== */
+
+.percentage-range-input__input {
+    width: 50px;
+    text-align: center;
+    background: color-mix(in oklab, var(--color-surface-1) 10%, transparent);
+    border: 1px solid color-mix(in oklab, var(--color-border) 50%, transparent);
+    color: var(--color-success);
+    padding: 0.15rem var(--space-1);
+    border-radius: var(--radius-sm);
+    font-weight: bold;
+    font-size: 0.75rem;
+    box-sizing: border-box;
+}
+
+.percentage-range-input__input:focus {
+    outline: none;
+    background: color-mix(in oklab, var(--color-surface-1) 12%, transparent);
+    border-color: color-mix(in oklab, var(--color-primary) 30%, transparent);
+}
+
+/* ============================================================================
+   Percentage Symbol
+   ========================================================================== */
+
+.percentage-range-input__percent-symbol {
+    font-size: 0.75rem;
+    color: var(--color-success);
+    font-weight: bold;
+}
+
+/* ============================================================================
+   Side Selection Row (Dropdown + "of canvas" text)
+   ========================================================================== */
+
+.percentage-range-input__side-row {
+    display: flex;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+/* ============================================================================
+   Side Selection Dropdown
+   ========================================================================== */
+
+.percentage-range-input__side-select {
+    background: color-mix(in oklab, var(--color-surface-1) 10%, transparent);
+    color: var(--color-fg);
+    border: 1px solid color-mix(in oklab, var(--color-border) 50%, transparent);
+    border-radius: var(--radius-sm);
+    padding: var(--space-1);
+    font-size: 0.8rem;
+    min-width: 100px;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+.percentage-range-input__side-select:focus {
+    outline: none;
+    background: color-mix(in oklab, var(--color-surface-1) 12%, transparent);
+    border-color: color-mix(in oklab, var(--color-primary) 30%, transparent);
+}
+
+.percentage-range-input__side-select:hover {
+    background: color-mix(in oklab, var(--color-surface-1) 15%, transparent);
+}
+
+/* ============================================================================
+   Select Option Styling
+   ========================================================================== */
+
+.percentage-range-input__side-select option {
+    background: var(--color-bg);
+    color: var(--color-fg);
+}
+
+/* ============================================================================
+   "of canvas" Label Text
+   ========================================================================== */
+
+.percentage-range-input__canvas-label {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    align-self: center;
+    white-space: nowrap;
+}
+
+/* ============================================================================
+   Range Display / Summary
+   ========================================================================== */
+
+.percentage-range-input__range-display {
+    margin-top: var(--space-2);
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    text-align: center;
+}

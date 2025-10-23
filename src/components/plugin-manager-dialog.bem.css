@@ -1,0 +1,126 @@
+/**
+ * BEM: plugin-manager-dialog
+ * 
+ * Plugin Manager Dialog Component
+ * Manages plugin installation, enable/disable, and removal
+ * 
+ * Block: .plugin-manager-dialog
+ * Elements: __title, __title-icon, __spacer, __alert, __tabs, __tab-panel,
+ *           __loading, __empty-state, __plugin-item, __plugin-header,
+ *           __plugin-action, __form-section, __form-box, __button
+ * Modifiers: --loading, --empty, --npm-install, --local-plugin
+ */
+
+/* ========== BLOCK: .plugin-manager-dialog ========== */
+.plugin-manager-dialog {
+    /* Base styling handled by MUI Dialog component */
+}
+
+/* ========== ELEMENT: __paper (Dialog Paper Component) ========== */
+.plugin-manager-dialog__paper {
+    background-color: var(--background-paper) !important;
+    min-height: 600px;
+}
+
+/* ========== ELEMENT: __title ========== */
+.plugin-manager-dialog__title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+/* ========== ELEMENT: __title-icon ========== */
+.plugin-manager-dialog__title-icon {
+    display: flex;
+}
+
+/* ========== ELEMENT: __spacer ========== */
+.plugin-manager-dialog__spacer {
+    flex-grow: 1;
+}
+
+/* ========== ELEMENT: __alert ========== */
+.plugin-manager-dialog__alert {
+    margin-bottom: var(--space-4);
+}
+
+/* ========== ELEMENT: __tabs ========== */
+.plugin-manager-dialog__tabs {
+    border-bottom: 1px solid var(--color-border);
+}
+
+/* ========== ELEMENT: __tab-panel ========== */
+.plugin-manager-dialog__tab-panel {
+    padding: var(--space-4);
+}
+
+/* Modifier: Empty state */
+.plugin-manager-dialog__tab-panel--empty {
+    display: flex;
+    justify-content: center;
+    padding: var(--space-8);
+}
+
+/* ========== ELEMENT: __loading ========== */
+.plugin-manager-dialog__loading {
+    display: flex;
+    justify-content: center;
+    padding: var(--space-8);
+}
+
+/* ========== ELEMENT: __empty-state ========== */
+.plugin-manager-dialog__empty-state {
+    padding: var(--space-8);
+}
+
+/* ========== ELEMENT: __plugin-item ========== */
+.plugin-manager-dialog__plugin-item {
+    /* Base styling handled by MUI ListItem */
+}
+
+/* ========== ELEMENT: __plugin-header ========== */
+.plugin-manager-dialog__plugin-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+/* ========== ELEMENT: __plugin-action ========== */
+.plugin-manager-dialog__plugin-action {
+    margin-left: var(--space-2);
+}
+
+/* ========== ELEMENT: __form-section ========== */
+.plugin-manager-dialog__form-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+/* ========== ELEMENT: __form-box ========== */
+.plugin-manager-dialog__form-box {
+    display: flex;
+    gap: var(--space-4);
+    margin-top: var(--space-4);
+}
+
+/* Modifier: Input row */
+.plugin-manager-dialog__form-box--input-row {
+    flex-direction: row;
+}
+
+/* Modifier: Button standalone */
+.plugin-manager-dialog__form-box--button {
+    flex-direction: row;
+    margin-top: var(--space-4);
+}
+
+/* ========== ELEMENT: __button ========== */
+.plugin-manager-dialog__button {
+    /* Base styling handled by MUI Button */
+}
+
+/* Modifier: Browse button */
+.plugin-manager-dialog__button--browse {
+    margin-top: var(--space-4);
+}

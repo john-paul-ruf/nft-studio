@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import './EffectPicker.css';
+import './EffectPicker.bem.css';
 
 export default function EffectPicker({ onSelect, onClose }) {
     const [effects, setEffects] = useState([]);
@@ -32,18 +32,18 @@ export default function EffectPicker({ onSelect, onClose }) {
 
 
     return (
-        <div className="effect-picker-overlay" onClick={onClose}>
+        <div className="effect-picker__overlay" onClick={onClose}>
             <div className="effect-picker" onClick={(e) => e.stopPropagation()}>
-                <div className="effect-picker-header">
-                    <h3>Add Effect</h3>
-                    <button className="close-button" onClick={onClose}>×</button>
+                <div className="effect-picker__header">
+                    <h3 className="effect-picker__title">Add Effect</h3>
+                    <button className="effect-picker__close-button" onClick={onClose}>×</button>
                 </div>
 
-                <div className="effect-list">
+                <div className="effect-picker__content">
                     {effects.length === 0 ? (
-                        <div className="loading">No effects available</div>
+                        <div className="effect-picker__empty-state">No effects available</div>
                     ) : (
-                        <div className="effect-grid">
+                        <div className="effect-picker__grid">
                             {effects.map((effect, index) => {
                                 const effectName = effect.name || effect.className || 'Unknown';
                                 const displayName = effect.displayName || effectName.replace(/Effect$/, '').replace(/([A-Z])/g, ' $1').trim();
@@ -51,7 +51,7 @@ export default function EffectPicker({ onSelect, onClose }) {
                                 return (
                                     <div
                                         key={index}
-                                        className="effect-item"
+                                        className="effect-picker__item"
                                         onClick={async () => {
                                             try {
                                                 console.log('🎯 EffectPicker: Clicked on effect:', effect.name || effect.className);
@@ -84,13 +84,13 @@ export default function EffectPicker({ onSelect, onClose }) {
                                             }
                                         }}
                                     >
-                                        <div className="effect-icon">
+                                        <div className="effect-picker__item-icon">
                                             {displayName.charAt(0)}
                                         </div>
-                                        <div className="effect-name">
+                                        <div className="effect-picker__item-name">
                                             {displayName}
                                             {effect.category === 'finalImage' && (
-                                                <span className="effect-type"> (Final)</span>
+                                                <span className="effect-picker__item-type"> (Final)</span>
                                             )}
                                         </div>
                                     </div>

@@ -25,7 +25,30 @@ import SafeConsole from '../utils/SafeConsole.js';
 class ServiceFactory {
     constructor() {
         this.container = new DependencyContainer();
-        this.configure();
+        // Initialize effects promise tracking
+        this.effectsInitPromise = null;
+        this.effectRegistryService = null;
+        this.isInitialized = false;
+        this.initializationPromise = this.initialize();
+    }
+
+    /**
+     * Initialize the factory (called from constructor)
+     * Ensures all services are configured and effects are loaded
+     */
+    async initialize() {
+        try {
+            this.configure();
+            // Wait for effects to be initialized before returning
+            await this.waitForEffectsInitialization();
+            this.isInitialized = true;
+            SafeConsole.log('✅ [ServiceFactory] Factory fully initialized with effects loaded');
+            return true;
+        } catch (error) {
+            SafeConsole.error('⚠️ [ServiceFactory] Factory initialization encountered an error:', error);
+            this.isInitialized = true; // Mark as initialized even on error, effects may still work
+            return false;
+        }
     }
 
     /**
@@ -36,16 +59,25 @@ class ServiceFactory {
         this.container.registerSingleton('dialogService', () => new DialogService());
         this.container.registerSingleton('fileSystemService', () => new FileSystemService());
         this.container.registerSingleton('imageService', () => new ImageService());
+        
+        // Create effect registry and initialize it in background
         this.container.registerSingleton('effectRegistryService', () => {
-            const service = new EffectRegistryService();
-            // Ensure core effects and plugins are loaded immediately
-            service.ensureCoreEffectsRegistered().then(() => {
-                SafeConsole.log('✅ Effect registry initialized with plugins');
-            }).catch(error => {
-                SafeConsole.error('⚠️ Failed to initialize effect registry:', error);
-            });
-            return service;
+            if (!this.effectRegistryService) {
+                this.effectRegistryService = new EffectRegistryService();
+                // Start initialization in background
+                SafeConsole.log('🔄 [ServiceFactory] Starting effect registry initialization...');
+                this.effectsInitPromise = this.effectRegistryService.ensureCoreEffectsRegistered()
+                    .then(() => {
+                        SafeConsole.log('✅ [ServiceFactory] Effect registry initialized with plugins');
+                    })
+                    .catch(error => {
+                        SafeConsole.error('⚠️ [ServiceFactory] Failed to initialize effect registry:', error);
+                        // Continue anyway - effects might still be available
+                    });
+            }
+            return this.effectRegistryService;
         });
+        
         this.container.registerSingleton('configProcessingService', () => new ConfigProcessingService());
         this.container.registerSingleton('logger', () => new ConsoleLogger());
 
@@ -78,6 +110,9 @@ class ServiceFactory {
                 container.resolve('logger')
             );
         });
+        
+        // Ensure the service is created so initialization starts (after all registrations)
+        this.getEffectsManager();
     }
 
     /**
@@ -94,6 +129,16 @@ class ServiceFactory {
      */
     getEffectsManager() {
         return this.container.resolve('effectsManager');
+    }
+
+    /**
+     * Wait for effects to be initialized
+     * @returns {Promise<void>} Resolves when effects are initialized
+     */
+    async waitForEffectsInitialization() {
+        if (this.effectsInitPromise) {
+            await this.effectsInitPromise;
+        }
     }
 
     /**

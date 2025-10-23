@@ -59,16 +59,18 @@ class EffectDiscoveryService {
                 author: plugin.metadata?.author || plugin.author || 'NFT Studio'
             }));
 
-            // Return primary, secondary, and finalImage effects for the dropdown
+            // Return primary, secondary, keyFrame, and finalImage effects for the dropdown
             const result = {
                 primary: mapEffects(effects.primary),
                 secondary: mapEffects(effects.secondary),
+                keyFrame: mapEffects(effects.keyFrame),
                 finalImage: mapEffects(effects.finalImage)
             };
             
             SafeConsole.log('✅ [EffectDiscoveryService] Returning available effects:', {
                 primary: result.primary.length,
                 secondary: result.secondary.length,
+                keyFrame: result.keyFrame.length,
                 finalImage: result.finalImage.length
             });
             

@@ -182,7 +182,8 @@ export async function test_update_effect_command_execution() {
         commandService.executeCommand(addCommand);
         
         const effectsAfterAdd = projectState.getState().effects;
-        const effectIndex = effectsAfterAdd.length - 1;
+        const addedEffect = effectsAfterAdd[effectsAfterAdd.length - 1];
+        const effectId = addedEffect.id; // Use ID-based access (stable across reorders)
         
         // Create updated effect data
         const updatedEffect = {
@@ -195,10 +196,10 @@ export async function test_update_effect_command_execution() {
             }
         };
         
-        // Create update command using REAL EffectCommandService
+        // Create update command using REAL EffectCommandService - use effect ID for stable reference
         const updateCommand = effectCommandService.createUpdateCommand(
             projectState,
-            effectIndex,
+            effectId,
             updatedEffect,
             'TestUpdateEffect'
         );
@@ -211,8 +212,8 @@ export async function test_update_effect_command_execution() {
             throw new Error(`Expected command type 'effect.update', got '${updateCommand.type}'`);
         }
         
-        if (updateCommand.effectIndex !== effectIndex) {
-            throw new Error(`Expected effect index ${effectIndex}, got ${updateCommand.effectIndex}`);
+        if (updateCommand.effectIdOrIndex !== effectId) {
+            throw new Error(`Expected effect ID ${effectId}, got ${updateCommand.effectIdOrIndex}`);
         }
         
         // Execute update command using REAL CommandService
@@ -222,9 +223,13 @@ export async function test_update_effect_command_execution() {
             throw new Error('Update command execution should succeed');
         }
         
-        // Verify effect was updated
+        // Verify effect was updated - find by ID (not index, which may have changed)
         const effectsAfterUpdate = projectState.getState().effects;
-        const updatedEffectResult = effectsAfterUpdate[effectIndex];
+        const updatedEffectResult = effectsAfterUpdate.find(e => e.id === effectId);
+        
+        if (!updatedEffectResult) {
+            throw new Error(`Effect with ID ${effectId} not found after update`);
+        }
         
         if (updatedEffectResult.config.intensity !== 0.8) {
             throw new Error(`Expected updated intensity 0.8, got ${updatedEffectResult.config.intensity}`);

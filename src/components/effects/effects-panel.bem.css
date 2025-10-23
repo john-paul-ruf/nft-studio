@@ -1,0 +1,30 @@
+/* Effects Panel Components — BEM Styling */
+
+/* Grouped Effects List */
+.grouped-effects__container {
+    width: 100%;
+}
+
+.grouped-effects__group {
+    width: 100%;
+}
+
+/* Add Effect Dropdown */
+.add-effect-dropdown__wrapper {
+    position: relative;
+}
+
+.add-effect-dropdown__trigger-button {
+    color: var(--color-text-primary);
+    transition: all var(--duration-2) var(--ease-standard);
+}
+
+.add-effect-dropdown__trigger-button:hover {
+    background-color: var(--color-primary);
+    color: white;
+}
+
+/* Render Progress Widget */
+.render-progress-widget__stop-button {
+    color: inherit;
+}

@@ -1,0 +1,78 @@
+/* Color Picker Input Component — BEM Styling with Design Tokens */
+
+.color-picker-input {
+    margin-bottom: var(--space-3);
+}
+
+.color-picker-input__label {
+    display: block;
+    color: var(--color-fg);
+    font-weight: 500;
+    font-size: 0.9rem;
+    margin-bottom: var(--space-1);
+}
+
+.color-picker-input__wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.color-picker-input__select {
+    width: 100%;
+}
+
+.color-picker-input__select .MuiOutlinedInput-root {
+    background-color: var(--background-paper);
+    transition: all var(--duration-2) var(--ease-standard);
+}
+
+.color-picker-input__select .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+    border-color: var(--color-primary);
+}
+
+.color-picker-input__select.Mui-focused .MuiOutlinedInput-notchedOutline {
+    border-color: var(--color-primary);
+}
+
+.color-picker-input__controls {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+}
+
+.color-picker-input__swatch {
+    width: 60px;
+    height: 40px;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: box-shadow var(--duration-2) var(--ease-standard);
+}
+
+.color-picker-input__swatch:hover {
+    box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.color-picker-input__swatch:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(90, 139, 181, 0.3);
+}
+
+.color-picker-input__text-input {
+    flex: 1;
+}
+
+.color-picker-input__text-input .MuiOutlinedInput-root {
+    background-color: var(--background-paper);
+    transition: all var(--duration-2) var(--ease-standard);
+}
+
+.color-picker-input__text-input .MuiOutlinedInput-root:hover fieldset {
+    border-color: var(--color-primary);
+}
+
+.color-picker-input__text-input .MuiOutlinedInput-root.Mui-focused fieldset {
+    border-color: var(--color-primary);
+}

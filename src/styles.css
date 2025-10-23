@@ -1,4 +1,46 @@
-/* NFT Studio Styles - Professional & Accessible UI */
+/* ============================================================================
+   NFT Studio Styles - Professional & Accessible UI
+   Phase 0: Token Baseline — Styles Refactor Plan
+   
+   IMPORTANT: This file establishes the foundational design tokens (CSS variables)
+   used throughout the application. All component styles should reference these
+   tokens instead of hardcoding colors, spacing, or other values.
+   
+   USAGE:
+   ------
+   1. Color tokens: Use `var(--color-*)` for semantic colors
+      - `var(--color-fg)` for text
+      - `var(--color-bg)` for backgrounds
+      - `var(--color-primary)` for primary actions
+      - `var(--color-success|warning|error|info)` for intent colors
+      
+   2. Spacing tokens: Use `var(--space-*)` for margins, padding, gaps
+      - `var(--space-1)` through `var(--space-8)` (4px increments)
+      
+   3. Border radius: Use `var(--radius-*)` for consistent rounding
+      - `--radius-sm|md|lg|full`
+      
+   4. Shadows: Use `var(--shadow-*)` for elevation
+      - `--shadow-1|2|3`
+      
+   5. Motion: Use `var(--ease-*)` and `var(--duration-*)` for animations
+      - `--ease-standard|emphasized|in|out|in-out`
+      - `--duration-1` through `--duration-4`
+      
+   THEMES:
+   -------
+   - `[data-theme="light"]` — Light theme (bright backgrounds)
+   - `[data-theme="dark"]` — Dark theme (dark backgrounds, default)
+   - `[data-theme="high-contrast"]` — High contrast for accessibility
+   
+   All tokens automatically adapt to the active theme. No inline color values!
+   
+   EXAMPLE:
+   --------
+   ❌ DON'T:   { color: '#e0e0e0'; margin: '8px'; }
+   ✅ DO:      { color: var(--color-fg); margin: var(--space-2); }
+   
+   ============================================================================ */
 * {
     margin: 0;
     padding: 0;
@@ -29,6 +71,219 @@
     --shadow-light: rgba(0, 0, 0, 0.08);
     --shadow-medium: rgba(0, 0, 0, 0.12);
     --shadow-heavy: rgba(0, 0, 0, 0.16);
+}
+
+/* Design Tokens — Phase 0 Foundation per Styles Refactor Plan */
+:root {
+    /* ========== PRIMARY SEMANTIC COLORS (Base Tokens) ========== */
+    /* Foreground & Background */
+    --color-fg: var(--text-primary);
+    --color-bg: var(--background-default);
+    --color-surface-1: var(--surface-1);
+    --color-surface-2: var(--surface-2);
+    
+    /* Borders & Dividers */
+    --color-border: var(--divider);
+    --color-border-subtle: rgba(64, 64, 64, 0.5);
+    
+    /* Intent Colors */
+    --color-primary: var(--primary-main);
+    --color-secondary: var(--secondary-main);
+    --color-success: var(--success-main);
+    --color-warning: var(--warning-main);
+    --color-error: var(--error-main);
+    --color-info: var(--info-main);
+    --color-danger: var(--error-main);
+    
+    /* Text Variants */
+    --color-text-primary: var(--text-primary);
+    --color-text-secondary: var(--text-secondary);
+    --color-text-muted: var(--text-secondary);
+    --color-text-disabled: rgba(224, 224, 224, 0.5);
+    --color-text-inverse: var(--background-default);
+    
+    /* State-Specific Colors */
+    --color-hover-bg: var(--action-hover);
+    --color-active-bg: rgba(90, 139, 181, 0.15);
+    --color-focus-ring: var(--focus-ring);
+    
+    /* Surface & Overlay Tokens */
+    --surface-elevated: color-mix(in oklab, var(--color-fg) 10%, var(--color-bg));
+    --overlay-dark: color-mix(in oklab, var(--color-fg) 80%, transparent);
+    
+    /* Interaction Tokens */
+    --brightness-hover: 1.1;
+    
+    /* Warning Variants */
+    --color-warning-dark: #b8862e;
+    
+    /* ========== SPACING SCALE ========== */
+    /* 4px-based scale: quarter-rem increments */
+    --space-1: 0.25rem;      /* 4px */
+    --space-2: 0.5rem;       /* 8px */
+    --space-3: 0.75rem;      /* 12px */
+    --space-4: 1rem;         /* 16px */
+    --space-5: 1.5rem;       /* 24px */
+    --space-6: 2rem;         /* 32px */
+    --space-7: 2.5rem;       /* 40px */
+    --space-8: 3rem;         /* 48px */
+    
+    /* ========== BORDER RADIUS ========== */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 12px;
+    --radius-full: 9999px;
+    
+    /* ========== SHADOWS ========== */
+    --shadow-1: 0 2px 8px var(--shadow-light);
+    --shadow-2: 0 8px 25px var(--shadow-medium);
+    --shadow-3: 0 16px 40px var(--shadow-heavy);
+    
+    /* ========== MOTION / ANIMATION ========== */
+    --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+    --ease-in: cubic-bezier(0.4, 0, 1, 1);
+    --ease-out: cubic-bezier(0, 0, 0.2, 1);
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    
+    --duration-1: 100ms;
+    --duration-2: 150ms;
+    --duration-3: 200ms;
+    --duration-4: 300ms;
+    
+    /* ========== TYPOGRAPHY TOKENS (Reference) ========== */
+    /* Note: Base font-family set on body; these are for components needing overrides */
+    --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    --font-family-mono: 'Monaco', 'Menlo', 'Courier New', monospace;
+}
+
+/* Theme overrides change token values only */
+[data-theme="light"] {
+    /* Base colors */
+    --primary-main: #2a6fbb;
+    --secondary-main: #b8824a;
+    --background-default: #fafafa;
+    --background-paper: #ffffff;
+    --text-primary: #1a1a1a;
+    --text-secondary: #6b6b6b;
+    --divider: #e0e0e0;
+    --success-main: #4a854a;
+    --warning-main: #cc8800;
+    --error-main: #c53939;
+    --info-main: #2a6fbb;
+    --action-hover: #f0f0f0;
+    --shadow-light: rgba(0, 0, 0, 0.05);
+    --shadow-medium: rgba(0, 0, 0, 0.08);
+    --shadow-heavy: rgba(0, 0, 0, 0.12);
+    
+    /* Token mappings for light theme */
+    --color-fg: #1a1a1a;
+    --color-bg: #fafafa;
+    --color-surface-1: #ffffff;
+    --color-surface-2: #f5f5f5;
+    --color-border: #e0e0e0;
+    --color-border-subtle: rgba(0, 0, 0, 0.08);
+    --color-primary: #2a6fbb;
+    --color-secondary: #b8824a;
+    --color-success: #4a854a;
+    --color-warning: #cc8800;
+    --color-error: #c53939;
+    --color-info: #2a6fbb;
+    --color-danger: #c53939;
+    --color-text-primary: #1a1a1a;
+    --color-text-secondary: #6b6b6b;
+    --color-text-muted: #6b6b6b;
+    --color-text-disabled: rgba(26, 26, 26, 0.5);
+    --color-text-inverse: #ffffff;
+    --color-hover-bg: #f0f0f0;
+    --color-active-bg: rgba(42, 111, 187, 0.1);
+    --color-focus-ring: #2a6fbb;
+    --color-warning-dark: #9a6f23;
+}
+
+[data-theme="dark"] {
+    /* Explicit mapping to current dark palette for clarity */
+    --primary-main: #5a8bb5;
+    --secondary-main: #d4977b;
+    --background-default: #1a1a1a;
+    --background-paper: #2a2a2a;
+    --text-primary: #e0e0e0;
+    --text-secondary: #a0a0a0;
+    --divider: #404040;
+    --success-main: #5d9c5d;
+    --warning-main: #d49c3d;
+    --error-main: #c76161;
+    --info-main: #5a8bb5;
+    --action-hover: #353535;
+    --shadow-light: rgba(0, 0, 0, 0.08);
+    --shadow-medium: rgba(0, 0, 0, 0.12);
+    --shadow-heavy: rgba(0, 0, 0, 0.16);
+    
+    /* Token mappings for dark theme */
+    --color-fg: #e0e0e0;
+    --color-bg: #1a1a1a;
+    --color-surface-1: #2a2a2a;
+    --color-surface-2: #1a1a1a;
+    --color-border: #404040;
+    --color-border-subtle: rgba(64, 64, 64, 0.5);
+    --color-primary: #5a8bb5;
+    --color-secondary: #d4977b;
+    --color-success: #5d9c5d;
+    --color-warning: #d49c3d;
+    --color-error: #c76161;
+    --color-info: #5a8bb5;
+    --color-danger: #c76161;
+    --color-text-primary: #e0e0e0;
+    --color-text-secondary: #a0a0a0;
+    --color-text-muted: #a0a0a0;
+    --color-text-disabled: rgba(224, 224, 224, 0.5);
+    --color-text-inverse: #1a1a1a;
+    --color-hover-bg: #353535;
+    --color-active-bg: rgba(90, 139, 181, 0.15);
+    --color-focus-ring: #5a8bb5;
+    --color-warning-dark: #b8862e;
+}
+
+[data-theme="high-contrast"] {
+    --primary-main: #0000ff;
+    --secondary-main: #ff00ff;
+    --background-default: #ffffff;
+    --background-paper: #f5f5f5;
+    --text-primary: #000000;
+    --text-secondary: #333333;
+    --divider: #000000;
+    --success-main: #008000;
+    --warning-main: #ff8800;
+    --error-main: #ff0000;
+    --info-main: #0000ff;
+    --action-hover: #eeeeee;
+    --shadow-light: rgba(0, 0, 0, 0.1);
+    --shadow-medium: rgba(0, 0, 0, 0.2);
+    --shadow-heavy: rgba(0, 0, 0, 0.3);
+    
+    /* Token mappings for high-contrast theme */
+    --color-fg: #000000;
+    --color-bg: #ffffff;
+    --color-surface-1: #f5f5f5;
+    --color-surface-2: #ffffff;
+    --color-border: #000000;
+    --color-border-subtle: rgba(0, 0, 0, 0.2);
+    --color-primary: #0000ff;
+    --color-secondary: #ff00ff;
+    --color-success: #008000;
+    --color-warning: #ff8800;
+    --color-error: #ff0000;
+    --color-info: #0000ff;
+    --color-danger: #ff0000;
+    --color-text-primary: #000000;
+    --color-text-secondary: #333333;
+    --color-text-muted: #666666;
+    --color-text-disabled: rgba(0, 0, 0, 0.5);
+    --color-text-inverse: #ffffff;
+    --color-hover-bg: #eeeeee;
+    --color-active-bg: rgba(0, 0, 255, 0.15);
+    --color-focus-ring: #0000ff;
+    --color-warning-dark: #cc6600;
 }
 
 body {
@@ -82,6 +337,31 @@ input, select, textarea {
 
 ::-webkit-scrollbar-corner {
     background: var(--surface-2);
+}
+
+/* ============================================================================
+   RADIX UI GLOBAL STYLING
+   ============================================================================ */
+
+/* Ensure dropdowns render with proper background everywhere */
+[role="menu"] {
+    background-color: var(--background-paper) !important;
+}
+
+[role="menuitem"] {
+    background-color: transparent;
+    color: var(--text-primary);
+    transition: background-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+[role="menuitem"]:hover:not([data-disabled="true"]),
+[role="menuitem"]:focus:not([data-disabled="true"]) {
+    background-color: var(--action-hover);
+}
+
+[role="menuitem"][data-disabled="true"] {
+    color: var(--text-disabled);
+    cursor: not-allowed;
 }
 
 /* Welcome Screen - Accessible & Theme-Aware */
@@ -512,15 +792,15 @@ input, select, textarea {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
-    padding: 1rem;
+    margin-bottom: var(--space-4);
+    padding: var(--space-4);
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
 }
 
 .generation-header h2 {
-    color: #4a5568;
+    color: var(--color-text-primary);
 }
 
 /* Animations */
@@ -531,22 +811,22 @@ input, select, textarea {
 
 /* General text readability improvements */
 h1, h2, h3, h4, h5, h6 {
-    color: #ffffff;
-    margin-bottom: 0.5rem;
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-2);
 }
 
 p, span, div {
-    color: #cccccc;
+    color: var(--color-text-secondary);
 }
 
 /* Button text contrast */
 .btn {
-    color: #ffffff !important;
+    color: var(--color-text-inverse) !important;
     font-weight: 600;
 }
 
 .btn-secondary {
-    color: #ffffff !important;
+    color: var(--color-text-primary) !important;
 }
 
 /* Responsive */

@@ -4,6 +4,7 @@ import PreferencesService from '../services/PreferencesService.js';
 import ColorSchemeCreator from './ColorSchemeCreator.jsx';
 import { useServices } from '../contexts/ServiceContext.js';
 import useDebounce from '../hooks/useDebounce.js';
+import './ColorSchemeDropdown.bem.css';
 
 function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true, isInDropdown = false }) {
     const { eventBusService } = useServices();
@@ -113,33 +114,17 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true,
     const renderColorSwatch = (colors, maxColors = 6) => {
         const displayColors = colors.slice(0, maxColors);
         return (
-            <div style={{ display: 'flex', gap: '2px', marginTop: '4px' }}>
+            <div className="color-scheme-dropdown__swatch-list">
                 {displayColors.map((color, index) => (
                     <div
                         key={index}
-                        style={{
-                            width: '16px',
-                            height: '16px',
-                            background: color,
-                            borderRadius: '2px',
-                            border: '1px solid rgba(255,255,255,0.2)'
-                        }}
+                        className="color-scheme-dropdown__swatch"
+                        style={{ '--swatch-color': color }}
                         title={color}
                     />
                 ))}
                 {colors.length > maxColors && (
-                    <div style={{
-                        width: '16px',
-                        height: '16px',
-                        background: 'rgba(255,255,255,0.1)',
-                        borderRadius: '2px',
-                        border: '1px solid rgba(255,255,255,0.2)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '10px',
-                        color: '#ccc'
-                    }}>
+                    <div className="color-scheme-dropdown__swatch color-scheme-dropdown__swatch--more">
                         +{colors.length - maxColors}
                     </div>
                 )}
@@ -175,64 +160,45 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true,
         return (
             <div
                 key={scheme.id}
-                style={{
-                    padding: '12px',
-                    cursor: 'pointer',
-                    background: isSelected ? 'rgba(102, 126, 234, 0.2)' : 'transparent',
-                    border: isSelected ? '1px solid #667eea' : '1px solid transparent',
-                    borderRadius: '6px',
-                    margin: '2px 0',
-                    position: 'relative'
-                }}
+                className={`color-scheme-dropdown__option${isSelected ? ' color-scheme-dropdown__option--selected' : ''}`}
             >
                 <div
                     onClick={() => handleSchemeSelect(scheme.id)}
-                    style={{ flex: 1 }}
+                    className="color-scheme-dropdown__option-body"
                 >
-                    <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'flex-start',
-                        marginBottom: '6px'
-                    }}>
+                    <div className="color-scheme-dropdown__option-header">
                     <div>
-                        <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>
+                        <div className="color-scheme-dropdown__title">
                             {isFavorited && (
-                                <span style={{ color: '#ffd700', marginRight: '4px' }}>⭐</span>
+                                <span className="color-scheme-dropdown__icon color-scheme-dropdown__icon--favorite">⭐</span>
                             )}
                             {isDefault && (
-                                <span style={{ color: '#22c55e', marginRight: '4px' }}>🎯</span>
+                                <span className="color-scheme-dropdown__icon color-scheme-dropdown__icon--default">🎯</span>
                             )}
                             {scheme.name}
                             {scheme.isCustom && (
-                                <span style={{
-                                    marginLeft: '6px',
-                                    fontSize: '0.7rem',
-                                    background: 'rgba(102, 126, 234, 0.3)',
-                                    padding: '2px 6px',
-                                    borderRadius: '10px'
-                                }}>
+                                <span className="color-scheme-dropdown__badge">
                                     Custom
                                 </span>
                             )}
                         </div>
-                        <div style={{ fontSize: '0.8rem', color: '#aaa', marginTop: '2px' }}>
+                        <div className="color-scheme-dropdown__meta">
                             {scheme.description}
                         </div>
                     </div>
                 </div>
 
                 {/* Color swatches */}
-                <div style={{ marginTop: '8px' }}>
-                    <div style={{ fontSize: '0.7rem', color: '#888', marginBottom: '4px' }}>
+                <div className="color-scheme-dropdown__section">
+                    <div className="color-scheme-dropdown__meta">
                         Lights ({scheme.lights?.length || 0})
                     </div>
                     {renderColorSwatch(scheme.lights || [])}
 
-                    <div style={{ fontSize: '0.7rem', color: '#888', marginTop: '6px', marginBottom: '4px' }}>
+                    <div className="color-scheme-dropdown__meta color-scheme-dropdown__meta--spaced">
                         Neutrals ({scheme.neutrals?.length || 0}) • Backgrounds ({scheme.backgrounds?.length || 0})
                     </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div className="color-scheme-dropdown__swatch-row">
                         {renderColorSwatch(scheme.neutrals || [], 3)}
                         {renderColorSwatch(scheme.backgrounds || [], 3)}
                     </div>
@@ -240,45 +206,19 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true,
                 </div>
 
                 {/* Action buttons */}
-                <div style={{
-                    position: 'absolute',
-                    top: '8px',
-                    right: '8px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '2px',
-                    opacity: 0.8
-                }}>
+                <div className="color-scheme-dropdown__actions">
                     {/* Favorite and Default buttons */}
-                    <div style={{ display: 'flex', gap: '2px' }}>
+                    <div className="color-scheme-dropdown__btn-row">
                         <button
                             onClick={(e) => handleToggleFavorite(scheme.id, e)}
-                            style={{
-                                background: isFavorited ? 'rgba(255, 215, 0, 0.8)' : 'rgba(128, 128, 128, 0.6)',
-                                border: 'none',
-                                borderRadius: '3px',
-                                padding: '3px 6px',
-                                color: isFavorited ? '#000' : '#fff',
-                                fontSize: '0.7rem',
-                                cursor: 'pointer',
-                                fontWeight: 'bold'
-                            }}
+                            className={`color-scheme-dropdown__btn ${isFavorited ? 'color-scheme-dropdown__btn--favorite' : ''}`}
                             title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
                         >
                             ⭐
                         </button>
                         <button
                             onClick={(e) => handleSetDefault(scheme.id, e)}
-                            style={{
-                                background: isDefault ? 'rgba(34, 197, 94, 0.8)' : 'rgba(128, 128, 128, 0.6)',
-                                border: 'none',
-                                borderRadius: '3px',
-                                padding: '3px 6px',
-                                color: 'white',
-                                fontSize: '0.7rem',
-                                cursor: 'pointer',
-                                fontWeight: 'bold'
-                            }}
+                            className={`color-scheme-dropdown__btn ${isDefault ? 'color-scheme-dropdown__btn--default' : ''}`}
                             title={isDefault ? 'Current default' : 'Set as default'}
                         >
                             🎯
@@ -286,18 +226,10 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true,
                     </div>
 
                     {/* Edit/Copy buttons */}
-                    <div style={{ display: 'flex', gap: '2px' }}>
+                    <div className="color-scheme-dropdown__btn-row">
                         <button
                             onClick={(e) => handleCopyScheme(scheme, e)}
-                            style={{
-                                background: 'rgba(102, 126, 234, 0.8)',
-                                border: 'none',
-                                borderRadius: '3px',
-                                padding: '3px 6px',
-                                color: 'white',
-                                fontSize: '0.7rem',
-                                cursor: 'pointer'
-                            }}
+                            className="color-scheme-dropdown__btn color-scheme-dropdown__btn--copy"
                             title="Copy and edit"
                         >
                             Copy
@@ -305,15 +237,7 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true,
                         {scheme.isCustom && (
                             <button
                                 onClick={(e) => handleEditScheme(scheme, e)}
-                                style={{
-                                    background: 'rgba(34, 197, 94, 0.8)',
-                                    border: 'none',
-                                    borderRadius: '3px',
-                                    padding: '3px 6px',
-                                    color: 'white',
-                                    fontSize: '0.7rem',
-                                    cursor: 'pointer'
-                                }}
+                                className="color-scheme-dropdown__btn color-scheme-dropdown__btn--edit"
                                 title="Edit"
                             >
                                 Edit
@@ -347,12 +271,9 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true,
         return (
             <div>
                 {/* Search and Create */}
-                <div style={{
-                    padding: '12px',
-                    borderBottom: '1px solid #333',
-                    background: '#0f0f0f'
-                }}>
+                <div className="color-scheme-dropdown__menu-header">
                     <input
+                        className="color-scheme-dropdown__search"
                         type="text"
                         placeholder="Search color schemes..."
                         value={searchTerm}
@@ -361,30 +282,12 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true,
                             setSearchTerm(value);
                             debouncedSetSearchTerm(value);
                         }}
-                        style={{
-                            width: '100%',
-                            background: 'rgba(255,255,255,0.1)',
-                            border: '1px solid #333',
-                            borderRadius: '4px',
-                            padding: '8px',
-                            color: 'white',
-                            marginBottom: '8px'
-                        }}
                     />
                     <button
+                        className="color-scheme-dropdown__create-btn"
                         onClick={() => {
                             setEditingScheme(null);
                             setShowCreator(true);
-                        }}
-                        style={{
-                            width: '100%',
-                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                            border: 'none',
-                            borderRadius: '4px',
-                            padding: '8px',
-                            color: 'white',
-                            cursor: 'pointer',
-                            fontWeight: 'bold'
                         }}
                     >
                         + Create Custom Scheme
@@ -392,18 +295,12 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true,
                 </div>
 
                 {/* Scheme Categories */}
-                <div style={{ padding: '8px' }}>
+                <div className="color-scheme-dropdown__categories">
                     {Object.entries(filteredSchemes).map(([category, schemes]) => {
                         if (schemes.length === 0) return null;
                         return (
-                            <div key={category} style={{ marginBottom: '16px' }}>
-                                <div style={{
-                                    fontSize: '0.8rem',
-                                    fontWeight: 'bold',
-                                    color: '#667eea',
-                                    marginBottom: '8px',
-                                    paddingLeft: '8px'
-                                }}>
+                            <div key={category} className="color-scheme-dropdown__category-group">
+                                <div className="color-scheme-dropdown__category">
                                     {category}
                                 </div>
                                 {schemes.map(renderSchemeOption)}
@@ -428,40 +325,25 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true,
     }
 
     return (
-        <div style={{ position: 'relative' }}>
+        <div className="color-scheme-dropdown">
             {/* Selected Scheme Display */}
             <div
+                className="color-scheme-dropdown__trigger"
                 onClick={() => setShowDropdown(!showDropdown)}
-                style={{
-                    background: 'rgba(255,255,255,0.1)',
-                    border: '1px solid #333',
-                    borderRadius: '6px',
-                    padding: '12px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                }}
             >
-                <div style={{ flex: 1 }}>
+                <div className="color-scheme-dropdown__trigger-main">
                     {selectedScheme ? (
                         <div>
-                            <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>
+                            <div className="color-scheme-dropdown__label">
                                 {selectedScheme.name}
                                 {selectedScheme.isCustom && (
-                                    <span style={{
-                                        marginLeft: '6px',
-                                        fontSize: '0.7rem',
-                                        background: 'rgba(102, 126, 234, 0.3)',
-                                        padding: '2px 6px',
-                                        borderRadius: '10px'
-                                    }}>
+                                    <span className="color-scheme-dropdown__badge">
                                         Custom
                                     </span>
                                 )}
                             </div>
                             {showPreview && (
-                                <div style={{ marginTop: '6px' }}>
+                                <div className="color-scheme-dropdown__preview">
                                     {renderColorSwatch([
                                         ...(selectedScheme.lights?.slice(0, 4) || []),
                                         ...(selectedScheme.neutrals?.slice(0, 2) || [])
@@ -470,38 +352,21 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true,
                             )}
                         </div>
                     ) : (
-                        <div style={{ color: '#888' }}>Select a color scheme</div>
+                        <div className="color-scheme-dropdown__meta color-scheme-dropdown__meta--placeholder">Select a color scheme</div>
                     )}
                 </div>
-                <div style={{ color: '#888', fontSize: '0.8rem' }}>
+                <div className="color-scheme-dropdown__chevron">
                     {showDropdown ? '▲' : '▼'}
                 </div>
             </div>
 
             {/* Dropdown */}
             {showDropdown && (
-                <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                    background: '#1a1a1a',
-                    border: '1px solid #333',
-                    borderRadius: '6px',
-                    marginTop: '4px',
-                    maxHeight: 'calc(100vh - 50px)',
-                    overflowY: 'auto',
-                    overflowX: 'hidden',
-                    zIndex: 1000,
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
-                }}>
+                <div className="color-scheme-dropdown__menu">
                     {/* Search and Create */}
-                    <div style={{
-                        padding: '12px',
-                        borderBottom: '1px solid #333',
-                        background: '#0f0f0f'
-                    }}>
+                    <div className="color-scheme-dropdown__menu-header">
                         <input
+                            className="color-scheme-dropdown__search"
                             type="text"
                             placeholder="Search color schemes..."
                             value={searchTerm}
@@ -510,31 +375,13 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true,
                                 setSearchTerm(value);
                                 debouncedSetSearchTerm(value);
                             }}
-                            style={{
-                                width: '100%',
-                                background: 'rgba(255,255,255,0.1)',
-                                border: '1px solid #333',
-                                borderRadius: '4px',
-                                padding: '8px',
-                                color: 'white',
-                                marginBottom: '8px'
-                            }}
                         />
                         <button
+                            className="color-scheme-dropdown__create-btn"
                             onClick={() => {
                                 setEditingScheme(null);
                                 setShowCreator(true);
                                 setShowDropdown(false);
-                            }}
-                            style={{
-                                width: '100%',
-                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '8px',
-                                color: 'white',
-                                cursor: 'pointer',
-                                fontWeight: 'bold'
                             }}
                         >
                             + Create Custom Scheme
@@ -542,18 +389,12 @@ function ColorSchemeDropdown({ value, onChange, projectData, showPreview = true,
                     </div>
 
                     {/* Scheme Categories */}
-                    <div style={{ padding: '8px' }}>
+                    <div className="color-scheme-dropdown__categories">
                         {Object.entries(filteredSchemes).map(([category, schemes]) => {
                             if (schemes.length === 0) return null;
                             return (
-                                <div key={category} style={{ marginBottom: '16px' }}>
-                                    <div style={{
-                                        fontSize: '0.8rem',
-                                        fontWeight: 'bold',
-                                        color: '#667eea',
-                                        marginBottom: '8px',
-                                        paddingLeft: '8px'
-                                    }}>
+                                <div key={category} className="color-scheme-dropdown__category-group">
+                                    <div className="color-scheme-dropdown__category">
                                         {category}
                                     </div>
                                     {schemes.map(renderSchemeOption)}

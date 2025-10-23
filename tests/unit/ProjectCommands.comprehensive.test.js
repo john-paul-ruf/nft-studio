@@ -417,7 +417,13 @@ export async function testDeleteKeyframeEffectCommand(testEnv) {
 
     const keyframe1 = createTestEffect({ name: 'Keyframe1', className: 'KeyframeClass1', frame: 25, type: 'keyframe' });
     const keyframe2 = createTestEffect({ name: 'Keyframe2', className: 'KeyframeClass2', frame: 75, type: 'keyframe' });
-    const parentEffect = createTestEffect({ name: 'ParentEffect', className: 'ParentClass', attachedEffects: { keyFrame: [keyframe1, keyframe2] } });
+    // Use modern keyframeEffects format instead of old attachedEffects.keyFrame format
+    const parentEffect = createTestEffect({ 
+        name: 'ParentEffect', 
+        className: 'ParentClass', 
+        keyframeEffects: [keyframe1, keyframe2],
+        attachedEffects: { keyFrame: [keyframe1, keyframe2] } // Keep for backward compat if command expects it
+    });
     const projectState = new MockProjectState({ effects: [parentEffect] });
 
     const command = new DeleteKeyframeEffectCommand(projectState, 0, 0);
@@ -453,7 +459,13 @@ export async function testReorderKeyframeEffectsCommand(testEnv) {
     const keyframe1 = createTestEffect({ name: 'Keyframe1', className: 'KeyframeClass1', frame: 25, type: 'keyframe' });
     const keyframe2 = createTestEffect({ name: 'Keyframe2', className: 'KeyframeClass2', frame: 50, type: 'keyframe' });
     const keyframe3 = createTestEffect({ name: 'Keyframe3', className: 'KeyframeClass3', frame: 75, type: 'keyframe' });
-    const parentEffect = createTestEffect({ name: 'ParentEffect', className: 'ParentClass', attachedEffects: { keyFrame: [keyframe1, keyframe2, keyframe3] } });
+    // Use modern keyframeEffects format instead of old attachedEffects.keyFrame format
+    const parentEffect = createTestEffect({ 
+        name: 'ParentEffect', 
+        className: 'ParentClass', 
+        keyframeEffects: [keyframe1, keyframe2, keyframe3],
+        attachedEffects: { keyFrame: [keyframe1, keyframe2, keyframe3] } // Keep for backward compat if command expects it
+    });
     const projectState = new MockProjectState({ effects: [parentEffect] });
 
     const command = new ReorderKeyframeEffectsCommand(projectState, 0, 0, 2);

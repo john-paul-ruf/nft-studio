@@ -1,0 +1,88 @@
+/* ==========================================
+   RENDER SELECTOR - BEM CSS ARCHITECTURE
+   ==========================================
+   
+   PURPOSE: Styling for the render dropdown menu component
+   PATTERN: Radix UI dropdown with BEM block structure
+   TOKENS: All colors/spacing use CSS design tokens from src/styles.css
+   THEMES: Light, Dark, High-Contrast (via data-theme attribute)
+   
+   STRUCTURE:
+   - render-selector__button    → Trigger button (play icon)
+   - render-selector__content   → Dropdown menu container
+   - render-selector__item      → Individual menu items
+   - render-selector__item--disabled  → Disabled menu item state
+   - render-selector__icon      → Icon spacing within items
+   
+   USAGE:
+   - Render Frame (always enabled)
+   - Start/Stop Render Loop (disabled until render pinned)
+   - Resume Loop Run (always enabled)
+   
+   ========================================== */
+
+/* Block: .render-selector__* */
+
+/* Trigger Button Element */
+.render-selector__button {
+    color: var(--render-selector-button-color, var(--color-text-primary)) !important;
+    transition: background-color var(--duration-2, 0.15s) var(--ease-standard, ease-in-out) !important;
+}
+
+.render-selector__button:hover {
+    background-color: var(--render-selector-button-hover-bg, var(--color-primary)) !important;
+}
+
+/* Content Element: Dropdown menu container */
+.render-selector__content {
+    background-color: var(--render-selector-content-bg, var(--color-surface-1)) !important;
+    border: 1px solid var(--color-border, #444) !important;
+    border-radius: var(--radius-md, 4px) !important;
+    padding: var(--space-1, 5px) !important;
+    min-width: 200px !important;
+    box-shadow: var(--shadow-2, 0px 10px 38px -10px rgba(22, 23, 24, 0.35), 0px 10px 20px -15px rgba(22, 23, 24, 0.2)) !important;
+    z-index: 9999 !important;
+}
+
+/* Item Element: Individual menu item */
+.render-selector__item {
+    color: var(--render-selector-item-color, var(--color-text-primary)) !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: var(--space-2, 8px) var(--space-3, 12px) !important;
+    cursor: pointer !important;
+    outline: none !important;
+    border-radius: var(--radius-sm, 2px) !important;
+    transition: background-color var(--duration-2, 0.15s) var(--ease-standard, ease-in-out) !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+.render-selector__item:hover:not([disabled]) {
+    background-color: var(--render-selector-item-hover-bg, var(--color-hover-bg, rgba(0, 0, 0, 0.08))) !important;
+}
+
+.render-selector__item:focus-visible {
+    outline: 2px solid var(--color-primary, #5a8bb5) !important;
+    outline-offset: -2px !important;
+}
+
+/* Item Modifier: Disabled state */
+.render-selector__item--disabled {
+    color: var(--render-selector-item-disabled-color, var(--color-text-secondary)) !important;
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+}
+
+.render-selector__item--disabled:hover {
+    background-color: transparent !important;
+}
+
+/* Icon Element: Icon spacing */
+.render-selector__icon {
+    margin-right: var(--space-2, 8px) !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}

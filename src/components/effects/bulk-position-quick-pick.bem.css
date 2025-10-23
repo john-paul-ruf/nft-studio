@@ -1,0 +1,61 @@
+/**
+ * BEM Classes for BulkPositionQuickPick
+ * Manages layout and styling for quick position selection interface
+ */
+
+.bulk-position-quick-pick {
+  /* Root container */
+}
+
+.bulk-position-quick-pick__title {
+  margin-bottom: var(--space-2);
+}
+
+.bulk-position-quick-pick__category-selector {
+  margin-bottom: var(--space-2);
+}
+
+.bulk-position-quick-pick__category-button {
+  text-transform: none;
+}
+
+.bulk-position-quick-pick__description {
+  margin-bottom: var(--space-2);
+  font-size: 0.75rem;
+}
+
+.bulk-position-quick-pick__grid {
+  /* Container for position buttons - handled by MUI Grid */
+}
+
+.bulk-position-quick-pick__position-button {
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-transform: none;
+  font-size: 0.75rem;
+}
+
+.bulk-position-quick-pick__position-icon {
+  font-size: 1.5rem;
+  margin-bottom: var(--space-1);
+}
+
+.bulk-position-quick-pick__position-name {
+  font-size: 0.65rem;
+  line-height: 1.2;
+}
+
+.bulk-position-quick-pick__position-coords {
+  font-size: 0.6rem;
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+.bulk-position-quick-pick__canvas-info {
+  margin-top: var(--space-2);
+  text-align: center;
+  font-size: 0.7rem;
+}

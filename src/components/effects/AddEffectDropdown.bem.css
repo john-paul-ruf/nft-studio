@@ -1,0 +1,27 @@
+/* ==========================================
+   ADD EFFECT DROPDOWN - BEM CSS ARCHITECTURE
+   ==========================================
+   
+   PURPOSE: Styling for dropdown menu with organized effect categories
+   PATTERN: Radix UI dropdown with effect submenus
+   TOKENS: All colors/spacing use CSS design tokens from src/styles.css
+   THEMES: Light, Dark, High-Contrast (via data-theme attribute)
+   
+   STRUCTURE:
+   - add-effect-dropdown__content → Main dropdown container with submenus
+   
+   ========================================== */
+
+.add-effect-dropdown__content {
+    background-color: var(--add-effect-dropdown-bg, var(--color-surface-1)) !important;
+    border: 1px solid var(--add-effect-dropdown-border, var(--color-border)) !important;
+    border-radius: var(--radius-lg, 6px);
+    box-shadow: var(--shadow-3, 0px 8px 24px rgba(0, 0, 0, 0.2));
+    padding: var(--space-1, 4px);
+    width: 100%;
+    min-width: 250px;
+    max-height: calc(100vh - 150px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    z-index: 10000;
+}

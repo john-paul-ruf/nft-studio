@@ -34,11 +34,14 @@ import {
     Button
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
-import './Canvas.css';
+import './Canvas.bem.css';
 
 // Event-driven components
 import EventDrivenToolbarActions from '../components/EventDrivenToolbarActions.jsx';
 import EventDrivenCanvasToolbar from '../components/EventDrivenCanvasToolbar.jsx';
+
+// Effects components
+import EffectConfigPanel from '../components/effects/EffectConfigPanel.jsx';
 
 
 /**
@@ -126,6 +129,10 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
     const [isEventMonitorForResumedProject, setIsEventMonitorForResumedProject] = useState(false);
     const [showImportWizard, setShowImportWizard] = useState(false);
     const [showProjectSettings, setShowProjectSettings] = useState(false);
+    
+    // Config panel state (docked on right side)
+    const [configPanelExpanded, setConfigPanelExpanded] = useState(false);
+    const [selectedEffect, setSelectedEffect] = useState(null);
 
 
     // UI refs
@@ -242,6 +249,45 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
         const unsubscribeFrame = eventBusService.subscribe('frame:selected', (payload) => {
             console.log('🎨 Canvas: Frame selection event received:', payload);
             setSelectedFrame(payload.frameIndex);
+        }, { component: 'Canvas' });
+
+        // Effect selection events - update config panel
+        const unsubscribeEffectSelected = eventBusService.subscribe('effect:selected', (payload) => {
+            console.log('🎨 Canvas: Effect selection event received:', payload);
+            // Enrich the selected effect with full data from ProjectState
+            if (projectState) {
+                const state = projectState.getState?.();
+                const effects = state?.effects || [];
+                let effect = null;
+                
+                // Try to find effect by ID
+                if (payload.effectId) {
+                    effect = effects.find(e => e.id === payload.effectId);
+                }
+                
+                if (effect) {
+                    setSelectedEffect({
+                        effectId: payload.effectId,
+                        effectIndex: payload.effectIndex,
+                        effectType: payload.effectType,
+                        subIndex: payload.subIndex,
+                        name: effect.name || effect.className,
+                        registryKey: effect.name || effect.className,
+                        className: effect.className,
+                        id: effect.id,
+                        config: effect.config || {},
+                    });
+                    // Auto-expand config panel when effect is selected
+                    setConfigPanelExpanded(true);
+                }
+            }
+        }, { component: 'Canvas' });
+
+        // Effect deselection event - clear config panel
+        const unsubscribeEffectDeselected = eventBusService.subscribe('effect:deselected', (payload) => {
+            console.log('🎨 Canvas: Effect deselection event received:', payload);
+            setSelectedEffect(null);
+            setConfigPanelExpanded(false);
         }, { component: 'Canvas' });
 
         // Resolution and orientation events - trigger re-render
@@ -410,6 +456,8 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
             console.log('🎨 Canvas: Cleaning up UI event listeners');
             unsubscribeTheme();
             unsubscribeFrame();
+            unsubscribeEffectSelected();
+            unsubscribeEffectDeselected();
             unsubscribeResolution();
             unsubscribeOrientation();
             unsubscribeRenderLoopToggle();
@@ -426,7 +474,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
             unsubscribeShowEventBusMonitor();
             unsubscribeShowPluginManager();
         };
-    }, [eventBusService]);
+    }, [eventBusService, projectState]);
 
     // Load project from file (delegate to services)
     useEffect(() => {
@@ -443,56 +491,95 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
             {/* Event-driven action handler - no UI, pure event listening */}
             <EventDrivenToolbarActions projectState={projectState} />
 
-            <Box sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                height: '100vh',
-                background: themeMode === 'dark' ? '#121212' : '#f5f5f5'
-            }}>
+            <div className="page-canvas">
                 {/* Event-Driven Toolbar - ZERO callback props! */}
-                <EventDrivenCanvasToolbar
-                    config={config}
-                    projectState={projectState}
-                    selectedFrame={selectedFrame}
-                    isRenderLoopActive={isRenderLoopActive}
-                    zoom={zoom}
-                    currentTheme={currentTheme}
-                    getResolutionDimensions={getResolutionDimensions}
-                    isRendering={isRendering}
-                    isReadOnly={projectState ? projectState.getState().isReadOnly || false : false}
-                    isProjectResuming={isProjectResuming}
-                />
+                <div className="page-canvas__header">
+                    <EventDrivenCanvasToolbar
+                        config={config}
+                        projectState={projectState}
+                        selectedFrame={selectedFrame}
+                        isRenderLoopActive={isRenderLoopActive}
+                        zoom={zoom}
+                        currentTheme={currentTheme}
+                        getResolutionDimensions={getResolutionDimensions}
+                        isRendering={isRendering}
+                        isReadOnly={projectState ? projectState.getState().isReadOnly || false : false}
+                        isProjectResuming={isProjectResuming}
+                    />
+                </div>
 
                 {/* Main content area */}
-                <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+                <div className="page-canvas__body">
                     {/* Effects panel */}
-                    <EventDrivenEffectsPanel
-                        effects={projectState ? projectState.getState().effects || [] : []}
-                        availableEffects={availableEffects}
-                        effectsLoaded={effectsLoaded}
-                        currentTheme={currentTheme}
-                        projectState={projectState}
-                        isReadOnly={projectState ? projectState.getState().isReadOnly || false : false}
-                        isRenderLoopActive={isRenderLoopActive}
-                        isRendering={isRendering}
-                        refreshAvailableEffects={refreshAvailableEffects}
-                    />
+                    <div className="page-canvas__sidebar">
+                        <EventDrivenEffectsPanel
+                            effects={projectState ? projectState.getState().effects || [] : []}
+                            availableEffects={availableEffects}
+                            effectsLoaded={effectsLoaded}
+                            currentTheme={currentTheme}
+                            projectState={projectState}
+                            isReadOnly={projectState ? projectState.getState().isReadOnly || false : false}
+                            isRenderLoopActive={isRenderLoopActive}
+                            isRendering={isRendering}
+                            refreshAvailableEffects={refreshAvailableEffects}
+                        />
+                    </div>
+
+                    {/* Effect Configuration Panel - docked between effects panel and canvas */}
+                    {selectedEffect && (
+                        <div className="page-canvas__effect-config">
+                            <div className="page-canvas__effect-config__header">
+                                <div>
+                                    <h3 className="page-canvas__effect-config__title">
+                                        {selectedEffect?.name || 'Effect Configuration'}
+                                    </h3>
+                                    <div className="page-canvas__effect-config__id">
+                                        ID: {selectedEffect?.effectId?.substring(0, 12)}
+                                    </div>
+                                </div>
+                                <button
+                                    className="page-canvas__effect-config__close-btn"
+                                    onClick={() => {
+                                        setSelectedEffect(null);
+                                        setConfigPanelExpanded(false);
+                                    }}
+                                    aria-label="Close configuration"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                            <div className="page-canvas__effect-config__content">
+                                <EffectConfigPanel
+                                    isExpanded={true}
+                                    onToggleExpand={() => {
+                                        setSelectedEffect(null);
+                                        setConfigPanelExpanded(false);
+                                    }}
+                                    selectedEffect={selectedEffect}
+                                    projectState={projectState}
+                                    isReadOnly={projectState ? projectState.getState().isReadOnly || false : false}
+                                />
+                            </div>
+                        </div>
+                    )}
 
                     {/* Canvas viewport */}
-                    <CanvasViewport
-                        dimensions={getResolutionDimensions()}
-                        zoom={zoom}
-                        pan={pan}
-                        isDragging={isDragging}
-                        isRendering={isRendering}
-                        renderTimer={renderTimer}
-                        renderResult={renderResult}
-                        onMouseDown={handleCanvasMouseDown}
-                        onWheel={handleWheel}
-                        currentTheme={currentTheme}
-                        ref={{ canvasRef, frameHolderRef }}
-                    />
-                </Box>
+                    <div className="page-canvas__viewport">
+                        <CanvasViewport
+                            dimensions={getResolutionDimensions()}
+                            zoom={zoom}
+                            pan={pan}
+                            isDragging={isDragging}
+                            isRendering={isRendering}
+                            renderTimer={renderTimer}
+                            renderResult={renderResult}
+                            onMouseDown={handleCanvasMouseDown}
+                            onWheel={handleWheel}
+                            currentTheme={currentTheme}
+                            ref={{ canvasRef, frameHolderRef }}
+                        />
+                    </div>
+                </div>
 
                 {/* Effect Picker Dialog */}
                 <Dialog
@@ -505,7 +592,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                         Add Effect
                         <IconButton
                             onClick={() => setShowEffectPicker(false)}
-                            sx={{ position: 'absolute', right: 8, top: 8 }}
+                            className="page-canvas__close-button page-canvas__close-button--dialog"
                         >
                             <Close />
                         </IconButton>
@@ -590,7 +677,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                     />
                 )}
 
-            </Box>
+            </div>
         </ThemeProvider>
     );
 }

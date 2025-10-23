@@ -16,6 +16,7 @@ import {
 } from '@mui/icons-material';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useServices } from '../contexts/ServiceContext.js';
+import './ProjectSelector.bem.css';
 
 export default function ProjectSelector({
     currentTheme,
@@ -66,92 +67,43 @@ export default function ProjectSelector({
         }
     };
 
-
     return (
         <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
                 <IconButton
                     size="small"
-                    sx={{
-                        color: 'text.primary',
-                        '&:hover': {
-                            backgroundColor: 'primary.main',
-                            color: 'white',
-                        }
-                    }}
                     title="Project Actions"
+                    className="project-selector__trigger"
                 >
                     <FolderOpen />
                 </IconButton>
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
                 <DropdownMenu.Content
-                    className="radix-dropdown-content"
+                    className="project-selector__content"
                     sideOffset={5}
-                    style={{
-                        backgroundColor: currentTheme.palette.background.paper,
-                        border: '1px solid #444',
-                        borderRadius: '4px',
-                        padding: '5px',
-                        minWidth: '200px',
-                        boxShadow: '0px 10px 38px -10px rgba(22, 23, 24, 0.35), 0px 10px 20px -15px rgba(22, 23, 24, 0.2)',
-                        zIndex: 9999
-                    }}
                 >
                     <DropdownMenu.Item
-                        className="radix-dropdown-item"
+                        className="project-selector__item"
                         onClick={handleNewProject}
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            padding: '8px 12px',
-                            cursor: 'pointer',
-                            outline: 'none',
-                            borderRadius: '2px',
-                            color: currentTheme.palette.text.primary
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = currentTheme.palette.action.hover}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
-                        <Add fontSize="small" style={{ marginRight: '8px' }} />
+                        <Add fontSize="small" className="project-selector__icon" />
                         <span>New Project</span>
                     </DropdownMenu.Item>
                     
                     <DropdownMenu.Item
-                        className="radix-dropdown-item"
+                        className="project-selector__item"
                         onClick={handleOpenProject}
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            padding: '8px 12px',
-                            cursor: 'pointer',
-                            outline: 'none',
-                            borderRadius: '2px',
-                            color: currentTheme.palette.text.primary
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = currentTheme.palette.action.hover}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
-                        <FolderOpen fontSize="small" style={{ marginRight: '8px' }} />
+                        <FolderOpen fontSize="small" className="project-selector__icon" />
                         <span>Edit Project</span>
                     </DropdownMenu.Item>
 
                     <DropdownMenu.Item
-                        className="radix-dropdown-item"
+                        className="project-selector__item"
                         onClick={handleImportProject}
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            padding: '8px 12px',
-                            cursor: 'pointer',
-                            outline: 'none',
-                            borderRadius: '2px',
-                            color: currentTheme.palette.text.primary
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = currentTheme.palette.action.hover}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
-                        <FileUpload fontSize="small" style={{ marginRight: '8px' }} />
+                        <FileUpload fontSize="small" className="project-selector__icon" />
                         <span>Import from Settings</span>
                     </DropdownMenu.Item>
 

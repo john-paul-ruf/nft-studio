@@ -38,6 +38,7 @@ import {
 } from '@mui/icons-material';
 import NumberFormatter from '../../../utils/NumberFormatter.js';
 import useDebounce from '../../../hooks/useDebounce.js';
+import './enhanced-array-input.bem.css';
 
 /**
  * Enhanced array input component with improved UX
@@ -316,19 +317,19 @@ function EnhancedArrayInput({ field, value, onChange }) {
     };
 
     return (
-        <Box sx={{ mb: 3 }}>
+        <Box className="enhanced-array-input">
             {/* Header */}
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+            <Box className="enhanced-array-input__header">
+                <Typography variant="subtitle2" className="enhanced-array-input__title">
                     {field.label || field.name}
                     {field.description && (
-                        <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.disabled' }}>
+                        <Typography component="span" variant="caption" className="enhanced-array-input__description">
                             ({field.description})
                         </Typography>
                     )}
                 </Typography>
                 
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Box className="enhanced-array-input__controls">
                     <Chip 
                         label={`${currentArray.length} items`} 
                         size="small" 
@@ -360,18 +361,9 @@ function EnhancedArrayInput({ field, value, onChange }) {
 
             {/* Array Items */}
             {currentArray.length > 0 ? (
-                <Paper 
-                    variant="outlined" 
-                    sx={{ 
-                        p: 2, 
-                        mb: 2, 
-                        bgcolor: 'background.default',
-                        maxHeight: '400px',
-                        overflowY: 'auto'
-                    }}
-                >
+                <Box className="enhanced-array-input__items-container">
                     {viewMode === 'list' ? (
-                        <Stack spacing={1}>
+                        <Stack spacing={1} className="enhanced-array-input__list">
                             {currentArray.map((item, index) => {
                                 const isEditing = editingIndex === index;
                                 const isDragging = draggedIndex === index;
@@ -388,32 +380,18 @@ function EnhancedArrayInput({ field, value, onChange }) {
                                         onDrop={(e) => handleDrop(e, index)}
                                         onDragEnd={handleDragEnd}
                                         elevation={isDragging ? 4 : 1}
-                                        sx={{
-                                            p: 1,
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: 1,
-                                            opacity: isDragging ? 0.5 : 1,
-                                            bgcolor: isDragOver ? 'action.hover' : 'background.paper',
-                                            border: isDragOver ? 2 : 0,
-                                            borderColor: 'primary.main',
-                                            cursor: isEditing ? 'text' : 'grab',
-                                            transition: 'all 0.2s ease',
-                                            '&:hover': {
-                                                bgcolor: 'action.hover'
-                                            }
-                                        }}
+                                        className={`enhanced-array-input__item ${isDragging ? 'enhanced-array-input__item--dragging' : ''} ${isDragOver ? 'enhanced-array-input__item--drag-over' : ''}`}
                                     >
-                                        <DragIndicator sx={{ color: 'text.disabled', cursor: 'grab' }} />
+                                        <DragIndicator className="enhanced-array-input__drag-handle" />
                                         
                                         <Chip 
                                             label={index} 
                                             size="small" 
                                             color={itemType === 'number' ? 'success' : 'info'}
-                                            sx={{ minWidth: 40 }}
+                                            className="enhanced-array-input__item-index"
                                         />
                                         
-                                        <Box sx={{ flex: 1 }}>
+                                        <Box className="enhanced-array-input__item-content">
                                             {isEditing ? (
                                                 <TextField
                                                     inputRef={inputRef}
@@ -429,10 +407,7 @@ function EnhancedArrayInput({ field, value, onChange }) {
                                             ) : (
                                                 <Typography 
                                                     variant="body2" 
-                                                    sx={{ 
-                                                        fontFamily: itemType === 'number' ? 'monospace' : 'inherit',
-                                                        cursor: 'pointer'
-                                                    }}
+                                                    className={`enhanced-array-input__item-value ${itemType === 'number' ? 'enhanced-array-input__item-value--monospace' : ''}`}
                                                     onClick={() => startEdit(index)}
                                                 >
                                                     {formatValue(item)}
@@ -447,41 +422,43 @@ function EnhancedArrayInput({ field, value, onChange }) {
                                             color={itemType === 'number' ? 'success' : 'info'}
                                         />
                                         
-                                        <Tooltip title="Duplicate">
-                                            <IconButton 
-                                                size="small" 
-                                                onClick={() => duplicateItem(index)}
-                                                sx={{ color: 'primary.main' }}
-                                            >
-                                                <ContentCopy fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
-                                        
-                                        <Tooltip title="Edit">
-                                            <IconButton 
-                                                size="small" 
-                                                onClick={() => startEdit(index)}
-                                                sx={{ color: 'info.main' }}
-                                            >
-                                                <Edit fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
-                                        
-                                        <Tooltip title="Remove">
-                                            <IconButton 
-                                                size="small" 
-                                                onClick={() => removeItem(index)}
-                                                sx={{ color: 'error.main' }}
-                                            >
-                                                <Delete fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
+                                        <Box className="enhanced-array-input__item-actions">
+                                            <Tooltip title="Duplicate">
+                                                <IconButton 
+                                                    size="small" 
+                                                    onClick={() => duplicateItem(index)}
+                                                    className="enhanced-array-input__item-action-button enhanced-array-input__item-action-button--duplicate"
+                                                >
+                                                    <ContentCopy fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                            
+                                            <Tooltip title="Edit">
+                                                <IconButton 
+                                                    size="small" 
+                                                    onClick={() => startEdit(index)}
+                                                    className="enhanced-array-input__item-action-button enhanced-array-input__item-action-button--edit"
+                                                >
+                                                    <Edit fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                            
+                                            <Tooltip title="Remove">
+                                                <IconButton 
+                                                    size="small" 
+                                                    onClick={() => removeItem(index)}
+                                                    className="enhanced-array-input__item-action-button enhanced-array-input__item-action-button--delete"
+                                                >
+                                                    <Delete fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        </Box>
                                     </Paper>
                                 );
                             })}
                         </Stack>
                     ) : (
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        <Box className="enhanced-array-input__grid">
                             {currentArray.map((item, index) => {
                                 const itemType = detectValueType(item);
                                 return (
@@ -491,26 +468,26 @@ function EnhancedArrayInput({ field, value, onChange }) {
                                         color={itemType === 'number' ? 'success' : 'info'}
                                         onDelete={() => removeItem(index)}
                                         onClick={() => startEdit(index)}
-                                        sx={{ fontFamily: itemType === 'number' ? 'monospace' : 'inherit' }}
+                                        className={`enhanced-array-input__grid-chip ${itemType === 'number' ? 'enhanced-array-input__grid-chip' : 'enhanced-array-input__grid-chip--string'}`}
                                     />
                                 );
                             })}
                         </Box>
                     )}
-                </Paper>
+                </Box>
             ) : (
-                <Alert severity="info" sx={{ mb: 2 }}>
+                <Alert severity="info" className="enhanced-array-input__empty-alert">
                     Array is empty. Add items below to get started.
                 </Alert>
             )}
 
             {/* Add Items Section */}
-            <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default' }}>
-                <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
+            <Paper variant="outlined" className="enhanced-array-input__add-section">
+                <Typography variant="subtitle2" className="enhanced-array-input__add-section-title">
                     Add Items
                 </Typography>
                 
-                <Stack spacing={2}>
+                <Stack spacing={2} className="enhanced-array-input__add-controls">
                     <ToggleButtonGroup
                         value={bulkAddMode}
                         exclusive
@@ -562,7 +539,7 @@ function EnhancedArrayInput({ field, value, onChange }) {
             </Paper>
 
             {/* Help Text */}
-            <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.disabled' }}>
+            <Typography variant="caption" className="enhanced-array-input__help-text">
                 💡 Tip: Click items to edit • Drag to reorder • Use bulk add for multiple values
             </Typography>
 
@@ -604,12 +581,12 @@ function EnhancedArrayInput({ field, value, onChange }) {
             >
                 <DialogTitle>Import Array Data</DialogTitle>
                 <DialogContent>
-                    <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
+                    <Typography variant="body2" className="enhanced-array-input__import-description">
                         Paste your data as JSON array, comma-separated values, or one value per line.
                     </Typography>
                     
                     {importError && (
-                        <Alert severity="error" sx={{ mb: 2 }}>
+                        <Alert severity="error" className="enhanced-array-input__import-error">
                             {importError}
                         </Alert>
                     )}

@@ -1,0 +1,216 @@
+/**
+ * BEM CSS for FindValueAlgorithmInput Component
+ * Manages styling for algorithm selection interface with categorized options
+ */
+
+/* ============================================================================
+   BLOCK: .find-value-algorithm-input
+   Root container for the entire algorithm selection component
+   ============================================================================ */
+
+.find-value-algorithm-input {
+    margin-bottom: 1rem;
+}
+
+/* ============================================================================
+   ELEMENTS: Labels & Typography
+   ============================================================================ */
+
+.find-value-algorithm-input__label {
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+    display: block;
+    font-weight: 500;
+}
+
+.find-value-algorithm-input__section-label {
+    font-size: 0.8rem;
+    color: #cccccc;
+    margin-bottom: 0.5rem;
+}
+
+.find-value-algorithm-input__category-title {
+    font-size: 0.75rem;
+    color: #999;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.find-value-algorithm-input__status-text {
+    font-size: 0.75rem;
+    color: #999;
+}
+
+/* ============================================================================
+   ELEMENTS: Containers & Sections
+   ============================================================================ */
+
+.find-value-algorithm-input__loading {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    padding: 2rem;
+    text-align: center;
+    color: #ccc;
+}
+
+.find-value-algorithm-input__selected-container {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.find-value-algorithm-input__selected-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.find-value-algorithm-input__available-container {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    padding: 1rem;
+}
+
+.find-value-algorithm-input__category-section {
+    margin-bottom: 1rem;
+}
+
+.find-value-algorithm-input__category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.5rem;
+}
+
+.find-value-algorithm-input__status-wrapper {
+    margin-top: 0.5rem;
+}
+
+/* ============================================================================
+   ELEMENTS: Messages (Error, Warning)
+   ============================================================================ */
+
+.find-value-algorithm-input__error-message {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    border-radius: 4px;
+    color: #ffc107;
+    font-size: 0.8rem;
+}
+
+.find-value-algorithm-input__warning-message {
+    padding: 0.5rem;
+    background: rgba(255, 69, 0, 0.1);
+    border: 1px solid rgba(255, 69, 0, 0.3);
+    border-radius: 4px;
+    color: #ff6347;
+    font-size: 0.8rem;
+    margin-bottom: 0.5rem;
+}
+
+/* ============================================================================
+   ELEMENTS: Algorithm Tag/Pill (Selected)
+   ============================================================================ */
+
+.find-value-algorithm-input__tag {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3rem 0.6rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 4px;
+    color: white;
+    font-size: 0.85rem;
+    font-weight: bold;
+}
+
+.find-value-algorithm-input__tag-name {
+    font-family: monospace;
+    font-weight: bold;
+}
+
+.find-value-algorithm-input__tag-remove {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.find-value-algorithm-input__tag-remove:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+.find-value-algorithm-input__tag-remove:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.35);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+}
+
+.find-value-algorithm-input__tag-remove:active {
+    transform: scale(0.95);
+}
+
+/* ============================================================================
+   ELEMENTS: Algorithm Option Buttons
+   ============================================================================ */
+
+.find-value-algorithm-input__option-button {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.find-value-algorithm-input__option-button:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: #667eea;
+}
+
+.find-value-algorithm-input__option-button:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.18);
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.find-value-algorithm-input__option-button:active {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.find-value-algorithm-input__option-name {
+    font-family: monospace;
+    font-weight: bold;
+}
+
+.find-value-algorithm-input__option-description {
+    font-size: 0.7rem;
+    color: #aaa;
+    font-style: italic;
+}

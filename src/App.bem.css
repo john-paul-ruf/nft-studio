@@ -1,0 +1,72 @@
+/**
+ * App.bem.css - Theme Toggles (Dev Controls)
+ * BEM Architecture for App.jsx theme selector container and buttons
+ * 
+ * PURPOSE: Styling for dev theme toggle buttons in corner
+ * PATTERN: BEM with CSS custom properties for dynamic active states
+ * TOKENS: All colors and spacing use design tokens
+ * THEMES: Light, Dark, High-Contrast (via data-theme attribute)
+ * 
+ * STRUCTURE:
+ * - app__theme-toggles → Container for theme buttons
+ * - app__theme-label → Label text
+ * - app__theme-button → Base button styling
+ * - app__theme-button--spaced → Modifier for right margin
+ * - app__theme-button--active → Active state with primary color
+ */
+
+/* Block: Theme toggles container */
+.app__theme-toggles {
+  position: fixed !important;
+  right: var(--space-2) !important;
+  bottom: var(--space-2) !important;
+  z-index: 9999 !important;
+  background: var(--background-paper) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--space-1) !important;
+  box-shadow: var(--shadow-1) !important;
+  font-size: 12px !important;
+  color: var(--color-text-primary) !important;
+}
+
+/* Element: Theme label text */
+.app__theme-label {
+  margin-right: var(--space-1) !important;
+}
+
+/* Element: Base theme button styling (shared across all three buttons) */
+.app__theme-button {
+  padding: var(--space-1) var(--space-2) !important;
+  border-radius: var(--radius-sm) !important;
+  border: 1px solid var(--color-border) !important;
+  background: var(--background-default) !important;
+  color: var(--color-text-primary) !important;
+  cursor: pointer !important;
+  font-size: inherit !important;
+  font-family: inherit !important;
+  transition: background-color var(--duration-2) var(--ease-standard) !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+.app__theme-button:hover {
+  box-shadow: var(--shadow-1) !important;
+}
+
+.app__theme-button:focus-visible {
+  outline: 2px solid var(--color-primary) !important;
+  outline-offset: 1px !important;
+}
+
+/* First two buttons (Light & Dark) have right margin */
+.app__theme-button--spaced {
+  margin-right: var(--space-1) !important;
+}
+
+/* Active state modifier - button is currently selected theme */
+.app__theme-button--active {
+  background: var(--color-primary) !important;
+  color: var(--color-text-inverse) !important;
+  border-color: var(--color-primary) !important;
+}

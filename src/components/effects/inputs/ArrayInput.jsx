@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import NumberFormatter from '../../../utils/NumberFormatter.js';
 import useDebounce from '../../../hooks/useDebounce.js';
+import './ArrayInput.bem.css';
 
 /**
  * Enhanced array input component with drag & drop, inline editing, and mixed type support
@@ -170,22 +171,11 @@ function ArrayInput({ field, value, onChange }) {
     };
 
     return (
-        <div style={{ marginBottom: '1rem' }}>
-            <label style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontSize: '0.9rem',
-                color: '#ccc',
-                fontWeight: '500'
-            }}>
+        <div className="array-input">
+            <label className="array-input__label">
                 {field.label || field.name}
                 {field.description && (
-                    <span style={{ 
-                        fontSize: '0.8rem', 
-                        color: '#888', 
-                        fontWeight: 'normal',
-                        marginLeft: '0.5rem'
-                    }}>
+                    <span className="array-input__description">
                         ({field.description})
                     </span>
                 )}
@@ -193,177 +183,82 @@ function ArrayInput({ field, value, onChange }) {
 
             {/* Array Items */}
             {currentArray.length > 0 && (
-                <div style={{
-                    marginBottom: '0.75rem',
-                    padding: '0.75rem',
-                    background: 'rgba(255,255,255,0.05)',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(255,255,255,0.1)'
-                }}>
-                    <div style={{
-                        fontSize: '0.8rem',
-                        color: '#aaa',
-                        marginBottom: '0.5rem',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                    }}>
+                <div className="array-input__items">
+                    <div className="array-input__items-header">
                         <span>Array Items ({currentArray.length})</span>
-                        <span style={{ fontSize: '0.7rem', color: '#666' }}>
+                        <span className="array-input__items-hint">
                             Drag to reorder • Click to edit • Double-click for quick edit
                         </span>
                     </div>
                     
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.5rem'
-                    }}>
+                    <div className="array-input__items-list">
                         {currentArray.map((item, index) => {
                             const isEditing = editingIndex === index;
                             const isDragging = draggedIndex === index;
                             const isDragOver = dragOverIndex === index;
                             const itemType = detectValueType(item);
                             
+                            const itemClasses = [
+                                'array-input__item',
+                                isDragging && 'array-input__item--dragging',
+                                isDragOver && 'array-input__item--drag-over',
+                                isEditing && 'array-input__item--editing'
+                            ].filter(Boolean).join(' ');
+                            
                             return (
                                 <div
                                     key={index}
+                                    className={itemClasses}
                                     draggable={!isEditing}
                                     onDragStart={(e) => handleDragStart(e, index)}
                                     onDragOver={(e) => handleDragOver(e, index)}
                                     onDragLeave={handleDragLeave}
                                     onDrop={(e) => handleDrop(e, index)}
                                     onDragEnd={handleDragEnd}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem',
-                                        padding: '0.5rem',
-                                        background: isDragging 
-                                            ? 'rgba(255,255,255,0.1)' 
-                                            : isDragOver 
-                                                ? 'rgba(102, 126, 234, 0.2)' 
-                                                : 'rgba(255,255,255,0.08)',
-                                        borderRadius: '6px',
-                                        border: isDragOver 
-                                            ? '2px dashed #667eea' 
-                                            : '1px solid rgba(255,255,255,0.15)',
-                                        cursor: isEditing ? 'text' : 'grab',
-                                        opacity: isDragging ? 0.5 : 1,
-                                        transition: 'all 0.2s ease',
-                                        transform: isDragging ? 'rotate(2deg)' : 'none'
-                                    }}
                                     onClick={() => !isEditing && startEdit(index)}
                                     onDoubleClick={() => startEdit(index)}
                                 >
                                     {/* Drag Handle */}
-                                    <div style={{
-                                        width: '20px',
-                                        height: '20px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        color: '#666',
-                                        cursor: 'grab',
-                                        fontSize: '14px'
-                                    }}>
+                                    <div className="array-input__item-drag-handle">
                                         ⋮⋮
                                     </div>
 
                                     {/* Index */}
-                                    <div style={{
-                                        minWidth: '24px',
-                                        height: '24px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        background: itemType === 'number' 
-                                            ? 'rgba(76, 175, 80, 0.2)' 
-                                            : 'rgba(33, 150, 243, 0.2)',
-                                        borderRadius: '50%',
-                                        fontSize: '0.75rem',
-                                        color: itemType === 'number' ? '#4caf50' : '#2196f3',
-                                        fontWeight: 'bold'
-                                    }}>
+                                    <div className={`array-input__item-index array-input__item-index--${itemType}`}>
                                         {index}
                                     </div>
 
                                     {/* Value */}
-                                    <div style={{ flex: 1 }}>
+                                    <div className="array-input__item-value">
                                         {isEditing ? (
                                             <input
                                                 ref={inputRef}
                                                 type="text"
+                                                className="array-input__item-value-edit"
                                                 value={editingValue}
                                                 onChange={(e) => setEditingValue(e.target.value)}
                                                 onKeyDown={handleEditKeyPress}
                                                 onBlur={saveEdit}
-                                                style={{
-                                                    width: '100%',
-                                                    background: 'rgba(255,255,255,0.1)',
-                                                    border: '2px solid #667eea',
-                                                    borderRadius: '4px',
-                                                    padding: '0.25rem 0.5rem',
-                                                    color: '#fff',
-                                                    fontSize: '0.85rem',
-                                                    outline: 'none'
-                                                }}
                                                 placeholder="Enter value..."
                                             />
                                         ) : (
-                                            <span style={{
-                                                color: '#fff',
-                                                fontSize: '0.85rem',
-                                                fontFamily: itemType === 'number' ? 'monospace' : 'inherit'
-                                            }}>
+                                            <span className={`array-input__item-value-display ${itemType === 'number' ? 'array-input__item-value-display--number' : ''}`}>
                                                 {formatValue(item)}
                                             </span>
                                         )}
                                     </div>
 
                                     {/* Type Badge */}
-                                    <div style={{
-                                        padding: '0.2rem 0.4rem',
-                                        background: itemType === 'number' 
-                                            ? 'rgba(76, 175, 80, 0.2)' 
-                                            : 'rgba(33, 150, 243, 0.2)',
-                                        borderRadius: '12px',
-                                        fontSize: '0.7rem',
-                                        color: itemType === 'number' ? '#4caf50' : '#2196f3',
-                                        fontWeight: 'bold',
-                                        textTransform: 'uppercase',
-                                        letterSpacing: '0.5px'
-                                    }}>
+                                    <div className={`array-input__item-type-badge array-input__item-type-badge--${itemType}`}>
                                         {itemType === 'number' ? 'NUM' : 'STR'}
                                     </div>
 
                                     {/* Remove Button */}
                                     <button
+                                        className="array-input__item-remove"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             removeItem(index);
-                                        }}
-                                        style={{
-                                            width: '24px',
-                                            height: '24px',
-                                            background: 'rgba(244, 67, 54, 0.2)',
-                                            border: 'none',
-                                            borderRadius: '50%',
-                                            color: '#f44336',
-                                            cursor: 'pointer',
-                                            fontSize: '14px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            transition: 'all 0.2s ease'
-                                        }}
-                                        onMouseEnter={(e) => {
-                                            e.target.style.background = 'rgba(244, 67, 54, 0.3)';
-                                            e.target.style.transform = 'scale(1.1)';
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.target.style.background = 'rgba(244, 67, 54, 0.2)';
-                                            e.target.style.transform = 'scale(1)';
                                         }}
                                         title={`Remove item ${index}`}
                                     >
@@ -377,27 +272,15 @@ function ArrayInput({ field, value, onChange }) {
             )}
 
             {/* Add New Item */}
-            <div style={{
-                padding: '0.75rem',
-                background: 'rgba(255,255,255,0.05)',
-                borderRadius: '8px',
-                border: '1px solid rgba(255,255,255,0.1)'
-            }}>
-                <div style={{
-                    fontSize: '0.8rem',
-                    color: '#aaa',
-                    marginBottom: '0.5rem'
-                }}>
+            <div className="array-input__add-section">
+                <div className="array-input__add-label">
                     Add New Item
                 </div>
                 
-                <div style={{
-                    display: 'flex',
-                    gap: '0.5rem',
-                    alignItems: 'center'
-                }}>
+                <div className="array-input__add-form">
                     <input
                         type="text"
+                        className="array-input__add-input"
                         value={newItemValue}
                         onChange={(e) => setNewItemValue(e.target.value)}
                         onKeyDown={(e) => {
@@ -407,31 +290,13 @@ function ArrayInput({ field, value, onChange }) {
                             }
                         }}
                         placeholder="Enter value..."
-                        style={{
-                            flex: 1,
-                            background: 'rgba(255,255,255,0.1)',
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            borderRadius: '4px',
-                            padding: '0.5rem',
-                            color: '#fff',
-                            fontSize: '0.85rem',
-                            outline: 'none'
-                        }}
                     />
 
                     {arrayType === 'mixed' && (
                         <select
+                            className="array-input__add-type-selector"
                             value={newItemType}
                             onChange={(e) => setNewItemType(e.target.value)}
-                            style={{
-                                background: 'rgba(255,255,255,0.1)',
-                                border: '1px solid rgba(255,255,255,0.2)',
-                                borderRadius: '4px',
-                                padding: '0.5rem',
-                                color: '#fff',
-                                fontSize: '0.8rem',
-                                outline: 'none'
-                            }}
                         >
                             <option value="auto">Auto</option>
                             <option value="number">Number</option>
@@ -442,29 +307,7 @@ function ArrayInput({ field, value, onChange }) {
                     <button
                         onClick={addItem}
                         disabled={newItemValue.trim() === ''}
-                        style={{
-                            padding: '0.5rem 1rem',
-                            background: newItemValue.trim() === '' 
-                                ? 'rgba(255,255,255,0.1)' 
-                                : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                            border: 'none',
-                            borderRadius: '4px',
-                            color: newItemValue.trim() === '' ? '#666' : '#fff',
-                            cursor: newItemValue.trim() === '' ? 'not-allowed' : 'pointer',
-                            fontSize: '0.8rem',
-                            fontWeight: 'bold',
-                            transition: 'all 0.2s ease'
-                        }}
-                        onMouseEnter={(e) => {
-                            if (newItemValue.trim() !== '') {
-                                e.target.style.transform = 'translateY(-1px)';
-                                e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
-                            }
-                        }}
-                        onMouseLeave={(e) => {
-                            e.target.style.transform = 'translateY(0)';
-                            e.target.style.boxShadow = 'none';
-                        }}
+                        className={`array-input__add-button ${newItemValue.trim() === '' ? 'array-input__add-button--disabled' : 'array-input__add-button--enabled'}`}
                     >
                         Add
                     </button>
@@ -472,18 +315,13 @@ function ArrayInput({ field, value, onChange }) {
             </div>
 
             {/* Help Text */}
-            <div style={{
-                marginTop: '0.5rem',
-                fontSize: '0.75rem',
-                color: '#888',
-                lineHeight: '1.4'
-            }}>
-                <div>• Click items to edit inline • Drag items to reorder • Use Enter to save, Escape to cancel</div>
+            <div className="array-input__help">
+                <div className="array-input__help-item">• Click items to edit inline • Drag items to reorder • Use Enter to save, Escape to cancel</div>
                 {arrayType === 'mixed' && (
-                    <div>• Numbers are auto-detected, or choose type manually when adding</div>
+                    <div className="array-input__help-item">• Numbers are auto-detected, or choose type manually when adding</div>
                 )}
                 {currentArray.length === 0 && (
-                    <div style={{ color: '#666', fontStyle: 'italic' }}>
+                    <div className="array-input__help-item array-input__help-item--empty">
                         Array is empty. Add items above to get started.
                     </div>
                 )}

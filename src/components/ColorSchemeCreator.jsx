@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import useDebounce from '../hooks/useDebounce.js';
+import './ColorSchemeCreator.bem.css';
 
 function ColorSchemeCreator({ onClose, onSave, editingScheme = null, initialColors = null }) {
     const [schemeName, setSchemeName] = useState(
@@ -101,88 +102,50 @@ function ColorSchemeCreator({ onClose, onSave, editingScheme = null, initialColo
     };
 
     return (
-        <div style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000
-        }}>
-            <div style={{
-                background: '#1a1a1a',
-                borderRadius: '12px',
-                padding: '2rem',
-                maxWidth: '700px',
-                maxHeight: '80vh',
-                overflow: 'auto',
-                border: '1px solid #333'
-            }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                    <h2 style={{ margin: 0 }}>
+        <div className="color-scheme-creator__overlay">
+            <div className="color-scheme-creator">
+                <div className="color-scheme-creator__header">
+                    <h2 className="color-scheme-creator__title">
                         {editingScheme ? 'Edit Color Scheme' : 'Custom Color Scheme'}
                     </h2>
                     <button
                         onClick={onClose}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#888',
-                            fontSize: '1.5rem',
-                            cursor: 'pointer'
-                        }}
+                        className="color-scheme-creator__close-button"
                     >
                         ×
                     </button>
                 </div>
 
                 {/* Scheme Info */}
-                <div style={{ marginBottom: '2rem' }}>
-                    <div style={{ marginBottom: '1rem' }}>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: '#ccc' }}>
+                <div className="color-scheme-creator__section">
+                    <div className="color-scheme-creator__field">
+                        <label className="color-scheme-creator__label">
                             Scheme Name
                         </label>
                         <input
                             type="text"
+                            className="color-scheme-creator__input"
                             value={schemeName}
                             onChange={(e) => {
                                 const value = e.target.value;
                                 setSchemeName(value);
                                 debouncedSetSchemeName(value);
                             }}
-                            style={{
-                                width: '100%',
-                                background: 'rgba(255,255,255,0.1)',
-                                border: '1px solid #333',
-                                borderRadius: '4px',
-                                padding: '0.75rem',
-                                color: 'white',
-                                fontSize: '1rem'
-                            }}
                             placeholder="Enter scheme name"
                         />
                     </div>
-                    <div style={{ marginBottom: '1rem' }}>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: '#ccc' }}>
+                    <div className="color-scheme-creator__field">
+                        <label className="color-scheme-creator__label">
                             Description
                         </label>
                         <input
                             type="text"
+                            className="color-scheme-creator__input"
                             value={schemeDescription}
                             onChange={(e) => {
                                 const value = e.target.value;
                                 setSchemeDescription(value);
                                 debouncedSetSchemeDescription(value);
-                            }}
-                            style={{
-                                width: '100%',
-                                background: 'rgba(255,255,255,0.1)',
-                                border: '1px solid #333',
-                                borderRadius: '4px',
-                                padding: '0.75rem',
-                                color: 'white',
-                                fontSize: '0.9rem'
                             }}
                             placeholder="Describe your color scheme"
                         />
@@ -190,34 +153,22 @@ function ColorSchemeCreator({ onClose, onSave, editingScheme = null, initialColo
                 </div>
 
                 {/* Preset Palettes */}
-                <div style={{ marginBottom: '2rem' }}>
-                    <h3>Quick Start Palettes</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.5rem' }}>
+                <div className="color-scheme-creator__section">
+                    <h3 className="color-scheme-creator__section-title">Quick Start Palettes</h3>
+                    <div className="color-scheme-creator__preset-grid">
                         {presetPalettes.map(preset => (
                             <button
                                 key={preset.name}
                                 onClick={() => loadPreset(preset)}
-                                style={{
-                                    background: 'rgba(255,255,255,0.1)',
-                                    border: '1px solid #333',
-                                    borderRadius: '6px',
-                                    padding: '0.75rem',
-                                    color: 'white',
-                                    cursor: 'pointer',
-                                    textAlign: 'center'
-                                }}
+                                className="color-scheme-creator__preset-button"
                             >
-                                <div style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>{preset.name}</div>
-                                <div style={{ display: 'flex', gap: '2px', marginTop: '0.25rem', justifyContent: 'center' }}>
+                                <div className="color-scheme-creator__preset-name">{preset.name}</div>
+                                <div className="color-scheme-creator__preset-swatches">
                                     {preset.colors.lights.slice(0, 4).map((color, idx) => (
                                         <div
                                             key={idx}
-                                            style={{
-                                                width: '12px',
-                                                height: '12px',
-                                                background: color,
-                                                borderRadius: '2px'
-                                            }}
+                                            className="color-scheme-creator__preset-swatch"
+                                            style={{ '--swatch-color': color }}
                                         />
                                     ))}
                                 </div>
@@ -227,54 +178,30 @@ function ColorSchemeCreator({ onClose, onSave, editingScheme = null, initialColo
                 </div>
 
                 {/* Color Buckets */}
-                <div style={{ marginBottom: '2rem' }}>
-                    <h3>Color Buckets</h3>
+                <div className="color-scheme-creator__section">
+                    <h3 className="color-scheme-creator__section-title">Color Buckets</h3>
                     {colorBuckets.map(bucket => (
-                        <div key={bucket.key} style={{
-                            marginBottom: '1.5rem',
-                            padding: '1rem',
-                            background: 'rgba(255,255,255,0.05)',
-                            borderRadius: '8px',
-                            border: '1px solid #333'
-                        }}>
-                            <div style={{ marginBottom: '0.5rem' }}>
-                                <h4 style={{ margin: '0 0 0.25rem 0' }}>{bucket.name}</h4>
-                                <p style={{ margin: 0, fontSize: '0.8rem', color: '#aaa' }}>{bucket.description}</p>
+                        <div key={bucket.key} className="color-scheme-creator__bucket">
+                            <div className="color-scheme-creator__bucket-header">
+                                <h4 className="color-scheme-creator__bucket-title">{bucket.name}</h4>
+                                <p className="color-scheme-creator__bucket-description">{bucket.description}</p>
                             </div>
 
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                            <div className="color-scheme-creator__color-list">
                                 {customColors[bucket.key].map((color, index) => (
                                     <div
                                         key={index}
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            background: 'rgba(255,255,255,0.1)',
-                                            borderRadius: '20px',
-                                            padding: '0.25rem'
-                                        }}
+                                        className="color-scheme-creator__color-chip"
                                     >
                                         <div
-                                            style={{
-                                                width: '24px',
-                                                height: '24px',
-                                                background: color,
-                                                borderRadius: '50%',
-                                                marginRight: '0.5rem',
-                                                border: '2px solid #333'
-                                            }}
+                                            className="color-scheme-creator__color-swatch"
+                                            style={{ '--swatch-color': color }}
                                         />
-                                        <span style={{ fontSize: '0.7rem', marginRight: '0.5rem' }}>{color}</span>
+                                        <span className="color-scheme-creator__color-value">{color}</span>
                                         <button
                                             onClick={() => removeColor(bucket.key, index)}
                                             disabled={customColors[bucket.key].length <= 1}
-                                            style={{
-                                                background: 'none',
-                                                border: 'none',
-                                                color: customColors[bucket.key].length <= 1 ? '#555' : '#e53e3e',
-                                                cursor: customColors[bucket.key].length <= 1 ? 'not-allowed' : 'pointer',
-                                                fontSize: '1rem'
-                                            }}
+                                            className="color-scheme-creator__color-remove-btn"
                                         >
                                             ×
                                         </button>
@@ -286,19 +213,13 @@ function ColorSchemeCreator({ onClose, onSave, editingScheme = null, initialColo
                 </div>
 
                 {/* Add New Color */}
-                <div style={{ marginBottom: '2rem', padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-                    <h4>Add New Color</h4>
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <div className="color-scheme-creator__section color-scheme-creator__bucket">
+                    <h4 className="color-scheme-creator__bucket-title">Add New Color</h4>
+                    <div className="color-scheme-creator__add-color-controls">
                         <select
                             value={selectedBucket}
                             onChange={(e) => setSelectedBucket(e.target.value)}
-                            style={{
-                                background: 'rgba(255,255,255,0.1)',
-                                border: '1px solid #333',
-                                borderRadius: '4px',
-                                padding: '0.5rem',
-                                color: 'white'
-                            }}
+                            className="color-scheme-creator__select"
                         >
                             {colorBuckets.map(bucket => (
                                 <option key={bucket.key} value={bucket.key}>{bucket.name}</option>
@@ -309,7 +230,7 @@ function ColorSchemeCreator({ onClose, onSave, editingScheme = null, initialColo
                             type="color"
                             value={newColor}
                             onChange={(e) => setNewColor(e.target.value)}
-                            style={{ width: '50px', height: '40px', border: 'none', borderRadius: '4px' }}
+                            className="color-scheme-creator__color-picker"
                         />
 
                         <input
@@ -321,26 +242,12 @@ function ColorSchemeCreator({ onClose, onSave, editingScheme = null, initialColo
                                 debouncedSetNewColor(value);
                             }}
                             placeholder="#FF0000"
-                            style={{
-                                background: 'rgba(255,255,255,0.1)',
-                                border: '1px solid #333',
-                                borderRadius: '4px',
-                                padding: '0.5rem',
-                                color: 'white',
-                                fontFamily: 'monospace'
-                            }}
+                            className="color-scheme-creator__color-input"
                         />
 
                         <button
                             onClick={addColor}
-                            style={{
-                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '0.5rem 1rem',
-                                color: 'white',
-                                cursor: 'pointer'
-                            }}
+                            className="color-scheme-creator__add-button"
                         >
                             Add
                         </button>
@@ -348,31 +255,16 @@ function ColorSchemeCreator({ onClose, onSave, editingScheme = null, initialColo
                 </div>
 
                 {/* Actions */}
-                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                <div className="color-scheme-creator__actions">
                     <button
                         onClick={onClose}
-                        style={{
-                            background: 'rgba(255,255,255,0.1)',
-                            border: '1px solid #333',
-                            borderRadius: '6px',
-                            padding: '0.75rem 1.5rem',
-                            color: 'white',
-                            cursor: 'pointer'
-                        }}
+                        className="color-scheme-creator__button color-scheme-creator__button--secondary"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleSave}
-                        style={{
-                            background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
-                            border: 'none',
-                            borderRadius: '6px',
-                            padding: '0.75rem 1.5rem',
-                            color: 'white',
-                            cursor: 'pointer',
-                            fontWeight: 'bold'
-                        }}
+                        className="color-scheme-creator__button color-scheme-creator__button--primary"
                     >
                         {editingScheme ? 'Save Changes' : 'Save Color Scheme'}
                     </button>

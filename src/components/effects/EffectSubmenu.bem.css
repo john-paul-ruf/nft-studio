@@ -1,0 +1,100 @@
+/* ==========================================
+   EFFECT SUBMENU - BEM CSS ARCHITECTURE
+   ==========================================
+   
+   PURPOSE: Styling for dropdown menu submenu components
+   PATTERN: Radix UI submenu with grouped effect categories
+   TOKENS: All colors/spacing use CSS design tokens from src/styles.css
+   THEMES: Light, Dark, High-Contrast (via data-theme attribute)
+   
+   STRUCTURE:
+   - effect-submenu__trigger      → Menu item that opens submenu
+   - effect-submenu__content      → Container for submenu items
+   - effect-submenu__separator    → Visual divider between groups
+   - effect-submenu__specialty-item → Special menu item (specialty effects)
+   
+   ========================================== */
+
+/* Block: .effect-submenu__ */
+
+/**
+ * SubTrigger Element
+ * Menu item that displays effect type category and opens submenu
+ */
+.effect-submenu__trigger {
+    color: var(--effect-submenu-text, var(--color-text-primary)) !important;
+    background-color: var(--effect-submenu-trigger-bg, var(--color-hover-bg)) !important;
+    padding: var(--space-2, 8px) var(--space-3, 12px) !important;
+    font-size: 14px !important;
+    cursor: pointer !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    border: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    outline: none !important;
+    transition: background-color var(--duration-2, 0.15s) var(--ease-standard, ease-in-out) !important;
+}
+
+.effect-submenu__trigger:hover {
+    background-color: var(--color-active-bg, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.effect-submenu__trigger:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+}
+
+/**
+ * SubContent Element
+ * Container for submenu dropdown content
+ */
+.effect-submenu__content {
+    background-color: var(--effect-submenu-content-bg, var(--color-surface-1)) !important;
+    border: 1px solid var(--effect-submenu-border, var(--color-border)) !important;
+    border-radius: var(--radius-lg, 6px) !important;
+    box-shadow: var(--shadow-3, 0px 8px 24px rgba(0, 0, 0, 0.2)) !important;
+    padding: var(--space-1, 4px) !important;
+    min-width: 250px !important;
+    max-height: calc(100vh - 200px) !important;
+    overflow-y: auto !important;
+    z-index: 10001 !important;
+}
+
+/**
+ * Separator Element
+ * Visual divider between effect groups and specialty section
+ */
+.effect-submenu__separator {
+    background-color: var(--effect-submenu-divider, var(--color-border)) !important;
+    height: 1px !important;
+    margin: var(--space-1, 4px) 0 !important;
+}
+
+/**
+ * Specialty Item Element
+ * Special menu item for opening specialty effects modal
+ * Supports hover state for interactive feedback
+ */
+.effect-submenu__specialty-item {
+    color: var(--effect-submenu-accent, var(--color-primary)) !important;
+    padding: var(--space-2, 8px) var(--space-3, 12px) !important;
+    font-size: 14px !important;
+    cursor: pointer !important;
+    background-color: transparent !important;
+    border: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    outline: none !important;
+    transition: background-color var(--duration-2, 0.15s) var(--ease-standard, ease-in-out) !important;
+}
+
+.effect-submenu__specialty-item:hover {
+    background-color: var(--effect-submenu-hover-bg, var(--color-hover-bg)) !important;
+}
+
+.effect-submenu__specialty-item:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+}

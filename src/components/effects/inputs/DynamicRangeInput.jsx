@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import NumberFormatter from '../../../utils/NumberFormatter.js';
+import './DynamicRangeInput.bem.css';
 
 function DynamicRangeInput({ field, value, onChange }) {
     // Use a ref to always have the latest value
@@ -264,46 +265,30 @@ function DynamicRangeInput({ field, value, onChange }) {
     };
 
     return (
-        <div className="dynamic-range-input" style={{ marginBottom: '1rem' }}>
-            <label style={{
-                color: '#ffffff',
-                marginBottom: '0.5rem',
-                display: 'block',
-                fontWeight: '500'
-            }}>
+        <div className="dynamic-range-input">
+            <label className="dynamic-range-input__label">
                 {field.label}
             </label>
-            <div style={{
-                border: '1px solid rgba(255,255,255,0.2)',
-                padding: '1rem',
-                borderRadius: '6px',
-                background: 'rgba(255,255,255,0.05)'
-            }}>
-                <div style={{ marginBottom: '0.75rem' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#9ae6b4' }}>
+            <div className="dynamic-range-input__section">
+                <div className="dynamic-range-input__section-wrapper">
+                    <label className="dynamic-range-input__section-title dynamic-range-input__section-title--bottom">
                         Bottom Range
                     </label>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.25rem' }}>
+                    <div className="dynamic-range-input__inputs-grid">
                         <div>
-                            <label style={{ fontSize: '0.7rem', color: '#ccc' }}>Lower</label>
+                            <label className="dynamic-range-input__input-label">Lower</label>
                             <input
                                 type="number"
                                 step={NumberFormatter.getStepForValue(currentValue.bottom?.lower || 0)}
                                 value={displayBottomLower}
                                 onChange={handleBottomLowerChange}
                                 onBlur={handleBottomLowerBlur}
-                                style={{
-                                    width: '100%',
-                                    background: 'rgba(255,255,255,0.1)',
-                                    border: '1px solid rgba(255,255,255,0.2)',
-                                    borderRadius: '4px',
-                                    padding: '0.5rem',
-                                    color: '#ffffff'
-                                }}
+                                onFocus={handleBottomLowerFocus}
+                                className="dynamic-range-input__input"
                             />
                         </div>
                         <div>
-                            <label style={{ fontSize: '0.7rem', color: '#ccc' }}>Upper</label>
+                            <label className="dynamic-range-input__input-label">Upper</label>
                             <input
                                 type="number"
                                 step={NumberFormatter.getStepForValue(currentValue.bottom?.upper || 0)}
@@ -311,25 +296,18 @@ function DynamicRangeInput({ field, value, onChange }) {
                                 onFocus={handleBottomUpperFocus}
                                 onChange={handleBottomUpperChange}
                                 onBlur={handleBottomUpperBlur}
-                                style={{
-                                    width: '100%',
-                                    background: 'rgba(255,255,255,0.1)',
-                                    border: '1px solid rgba(255,255,255,0.2)',
-                                    borderRadius: '4px',
-                                    padding: '0.5rem',
-                                    color: '#ffffff'
-                                }}
+                                className="dynamic-range-input__input"
                             />
                         </div>
                     </div>
                 </div>
-                <div>
-                    <label style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#fbb6ce' }}>
+                <div className="dynamic-range-input__section-wrapper">
+                    <label className="dynamic-range-input__section-title dynamic-range-input__section-title--top">
                         Top Range
                     </label>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.25rem' }}>
+                    <div className="dynamic-range-input__inputs-grid">
                         <div>
-                            <label style={{ fontSize: '0.7rem', color: '#ccc' }}>Lower</label>
+                            <label className="dynamic-range-input__input-label">Lower</label>
                             <input
                                 type="number"
                                 step={NumberFormatter.getStepForValue(currentValue.top?.lower || 0)}
@@ -337,18 +315,11 @@ function DynamicRangeInput({ field, value, onChange }) {
                                 onFocus={handleTopLowerFocus}
                                 onChange={handleTopLowerChange}
                                 onBlur={handleTopLowerBlur}
-                                style={{
-                                    width: '100%',
-                                    background: 'rgba(255,255,255,0.1)',
-                                    border: '1px solid rgba(255,255,255,0.2)',
-                                    borderRadius: '4px',
-                                    padding: '0.5rem',
-                                    color: '#ffffff'
-                                }}
+                                className="dynamic-range-input__input"
                             />
                         </div>
                         <div>
-                            <label style={{ fontSize: '0.7rem', color: '#ccc' }}>Upper</label>
+                            <label className="dynamic-range-input__input-label">Upper</label>
                             <input
                                 type="number"
                                 step={NumberFormatter.getStepForValue(currentValue.top?.upper || 0)}
@@ -356,14 +327,7 @@ function DynamicRangeInput({ field, value, onChange }) {
                                 onFocus={handleTopUpperFocus}
                                 onChange={handleTopUpperChange}
                                 onBlur={handleTopUpperBlur}
-                                style={{
-                                    width: '100%',
-                                    background: 'rgba(255,255,255,0.1)',
-                                    border: '1px solid rgba(255,255,255,0.2)',
-                                    borderRadius: '4px',
-                                    padding: '0.5rem',
-                                    color: '#ffffff'
-                                }}
+                                className="dynamic-range-input__input"
                             />
                         </div>
                     </div>

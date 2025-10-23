@@ -1,0 +1,433 @@
+/**
+ * EventBusMonitor.bem.css
+ * ========================
+ * 
+ * BEM-structured CSS for the EventBusMonitor component.
+ * This debugging/monitoring component displays real-time event logs in a console-like interface.
+ * 
+ * ## Design System Integration
+ * - **Color Scheme**: Dark theme optimized (console-style colors)
+ * - **Spacing**: Uses consistent spacing tokens for margins and padding
+ * - **Typography**: Monospace font for console display
+ * - **Interactions**: Hover states and transitions for visual feedback
+ * 
+ * ## Component Structure
+ * The EventBusMonitor consists of:
+ * 1. Main Dialog Container - Large modal window (95vw x 90vh)
+ * 2. Toolbar - Header with controls (copy, stop, pause, clear, close buttons)
+ * 3. Search/Filter Bar - Text input for filtering events
+ * 4. Console Area - Main scrollable event log with timestamp and details
+ * 5. Event Items - Individual log entries with expansion capability
+ * 
+ * ## Key Features
+ * - **Console Styling**: Chrome DevTools-inspired appearance
+ * - **Level Coloring**: Different colors for ERROR, WARNING, SUCCESS, CONSOLE categories
+ * - **Event Expansion**: Click to expand individual events and view full JSON data
+ * - **Real-time Updates**: Live event streaming with animation indicators
+ * - **Search/Filter**: Full-text search across all event properties
+ * 
+ * ## Theming
+ * - Primary Background: #1e1e1e (dark console background)
+ * - Secondary Background: #2d2d2d (toolbar, control areas)
+ * - Text Primary: #cccccc (default text)
+ * - Text Secondary: #888 / #6e7681 (dimmed text)
+ * - Accent Colors: Per-category (ERROR: #f44336, WARNING: #ff9800, SUCCESS: #4caf50)
+ * 
+ * ## Animation
+ * - Pulse Animation: Used for render loop active indicator
+ * - Opacity Transitions: For button hover effects
+ * - Background Transitions: For dialog color changes
+ * 
+ * ## Responsive Behavior
+ * - Fixed size when minimized
+ * - Takes 95vw x 90vh when expanded
+ * - Console area uses calc(100vh - 200px) for flexible height
+ * - Scrollable containers for overflow content
+ */
+
+/* ===== Main Dialog Container ===== */
+.event-bus-monitor {
+  /* Inherits from MUI Dialog PaperProps */
+}
+
+.event-bus-monitor__dialog {
+  width: 95vw;
+  height: 90vh;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.event-bus-monitor__toolbar {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--event-bus-monitor-bg-toolbar, #2d2d2d);
+  color: var(--event-bus-monitor-text-primary, #cccccc);
+  border-bottom: 1px solid var(--event-bus-monitor-border-dark, #1e1e1e);
+  transition: background-color 0.3s ease;
+}
+
+.event-bus-monitor__toolbar--active {
+  background-color: var(--event-bus-monitor-bg-toolbar-active, #3d2d2d);
+}
+
+/* Top row of toolbar - Title and primary controls */
+.event-bus-monitor__toolbar-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4, 1rem) var(--space-6, 1.5rem);
+  gap: var(--space-4, 1rem);
+}
+
+.event-bus-monitor__title {
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 0.5rem);
+}
+
+.event-bus-monitor__status-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--event-bus-monitor-color-error, #f44336);
+  animation: event-bus-monitor--pulse 1.5s ease-in-out infinite;
+}
+
+.event-bus-monitor__status-label {
+  color: var(--event-bus-monitor-color-error, #f44336);
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: var(--space-2, 0.5rem);
+}
+
+/* Controls container */
+.event-bus-monitor__controls {
+  display: flex;
+  gap: var(--space-2, 0.5rem);
+  align-items: center;
+}
+
+.event-bus-monitor__button {
+  color: var(--event-bus-monitor-text-primary, #cccccc);
+  transition: background-color 0.2s;
+}
+
+.event-bus-monitor__button:hover {
+  background-color: var(--event-bus-monitor-bg-hover, #3d3d3d);
+}
+
+.event-bus-monitor__button--error {
+  color: var(--event-bus-monitor-color-error, #f44336);
+}
+
+.event-bus-monitor__button--warning {
+  color: var(--event-bus-monitor-color-warning, #ff5722);
+}
+
+.event-bus-monitor__button--success {
+  color: var(--event-bus-monitor-color-success, #4caf50);
+}
+
+.event-bus-monitor__button:disabled {
+  color: var(--event-bus-monitor-text-disabled, #555);
+}
+
+/* Buffer delay control */
+.event-bus-monitor__buffer-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 0.5rem);
+  padding: var(--space-2, 0.5rem) var(--space-4, 1rem);
+  background-color: var(--event-bus-monitor-bg-secondary, #2d2d2d);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--event-bus-monitor-text-secondary, #888);
+  border: 1px solid var(--event-bus-monitor-border-medium, #444);
+  transition: all 0.2s;
+}
+
+.event-bus-monitor__buffer-control:hover {
+  background-color: var(--event-bus-monitor-bg-hover, #3d3d3d);
+  color: var(--event-bus-monitor-text-tertiary, #aaa);
+  border-color: var(--event-bus-monitor-border-light, #666);
+}
+
+/* Bottom row - Search bar */
+.event-bus-monitor__search-row {
+  display: flex;
+  gap: var(--space-2, 0.5rem);
+  padding: var(--space-2, 0.5rem) var(--space-4, 1rem);
+  background-color: var(--event-bus-monitor-bg-secondary, #2d2d2d);
+  border-bottom: 1px solid var(--event-bus-monitor-border-dark, #1e1e1e);
+}
+
+.event-bus-monitor__search-field {
+  flex: 1;
+}
+
+/* TextField styling for search input */
+.event-bus-monitor__search-field .MuiOutlinedInput-root {
+  background-color: var(--event-bus-monitor-bg-console, #1e1e1e);
+  color: var(--event-bus-monitor-text-primary, #d4d4d4);
+  font-family: Consolas, Monaco, 'Courier New', monospace;
+}
+
+.event-bus-monitor__search-field .MuiOutlinedInput-notchedOutline {
+  border-color: var(--event-bus-monitor-border-medium, #444);
+}
+
+.event-bus-monitor__search-field .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: var(--event-bus-monitor-border-light, #666);
+}
+
+.event-bus-monitor__search-field .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: var(--event-bus-monitor-border-focus, #58a6ff);
+}
+
+.event-bus-monitor__search-field .MuiOutlinedInput-input::placeholder {
+  color: var(--event-bus-monitor-text-secondary, #888);
+  opacity: 0.7;
+}
+
+/* ===== Console Area ===== */
+.event-bus-monitor__console {
+  height: calc(100vh - 200px);
+  overflow: auto;
+  background-color: var(--event-bus-monitor-bg-console, #1e1e1e);
+  font-family: Consolas, Monaco, 'Courier New', monospace;
+  font-size: 12px;
+  color: var(--event-bus-monitor-text-primary, #cccccc);
+  user-select: text;
+  cursor: text;
+}
+
+.event-bus-monitor__console-empty {
+  padding: var(--space-4, 1rem);
+  color: var(--event-bus-monitor-text-secondary, #888);
+  text-align: center;
+}
+
+.event-bus-monitor__console-no-results {
+  padding: var(--space-4, 1rem);
+  color: var(--event-bus-monitor-text-secondary, #888);
+  text-align: center;
+}
+
+/* ===== Event Items ===== */
+.event-bus-monitor__event {
+  border-bottom: 1px solid var(--event-bus-monitor-border-dark, #2a2a2a);
+}
+
+.event-bus-monitor__event:hover {
+  background-color: var(--event-bus-monitor-bg-hover, #252525);
+}
+
+.event-bus-monitor__event:hover .event-bus-monitor__event-copy-button {
+  opacity: 1;
+}
+
+/* Main event line */
+.event-bus-monitor__event-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  padding: 0.5rem var(--space-4, 1rem);
+  cursor: pointer;
+  position: relative;
+}
+
+/* Timestamp */
+.event-bus-monitor__event-timestamp {
+  color: var(--event-bus-monitor-text-secondary, #6e7681);
+  font-size: 11px;
+  min-width: 90px;
+  flex-shrink: 0;
+  font-family: inherit;
+  user-select: text;
+}
+
+/* Message */
+.event-bus-monitor__event-message {
+  color: var(--event-bus-monitor-text-primary, #d4d4d4);
+  flex: 1;
+  word-break: break-word;
+  font-family: inherit;
+  user-select: text;
+  line-height: 1.5;
+}
+
+/* Copy button for individual events */
+.event-bus-monitor__event-copy-button {
+  opacity: 0;
+  transition: opacity 0.2s;
+  color: var(--event-bus-monitor-text-secondary, #6e7681);
+  padding: 2px;
+}
+
+.event-bus-monitor__event-copy-button:hover {
+  color: var(--event-bus-monitor-text-primary, #d4d4d4);
+  background-color: var(--event-bus-monitor-bg-hover-secondary, #3a3a3a);
+}
+
+/* Expand indicator */
+.event-bus-monitor__event-expand-indicator {
+  color: var(--event-bus-monitor-text-secondary, #6e7681);
+  font-size: 10px;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+
+/* ===== Icon Styling ===== */
+.event-bus-monitor__icon--small {
+  font-size: 14px !important;
+}
+
+.event-bus-monitor__icon--medium {
+  font-size: 16px !important;
+}
+
+.event-bus-monitor__icon--large {
+  font-size: 18px !important;
+  color: var(--event-bus-monitor-text-secondary, #6e7681) !important;
+}
+
+/* Buffer control label */
+.event-bus-monitor__buffer-label {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* Search field clear button */
+.event-bus-monitor__search-clear-button {
+  padding: 4px !important;
+  color: var(--event-bus-monitor-text-secondary, #6e7681) !important;
+}
+
+.event-bus-monitor__search-clear-button:hover {
+  color: var(--event-bus-monitor-text-primary, #d4d4d4) !important;
+}
+
+/* ===== TextField Search Input ===== */
+.event-bus-monitor__search-field .MuiOutlinedInput-root {
+  background-color: var(--event-bus-monitor-bg-console, #1e1e1e) !important;
+  color: var(--event-bus-monitor-text-primary, #d4d4d4) !important;
+  font-family: Consolas, Monaco, 'Courier New', monospace !important;
+  font-size: 12px !important;
+}
+
+.event-bus-monitor__search-field .MuiOutlinedInput-root fieldset {
+  border-color: var(--event-bus-monitor-border-details, #30363d) !important;
+}
+
+.event-bus-monitor__search-field .MuiOutlinedInput-root:hover fieldset {
+  border-color: var(--event-bus-monitor-text-secondary, #6e7681) !important;
+}
+
+.event-bus-monitor__search-field .MuiOutlinedInput-root.Mui-focused fieldset {
+  border-color: var(--event-bus-monitor-border-focus, #58a6ff) !important;
+}
+
+.event-bus-monitor__search-field .MuiOutlinedInput-input {
+  padding: 6px 8px !important;
+}
+
+/* ===== Dialog Content ===== */
+.event-bus-monitor__dialog-content {
+  padding: 0 !important;
+  background-color: var(--event-bus-monitor-bg-console, #1e1e1e) !important;
+}
+
+/* ===== Event Details (Expanded) ===== */
+.event-bus-monitor__event-details {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  margin-left: 4rem;
+  margin-right: var(--space-4, 1rem);
+  padding: 1.5rem;
+  background-color: var(--event-bus-monitor-bg-details, #0d1117);
+  border-left-width: 3px;
+  border-left-style: solid;
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid var(--event-bus-monitor-border-details, #30363d);
+}
+
+.event-bus-monitor__event-details-json {
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--event-bus-monitor-text-tertiary, #8b949e);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+  line-height: 1.6;
+}
+
+/* Detail border color variants based on event type */
+.event-bus-monitor__event-details--error {
+  border-left-color: var(--event-bus-monitor-color-error, #f44336);
+}
+
+.event-bus-monitor__event-details--warning {
+  border-left-color: var(--event-bus-monitor-color-warning, #ff9800);
+}
+
+.event-bus-monitor__event-details--success {
+  border-left-color: var(--event-bus-monitor-color-success, #4caf50);
+}
+
+.event-bus-monitor__event-details--console {
+  border-left-color: var(--event-bus-monitor-color-info, #2196f3);
+}
+
+.event-bus-monitor__event-details--default {
+  border-left-color: var(--event-bus-monitor-text-secondary, #888);
+}
+
+/* ===== Animations ===== */
+@keyframes event-bus-monitor--pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+}
+
+/* ===== Design Token Fallbacks ===== */
+:root {
+  --event-bus-monitor-bg-toolbar: #2d2d2d;
+  --event-bus-monitor-bg-toolbar-active: #3d2d2d;
+  --event-bus-monitor-bg-secondary: #2d2d2d;
+  --event-bus-monitor-bg-console: #1e1e1e;
+  --event-bus-monitor-bg-hover: #3d3d3d;
+  --event-bus-monitor-bg-hover-secondary: #3a3a3a;
+  --event-bus-monitor-bg-details: #0d1117;
+
+  --event-bus-monitor-text-primary: #cccccc;
+  --event-bus-monitor-text-secondary: #888;
+  --event-bus-monitor-text-tertiary: #aaa;
+  --event-bus-monitor-text-disabled: #555;
+
+  --event-bus-monitor-border-dark: #1e1e1e;
+  --event-bus-monitor-border-medium: #444;
+  --event-bus-monitor-border-light: #666;
+  --event-bus-monitor-border-details: #30363d;
+  --event-bus-monitor-border-focus: #58a6ff;
+
+  --event-bus-monitor-color-error: #f44336;
+  --event-bus-monitor-color-warning: #ff9800;
+  --event-bus-monitor-color-success: #4caf50;
+  --event-bus-monitor-color-info: #2196f3;
+
+  --space-2: 0.5rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+
+  --radius-sm: 4px;
+}

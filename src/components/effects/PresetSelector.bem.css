@@ -1,0 +1,49 @@
+/* PresetSelector — BEM styles using design tokens */
+
+.preset-selector {
+    margin-bottom: var(--space-2);
+}
+
+.preset-selector__label-content {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.preset-selector__label-icon {
+    font-size: 16px;
+}
+
+.preset-selector__select-input .MuiSelect-select {
+    display: flex !important;
+    align-items: center !important;
+    gap: var(--space-2) !important;
+}
+
+.preset-selector__menu-item-content {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+}
+
+.preset-selector__menu-item-icon {
+    font-size: 16px;
+    opacity: 0.7;
+}
+
+.preset-selector__actions {
+    margin-top: var(--space-1);
+    display: flex;
+    gap: var(--space-1);
+    flex-wrap: wrap;
+}
+
+.preset-selector__applied-message {
+    margin-top: var(--space-1);
+    display: block;
+}
+
+.preset-selector__alert {
+    width: 100%;
+}

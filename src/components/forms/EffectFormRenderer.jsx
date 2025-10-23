@@ -15,12 +15,10 @@ import React from 'react';
 import ConfigInputFactory from '../effects/inputs/ConfigInputFactory.jsx';
 import {
     Box,
-    Paper,
     Typography,
-    Stack,
-    CircularProgress,
-    useTheme
+    CircularProgress
 } from '@mui/material';
+import './effect-form.bem.css';
 
 /**
  * Renders the configuration form for an effect
@@ -38,49 +36,30 @@ function EffectFormRenderer({
     onConfigChange,
     projectState
 }) {
-    const theme = useTheme();
-
     // Show loading state if schema is not yet loaded
     if (!configSchema || !configSchema.fields || configSchema.fields.length === 0) {
         return (
-            <Box mt={3}>
-                <Paper
-                    elevation={3}
-                    sx={{
-                        p: 4,
-                        textAlign: 'center',
-                        backgroundColor: theme.palette.action.hover,
-                        border: `1px dashed ${theme.palette.divider}`,
-                        borderRadius: 2,
-                        minHeight: '200px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                        alignItems: 'center'
-                    }}
-                >
+            <Box className="effect-form effect-form--loading">
+                <Box className="effect-form__loading-container">
                     <CircularProgress
                         size={48}
-                        sx={{
-                            mb: 3,
-                            color: theme.palette.primary.main
-                        }}
+                        className="effect-form__loading-spinner"
                     />
-                    <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                    <Typography variant="h6" className="effect-form__loading-title">
                         Loading Configuration
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" className="effect-form__loading-subtitle">
                         Analyzing effect properties...
                     </Typography>
-                </Paper>
+                </Box>
             </Box>
         );
     }
 
     // Render the form fields
     return (
-        <Box mt={3}>
-            <Stack spacing={2}>
+        <Box className="effect-form">
+            <Box className="effect-form__fields">
                 {configSchema.fields.map(field => (
                     <ConfigInputFactory
                         key={field.name}
@@ -90,7 +69,7 @@ function EffectFormRenderer({
                         projectState={projectState}
                     />
                 ))}
-            </Stack>
+            </Box>
         </Box>
     );
 }

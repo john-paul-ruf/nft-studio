@@ -1,4 +1,7 @@
 import React, { useCallback, useState, useEffect } from 'react';
+import { Box, TextField, Typography } from '@mui/material';
+import './EffectInput.bem.css';
+import './ConfigInputFactory.bem.css';
 import RangeInput from './RangeInput.jsx';
 import Point2DInput from './Point2DInput.jsx';
 import PositionInput from './PositionInput.jsx';
@@ -101,30 +104,24 @@ function ConfigInputFactory({ field, value, onChange, projectState }) {
             return <EnhancedArrayInput {...commonProps} />;
         case 'readonly':
             return (
-                <div className="readonly-input">
-                    <label style={{ color: '#ffffff', marginBottom: '0.5rem', display: 'block' }}>
+                <Box className="effect-input effect-input__readonly">
+                    <Typography variant="subtitle2" className="effect-input__readonly-label">
                         {field.label}
-                    </label>
-                    <div style={{
-                        padding: '0.5rem',
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px dashed #666',
-                        borderRadius: '4px',
-                        color: '#999',
-                        fontStyle: 'italic'
-                    }}>
-                        {field.default}
-                    </div>
-                </div>
+                    </Typography>
+                    <Box className="effect-input__readonly-value">
+                        <Typography variant="body2">
+                            {field.default}
+                        </Typography>
+                    </Box>
+                </Box>
             );
         case 'text':
             return (
-                <div className="text-input">
-                    <label style={{ color: '#ffffff', marginBottom: '0.5rem', display: 'block' }}>
-                        {field.label}
-                    </label>
-                    <input
-                        type="text"
+                <Box className="effect-input effect-input__text">
+                    <TextField
+                        fullWidth
+                        size="small"
+                        label={field.label}
                         value={textValue}
                         onChange={(e) => {
                             const val = e.target.value;
@@ -132,73 +129,51 @@ function ConfigInputFactory({ field, value, onChange, projectState }) {
                             debouncedOnChange(field.name, val);
                         }}
                         placeholder={`Enter ${field.label.toLowerCase()}`}
-                        readOnly={field.readonly}
-                        style={{
-                            width: '100%',
-                            background: 'rgba(255,255,255,0.1)',
-                            border: '1px solid #333',
-                            borderRadius: '4px',
-                            padding: '0.5rem',
-                            color: '#ffffff'
-                        }}
+                        disabled={field.readonly}
+                        variant="outlined"
+                        className="effect-input__text-input"
                     />
-                </div>
+                </Box>
             );
         case 'json':
             return (
-                <div className="json-input">
-                    <label style={{ color: '#ffffff', marginBottom: '0.5rem', display: 'block' }}>
+                <Box className="effect-input effect-input__json">
+                    <Typography variant="subtitle2" className="effect-input__json-label">
                         {field.label}
-                    </label>
+                    </Typography>
                     {field.warning && (
-                        <div style={{
-                            background: 'rgba(255, 193, 7, 0.1)',
-                            border: '1px solid rgba(255, 193, 7, 0.3)',
-                            borderRadius: '4px',
-                            padding: '0.5rem',
-                            marginBottom: '0.5rem',
-                            color: '#ffc107',
-                            fontSize: '0.8rem'
-                        }}>
+                        <Box className="effect-input__json-warning">
                             ⚠️ {field.warning}
-                        </div>
+                        </Box>
                     )}
-                    <textarea
+                    <TextField
+                        fullWidth
+                        multiline
+                        rows={4}
                         value={jsonValue}
                         onChange={(e) => {
                             const val = e.target.value;
-                            setJsonValue(val); // Update local state immediately
+                            setJsonValue(val);
                             try {
                                 const parsed = JSON.parse(val);
                                 debouncedJsonOnChange(field.name, parsed);
                             } catch (err) {
-                                // Invalid JSON, store as string temporarily with debounce
                                 debouncedJsonOnChange(field.name, val);
                             }
                         }}
                         placeholder="Enter JSON object"
-                        style={{
-                            width: '100%',
-                            minHeight: '80px',
-                            background: 'rgba(255,255,255,0.1)',
-                            border: '1px solid #333',
-                            borderRadius: '4px',
-                            padding: '0.5rem',
-                            color: '#ffffff',
-                            fontFamily: 'monospace',
-                            fontSize: '0.8rem'
-                        }}
+                        variant="outlined"
+                        className="effect-input__json-textarea"
                     />
-                </div>
+                </Box>
             );
         default:
             return (
-                <div className="text-input">
-                    <label style={{ color: '#ffffff', marginBottom: '0.5rem', display: 'block' }}>
-                        {field.label}
-                    </label>
-                    <input
-                        type="text"
+                <Box className="effect-input effect-input__text">
+                    <TextField
+                        fullWidth
+                        size="small"
+                        label={field.label}
                         value={textValue}
                         onChange={(e) => {
                             const val = e.target.value;
@@ -206,16 +181,10 @@ function ConfigInputFactory({ field, value, onChange, projectState }) {
                             debouncedOnChange(field.name, val);
                         }}
                         placeholder={`Enter ${field.label.toLowerCase()}`}
-                        style={{
-                            width: '100%',
-                            background: 'rgba(255,255,255,0.1)',
-                            border: '1px solid #333',
-                            borderRadius: '4px',
-                            padding: '0.5rem',
-                            color: '#ffffff'
-                        }}
+                        variant="outlined"
+                        className="effect-input__text-input"
                     />
-                </div>
+                </Box>
             );
     }
 }

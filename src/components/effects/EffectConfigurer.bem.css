@@ -1,0 +1,145 @@
+/**
+ * EffectConfigurer Component - BEM CSS
+ * Service-orchestrated form configuration interface for effects
+ * Features: Validation, presets, percent chance control, attached effects
+ * 
+ * CSS Variables (Theme-Dependent):
+ * - --effect-configurer-error-bg: Error alert background (from theme.palette.error.lighter || theme.palette.error.light)
+ * - --effect-configurer-error-border: Error alert border (from theme.palette.error.light)
+ * - --effect-configurer-error-text: Error title text color (from theme.palette.error.main)
+ * - --effect-configurer-text-primary: Primary text color (from theme.palette.text.primary)
+ * - --effect-configurer-text-secondary: Secondary text color (from theme.palette.text.secondary)
+ * - --effect-configurer-bg-hover: Hover background color (from theme.palette.action.hover)
+ * - --effect-configurer-divider: Divider color (from theme.palette.divider)
+ */
+
+/* ============================================================================
+   Container
+   ========================================================================== */
+
+.effect-configurer__container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    height: 100%;
+    color: var(--effect-configurer-text-primary, var(--color-fg-primary)) !important;
+}
+
+/* ============================================================================
+   Empty State
+   ========================================================================== */
+
+.effect-configurer__empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    padding: 24px;
+    text-align: center;
+    border-radius: 4px;
+    background-color: var(--effect-configurer-bg-hover, var(--color-bg-hover)) !important;
+}
+
+/* ============================================================================
+   Error Alert
+   ========================================================================== */
+
+.effect-configurer__error-alert {
+    margin-bottom: 16px;
+    background-color: var(--effect-configurer-error-bg, #ffebee) !important;
+    border-color: var(--effect-configurer-error-border, #f44336) !important;
+}
+
+.effect-configurer__error-title {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--effect-configurer-error-text, var(--color-error-main)) !important;
+}
+
+.effect-configurer__error-message {
+    margin-bottom: 4px;
+    color: var(--effect-configurer-text-primary, var(--color-fg-primary)) !important;
+}
+
+/* ============================================================================
+   Status Container
+   ========================================================================== */
+
+.effect-configurer__status {
+    padding: 8px 12px;
+    background-color: var(--effect-configurer-bg-hover, var(--color-bg-hover)) !important;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    border: 1px solid;
+    border-color: var(--effect-configurer-divider, var(--color-border)) !important;
+}
+
+.effect-configurer__status-text {
+    color: var(--effect-configurer-text-secondary, var(--color-fg-secondary)) !important;
+    font-family: monospace;
+    font-size: 0.7rem;
+}
+
+/* ============================================================================
+   Action Buttons Container
+   ========================================================================== */
+
+.effect-configurer__actions {
+    display: flex;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid;
+    border-color: var(--effect-configurer-divider, var(--color-border)) !important;
+}
+
+/* ============================================================================
+   Form Areas & Scrolling
+   ========================================================================== */
+
+.effect-configurer__form-area {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* ============================================================================
+   Section Spacing
+   ========================================================================== */
+
+.effect-configurer__percent-chance-wrapper {
+    margin-top: var(--space-4);
+    margin-bottom: var(--space-2);
+}
+
+.effect-configurer__attached-effects-wrapper {
+    margin-top: var(--space-1);
+    margin-bottom: var(--space-1);
+}
+
+/* ============================================================================
+   Button Styling
+   ========================================================================== */
+
+.effect-configurer__save-preset-button,
+.effect-configurer__reset-button {
+    flex: 1;
+    text-transform: none;
+}
+
+/* ============================================================================
+   Dialog Styling
+   ========================================================================== */
+
+.effect-configurer__dialog-title {
+    font-weight: 600;
+}
+
+.effect-configurer__dialog-content {
+    padding-top: var(--space-2);
+}
+
+.effect-configurer__dialog-actions {
+    padding: var(--space-2);
+    gap: var(--space-1);
+    display: flex;
+}

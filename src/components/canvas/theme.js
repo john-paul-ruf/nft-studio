@@ -41,21 +41,8 @@ export const createAppTheme = (themeKey = 'cyberpunk') => {
         components: {
             MuiCssBaseline: {
                 styleOverrides: {
-                    body: {
-                        // CSS custom properties for dynamic theming
-                        '--primary-main': themeConfig.palette.primary.main,
-                        '--secondary-main': themeConfig.palette.secondary.main,
-                        '--background-default': themeConfig.palette.background.default,
-                        '--background-paper': themeConfig.palette.background.paper,
-                        '--text-primary': themeConfig.palette.text.primary,
-                        '--text-secondary': themeConfig.palette.text.secondary,
-                        '--divider': themeConfig.palette.divider || (themeConfig.palette.mode === 'dark' ? '#424242' : '#e0e0e0'),
-                        '--success-main': themeConfig.palette.success?.main || '#28A745',
-                        '--warning-main': themeConfig.palette.warning?.main || '#FFC107',
-                        '--error-main': themeConfig.palette.error?.main || '#DC3545',
-                        '--info-main': themeConfig.palette.info?.main || '#17A2B8',
-                        '--action-hover': themeConfig.palette.action?.hover || (themeConfig.palette.mode === 'dark' ? '#2C2C2C' : '#F5F5F5'),
-                    },
+                    // CSS variables are now managed by CSSThemeContext and styles.css
+                    // Don't set inline body styles here - they block CSS variable cascade
                 },
             },
             MuiButton: {
@@ -95,8 +82,8 @@ export const createAppTheme = (themeKey = 'cyberpunk') => {
             MuiToolbar: {
                 styleOverrides: {
                     root: {
-                        backgroundColor: themeConfig.palette.background.paper,
-                        borderBottom: `1px solid ${themeConfig.palette.divider || (themeConfig.palette.mode === 'dark' ? '#424242' : '#e0e0e0')}`,
+                        backgroundColor: 'var(--background-paper)',
+                        borderBottom: '1px solid var(--divider)',
                         minHeight: '48px !important',
                     },
                 },
@@ -104,7 +91,7 @@ export const createAppTheme = (themeKey = 'cyberpunk') => {
             MuiPaper: {
                 styleOverrides: {
                     root: {
-                        backgroundColor: themeConfig.palette.background.paper,
+                        backgroundColor: 'var(--background-paper)',
                         backgroundImage: 'none',
                     },
                     elevation1: {
@@ -118,9 +105,9 @@ export const createAppTheme = (themeKey = 'cyberpunk') => {
             MuiAppBar: {
                 styleOverrides: {
                     root: {
-                        backgroundColor: themeConfig.palette.background.paper,
-                        color: themeConfig.palette.text.primary,
-                        boxShadow: `0 1px 0 ${themeConfig.palette.divider || (themeConfig.palette.mode === 'dark' ? '#424242' : '#e0e0e0')}`,
+                        backgroundColor: 'var(--background-paper)',
+                        color: 'var(--text-primary)',
+                        boxShadow: '0 1px 0 var(--divider)',
                     },
                 },
             },
@@ -137,7 +124,7 @@ export const createAppTheme = (themeKey = 'cyberpunk') => {
                     root: {
                         borderRadius: 6,
                         '&:hover': {
-                            backgroundColor: themeConfig.palette.action?.hover || (themeConfig.palette.mode === 'dark' ? '#2C2C2C' : '#F5F5F5'),
+                            backgroundColor: 'var(--action-hover)',
                         },
                     },
                 },
@@ -148,12 +135,12 @@ export const createAppTheme = (themeKey = 'cyberpunk') => {
                         borderRadius: 6,
                         margin: '2px 4px',
                         '&:hover': {
-                            backgroundColor: themeConfig.palette.action?.hover || (themeConfig.palette.mode === 'dark' ? '#2C2C2C' : '#F5F5F5'),
+                            backgroundColor: 'var(--action-hover)',
                         },
                         '&.Mui-selected': {
-                            backgroundColor: `${themeConfig.palette.primary.main}20`,
+                            backgroundColor: 'color-mix(in srgb, var(--primary-main) 20%, transparent)',
                             '&:hover': {
-                                backgroundColor: `${themeConfig.palette.primary.main}30`,
+                                backgroundColor: 'color-mix(in srgb, var(--primary-main) 30%, transparent)',
                             },
                         },
                     },

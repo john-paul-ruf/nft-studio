@@ -1,0 +1,82 @@
+/* ==========================================
+   GROUPED EFFECTS LIST - BEM CSS ARCHITECTURE
+   ==========================================
+   
+   PURPOSE: Styling for grouped effect list component
+   PATTERN: Collapsible effect groups by author in dropdown
+   TOKENS: All colors/spacing use CSS design tokens from src/styles.css
+   THEMES: Light, Dark, High-Contrast (via data-theme attribute)
+   
+   STRUCTURE:
+   - grouped-effects__author-header  → Collapsible author group button
+   - grouped-effects__author-icon    → Expand/collapse indicator
+   - grouped-effects__effect-item    → Individual effect menu item
+   
+   ========================================== */
+
+/**
+ * Author group header
+ * Clickable header for collapsing/expanding effect groups by author
+ */
+.grouped-effects__author-header {
+    color: var(--grouped-effects-header-text, var(--color-text-secondary)) !important;
+    background-color: var(--grouped-effects-header-bg, var(--color-hover-bg)) !important;
+    padding: var(--space-2, 8px) var(--space-3, 12px) !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    border: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    outline: none !important;
+    transition: background-color var(--duration-2, 0.2s) var(--ease-standard, ease-in-out) !important;
+}
+
+.grouped-effects__author-header:hover {
+    background-color: var(--grouped-effects-header-hover-bg, var(--color-active-bg)) !important;
+}
+
+.grouped-effects__author-header:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+}
+
+/**
+ * Author group icon
+ * Expand/collapse indicator icon
+ */
+.grouped-effects__author-icon {
+    font-size: 12px !important;
+    margin-left: var(--space-2, 8px) !important;
+    transition: transform var(--duration-2, 0.2s) var(--ease-standard, ease-in-out) !important;
+}
+
+/**
+ * Effect list item
+ * Individual effect menu item within group
+ */
+.grouped-effects__effect-item {
+    color: var(--grouped-effects-item-text, var(--color-text-primary)) !important;
+    padding: var(--space-2, 8px) var(--space-3, 12px) !important;
+    padding-left: var(--space-6, 24px) !important;
+    font-size: 13px !important;
+    cursor: pointer !important;
+    background-color: transparent !important;
+    border: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    outline: none !important;
+    transition: background-color var(--duration-2, 0.2s) var(--ease-standard, ease-in-out) !important;
+}
+
+.grouped-effects__effect-item:hover {
+    background-color: var(--grouped-effects-item-hover-bg, var(--color-hover-bg)) !important;
+}
+
+.grouped-effects__effect-item:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+}

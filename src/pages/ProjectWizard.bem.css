@@ -1,0 +1,269 @@
+/* ProjectWizard — Multi-Step Form Wizard
+ * Block: page-wizard
+ * Patterns: Steps indicator, form input/validation, modal overlay
+ */
+
+.page-wizard {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+    padding: var(--space-5);
+    box-sizing: border-box;
+}
+
+.page-wizard__dialog {
+    background: var(--color-bg-secondary, #2d2d2d);
+    border-radius: var(--radius-md);
+    width: 100%;
+    max-width: 500px;
+    min-width: 400px;
+    box-shadow: var(--shadow-2);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header: Title + Step Indicator */
+.page-wizard__header {
+    background: var(--color-bg-header, #323232);
+    padding: var(--space-6) calc(var(--space-6) + 6px);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.page-wizard__title {
+    color: var(--color-fg);
+    margin: 0 0 var(--space-5) 0;
+    font-size: 24px;
+    font-weight: 300;
+    line-height: 1.2;
+}
+
+/* Step Indicator */
+.page-wizard__steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+}
+
+.page-wizard__step {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--color-bg-tertiary, #444);
+    color: var(--color-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all var(--duration-3) var(--ease-standard);
+}
+
+.page-wizard__step--active {
+    background: var(--color-primary);
+    color: var(--color-fg);
+}
+
+.page-wizard__line {
+    width: 80px;
+    height: 2px;
+    background: var(--color-bg-tertiary, #444);
+    transition: background var(--duration-3) var(--ease-standard);
+    flex-shrink: 0;
+}
+
+.page-wizard__line--active {
+    background: var(--color-primary);
+}
+
+/* Body: Step Content */
+.page-wizard__body {
+    padding: var(--space-6);
+    min-height: 150px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.page-wizard__content {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Form Elements */
+.page-wizard__label {
+    color: var(--color-muted);
+    font-size: 14px;
+    margin-bottom: var(--space-4);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 500;
+}
+
+.page-wizard__input {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 12px 15px;
+    color: var(--color-fg);
+    font-size: 16px;
+    outline: none;
+    transition: border-color var(--duration-3) var(--ease-standard);
+    font-family: inherit;
+}
+
+.page-wizard__input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+.page-wizard__input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Directory Selector: Input + Browse Button */
+.page-wizard__directory-selector {
+    display: flex;
+    gap: var(--space-4);
+}
+
+.page-wizard__directory-selector .page-wizard__input {
+    flex: 1;
+}
+
+.page-wizard__browse-button {
+    background: var(--color-primary);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--color-fg);
+    padding: 12px 24px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all var(--duration-3) var(--ease-standard);
+    min-width: 100px;
+    white-space: nowrap;
+}
+
+.page-wizard__browse-button:hover {
+    background: var(--color-primary-hover, #357abd);
+    transform: translateY(-1px);
+}
+
+.page-wizard__browse-button:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+.page-wizard__browse-button:active {
+    transform: translateY(0);
+}
+
+.page-wizard__browse-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Footer: Navigation Buttons */
+.page-wizard__footer {
+    background: var(--color-bg-header, #323232);
+    padding: calc(var(--space-5) - 2px) var(--space-6);
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-5);
+}
+
+.page-wizard__nav-buttons {
+    display: flex;
+    gap: var(--space-4);
+}
+
+/* Buttons */
+.page-wizard__button {
+    padding: 10px 24px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--duration-3) var(--ease-standard);
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+}
+
+/* Cancel Button */
+.page-wizard__button--cancel {
+    background: transparent;
+    color: var(--color-muted);
+    border-color: var(--color-border);
+}
+
+.page-wizard__button--cancel:hover {
+    border-color: var(--color-muted);
+    color: var(--color-fg);
+}
+
+.page-wizard__button--cancel:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* Back Button */
+.page-wizard__button--back {
+    background: var(--color-bg-tertiary, #444);
+    color: var(--color-fg);
+    border-color: var(--color-bg-tertiary, #444);
+}
+
+.page-wizard__button--back:hover {
+    background: var(--color-bg-tertiary-hover, #555);
+    border-color: var(--color-bg-tertiary-hover, #555);
+}
+
+.page-wizard__button--back:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* Next/Create Button */
+.page-wizard__button--next {
+    background: var(--color-primary);
+    color: var(--color-fg);
+    border-color: var(--color-primary);
+}
+
+.page-wizard__button--next:hover:not(:disabled) {
+    background: var(--color-primary-hover, #357abd);
+    border-color: var(--color-primary-hover, #357abd);
+    transform: translateY(-1px);
+}
+
+.page-wizard__button--next:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+.page-wizard__button--next:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+/* Disabled state for all buttons */
+.page-wizard__button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

@@ -169,17 +169,25 @@ export class EffectEventCoordinator {
                 config: newConfig
             });
 
-            // Emit through event bus
+            // Emit through event bus with proper payload structure
+            // 🔒 CRITICAL: Match the payload structure expected by useEffectManagement
+            // The payload must have: effectId, effectIndex, config, effectType, subEffectIndex
             if (this.eventBus) {
                 this.eventBus.emit('effectconfigurer:config:change', {
                     config: newConfig,
+                    effectId: selectedEffect?.effectId,
+                    effectIndex: selectedEffect?.effectIndex,
+                    effectType: selectedEffect?.effectType || 'primary',
+                    effectName: selectedEffect?.effectName || selectedEffect?.name,
+                    subEffectIndex: selectedEffect?.subIndex,
+                    // Keep 'effect' for backward compatibility
                     effect: selectedEffect,
                     timestamp: new Date().toISOString()
                 }, {
                     source: 'EffectEventCoordinator',
                     component: 'EffectConfigurer'
                 });
-                this.logger.log('📡 EffectEventCoordinator: Event emitted to event bus');
+                this.logger.log('📡 EffectEventCoordinator: Event emitted to event bus with proper payload structure');
             } else {
                 this.logger.warn('⚠️ EffectEventCoordinator: No event bus available - event not emitted!');
             }

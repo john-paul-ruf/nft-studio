@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import SettingsToProjectConverter from '../utils/SettingsToProjectConverter.js';
 import ProjectState from '../models/ProjectState.js';
 import useDebounce from '../hooks/useDebounce.js';
-import './ImportProjectWizard.css';
+import './ImportProjectWizard.bem.css';
 
 export default function ImportProjectWizard({ onComplete, onCancel }) {
     const [currentStep, setCurrentStep] = useState(0);
@@ -152,12 +152,12 @@ export default function ImportProjectWizard({ onComplete, onCancel }) {
         switch (currentStep) {
             case 0:
                 return (
-                    <div className="wizard-step">
-                        <label className="form-label">
+                    <div className="import-wizard__step">
+                        <label className="import-wizard__form-label">
                             Project Name:
                             <input
                                 type="text"
-                                className="form-input"
+                                className="import-wizard__form-input"
                                 value={projectName}
                                 onChange={(e) => {
                                     const value = e.target.value;
@@ -173,19 +173,19 @@ export default function ImportProjectWizard({ onComplete, onCancel }) {
 
             case 1:
                 return (
-                    <div className="wizard-step">
-                        <label className="form-label">
+                    <div className="import-wizard__step">
+                        <label className="import-wizard__form-label">
                             Project Location:
-                            <div className="file-picker">
+                            <div className="import-wizard__file-picker">
                                 <input
                                     type="text"
-                                    className="form-input"
+                                    className="import-wizard__form-input"
                                     value={projectLocation}
                                     placeholder="Select folder..."
                                     readOnly
                                 />
                                 <button
-                                    className="select-button"
+                                    className="import-wizard__select-button"
                                     onClick={handleSelectProjectLocation}
                                     type="button"
                                 >
@@ -198,19 +198,19 @@ export default function ImportProjectWizard({ onComplete, onCancel }) {
 
             case 2:
                 return (
-                    <div className="wizard-step">
-                        <label className="form-label">
+                    <div className="import-wizard__step">
+                        <label className="import-wizard__form-label">
                             Settings File:
-                            <div className="file-picker">
+                            <div className="import-wizard__file-picker">
                                 <input
                                     type="text"
-                                    className="form-input"
+                                    className="import-wizard__form-input"
                                     value={settingsFile}
                                     placeholder="Select settings file..."
                                     readOnly
                                 />
                                 <button
-                                    className="select-button"
+                                    className="import-wizard__select-button"
                                     onClick={handleSelectSettingsFile}
                                     type="button"
                                 >
@@ -219,7 +219,7 @@ export default function ImportProjectWizard({ onComplete, onCancel }) {
                             </div>
                         </label>
                         {settingsFile && (
-                            <div className="file-info">
+                            <div className="import-wizard__file-info">
                                 <small>Selected: {settingsFile.split('/').pop()}</small>
                             </div>
                         )}
@@ -234,59 +234,62 @@ export default function ImportProjectWizard({ onComplete, onCancel }) {
     return (
         <div className="import-wizard-overlay">
             <div className="import-wizard">
-                <div className="wizard-header">
-                    <h2>Import Project from Settings</h2>
-                    <button className="close-button" onClick={onCancel}>×</button>
+                <div className="import-wizard__header">
+                    <h2 className="import-wizard__title">Import Project from Settings</h2>
+                    <button className="import-wizard__close-button" onClick={onCancel} type="button">×</button>
                 </div>
 
-                <div className="wizard-progress">
+                <div className="import-wizard__progress">
                     {steps.map((step, index) => (
                         <div
                             key={index}
-                            className={`progress-step ${index <= currentStep ? 'active' : ''} ${index === currentStep ? 'current' : ''}`}
+                            className={`import-wizard__progress-step ${index <= currentStep ? 'import-wizard__progress-step--active' : ''} ${index === currentStep ? 'import-wizard__progress-step--current' : ''}`}
                         >
-                            <div className="step-number">{index + 1}</div>
-                            <div className="step-info">
-                                <div className="step-title">{step.title}</div>
-                                <div className="step-description">{step.description}</div>
+                            <div className="import-wizard__step-number">{index + 1}</div>
+                            <div className="import-wizard__step-info">
+                                <div className="import-wizard__step-title">{step.title}</div>
+                                <div className="import-wizard__step-description">{step.description}</div>
                             </div>
                         </div>
                     ))}
                 </div>
 
-                <div className="wizard-content">
+                <div className="import-wizard__content">
                     {renderStepContent()}
 
                     {error && (
-                        <div className="error-message">
+                        <div className="import-wizard__error-message">
                             {error}
                         </div>
                     )}
                 </div>
 
-                <div className="wizard-actions">
+                <div className="import-wizard__actions">
                     <button
-                        className="wizard-button secondary"
+                        className="import-wizard__button import-wizard__button--secondary"
                         onClick={onCancel}
                         disabled={converting}
+                        type="button"
                     >
                         Cancel
                     </button>
 
                     {currentStep > 0 && (
                         <button
-                            className="wizard-button secondary"
+                            className="import-wizard__button import-wizard__button--secondary"
                             onClick={handleBack}
                             disabled={converting}
+                            type="button"
                         >
                             Back
                         </button>
                     )}
 
                     <button
-                        className="wizard-button primary"
+                        className="import-wizard__button import-wizard__button--primary"
                         onClick={handleNext}
                         disabled={converting}
+                        type="button"
                     >
                         {converting ? 'Converting...' : currentStep === steps.length - 1 ? 'Import' : 'Next'}
                     </button>

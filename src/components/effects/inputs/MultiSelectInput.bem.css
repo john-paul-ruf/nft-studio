@@ -1,0 +1,147 @@
+/**
+ * MultiSelectInput Component - BEM CSS
+ * Manages multi-select option display with selected tags, available options,
+ * and hover-based interactions
+ */
+
+/* ============================================================================
+   Root Container
+   ========================================================================== */
+
+.multi-select-input {
+    margin-bottom: 1rem;
+}
+
+/* ============================================================================
+   Label
+   ========================================================================== */
+
+.multi-select-input__label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    color: #ccc;
+}
+
+/* ============================================================================
+   Selected Values Display Section
+   ========================================================================== */
+
+.multi-select-input__selected-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================================================
+   Selected Value Tag
+   ========================================================================== */
+
+.multi-select-input__tag {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3rem 0.6rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 4px;
+    color: white;
+    font-size: 0.85rem;
+    font-weight: bold;
+}
+
+.multi-select-input__tag-text {
+    /* Text within tag - no additional styling needed */
+}
+
+/* ============================================================================
+   Remove Button (Circular X button)
+   ========================================================================== */
+
+.multi-select-input__tag-remove {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: all 0.2s ease;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.multi-select-input__tag-remove:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+.multi-select-input__tag-remove:active {
+    transform: scale(0.95);
+}
+
+/* ============================================================================
+   Unselected Options Display Section
+   ========================================================================== */
+
+.multi-select-input__available-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================================================
+   Add Button (for unselected options)
+   ========================================================================== */
+
+.multi-select-input__add-btn {
+    padding: 0.4rem 0.8rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: #ccc;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: normal;
+    transition: all 0.2s ease;
+    display: inline-block;
+}
+
+.multi-select-input__add-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.multi-select-input__add-btn:active {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================================================
+   Help Text Section
+   ========================================================================== */
+
+.multi-select-input__help {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: #888;
+}
+
+.multi-select-input__help-line {
+    display: block;
+}
+
+.multi-select-input__help-line--secondary {
+    margin-top: 0.25rem;
+}

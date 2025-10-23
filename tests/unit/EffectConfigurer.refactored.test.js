@@ -620,12 +620,11 @@ export async function testEffectConfigurerCompatibility(testEnv) {
         }
     }
     
-    // Test that component uses the same Material-UI components
+    // Test that component uses Material-UI components (Phase 6.3: removed useTheme hook, now uses CSS)
     const muiComponents = [
-        'Box',
         'Typography',
         'Button',
-        'useTheme'
+        'Dialog'  // Changed from Box to Dialog for current component structure
     ];
     
     for (const component of muiComponents) {
@@ -634,17 +633,36 @@ export async function testEffectConfigurerCompatibility(testEnv) {
         }
     }
     
-    // Test that component imports the same child components
+    // Test that component uses CSS for styling (Phase 6.3 migration removed inline sx props)
+    if (!componentSource.includes('.css')) {
+        throw new Error('Component should import CSS for styling (Phase 6.3 requirement)');
+    }
+    
+    // Test that component imports the same child components (refactored to use services)
+    // Phase 6.3: EffectAttachmentModal replaced with EffectEventCoordinator service orchestration
     const childComponents = [
         'EffectFormRenderer',
         'AttachedEffectsDisplay',
-        'PercentChanceControl',
-        'EffectAttachmentModal'
+        'PercentChanceControl'
     ];
     
     for (const child of childComponents) {
         if (!componentSource.includes(child)) {
             throw new Error(`Component should use child component: ${child}`);
+        }
+    }
+    
+    // Test that component uses service orchestration instead of direct modal
+    const requiredServices = [
+        'EffectEventCoordinator',
+        'EffectFormValidator',
+        'EffectConfigurationManager',
+        'EffectUpdateCoordinator'
+    ];
+    
+    for (const service of requiredServices) {
+        if (!componentSource.includes(service)) {
+            throw new Error(`Component should use service: ${service} (refactored architecture)`);
         }
     }
     

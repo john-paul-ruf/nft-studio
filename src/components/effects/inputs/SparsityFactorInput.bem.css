@@ -1,0 +1,227 @@
+/* ============================================
+   SPARSITY FACTOR INPUT - BEM CSS MODULE
+   ============================================
+   Manages divisor selection with visual badges,
+   input validation, dropdown suggestions, and
+   error messaging for 360-degree divisor selection.
+   ============================================ */
+
+.sparsity-factor-input {
+    margin-bottom: var(--space-4);
+}
+
+/* Label Styling */
+.sparsity-factor-input__label {
+    display: block;
+    margin-bottom: var(--space-2);
+    font-size: 0.9rem;
+    color: var(--color-muted);
+}
+
+/* Selected Values Display Container */
+.sparsity-factor-input__selected-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+    padding: var(--space-2);
+    background: var(--surface-muted, rgba(255, 255, 255, 0.06));
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+}
+
+/* Individual Tag/Badge */
+.sparsity-factor-input__tag {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+    border-radius: var(--radius-sm);
+    color: white;
+    font-size: 0.85rem;
+    font-weight: bold;
+}
+
+/* Tag Name Text */
+.sparsity-factor-input__tag-name {
+    /* inherits from parent tag */
+}
+
+/* Remove Button in Tag */
+.sparsity-factor-input__tag-remove {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: all 0.2s ease;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.sparsity-factor-input__tag-remove:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+.sparsity-factor-input__tag-remove:active {
+    transform: scale(0.95);
+}
+
+/* Input Container - Relative for dropdown positioning */
+.sparsity-factor-input__input-wrapper {
+    position: relative;
+}
+
+/* Input Field and Button Row */
+.sparsity-factor-input__input-row {
+    display: flex;
+    gap: var(--space-2);
+    align-items: flex-start;
+}
+
+/* Left Column - Input and Error */
+.sparsity-factor-input__input-column {
+    flex: 1;
+}
+
+/* Input Field */
+.sparsity-factor-input__input {
+    width: 100%;
+    padding: var(--space-2);
+    background: var(--surface-muted, rgba(255, 255, 255, 0.1));
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-fg);
+    font-size: 0.9rem;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color var(--duration-2) var(--ease-standard), background var(--duration-2) var(--ease-standard);
+}
+
+.sparsity-factor-input__input:focus {
+    background: color-mix(in oklab, var(--surface-muted, rgba(255, 255, 255, 0.1)) 85%, var(--color-fg) 15%);
+    border-color: var(--color-primary);
+}
+
+/* Input Field with Error State */
+.sparsity-factor-input__input--error {
+    border-color: var(--color-error);
+    background: color-mix(in oklab, var(--color-error) 8%, transparent);
+}
+
+.sparsity-factor-input__input--error:focus {
+    background: color-mix(in oklab, var(--color-error) 15%, transparent);
+    border-color: var(--color-error);
+}
+
+/* Error Message */
+.sparsity-factor-input__error {
+    margin-top: var(--space-1);
+    font-size: 0.75rem;
+    color: var(--color-error);
+    background: color-mix(in oklab, var(--color-error) 10%, transparent);
+    padding: var(--space-2);
+    border-radius: var(--radius-sm);
+    border: 1px solid color-mix(in oklab, var(--color-error) 30%, transparent);
+}
+
+/* Add Button */
+.sparsity-factor-input__add-btn {
+    padding: var(--space-2) var(--space-3);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    font-weight: bold;
+    transition: all var(--duration-2) var(--ease-standard);
+    white-space: nowrap;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* Add Button - Enabled State */
+.sparsity-factor-input__add-btn--enabled {
+    background: linear-gradient(135deg, var(--color-success) 0%, color-mix(in oklab, var(--color-success) 80%, #fff 20%) 100%);
+    color: white;
+    cursor: pointer;
+}
+
+.sparsity-factor-input__add-btn--enabled:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+}
+
+.sparsity-factor-input__add-btn--enabled:active {
+    transform: translateY(0);
+}
+
+/* Add Button - Disabled State */
+.sparsity-factor-input__add-btn--disabled {
+    background: var(--surface-muted, rgba(255, 255, 255, 0.1));
+    color: var(--color-muted);
+    cursor: not-allowed;
+}
+
+/* Dropdown Container */
+.sparsity-factor-input__dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-2);
+    z-index: 1000;
+    max-height: calc(100vh - 300px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    margin-top: var(--space-1);
+}
+
+/* Dropdown Item Button */
+.sparsity-factor-input__dropdown-item {
+    display: block;
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    background: transparent;
+    border: none;
+    color: var(--color-fg);
+    text-align: left;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background var(--duration-1) var(--ease-standard);
+}
+
+.sparsity-factor-input__dropdown-item:hover {
+    background: color-mix(in oklab, var(--color-primary) 8%, transparent);
+}
+
+.sparsity-factor-input__dropdown-item:active {
+    background: color-mix(in oklab, var(--color-primary) 15%, transparent);
+}
+
+/* Help Text Container */
+.sparsity-factor-input__help {
+    margin-top: var(--space-2);
+    font-size: 0.75rem;
+    color: var(--color-muted);
+}
+
+/* Help Text Line */
+.sparsity-factor-input__help-line {
+    /* inherits from parent */
+}
+
+/* Available Divisors List */
+.sparsity-factor-input__available {
+    margin-top: 0.25rem;
+}

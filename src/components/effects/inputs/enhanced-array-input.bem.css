@@ -1,0 +1,203 @@
+/* Enhanced Array Input Component — BEM Styling with Design Tokens */
+
+.enhanced-array-input {
+    margin-bottom: var(--space-4);
+}
+
+/* === HEADER SECTION === */
+.enhanced-array-input__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-2);
+}
+
+.enhanced-array-input__title {
+    color: var(--color-text-secondary);
+    font-weight: 600;
+}
+
+.enhanced-array-input__description {
+    margin-left: var(--space-1);
+    color: var(--color-text-disabled);
+}
+
+.enhanced-array-input__controls {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+}
+
+/* === ITEMS CONTAINER === */
+.enhanced-array-input__items-container {
+    padding: var(--space-3);
+    margin-bottom: var(--space-2);
+    background-color: var(--background-default);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.enhanced-array-input__empty-alert {
+    margin-bottom: var(--space-2);
+}
+
+/* === LIST VIEW === */
+.enhanced-array-input__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.enhanced-array-input__item {
+    padding: var(--space-2);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    background-color: var(--background-paper);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    transition: all var(--duration-2) var(--ease-standard);
+}
+
+.enhanced-array-input__item--dragging {
+    opacity: 0.5;
+}
+
+.enhanced-array-input__item--drag-over {
+    background-color: var(--action-hover);
+    border: 2px solid var(--color-primary);
+}
+
+.enhanced-array-input__item:hover {
+    background-color: var(--action-hover);
+}
+
+.enhanced-array-input__drag-handle {
+    color: var(--color-text-disabled);
+    cursor: grab;
+    flex-shrink: 0;
+}
+
+.enhanced-array-input__drag-handle:active {
+    cursor: grabbing;
+}
+
+.enhanced-array-input__item-index {
+    min-width: 40px;
+}
+
+.enhanced-array-input__item-content {
+    flex: 1;
+}
+
+.enhanced-array-input__item-value {
+    color: var(--color-fg);
+    cursor: pointer;
+    transition: color var(--duration-2) var(--ease-standard);
+}
+
+.enhanced-array-input__item-value:hover {
+    color: var(--color-primary);
+}
+
+.enhanced-array-input__item-value--monospace {
+    font-family: monospace;
+}
+
+.enhanced-array-input__item-actions {
+    display: flex;
+    gap: var(--space-1);
+    flex-shrink: 0;
+}
+
+.enhanced-array-input__item-action-button {
+    color: var(--color-text-secondary);
+    transition: color var(--duration-2) var(--ease-standard);
+}
+
+.enhanced-array-input__item-action-button:hover {
+    color: var(--color-primary);
+}
+
+.enhanced-array-input__item-action-button--duplicate:hover {
+    color: var(--color-primary);
+}
+
+.enhanced-array-input__item-action-button--edit:hover {
+    color: var(--color-info);
+}
+
+.enhanced-array-input__item-action-button--delete:hover {
+    color: var(--color-error);
+}
+
+/* === GRID VIEW === */
+.enhanced-array-input__grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.enhanced-array-input__grid-chip {
+    font-family: 'monospace';
+}
+
+.enhanced-array-input__grid-chip--string {
+    font-family: inherit;
+}
+
+/* === ADD ITEMS SECTION === */
+.enhanced-array-input__add-section {
+    padding: var(--space-3);
+    background-color: var(--background-default);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+.enhanced-array-input__add-section-title {
+    margin-bottom: var(--space-2);
+    color: var(--color-text-secondary);
+}
+
+.enhanced-array-input__add-controls {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.enhanced-array-input__mode-selector {
+    width: 100%;
+}
+
+.enhanced-array-input__input {
+    width: 100%;
+}
+
+.enhanced-array-input__add-button {
+    width: 100%;
+    text-transform: none;
+}
+
+/* === HELP TEXT === */
+.enhanced-array-input__help-text {
+    display: block;
+    margin-top: var(--space-1);
+    color: var(--color-text-disabled);
+    font-size: 0.85rem;
+}
+
+/* === IMPORT DIALOG === */
+.enhanced-array-input__import-description {
+    margin-bottom: var(--space-3);
+    color: var(--color-text-secondary);
+}
+
+.enhanced-array-input__import-error {
+    margin-bottom: var(--space-2);
+}
+
+.enhanced-array-input__import-input {
+    width: 100%;
+}

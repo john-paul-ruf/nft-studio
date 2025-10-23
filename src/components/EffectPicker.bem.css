@@ -1,0 +1,352 @@
+/* ========================================
+   Effect Picker - BEM Component
+   ======================================== */
+
+.effect-picker__overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: color-mix(in oklab, var(--color-bg) 0%, var(--color-fg) 80%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fade-in var(--duration-2) var(--ease-standard);
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.effect-picker {
+    background: var(--color-bg);
+    border-radius: var(--radius-lg);
+    width: 600px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-2);
+    border: 1px solid var(--color-border);
+    animation: slide-up var(--duration-3) var(--ease-standard);
+}
+
+@keyframes slide-up {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* ========================================
+   Header Section
+   ======================================== */
+
+.effect-picker__header {
+    background: color-mix(in oklab, var(--color-bg-surface) 0%, var(--color-border) 10%);
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.effect-picker__title {
+    margin: 0;
+    color: var(--color-fg);
+    font-size: 18px;
+    font-weight: 300;
+    letter-spacing: -0.5px;
+}
+
+.effect-picker__close-button {
+    background: transparent;
+    border: none;
+    color: var(--color-muted);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--duration-1) var(--ease-standard);
+    border-radius: var(--radius-md);
+    line-height: 1;
+}
+
+.effect-picker__close-button:hover {
+    color: var(--color-fg);
+    background: color-mix(in oklab, var(--color-bg-surface) 0%, var(--color-border) 20%);
+}
+
+.effect-picker__close-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-primary) 0%, var(--color-bg) 30%);
+}
+
+/* ========================================
+   Categories Section (Optional)
+   ======================================== */
+
+.effect-picker__categories {
+    display: flex;
+    padding: var(--space-2);
+    gap: var(--space-2);
+    background: color-mix(in oklab, var(--color-bg-surface) 0%, var(--color-border) 5%);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.effect-picker__category-button {
+    flex: 1;
+    padding: var(--space-2) var(--space-3);
+    background: color-mix(in oklab, var(--color-bg-surface) 0%, var(--color-border) 10%);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-muted);
+    cursor: pointer;
+    transition: all var(--duration-2) var(--ease-standard);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.effect-picker__category-button:hover:not(.effect-picker__category-button--active) {
+    background: color-mix(in oklab, var(--color-bg-surface) 0%, var(--color-border) 20%);
+    color: var(--color-fg);
+}
+
+.effect-picker__category-button:focus {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+.effect-picker__category-button--active {
+    background: color-mix(in oklab, var(--color-primary) 0%, var(--color-bg) 20%);
+    border-color: var(--color-primary);
+    color: var(--color-fg);
+    font-weight: 600;
+}
+
+/* ========================================
+   Content Area
+   ======================================== */
+
+.effect-picker__content {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-4);
+}
+
+.effect-picker__content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.effect-picker__content::-webkit-scrollbar-track {
+    background: color-mix(in oklab, var(--color-bg-surface) 0%, var(--color-border) 5%);
+}
+
+.effect-picker__content::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--color-fg) 0%, var(--color-bg) 70%);
+    border-radius: var(--radius-sm);
+}
+
+.effect-picker__content::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--color-fg) 0%, var(--color-bg) 50%);
+}
+
+/* ========================================
+   Empty State
+   ======================================== */
+
+.effect-picker__empty-state {
+    text-align: center;
+    color: var(--color-muted);
+    padding: var(--space-6);
+    font-size: 14px;
+}
+
+/* ========================================
+   Grid Layout
+   ======================================== */
+
+.effect-picker__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-3);
+}
+
+/* ========================================
+   Effect Item
+   ======================================== */
+
+.effect-picker__item {
+    background: color-mix(in oklab, var(--color-bg-surface) 0%, var(--color-border) 15%);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    cursor: pointer;
+    transition: all var(--duration-2) var(--ease-standard);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.effect-picker__item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        135deg,
+        color-mix(in oklab, var(--color-primary) 0%, transparent 100%),
+        color-mix(in oklab, var(--color-primary) 0%, transparent 100%)
+    );
+    opacity: 0;
+    transition: opacity var(--duration-3) var(--ease-standard);
+    pointer-events: none;
+}
+
+.effect-picker__item:hover {
+    background: color-mix(in oklab, var(--color-bg-surface) 0%, var(--color-primary) 20%);
+    border-color: var(--color-primary);
+    transform: translateY(calc(var(--space-1) * -1));
+    box-shadow: var(--shadow-1);
+}
+
+.effect-picker__item:hover::before {
+    opacity: 0.05;
+}
+
+.effect-picker__item:focus-within {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-primary);
+}
+
+/* ========================================
+   Item Icon
+   ======================================== */
+
+.effect-picker__item-icon {
+    width: 48px;
+    height: 48px;
+    background: color-mix(in oklab, var(--color-bg-surface) 0%, var(--color-border) 20%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: var(--color-muted);
+    margin: 0 auto var(--space-2);
+    transition: all var(--duration-2) var(--ease-standard);
+    font-weight: 600;
+}
+
+.effect-picker__item:hover .effect-picker__item-icon {
+    background: color-mix(in oklab, var(--color-primary) 0%, var(--color-bg) 10%);
+    color: var(--color-primary);
+    transform: scale(1.1);
+}
+
+/* ========================================
+   Item Name
+   ======================================== */
+
+.effect-picker__item-name {
+    color: var(--color-fg);
+    font-size: 13px;
+    word-break: break-word;
+    font-weight: 500;
+    line-height: 1.4;
+    transition: color var(--duration-2) var(--ease-standard);
+}
+
+.effect-picker__item:hover .effect-picker__item-name {
+    color: var(--color-primary);
+}
+
+/* ========================================
+   Item Type Badge
+   ======================================== */
+
+.effect-picker__item-type {
+    display: inline-block;
+    color: color-mix(in oklab, var(--color-primary) 0%, var(--color-bg) 30%);
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: var(--space-1);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: color-mix(in oklab, var(--color-primary) 0%, var(--color-bg) 80%);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    transition: all var(--duration-2) var(--ease-standard);
+}
+
+.effect-picker__item:hover .effect-picker__item-type {
+    background: color-mix(in oklab, var(--color-primary) 0%, var(--color-bg) 60%);
+    color: var(--color-primary);
+}
+
+/* ========================================
+   Responsive Design
+   ======================================== */
+
+@media (max-width: 768px) {
+    .effect-picker {
+        width: 90vw;
+        max-height: 90vh;
+    }
+
+    .effect-picker__grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .effect-picker {
+        width: 95vw;
+        max-height: 95vh;
+    }
+
+    .effect-picker__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .effect-picker__header {
+        padding: var(--space-3);
+    }
+
+    .effect-picker__title {
+        font-size: 16px;
+    }
+}
+
+/* ========================================
+   Dark/Light Theme Support
+   ======================================== */
+
+[data-theme="light"] .effect-picker__overlay {
+    background: color-mix(in oklab, var(--color-bg) 0%, var(--color-fg) 30%);
+}
+
+[data-theme="high-contrast"] .effect-picker__item-icon {
+    border: 2px solid var(--color-border);
+}
+
+[data-theme="high-contrast"] .effect-picker__item:focus-within {
+    box-shadow: 0 0 0 3px var(--color-primary);
+}

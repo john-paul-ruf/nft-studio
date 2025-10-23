@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { Box, TextField, Typography, Button, Grid } from '@mui/material';
 import PositionSerializer from '../../../utils/PositionSerializer.js';
 import CenterUtils from '../../../utils/CenterUtils.js';
 import useDebounce from '../../../hooks/useDebounce.js';
+import './EffectInput.bem.css';
 
 function Point2DInput({ field, value, onChange, projectState }) {
     const [showPresets, setShowPresets] = useState(false);
@@ -174,98 +176,65 @@ function Point2DInput({ field, value, onChange, projectState }) {
     };
 
     return (
-        <div className="point2d-input">
-            <label>{field.label}</label>
+        <Box className="effect-input effect-input__point2d">
+            <Typography variant="subtitle2" className="effect-input__point2d-label">
+                {field.label}
+            </Typography>
 
             {/* Quick Position Presets */}
-            <div style={{ marginBottom: '0.5rem' }}>
-                <button
-                    type="button"
+            <Box>
+                <Button
+                    variant="outlined"
+                    size="small"
                     onClick={() => setShowPresets(!showPresets)}
-                    style={{
-                        background: 'rgba(255,255,255,0.1)',
-                        border: '1px solid #333',
-                        borderRadius: '4px',
-                        padding: '0.25rem 0.5rem',
-                        fontSize: '0.8rem',
-                        cursor: 'pointer',
-                        color: 'white'
-                    }}
+                    className="effect-input__point2d-quick-button"
                 >
                     📍 Quick Positions
-                </button>
+                </Button>
 
                 {showPresets && (
-                    <div style={{
-                        marginTop: '0.5rem',
-                        padding: '0.5rem',
-                        background: 'rgba(0,0,0,0.3)',
-                        borderRadius: '4px',
-                        border: '1px solid #333'
-                    }}>
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(3, 1fr)',
-                            gap: '0.25rem',
-                            fontSize: '0.7rem'
-                        }}>
+                    <Box className="effect-input__point2d-presets">
+                        <Grid container spacing={0.5} className="effect-input__point2d-preset-grid">
                             {positionPresets.map(preset => (
-                                <button
-                                    key={preset.name}
-                                    type="button"
-                                    onClick={() => handlePresetSelect(preset)}
-                                    style={{
-                                        background: 'rgba(255,255,255,0.1)',
-                                        border: '1px solid #555',
-                                        borderRadius: '3px',
-                                        padding: '0.25rem',
-                                        cursor: 'pointer',
-                                        color: 'white',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.25rem',
-                                        justifyContent: 'center'
-                                    }}
-                                    title={`${preset.x}, ${preset.y}`}
-                                >
-                                    <span>{preset.icon}</span>
-                                    <span>{preset.name}</span>
-                                </button>
+                                <Grid item xs={4} key={preset.name}>
+                                    <Button
+                                        fullWidth
+                                        size="small"
+                                        variant="outlined"
+                                        onClick={() => handlePresetSelect(preset)}
+                                        className="effect-input__point2d-preset-button"
+                                        title={`${preset.x}, ${preset.y}`}
+                                    >
+                                        <span>{preset.icon}</span>
+                                    </Button>
+                                </Grid>
                             ))}
-                        </div>
-                        <div style={{
-                            marginTop: '0.5rem',
-                            fontSize: '0.6rem',
-                            color: '#888',
-                            textAlign: 'center'
-                        }}>
+                        </Grid>
+                        <Typography 
+                            variant="caption" 
+                            className="effect-input__point2d-preset-info"
+                        >
                             Canvas: {width} × {height} ({projectState?.getIsHorizontal() ? 'Horizontal' : 'Vertical'})
-                        </div>
-                    </div>
+                        </Typography>
+                    </Box>
                 )}
-            </div>
+            </Box>
 
             {/* Manual Input Fields */}
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '0.5rem',
-                background: 'rgba(255,255,255,0.05)',
-                padding: '0.5rem',
-                borderRadius: '4px'
-            }}>
-                <div>
-                    <label style={{ fontSize: '0.8rem', color: '#ccc' }}>X Position</label>
-                    <input
+            <Grid container spacing={1} className="effect-input__point2d-inputs">
+                <Grid item xs={6}>
+                    <TextField
+                        fullWidth
                         type="number"
+                        size="small"
+                        label="X Position"
                         value={displayX}
                         onFocus={() => {
                             isXFocusedRef.current = true;
                         }}
                         onChange={(e) => {
                             const val = e.target.value;
-                            setDisplayX(val); // Update display immediately
-                            // Allow empty string and partial numbers during typing
+                            setDisplayX(val);
                             if (val === '' || val === '-') return;
                             const parsedVal = parseInt(val);
                             if (!isNaN(parsedVal)) {
@@ -278,28 +247,28 @@ function Point2DInput({ field, value, onChange, projectState }) {
                         }}
                         onBlur={(e) => {
                             isXFocusedRef.current = false;
-                            // On blur, restore current value if empty or invalid
                             const val = e.target.value;
                             if (val === '' || val === '-' || isNaN(parseInt(val))) {
                                 const latestValue = getCurrentValue();
                                 setDisplayX(String(latestValue.x || 0));
                             }
                         }}
-                        style={{ width: '100%' }}
+                        variant="outlined"
                     />
-                </div>
-                <div>
-                    <label style={{ fontSize: '0.8rem', color: '#ccc' }}>Y Position</label>
-                    <input
+                </Grid>
+                <Grid item xs={6}>
+                    <TextField
+                        fullWidth
                         type="number"
+                        size="small"
+                        label="Y Position"
                         value={displayY}
                         onFocus={() => {
                             isYFocusedRef.current = true;
                         }}
                         onChange={(e) => {
                             const val = e.target.value;
-                            setDisplayY(val); // Update display immediately
-                            // Allow empty string and partial numbers during typing
+                            setDisplayY(val);
                             if (val === '' || val === '-') return;
                             const parsedVal = parseInt(val);
                             if (!isNaN(parsedVal)) {
@@ -312,29 +281,26 @@ function Point2DInput({ field, value, onChange, projectState }) {
                         }}
                         onBlur={(e) => {
                             isYFocusedRef.current = false;
-                            // On blur, restore current value if empty or invalid
                             const val = e.target.value;
                             if (val === '' || val === '-' || isNaN(parseInt(val))) {
                                 const latestValue = getCurrentValue();
                                 setDisplayY(String(latestValue.y || 0));
                             }
                         }}
-                        style={{ width: '100%' }}
+                        variant="outlined"
                     />
-                </div>
-            </div>
+                </Grid>
+            </Grid>
 
             {/* Current Position Display */}
-            <div style={{
-                marginTop: '0.25rem',
-                fontSize: '0.7rem',
-                color: '#888',
-                textAlign: 'center'
-            }}>
+            <Typography 
+                variant="caption" 
+                className="effect-input__point2d-position-display"
+            >
                 Current: ({currentValue.x}, {currentValue.y})
                 {currentValue.x === Math.round(width / 2) && currentValue.y === Math.round(height / 2) && ' - Center'}
-            </div>
-        </div>
+            </Typography>
+        </Box>
     );
 }
 

@@ -1,0 +1,211 @@
+/**
+ * AttachedEffectsDisplay Component - BEM CSS
+ * Displays and manages secondary and keyframe attached effects
+ * Features: Dual effect type display, gradient buttons, styled chips with delete icons
+ * 
+ * CSS Variables (Color Design Tokens):
+ * - --attached-effects-container-bg: Container background (rgba(255, 193, 7, 0.1))
+ * - --attached-effects-container-border: Container border (rgba(255, 193, 7, 0.3))
+ * - --attached-effects-title-color: Main title color (#ffc107)
+ * - --attached-effects-secondary-color: Secondary effect text color (#28a745)
+ * - --attached-effects-secondary-bg: Secondary chip background (rgba(40, 167, 69, 0.2))
+ * - --attached-effects-secondary-bg-hover: Secondary chip hover background (rgba(40, 167, 69, 0.3))
+ * - --attached-effects-secondary-btn-start: Secondary button gradient start (#28a745)
+ * - --attached-effects-secondary-btn-end: Secondary button gradient end (#20c997)
+ * - --attached-effects-keyframe-color: Keyframe effect text color (#007bff)
+ * - --attached-effects-keyframe-bg: Keyframe chip background (rgba(0, 123, 255, 0.2))
+ * - --attached-effects-keyframe-bg-hover: Keyframe chip hover background (rgba(0, 123, 255, 0.3))
+ * - --attached-effects-keyframe-btn-start: Keyframe button gradient start (#007bff)
+ * - --attached-effects-keyframe-btn-end: Keyframe button gradient end (#0056b3)
+ * - --attached-effects-delete-icon-color: Delete icon color (#dc3545)
+ * - --attached-effects-delete-icon-hover: Delete icon hover color (#c82333)
+ */
+
+/* ============================================================================
+   CSS Variables - Color Design Tokens
+   ========================================================================== */
+
+:root {
+    --attached-effects-container-bg: rgba(255, 193, 7, 0.1);
+    --attached-effects-container-border: rgba(255, 193, 7, 0.3);
+    --attached-effects-title-color: #ffc107;
+    --attached-effects-secondary-color: #28a745;
+    --attached-effects-secondary-bg: rgba(40, 167, 69, 0.2);
+    --attached-effects-secondary-bg-hover: rgba(40, 167, 69, 0.3);
+    --attached-effects-secondary-btn-start: #28a745;
+    --attached-effects-secondary-btn-end: #20c997;
+    --attached-effects-keyframe-color: #007bff;
+    --attached-effects-keyframe-bg: rgba(0, 123, 255, 0.2);
+    --attached-effects-keyframe-bg-hover: rgba(0, 123, 255, 0.3);
+    --attached-effects-keyframe-btn-start: #007bff;
+    --attached-effects-keyframe-btn-end: #0056b3;
+    --attached-effects-delete-icon-color: #dc3545;
+    --attached-effects-delete-icon-hover: #c82333;
+}
+
+/* ============================================================================
+   Container
+   ========================================================================== */
+
+.attached-effects__container {
+    background: var(--attached-effects-container-bg, rgba(255, 193, 7, 0.1)) !important;
+    border: 1px solid var(--attached-effects-container-border, rgba(255, 193, 7, 0.3)) !important;
+    margin-top: var(--space-4) !important;
+    padding: var(--space-4) !important;
+    border-radius: var(--radius-md) !important;
+}
+
+/* ============================================================================
+   Title
+   ========================================================================== */
+
+.attached-effects__title {
+    color: var(--attached-effects-title-color, #ffc107) !important;
+    margin-bottom: 16px !important;
+}
+
+/* ============================================================================
+   Section
+   ========================================================================== */
+
+.attached-effects__section {
+    margin-bottom: 16px !important;
+}
+
+.attached-effects__section-header {
+    margin-bottom: 8px !important;
+}
+
+/* ============================================================================
+   Secondary Effects
+   ========================================================================== */
+
+.attached-effects__secondary-title {
+    color: var(--attached-effects-secondary-color, #28a745) !important;
+    font-weight: 600 !important;
+}
+
+.attached-effects__secondary-btn {
+    background: linear-gradient(
+        135deg,
+        var(--attached-effects-secondary-btn-start, #28a745) 0%,
+        var(--attached-effects-secondary-btn-end, #20c997) 100%
+    ) !important;
+}
+
+.attached-effects__secondary-btn:hover {
+    background: linear-gradient(
+        135deg,
+        var(--attached-effects-secondary-btn-end, #20c997) 0%,
+        var(--attached-effects-secondary-btn-start, #28a745) 100%
+    ) !important;
+}
+
+.attached-effects__secondary-chip {
+    background-color: var(--attached-effects-secondary-bg, rgba(40, 167, 69, 0.2)) !important;
+    color: var(--attached-effects-secondary-color, #28a745) !important;
+}
+
+.attached-effects__secondary-chip:hover {
+    background-color: var(--attached-effects-secondary-bg-hover, rgba(40, 167, 69, 0.3)) !important;
+    transform: scale(1.05);
+}
+
+.attached-effects__secondary-chip .MuiChip-deleteIcon {
+    color: var(--attached-effects-delete-icon-color, #dc3545) !important;
+}
+
+.attached-effects__secondary-chip .MuiChip-deleteIcon:hover {
+    color: var(--attached-effects-delete-icon-hover, #c82333) !important;
+}
+
+/* ============================================================================
+   Keyframe Effects
+   ========================================================================== */
+
+.attached-effects__keyframe-title {
+    color: var(--attached-effects-keyframe-color, #007bff) !important;
+    font-weight: 600 !important;
+}
+
+.attached-effects__keyframe-btn {
+    background: linear-gradient(
+        135deg,
+        var(--attached-effects-keyframe-btn-start, #007bff) 0%,
+        var(--attached-effects-keyframe-btn-end, #0056b3) 100%
+    ) !important;
+}
+
+.attached-effects__keyframe-btn:hover {
+    background: linear-gradient(
+        135deg,
+        var(--attached-effects-keyframe-btn-end, #0056b3) 0%,
+        var(--attached-effects-keyframe-btn-start, #007bff) 100%
+    ) !important;
+}
+
+.attached-effects__keyframe-chip {
+    background-color: var(--attached-effects-keyframe-bg, rgba(0, 123, 255, 0.2)) !important;
+    color: var(--attached-effects-keyframe-color, #007bff) !important;
+}
+
+.attached-effects__keyframe-chip:hover {
+    background-color: var(--attached-effects-keyframe-bg-hover, rgba(0, 123, 255, 0.3)) !important;
+    transform: scale(1.05);
+}
+
+.attached-effects__keyframe-chip .MuiChip-deleteIcon {
+    color: var(--attached-effects-delete-icon-color, #dc3545) !important;
+}
+
+.attached-effects__keyframe-chip .MuiChip-deleteIcon:hover {
+    color: var(--attached-effects-delete-icon-hover, #c82333) !important;
+}
+
+/* ============================================================================
+   Empty State
+   ========================================================================== */
+
+.attached-effects__empty-state {
+    color: var(--mui-palette-text-secondary, #999999) !important;
+    font-style: italic !important;
+    padding: 8px !important;
+}
+
+/* ============================================================================
+   Spacing & Layout
+   ========================================================================== */
+
+.attached-effects__effects-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    min-height: 2rem;
+}
+
+.attached-effects__section-spacing {
+    margin-bottom: var(--space-2) !important;
+}
+
+.attached-effects__section-header-spacing {
+    margin-bottom: var(--space-1) !important;
+}
+
+/* ============================================================================
+   Button Sizing
+   ========================================================================== */
+
+.attached-effects__secondary-btn,
+.attached-effects__keyframe-btn {
+    font-size: 0.75rem !important;
+    padding: calc(var(--space-1) / 2) var(--space-2) !important;
+}
+
+/* ============================================================================
+   Chip Sizing
+   ========================================================================== */
+
+.attached-effects__secondary-chip,
+.attached-effects__keyframe-chip {
+    font-size: 0.75rem !important;
+}
