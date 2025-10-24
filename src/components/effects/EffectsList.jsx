@@ -43,6 +43,8 @@ const isFinalEffect = (effect) => {
  * @param {Set} props.expandedEffects - Expanded state: new Set(['primary-0', 'final-1'])
  * @param {Object} props.selectedEffect - Current selection: { effectId, effectIndex, effectType, subIndex }
  * @param {Function} props.onEffectSelect - (index, type) => void
+ * @param {Function} props.onSecondarySelect - (parentIndex, secondaryIndex) => void
+ * @param {Function} props.onKeyframeSelect - (parentIndex, keyframeIndex) => void
  * @param {Function} props.onEffectDelete - (effectId) => void
  * @param {Function} props.onToggleExpand - (sectionKey) => void
  * @param {Function} props.onToggleVisibility - (effectId) => void
@@ -57,6 +59,8 @@ export default function EffectsList({
     expandedEffects = new Set(),
     selectedEffect = null,
     onEffectSelect = () => {},
+    onSecondarySelect = () => {},
+    onKeyframeSelect = () => {},
     onEffectDelete = () => {},
     onToggleExpand = () => {},
     onToggleVisibility = () => {},
@@ -345,12 +349,15 @@ export default function EffectsList({
                                 hasChildren={hasChildren}
                                 isReadOnly={isReadOnly}
                                 onSelect={() => handleEffectSelect(currentIndex, effectType)}
+                                onSecondarySelect={onSecondarySelect}
+                                onKeyframeSelect={onKeyframeSelect}
                                 onDelete={() => handleEffectDelete(effectId)}
                                 onToggleVisibility={() => handleToggleVisibility(effectId)}
                                 onToggleExpand={() => onToggleExpand(`${sectionType}-${sortedIndex}`)}
                                 onContextMenu={onContextMenu}
                                 secondaryEffects={secondaryEffects}
                                 keyframeEffects={keyframeEffects}
+                                selectedEffect={selectedEffect}
                                 onDragStart={handleDragStart}
                                 onDragOver={handleDragOver}
                                 onDrop={handleDrop}
@@ -400,6 +407,8 @@ EffectsList.propTypes = {
         subIndex: PropTypes.number
     }),
     onEffectSelect: PropTypes.func,
+    onSecondarySelect: PropTypes.func,
+    onKeyframeSelect: PropTypes.func,
     onEffectDelete: PropTypes.func,
     onToggleExpand: PropTypes.func,
     onToggleVisibility: PropTypes.func,

@@ -164,9 +164,9 @@
     --secondary-main: #b8824a;
     --background-default: #fafafa;
     --background-paper: #ffffff;
-    --text-primary: #1a1a1a;
-    --text-secondary: #6b6b6b;
-    --divider: #e0e0e0;
+    --text-primary: #000000;
+    --text-secondary: #000000;
+    --divider: #333333;
     --success-main: #4a854a;
     --warning-main: #cc8800;
     --error-main: #c53939;
@@ -177,12 +177,12 @@
     --shadow-heavy: rgba(0, 0, 0, 0.12);
     
     /* Token mappings for light theme */
-    --color-fg: #1a1a1a;
+    --color-fg: #000000;
     --color-bg: #fafafa;
     --color-surface-1: #ffffff;
     --color-surface-2: #f5f5f5;
-    --color-border: #e0e0e0;
-    --color-border-subtle: rgba(0, 0, 0, 0.08);
+    --color-border: #000000;
+    --color-border-subtle: rgba(0, 0, 0, 0.3);
     --color-primary: #2a6fbb;
     --color-secondary: #b8824a;
     --color-success: #4a854a;
@@ -190,10 +190,10 @@
     --color-error: #c53939;
     --color-info: #2a6fbb;
     --color-danger: #c53939;
-    --color-text-primary: #1a1a1a;
-    --color-text-secondary: #6b6b6b;
-    --color-text-muted: #6b6b6b;
-    --color-text-disabled: rgba(26, 26, 26, 0.5);
+    --color-text-primary: #000000;
+    --color-text-secondary: #000000;
+    --color-text-muted: #101010;
+    --color-text-disabled: rgba(0, 0, 0, 0.8);
     --color-text-inverse: #ffffff;
     --color-hover-bg: #f0f0f0;
     --color-active-bg: rgba(42, 111, 187, 0.1);
@@ -242,48 +242,6 @@
     --color-active-bg: rgba(90, 139, 181, 0.15);
     --color-focus-ring: #5a8bb5;
     --color-warning-dark: #b8862e;
-}
-
-[data-theme="high-contrast"] {
-    --primary-main: #0000ff;
-    --secondary-main: #ff00ff;
-    --background-default: #ffffff;
-    --background-paper: #f5f5f5;
-    --text-primary: #000000;
-    --text-secondary: #333333;
-    --divider: #000000;
-    --success-main: #008000;
-    --warning-main: #ff8800;
-    --error-main: #ff0000;
-    --info-main: #0000ff;
-    --action-hover: #eeeeee;
-    --shadow-light: rgba(0, 0, 0, 0.1);
-    --shadow-medium: rgba(0, 0, 0, 0.2);
-    --shadow-heavy: rgba(0, 0, 0, 0.3);
-    
-    /* Token mappings for high-contrast theme */
-    --color-fg: #000000;
-    --color-bg: #ffffff;
-    --color-surface-1: #f5f5f5;
-    --color-surface-2: #ffffff;
-    --color-border: #000000;
-    --color-border-subtle: rgba(0, 0, 0, 0.2);
-    --color-primary: #0000ff;
-    --color-secondary: #ff00ff;
-    --color-success: #008000;
-    --color-warning: #ff8800;
-    --color-error: #ff0000;
-    --color-info: #0000ff;
-    --color-danger: #ff0000;
-    --color-text-primary: #000000;
-    --color-text-secondary: #333333;
-    --color-text-muted: #666666;
-    --color-text-disabled: rgba(0, 0, 0, 0.5);
-    --color-text-inverse: #ffffff;
-    --color-hover-bg: #eeeeee;
-    --color-active-bg: rgba(0, 0, 255, 0.15);
-    --color-focus-ring: #0000ff;
-    --color-warning-dark: #cc6600;
 }
 
 body {
@@ -495,7 +453,6 @@ input, select, textarea {
 /* State-specific buttons with accessibility patterns */
 .btn-ready {
     background: var(--success-main);
-    color: white;
     position: relative;
 }
 
@@ -518,7 +475,6 @@ input, select, textarea {
 
 .btn-error {
     background: var(--error-main);
-    color: white;
 }
 
 /* Input required state with accessibility patterns */
@@ -639,14 +595,12 @@ input, select, textarea {
 
 .wizard-step.active {
     background: var(--primary-main);
-    color: white;
     border-color: var(--primary-main);
     transform: scale(1.02);
 }
 
 .wizard-step.completed {
     background: var(--success-main);
-    color: white;
     border-color: var(--success-main);
 }
 
@@ -678,7 +632,6 @@ input, select, textarea {
 /* Utility Classes for Color Blind Accessibility */
 .status-success {
     background: var(--success-main);
-    color: white;
     border-left: 4px solid currentColor;
     position: relative;
 }
@@ -706,7 +659,6 @@ input, select, textarea {
 
 .status-error {
     background: var(--error-main);
-    color: white;
     border-left: 4px solid currentColor;
     position: relative;
 }
@@ -720,7 +672,6 @@ input, select, textarea {
 
 .status-info {
     background: var(--info-main);
-    color: white;
     border-left: 4px solid currentColor;
     position: relative;
 }

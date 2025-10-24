@@ -259,6 +259,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                 const state = projectState.getState?.();
                 const effects = state?.effects || [];
                 let effect = null;
+                let effectData = null;
                 
                 // Try to find effect by ID
                 if (payload.effectId) {
@@ -266,16 +267,50 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                 }
                 
                 if (effect) {
+                    // For nested effects (secondary/keyframe), extract the nested effect data
+                    effectData = effect;
+                    
+                    if (payload.effectType === 'secondary' && payload.subIndex !== null && payload.subIndex !== undefined) {
+                        const secondaryEffect = effect.secondaryEffects?.[payload.subIndex];
+                        console.log('🎨 Canvas: Looking for secondary effect at subIndex:', {
+                            subIndex: payload.subIndex,
+                            found: !!secondaryEffect,
+                            secondaryName: secondaryEffect?.name
+                        });
+                        if (secondaryEffect) {
+                            effectData = secondaryEffect;
+                        }
+                    } else if (payload.effectType === 'keyframe' && payload.subIndex !== null && payload.subIndex !== undefined) {
+                        const keyframeEffect = effect.keyframeEffects?.[payload.subIndex];
+                        console.log('🎨 Canvas: Looking for keyframe effect at subIndex:', {
+                            subIndex: payload.subIndex,
+                            found: !!keyframeEffect,
+                            keyframeName: keyframeEffect?.name
+                        });
+                        if (keyframeEffect) {
+                            effectData = keyframeEffect;
+                        }
+                    }
+                    
+                    // Use effectData (which is the nested effect if applicable)
+                    console.log('🎨 Canvas: Setting selected effect with data:', {
+                        effectId: payload.effectId,
+                        effectType: payload.effectType,
+                        subIndex: payload.subIndex,
+                        effectName: effectData.name || effectData.className,
+                        configKeys: Object.keys(effectData.config || {}).slice(0, 3)
+                    });
+                    
                     setSelectedEffect({
                         effectId: payload.effectId,
                         effectIndex: payload.effectIndex,
                         effectType: payload.effectType,
                         subIndex: payload.subIndex,
-                        name: effect.name || effect.className,
-                        registryKey: effect.name || effect.className,
-                        className: effect.className,
-                        id: effect.id,
-                        config: effect.config || {},
+                        name: effectData.name || effectData.className,
+                        registryKey: effectData.name || effectData.className,
+                        className: effectData.className,
+                        id: effectData.id,
+                        config: effectData.config || {},
                     });
                     // Auto-expand config panel when effect is selected
                     setConfigPanelExpanded(true);

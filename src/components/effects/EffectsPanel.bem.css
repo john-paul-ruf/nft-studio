@@ -59,6 +59,38 @@
   --effects-panel-color-badge-secondary: #5cb85c;
   --effects-panel-color-badge-keyframe: #ff9800;
 
+  /* === Colors - Component-Specific States === */
+  --effects-panel-error-box-bg: #4a2c2c;
+  --effects-panel-error-box-text: #ff9999;
+  --effects-panel-error-box-border: none;
+  --effects-panel-status-box-bg: #1a2a3a;
+  --effects-panel-status-box-text: #90caf9;
+  --effects-panel-status-box-border: none;
+  --effects-panel-chip-bg: rgba(255, 183, 77, 0.16);
+  --effects-panel-chip-text: #ffb74d;
+  --effects-panel-icon-color: #888888;
+  --effects-panel-selected-bg: rgba(255, 183, 77, 0.24);
+  --effects-panel-selected-border: #ffb74d;
+  --effects-panel-selected-hover-bg: rgba(255, 183, 77, 0.32);
+  --effects-panel-secondary-item-bg: #2a2a2a;
+  --keyframe-selected-bg: rgba(129, 199, 132, 0.24);
+  --keyframe-selected-border: #81c784;
+  --keyframe-selected-hover-bg: rgba(129, 199, 132, 0.32);
+  --keyframe-hover-bg: rgba(255, 255, 255, 0.08);
+  --keyframe-item-arrow-color: rgba(255, 255, 255, 0.7);
+  --keyframe-item-name-color: rgba(255, 255, 255, 0.87);
+  --keyframe-chip-bg: rgba(129, 199, 132, 0.16);
+  --keyframe-chip-text: #81c784;
+  --keyframe-chip-border: rgba(255, 255, 255, 0.12);
+  --keyframe-visibility-btn-color: #81c784;
+  --keyframe-visibility-btn-hidden-color: #999999;
+  --keyframe-delete-btn-color: #e57373;
+  --keyframe-context-bg: #1a1a1a;
+  --keyframe-context-border: #404040;
+  --keyframe-context-item-color: rgba(255, 255, 255, 0.87);
+  --keyframe-context-item-hover-bg: rgba(255, 255, 255, 0.08);
+  --keyframe-context-item-disabled-color: rgba(255, 255, 255, 0.38);
+
   /* === Spacing === */
   --effects-panel-spacing-xs: 4px;
   --effects-panel-spacing-sm: 8px;
@@ -88,55 +120,58 @@
    ============================================================================ */
 
 [data-theme="light"] {
-  --effects-panel-bg-primary: #f5f5f5;
-  --effects-panel-bg-secondary: #eeeeee;
+  --effects-panel-bg-primary: #ffffff;
+  --effects-panel-bg-secondary: #f0f0f0;
   --effects-panel-bg-tertiary: #e8e8e8;
   --effects-panel-bg-hover: #e0e0e0;
-  --effects-panel-bg-disabled: #fafafa;
+  --effects-panel-bg-disabled: #f9f9f9;
 
-  --effects-panel-text-primary: #333333;
-  --effects-panel-text-secondary: #666666;
-  --effects-panel-text-muted: #999999;
-  --effects-panel-text-disabled: #cccccc;
+  --effects-panel-text-primary: #000000;
+  --effects-panel-text-secondary: #000000;
+  --effects-panel-text-muted: #000000;
+  --effects-panel-text-disabled: #000000;
   --effects-panel-text-contrast: #ffffff;
 
-  --effects-panel-border-color: #cccccc;
-  --effects-panel-border-light: #dddddd;
-  --effects-panel-border-focus: #4a90e2;
-  --effects-panel-border-divider: #d0d0d0;
+  --effects-panel-border-color: #000000;
+  --effects-panel-border-light: #000000;
+  --effects-panel-border-focus: #0000ff;
+  --effects-panel-border-divider: #000000;
 
-  --effects-panel-accent-primary: #2b7de9;
-  --effects-panel-accent-success: #28a745;
-  --effects-panel-accent-hover: #357abd;
-  --effects-panel-accent-active: #1e5ba8;
-}
+  --effects-panel-accent-primary: #0000ff;
+  --effects-panel-accent-success: #008000;
+  --effects-panel-accent-hover: #0000ff;
+  --effects-panel-accent-active: #000080;
 
-/* ============================================================================
-   CSS Variables - High Contrast Theme
-   ============================================================================ */
-
-[data-theme="high-contrast"] {
-  --effects-panel-bg-primary: #000000;
-  --effects-panel-bg-secondary: #1a1a1a;
-  --effects-panel-bg-tertiary: #0f0f0f;
-  --effects-panel-bg-hover: #2a2a2a;
-  --effects-panel-bg-disabled: #050505;
-
-  --effects-panel-text-primary: #ffffff;
-  --effects-panel-text-secondary: #ffffff;
-  --effects-panel-text-muted: #ffffff;
-  --effects-panel-text-disabled: #888888;
-  --effects-panel-text-contrast: #000000;
-
-  --effects-panel-border-color: #ffffff;
-  --effects-panel-border-light: #666666;
-  --effects-panel-border-focus: #ffff00;
-  --effects-panel-border-divider: #ffffff;
-
-  --effects-panel-accent-primary: #ffff00;
-  --effects-panel-accent-success: #00ff00;
-  --effects-panel-accent-hover: #ffff00;
-  --effects-panel-accent-active: #cccc00;
+  --effects-panel-error-box-bg: #ffffff;
+  --effects-panel-error-box-text: #ff0000;
+  --effects-panel-error-box-border: 2px solid #ff0000;
+  --effects-panel-status-box-bg: #ffffff;
+  --effects-panel-status-box-text: #0000ff;
+  --effects-panel-status-box-border: 2px solid #0000ff;
+  --effects-panel-chip-bg: rgba(0, 0, 255, 0.15);
+  --effects-panel-chip-text: #0000ff;
+  --effects-panel-icon-color: #000000;
+  --effects-panel-selected-bg: rgba(0, 0, 255, 0.2);
+  --effects-panel-selected-border: #0000ff;
+  --effects-panel-selected-hover-bg: rgba(0, 0, 255, 0.3);
+  --effects-panel-secondary-item-bg: #f5f5f5;
+  --keyframe-selected-bg: rgba(0, 128, 0, 0.2);
+  --keyframe-selected-border: #008000;
+  --keyframe-selected-hover-bg: rgba(0, 128, 0, 0.3);
+  --keyframe-hover-bg: rgba(0, 0, 0, 0.1);
+  --keyframe-item-arrow-color: #000000;
+  --keyframe-item-name-color: #000000;
+  --keyframe-chip-bg: rgba(0, 128, 0, 0.15);
+  --keyframe-chip-text: #008000;
+  --keyframe-chip-border: #000000;
+  --keyframe-visibility-btn-color: #008000;
+  --keyframe-visibility-btn-hidden-color: #000000;
+  --keyframe-delete-btn-color: #ff0000;
+  --keyframe-context-bg: #ffffff;
+  --keyframe-context-border: #000000;
+  --keyframe-context-item-color: #000000;
+  --keyframe-context-item-hover-bg: rgba(0, 0, 255, 0.1);
+  --keyframe-context-item-disabled-color: #000000;
 }
 
 /* ============================================================================
@@ -887,53 +922,21 @@
 .effect-configurer__error-box {
   margin-bottom: var(--effects-panel-spacing-md);
   padding: var(--effects-panel-spacing-md);
-  background-color: #ffebee;
+  background-color: var(--effects-panel-error-box-bg);
   border-radius: var(--effects-panel-radius-md);
-  color: #c62828;
-}
-
-[data-theme="dark"] .effect-configurer__error-box,
-:root .effect-configurer__error-box {
-  background-color: #4a2c2c;
-  color: #ff9999;
-}
-
-[data-theme="light"] .effect-configurer__error-box {
-  background-color: #ffebee;
-  color: #c62828;
-}
-
-[data-theme="high-contrast"] .effect-configurer__error-box {
-  background-color: #000000;
-  color: #ffff00;
-  border: 2px solid #ff4444;
+  color: var(--effects-panel-error-box-text);
+  border: var(--effects-panel-error-box-border);
 }
 
 /* Status/info box - displays status information */
 .effect-configurer__status-box {
   margin-bottom: var(--effects-panel-spacing-md);
   padding: var(--effects-panel-spacing-sm);
-  background-color: #e3f2fd;
+  background-color: var(--effects-panel-status-box-bg);
   border-radius: var(--effects-panel-radius-md);
-  color: #1565c0;
+  color: var(--effects-panel-status-box-text);
   font-size: 12px;
-}
-
-[data-theme="dark"] .effect-configurer__status-box,
-:root .effect-configurer__status-box {
-  background-color: #1a2a3a;
-  color: #90caf9;
-}
-
-[data-theme="light"] .effect-configurer__status-box {
-  background-color: #e3f2fd;
-  color: #1565c0;
-}
-
-[data-theme="high-contrast"] .effect-configurer__status-box {
-  background-color: #000000;
-  color: #ffff00;
-  border: 2px solid #4a90e2;
+  border: var(--effects-panel-status-box-border);
 }
 
 /* ============================================================================
@@ -964,32 +967,14 @@
   margin-bottom: 2px;
   border: 1px solid var(--effects-panel-border-color);
   border-radius: var(--effects-panel-border-radius);
-  background-color: var(--effects-panel-bg-secondary);
+  background-color: var(--effects-panel-secondary-item-bg);
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.secondary-effects-list__item[data-theme="dark"] {
-  background-color: #2a2a2a;
-}
-
-.secondary-effects-list__item[data-theme="light"] {
-  background-color: #f8f8f8;
-}
-
 .secondary-effects-list__item--selected {
-  border: 2px solid var(--effects-panel-accent-primary);
+  border: 2px solid var(--effects-panel-selected-border);
   background-color: var(--effects-panel-selected-bg);
-}
-
-[data-theme="dark"] .secondary-effects-list__item--selected {
-  background-color: rgba(255, 183, 77, 0.24);
-  border-color: #ffb74d;
-}
-
-[data-theme="light"] .secondary-effects-list__item--selected {
-  background-color: rgba(255, 152, 0, 0.12);
-  border-color: #f57c00;
 }
 
 .secondary-effects-list__item:hover {
@@ -998,14 +983,6 @@
 
 .secondary-effects-list__item--selected:hover {
   background-color: var(--effects-panel-selected-hover-bg);
-}
-
-[data-theme="dark"] .secondary-effects-list__item--selected:hover {
-  background-color: rgba(255, 183, 77, 0.32);
-}
-
-[data-theme="light"] .secondary-effects-list__item--selected:hover {
-  background-color: rgba(255, 152, 0, 0.16);
 }
 
 /* Icon and name container */
@@ -1045,16 +1022,6 @@
   font-family: "SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace;
   letter-spacing: 0.3px;
   white-space: nowrap;
-}
-
-[data-theme="dark"] .secondary-effects-list__item__id-chip {
-  background-color: rgba(255, 183, 77, 0.16);
-  color: #ffb74d;
-}
-
-[data-theme="light"] .secondary-effects-list__item__id-chip {
-  background-color: rgba(255, 152, 0, 0.08);
-  color: #f57c00;
 }
 
 .secondary-effects-list__item__id-chip:hover {
@@ -1190,35 +1157,17 @@
 
 /* Selected state */
 .keyframe-effects-list__item--selected {
-  background-color: var(--selected-background);
-  border: 2px solid var(--selected-border);
-}
-
-[data-theme="light"] .keyframe-effects-list__item--selected {
-  background-color: rgba(76, 175, 80, 0.12);
-  border-color: #388e3c;
-}
-
-[data-theme="dark"] .keyframe-effects-list__item--selected {
-  background-color: rgba(129, 199, 132, 0.24);
-  border-color: #81c784;
+  background-color: var(--keyframe-selected-bg);
+  border: 2px solid var(--keyframe-selected-border);
 }
 
 /* Hover state */
-[data-theme="light"] .keyframe-effects-list__item:not(.keyframe-effects-list__item--selected):hover {
-  background-color: rgba(0, 0, 0, 0.04);
+.keyframe-effects-list__item:not(.keyframe-effects-list__item--selected):hover {
+  background-color: var(--keyframe-hover-bg);
 }
 
-[data-theme="dark"] .keyframe-effects-list__item:not(.keyframe-effects-list__item--selected):hover {
-  background-color: rgba(255, 255, 255, 0.08);
-}
-
-[data-theme="light"] .keyframe-effects-list__item--selected:hover {
-  background-color: rgba(76, 175, 80, 0.16);
-}
-
-[data-theme="dark"] .keyframe-effects-list__item--selected:hover {
-  background-color: rgba(129, 199, 132, 0.32);
+.keyframe-effects-list__item--selected:hover {
+  background-color: var(--keyframe-selected-hover-bg);
 }
 
 /* Icon and name container */
@@ -1234,32 +1183,16 @@
   font-size: 14px;
   margin-right: 8px;
   flex-shrink: 0;
-  color: var(--effects-panel-text-secondary);
-}
-
-[data-theme="light"] .keyframe-effects-list__item__arrow-icon {
-  color: rgba(0, 0, 0, 0.6);
-}
-
-[data-theme="dark"] .keyframe-effects-list__item__arrow-icon {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--keyframe-item-arrow-color);
 }
 
 /* Effect name text with ellipsis */
 .keyframe-effects-list__item__name {
-  color: var(--effects-panel-text-primary);
+  color: var(--keyframe-item-name-color);
   font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-[data-theme="light"] .keyframe-effects-list__item__name {
-  color: rgba(0, 0, 0, 0.87);
-}
-
-[data-theme="dark"] .keyframe-effects-list__item__name {
-  color: rgba(255, 255, 255, 0.87);
 }
 
 /* ID badge styling */
@@ -1273,20 +1206,10 @@
   border-radius: 3px;
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--effects-panel-border-color);
+  border: 1px solid var(--keyframe-chip-border);
+  background-color: var(--keyframe-chip-bg);
+  color: var(--keyframe-chip-text);
   white-space: nowrap;
-}
-
-[data-theme="light"] .keyframe-effects-list__item__id-chip {
-  background-color: rgba(76, 175, 80, 0.08);
-  color: #388e3c;
-  border-color: rgba(0, 0, 0, 0.12);
-}
-
-[data-theme="dark"] .keyframe-effects-list__item__id-chip {
-  background-color: rgba(129, 199, 132, 0.16);
-  color: #81c784;
-  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .keyframe-effects-list__item__id-chip:hover {

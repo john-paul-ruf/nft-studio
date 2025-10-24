@@ -19,7 +19,7 @@
 }
 
 .page-wizard__dialog {
-    background: var(--color-bg-secondary, #2d2d2d);
+    background: var(--color-surface-1);
     border-radius: var(--radius-md);
     width: 100%;
     max-width: 500px;
@@ -28,13 +28,15 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    transition: background-color 0.3s ease;
 }
 
 /* Header: Title + Step Indicator */
 .page-wizard__header {
-    background: var(--color-bg-header, #323232);
+    background: var(--background-paper);
     padding: var(--space-6) calc(var(--space-6) + 6px);
     border-bottom: 1px solid var(--color-border);
+    transition: background-color 0.3s ease;
 }
 
 .page-wizard__title {
@@ -57,8 +59,8 @@
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background: var(--color-bg-tertiary, #444);
-    color: var(--color-muted);
+    background: var(--color-border);
+    color: var(--color-text-muted);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -75,7 +77,7 @@
 .page-wizard__line {
     width: 80px;
     height: 2px;
-    background: var(--color-bg-tertiary, #444);
+    background: var(--color-border);
     transition: background var(--duration-3) var(--ease-standard);
     flex-shrink: 0;
 }
@@ -100,7 +102,7 @@
 
 /* Form Elements */
 .page-wizard__label {
-    color: var(--color-muted);
+    color: var(--color-text-muted);
     font-size: 14px;
     margin-bottom: var(--space-4);
     text-transform: uppercase;
@@ -109,14 +111,14 @@
 }
 
 .page-wizard__input {
-    background: var(--color-bg);
+    background: var(--background-default);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
     padding: 12px 15px;
     color: var(--color-fg);
     font-size: 16px;
     outline: none;
-    transition: border-color var(--duration-3) var(--ease-standard);
+    transition: border-color var(--duration-3) var(--ease-standard), background-color 0.3s ease, color 0.3s ease;
     font-family: inherit;
 }
 
@@ -175,13 +177,14 @@
 
 /* Footer: Navigation Buttons */
 .page-wizard__footer {
-    background: var(--color-bg-header, #323232);
+    background: var(--background-paper);
     padding: calc(var(--space-5) - 2px) var(--space-6);
     border-top: 1px solid var(--color-border);
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: var(--space-5);
+    transition: background-color 0.3s ease;
 }
 
 .page-wizard__nav-buttons {
@@ -225,14 +228,14 @@
 
 /* Back Button */
 .page-wizard__button--back {
-    background: var(--color-bg-tertiary, #444);
+    background: var(--color-border);
     color: var(--color-fg);
-    border-color: var(--color-bg-tertiary, #444);
+    border-color: var(--color-border);
 }
 
 .page-wizard__button--back:hover {
-    background: var(--color-bg-tertiary-hover, #555);
-    border-color: var(--color-bg-tertiary-hover, #555);
+    background: var(--action-hover);
+    border-color: var(--action-hover);
 }
 
 .page-wizard__button--back:focus {

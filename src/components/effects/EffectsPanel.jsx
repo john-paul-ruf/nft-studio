@@ -122,6 +122,8 @@ export default function EffectsPanel({
      * The hook returns { effectId, effectIndex, effectType, subIndex }
      * But EffectConfigurer needs the full effect object with name, registryKey, etc.
      * 
+     * For secondary/keyframe effects, needs to navigate the parent → nested structure.
+     * 
      * IMPORTANT: Always returns enriched effect data (never null) to keep config panel open
      * when switching between effects. Panel only closes via explicit close button.
      */
@@ -141,7 +143,8 @@ export default function EffectsPanel({
                 if (!effect) {
                     console.warn('⚠️ EffectsPanel: Selected effect not found in ProjectState', {
                         effectId: selectedEffectState.effectId,
-                        effectIndex: selectedEffectState.effectIndex
+                        effectIndex: selectedEffectState.effectIndex,
+                        effectType: selectedEffectState.effectType
                     });
                     // Don't return null - return minimal effect object so panel stays open
                     // This keeps the panel open when switching effects
@@ -158,8 +161,55 @@ export default function EffectsPanel({
                 }
             }
             
+            // Handle secondary and keyframe effects
+            let effectData = effect;
+            console.log('🔍 EffectsPanel: Enriching effect:', {
+                effectId: selectedEffectState.effectId,
+                effectType: selectedEffectState.effectType,
+                subIndex: selectedEffectState.subIndex,
+                parentEffectName: effect.name,
+                hasSecondary: !!effect.secondaryEffects?.length,
+                hasKeyframe: !!effect.keyframeEffects?.length
+            });
+            
+            if (selectedEffectState.effectType === 'secondary' && selectedEffectState.subIndex !== null && selectedEffectState.subIndex !== undefined) {
+                const secondaryEffect = effect.secondaryEffects?.[selectedEffectState.subIndex];
+                console.log('🔍 EffectsPanel: Looking for secondary effect:', {
+                    subIndex: selectedEffectState.subIndex,
+                    found: !!secondaryEffect,
+                    secondaryEffectName: secondaryEffect?.name,
+                    parentSecondaryEffectsCount: effect.secondaryEffects?.length
+                });
+                if (secondaryEffect) {
+                    effectData = secondaryEffect;
+                } else {
+                    console.warn('⚠️ EffectsPanel: Secondary effect not found at subIndex', {
+                        parentEffectId: effect.id,
+                        subIndex: selectedEffectState.subIndex,
+                        availableCount: effect.secondaryEffects?.length
+                    });
+                }
+            } else if (selectedEffectState.effectType === 'keyframe' && selectedEffectState.subIndex !== null && selectedEffectState.subIndex !== undefined) {
+                const keyframeEffect = effect.keyframeEffects?.[selectedEffectState.subIndex];
+                console.log('🔍 EffectsPanel: Looking for keyframe effect:', {
+                    subIndex: selectedEffectState.subIndex,
+                    found: !!keyframeEffect,
+                    keyframeEffectName: keyframeEffect?.name,
+                    parentKeyframeEffectsCount: effect.keyframeEffects?.length
+                });
+                if (keyframeEffect) {
+                    effectData = keyframeEffect;
+                } else {
+                    console.warn('⚠️ EffectsPanel: Keyframe effect not found at subIndex', {
+                        parentEffectId: effect.id,
+                        subIndex: selectedEffectState.subIndex,
+                        availableCount: effect.keyframeEffects?.length
+                    });
+                }
+            }
+            
             // Return enriched selectedEffect with both selection metadata and full effect data
-            return {
+            const enrichedEffect = {
                 // Original selection metadata from hook
                 effectId: selectedEffectState.effectId,
                 effectIndex: selectedEffectState.effectIndex,
@@ -167,14 +217,23 @@ export default function EffectsPanel({
                 subIndex: selectedEffectState.subIndex,
                 
                 // Full effect data for EffectConfigurer
-                name: effect.name || effect.className,
-                registryKey: effect.name || effect.className,
-                className: effect.className,
-                id: effect.id,
+                name: effectData.name || effectData.className,
+                registryKey: effectData.name || effectData.className,
+                className: effectData.className,
+                id: effectData.id,
                 // 🔒 CRITICAL: Include config so EffectConfigPanel can pass it as initialConfig
-                config: effect.config || {},
+                config: effectData.config || {},
                 // ... any other effect properties that might be needed
             };
+            
+            console.log('✅ EffectsPanel: Enriched effect ready for EffectConfigurer:', {
+                selectedName: enrichedEffect.name,
+                effectType: enrichedEffect.effectType,
+                subIndex: enrichedEffect.subIndex,
+                configKeys: Object.keys(enrichedEffect.config || {}).slice(0, 5)
+            });
+            
+            return enrichedEffect;
         } catch (error) {
             console.error('❌ EffectsPanel: Error enriching selectedEffect:', error);
             // Even on error, return minimal effect object to keep panel open
@@ -432,7 +491,6 @@ export default function EffectsPanel({
         if (effect?.id) {
             // Pass effect ID to hook - it handles ID-to-index conversion internally
             selectEffect(effect.id, effectType);
-            setConfigPanelExpanded(true);
             // 🔒 CRITICAL: Include effectIndex in the event payload
             // This is needed for EffectConfigurer to have the correct context
             eventBusService?.emit('effect:selected', {
@@ -441,6 +499,112 @@ export default function EffectsPanel({
                 effectType,
             }, { component: 'EffectsPanel' });
             logger.logAction('effect:selected', 'Effect selected', { effectId: effect.id, effectType });
+        }
+    }, [projectState, selectEffect, eventBusService, logger]);
+
+    /**
+     * Handle secondary effect selection
+     */
+    const handleSecondarySelect = useCallback((parentIndex, secondaryIndex) => {
+        try {
+            console.log('🎯 EffectsPanel: handleSecondarySelect called:', { parentIndex, secondaryIndex });
+            const state = projectState?.getState?.();
+            const effects = state?.effects || [];
+            const parentEffect = effects[parentIndex];
+            
+            console.log('🎯 EffectsPanel: Parent effect:', {
+                found: !!parentEffect,
+                parentId: parentEffect?.id,
+                hasSecondaryEffects: !!parentEffect?.secondaryEffects?.length,
+                secondaryCount: parentEffect?.secondaryEffects?.length
+            });
+            
+            if (parentEffect?.id && parentEffect.secondaryEffects?.[secondaryIndex]) {
+                const secondaryEffect = parentEffect.secondaryEffects[secondaryIndex];
+                
+                console.log('🎯 EffectsPanel: Secondary effect found:', {
+                    parentId: parentEffect.id,
+                    secondaryIndex,
+                    secondaryName: secondaryEffect.name
+                });
+                
+                // Select the secondary effect with the parent ID and subIndex
+                selectEffect(parentEffect.id, 'secondary', secondaryIndex);
+                
+                eventBusService?.emit('effect:selected', {
+                    effectId: parentEffect.id,
+                    effectIndex: parentIndex,
+                    effectType: 'secondary',
+                    subIndex: secondaryIndex,
+                }, { component: 'EffectsPanel' });
+                
+                logger.logAction('secondary:effect:selected', 'Secondary effect selected', { 
+                    parentEffectId: parentEffect.id, 
+                    secondaryIndex 
+                });
+            } else {
+                console.warn('⚠️ EffectsPanel: handleSecondarySelect - parent not found or no secondary effect at index:', {
+                    parentIndex,
+                    secondaryIndex,
+                    parentFound: !!parentEffect,
+                    parentId: parentEffect?.id
+                });
+            }
+        } catch (error) {
+            console.error('❌ EffectsPanel: Error in handleSecondarySelect:', error);
+        }
+    }, [projectState, selectEffect, eventBusService, logger]);
+
+    /**
+     * Handle keyframe effect selection
+     */
+    const handleKeyframeSelect = useCallback((parentIndex, keyframeIndex) => {
+        try {
+            console.log('🎯 EffectsPanel: handleKeyframeSelect called:', { parentIndex, keyframeIndex });
+            const state = projectState?.getState?.();
+            const effects = state?.effects || [];
+            const parentEffect = effects[parentIndex];
+            
+            console.log('🎯 EffectsPanel: Parent effect for keyframe:', {
+                found: !!parentEffect,
+                parentId: parentEffect?.id,
+                hasKeyframeEffects: !!parentEffect?.keyframeEffects?.length,
+                keyframeCount: parentEffect?.keyframeEffects?.length
+            });
+            
+            if (parentEffect?.id && parentEffect.keyframeEffects?.[keyframeIndex]) {
+                const keyframeEffect = parentEffect.keyframeEffects[keyframeIndex];
+                
+                console.log('🎯 EffectsPanel: Keyframe effect found:', {
+                    parentId: parentEffect.id,
+                    keyframeIndex,
+                    keyframeName: keyframeEffect.name
+                });
+                
+                // Select the keyframe effect with the parent ID and subIndex
+                selectEffect(parentEffect.id, 'keyframe', keyframeIndex);
+                
+                eventBusService?.emit('effect:selected', {
+                    effectId: parentEffect.id,
+                    effectIndex: parentIndex,
+                    effectType: 'keyframe',
+                    subIndex: keyframeIndex,
+                }, { component: 'EffectsPanel' });
+                
+                logger.logAction('keyframe:effect:selected', 'Keyframe effect selected', { 
+                    parentEffectId: parentEffect.id, 
+                    keyframeIndex 
+                });
+            } else {
+                console.warn('⚠️ EffectsPanel: handleKeyframeSelect - parent not found or no keyframe effect at index:', {
+                    parentIndex,
+                    keyframeIndex,
+                    parentFound: !!parentEffect,
+                    parentId: parentEffect?.id
+                });
+            }
+        } catch (error) {
+            console.error('❌ EffectsPanel: Error in handleKeyframeSelect:', error);
         }
     }, [projectState, selectEffect, eventBusService, logger]);
 
@@ -505,6 +669,8 @@ export default function EffectsPanel({
                     expandedEffects={expandedEffects}
                     selectedEffect={selectedEffect}
                     onEffectSelect={handleEffectSelect}
+                    onSecondarySelect={handleSecondarySelect}
+                    onKeyframeSelect={handleKeyframeSelect}
                     onEffectDelete={handleEffectDelete}
                     onToggleExpand={handleToggleExpand}
                     onToggleVisibility={handleToggleVisibility}

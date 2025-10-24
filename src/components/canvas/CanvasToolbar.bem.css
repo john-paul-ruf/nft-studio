@@ -124,12 +124,10 @@
 .canvas-toolbar__icon-button {
   border-radius: var(--radius-md);
   transition: all var(--duration-2) var(--ease-standard);
-  color: var(--text-primary);
 }
 
 .canvas-toolbar__icon-button:hover:not(:disabled) {
   background-color: var(--color-primary);
-  color: white;
 }
 
 .canvas-toolbar__icon-button--readonly {
@@ -148,19 +146,16 @@
 
 .canvas-toolbar__render-button:hover:not(:disabled) {
   background-color: var(--color-primary);
-  color: white;
 }
 
 /* Zoom button */
 .canvas-toolbar__zoom-button {
-  color: var(--text-primary);
-  background-color: transparent;
+  background-color: var(--color-primary);
   position: relative;
 }
 
 .canvas-toolbar__zoom-button:hover:not(:disabled) {
   background-color: var(--color-primary);
-  color: white;
 }
 
 /* Orientation toggle button */
@@ -171,8 +166,7 @@
 
 /* Color scheme button */
 .canvas-toolbar__color-scheme-button {
-  color: var(--text-primary);
-  background-color: transparent;
+  background-color: var(--color-primary);
   position: relative;
 }
 
@@ -186,12 +180,12 @@
 
 .canvas-toolbar__color-scheme-button:hover:not(:disabled):not(.canvas-toolbar__color-scheme-button--readonly) {
   background-color: var(--color-primary);
-  color: white;
 }
 
 /* Pin button - special styling */
 .canvas-toolbar__pin-button {
   transition: all var(--duration-2) var(--ease-standard);
+  background-color: var(--color-primary);
 }
 
 .canvas-toolbar__pin-button--pinned {
@@ -202,12 +196,10 @@
 
 .canvas-toolbar__pin-button--pinned:hover {
   background-color: var(--warning-main);
-  color: white;
 }
 
 .canvas-toolbar__pin-button:not(.canvas-toolbar__pin-button--pinned):hover:not(:disabled) {
   background-color: var(--color-primary);
-  color: white;
 }
 
 @keyframes canvas-toolbar__pulse {
@@ -223,7 +215,6 @@
 
 .canvas-toolbar__save-button:hover:not(:disabled) {
   background-color: var(--color-primary);
-  color: white;
 }
 
 /* Settings & utility buttons */
@@ -235,7 +226,6 @@
 
 .canvas-toolbar__utility-button:hover:not(:disabled) {
   background-color: var(--color-primary);
-  color: white;
 }
 
 .canvas-toolbar__utility-button--readonly {

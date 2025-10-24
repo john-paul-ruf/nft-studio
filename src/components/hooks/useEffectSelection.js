@@ -79,7 +79,8 @@ export function useEffectSelection(projectState, isReadOnly = false) {
         effectId: effect.id,
         effectIndex,
         effectName: effect.name,
-        effectType
+        effectType,
+        subIndex
       });
 
       setSelectedEffect(selectionData);

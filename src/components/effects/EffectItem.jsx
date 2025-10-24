@@ -71,12 +71,15 @@ const formatEffectId = (id) => {
  * @param {boolean} props.hasChildren - Has secondary/keyframe effects
  * @param {boolean} props.isReadOnly - Read-only mode
  * @param {Function} props.onSelect - () => void - Called when effect clicked
+ * @param {Function} props.onSecondarySelect - (parentIndex, secondaryIndex) => void - Called when secondary effect clicked
+ * @param {Function} props.onKeyframeSelect - (parentIndex, keyframeIndex) => void - Called when keyframe effect clicked
  * @param {Function} props.onDelete - () => void - Called when delete confirmed
  * @param {Function} props.onToggleVisibility - () => void
  * @param {Function} props.onToggleExpand - () => void
  * @param {Function} props.onContextMenu - (effectId, position) => void (optional)
  * @param {Array} props.secondaryEffects - Available secondary effects for context menu
  * @param {Array} props.keyframeEffects - Available keyframe effects for context menu
+ * @param {Object} props.selectedEffect - Current selection state for highlighting nested effects
  * @param {Function} props.onDragStart - (e, index) => void - Drag start handler
  * @param {Function} props.onDragOver - (e) => void - Drag over handler
  * @param {Function} props.onDrop - (e, index) => void - Drop handler
@@ -92,12 +95,15 @@ export default function EffectItem({
     hasChildren = false,
     isReadOnly = false,
     onSelect = () => {},
+    onSecondarySelect = () => {},
+    onKeyframeSelect = () => {},
     onDelete = () => {},
     onToggleVisibility = () => {},
     onToggleExpand = () => {},
     onContextMenu = () => {},
     secondaryEffects = [],
     keyframeEffects = [],
+    selectedEffect = null,
     onDragStart = () => {},
     onDragOver = () => {},
     onDrop = () => {}
@@ -426,7 +432,9 @@ export default function EffectItem({
                                     parentEffect={effect}
                                     parentIndex={effectIndex}
                                     parentEffectId={effectId}
+                                    selectedEffect={selectedEffect}
                                     isReadOnly={isReadOnly}
+                                    onSecondarySelect={onSecondarySelect}
                                 />
                             )}
                             {effect.keyframeEffects && effect.keyframeEffects.length > 0 && (
@@ -434,7 +442,9 @@ export default function EffectItem({
                                     parentEffect={effect}
                                     parentIndex={effectIndex}
                                     parentEffectId={effectId}
+                                    selectedEffect={selectedEffect}
                                     isReadOnly={isReadOnly}
+                                    onKeyframeSelect={onKeyframeSelect}
                                 />
                             )}
                         </div>
@@ -512,12 +522,15 @@ EffectItem.propTypes = {
     hasChildren: PropTypes.bool,
     isReadOnly: PropTypes.bool,
     onSelect: PropTypes.func,
+    onSecondarySelect: PropTypes.func,
+    onKeyframeSelect: PropTypes.func,
     onDelete: PropTypes.func,
     onToggleVisibility: PropTypes.func,
     onToggleExpand: PropTypes.func,
     onContextMenu: PropTypes.func,
     secondaryEffects: PropTypes.array,
     keyframeEffects: PropTypes.array,
+    selectedEffect: PropTypes.object,
     onDragStart: PropTypes.func,
     onDragOver: PropTypes.func,
     onDrop: PropTypes.func

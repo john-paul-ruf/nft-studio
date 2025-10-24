@@ -303,32 +303,6 @@ function App() {
 
     return (
         <ServiceProvider value={contextValue}>
-            {isDev && (
-                <div
-                    className="app__theme-toggles"
-                    aria-label="Theme toggles (dev)"
-                >
-                    <span className="app__theme-label">Theme:</span>
-                    <button
-                        onClick={() => setTheme('light')}
-                        className={`app__theme-button app__theme-button--spaced ${theme === 'light' ? 'app__theme-button--active' : ''}`}
-                    >
-                        Light
-                    </button>
-                    <button
-                        onClick={() => setTheme('dark')}
-                        className={`app__theme-button app__theme-button--spaced ${theme === 'dark' ? 'app__theme-button--active' : ''}`}
-                    >
-                        Dark
-                    </button>
-                    <button
-                        onClick={() => setTheme('high-contrast')}
-                        className={`app__theme-button ${theme === 'high-contrast' ? 'app__theme-button--active' : ''}`}
-                    >
-                        HC
-                    </button>
-                </div>
-            )}
             <AppRouter />
         </ServiceProvider>
     );

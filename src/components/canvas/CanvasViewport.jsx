@@ -15,6 +15,29 @@ const CanvasViewport = forwardRef(({
 }, ref) => {
     const { canvasRef, frameHolderRef } = ref;
 
+    // Attach wheel event listener with passive: false to allow preventDefault()
+    useEffect(() => {
+        if (!frameHolderRef.current) return;
+
+        // Use a non-passive listener to allow preventDefault()
+        frameHolderRef.current.addEventListener('wheel', onWheel, { passive: false });
+
+        return () => {
+            if (frameHolderRef.current) {
+                frameHolderRef.current.removeEventListener('wheel', onWheel);
+            }
+        };
+    }, [onWheel]);
+
+    // Apply zoom and pan transforms to the frame holder
+    useEffect(() => {
+        if (frameHolderRef.current) {
+            const transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
+            frameHolderRef.current.style.setProperty('--frame-holder-transform', transform);
+            console.log('🖼️ CanvasViewport: Applied transform:', transform);
+        }
+    }, [zoom, pan]);
+
     // Clear canvas and update dimensions when dimensions change (e.g., orientation flip)
     useEffect(() => {
         if (canvasRef.current) {
@@ -89,7 +112,6 @@ const CanvasViewport = forwardRef(({
                     transform: `var(--frame-holder-transform)`,
                 }}
                 onMouseDown={onMouseDown}
-                onWheel={onWheel}
             >
                 <canvas
                     ref={canvasRef}

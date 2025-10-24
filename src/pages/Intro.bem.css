@@ -6,8 +6,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
-    /* Future: use tokens for gradient when added */
+    background: linear-gradient(135deg, var(--color-bg) 0%, var(--color-surface-1) 100%);
+    transition: background-color 0.3s ease;
 }
 
 .page-intro__content {
@@ -67,7 +67,7 @@
 .page-intro__icon {
     width: 48px;
     height: 48px;
-    color: var(--color-muted);
+    color: var(--color-text-muted);
     transition: color var(--duration-3) var(--ease-standard);
     stroke: currentColor;
 }
@@ -99,7 +99,7 @@
 
 .page-intro__button--disabled .page-intro__icon,
 .page-intro__button:disabled .page-intro__icon {
-    color: var(--color-muted);
+    color: var(--color-text-muted);
 }
 
 /* Accent modifier (e.g., Resume Loop with primary highlight) */
