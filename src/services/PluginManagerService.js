@@ -1,13 +1,15 @@
 import path from 'path';
 import fs from 'fs/promises';
+import { PluginDownloadService } from './PluginDownloadService.js';
 
 export class PluginManagerService {
-    constructor(appDataPath) {
+    constructor(appDataPath, logger = null) {
         this.appDataPath = appDataPath;
         this.pluginsDir = path.join(appDataPath, 'plugins');
         this.pluginsConfigPath = path.join(appDataPath, 'plugins-config.json');
         this.loadedPlugins = new Map();
         this.pluginConfigs = [];
+        this.downloadService = new PluginDownloadService(this.pluginsDir, logger);
     }
 
     async initialize() {
@@ -108,26 +110,45 @@ export class PluginManagerService {
             const stats = await fs.stat(fullPath);
 
             if (stats.isDirectory()) {
-                const packageJsonPath = path.join(fullPath, 'package.json');
-                const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'));
+                // Try package.json first
+                try {
+                    const packageJsonPath = path.join(fullPath, 'package.json');
+                    const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'));
 
-                if (!packageJson.main) {
-                    return { valid: false, error: 'Plugin package.json missing main entry point' };
+                    if (packageJson.main) {
+                        const mainFile = path.join(fullPath, packageJson.main);
+                        await fs.access(mainFile);
+
+                        return {
+                            valid: true,
+                            info: {
+                                name: packageJson.name,
+                                version: packageJson.version,
+                                description: packageJson.description,
+                                author: packageJson.author,
+                                main: packageJson.main
+                            }
+                        };
+                    }
+                } catch (error) {
+                    // Continue to check for default plugin.js
                 }
 
-                const mainFile = path.join(fullPath, packageJson.main);
-                await fs.access(mainFile);
-
-                return {
-                    valid: true,
-                    info: {
-                        name: packageJson.name,
-                        version: packageJson.version,
-                        description: packageJson.description,
-                        author: packageJson.author,
-                        main: packageJson.main
-                    }
-                };
+                // Check for default plugin.js
+                const defaultPluginPath = path.join(fullPath, 'plugin.js');
+                try {
+                    await fs.access(defaultPluginPath);
+                    return {
+                        valid: true,
+                        info: {
+                            type: 'directory',
+                            entryPoint: 'plugin.js',
+                            path: fullPath
+                        }
+                    };
+                } catch (error) {
+                    return { valid: false, error: 'Plugin directory must have plugin.js or package.json with main entry point' };
+                }
             } else if (stats.isFile() && pluginPath.endsWith('.js')) {
                 return { valid: true, info: { type: 'single-file' } };
             }
@@ -138,43 +159,108 @@ export class PluginManagerService {
         }
     }
 
-    async installFromNpm(packageName) {
+    /**
+     * Install a plugin from npm registry
+     * Works in both development and production environments
+     * Downloads directly from npm registry without requiring npm CLI
+     * @param {string} packageName - Package name to install
+     * @param {Function} onProgress - Optional callback for progress updates (percentage, message)
+     * @returns {Promise<Object>} Installation result
+     */
+    async installFromNpm(packageName, onProgress = null) {
         try {
-            const { exec } = await import('child_process');
-            const { promisify } = await import('util');
-            const execAsync = promisify(exec);
+            // Download and extract from npm registry
+            const result = await this.downloadService.installPackage(packageName, onProgress);
 
-            const installPath = path.join(this.pluginsDir, 'node_modules');
-            await fs.mkdir(installPath, { recursive: true });
-
-            const { stdout, stderr } = await execAsync(
-                `npm install ${packageName}`,
-                { cwd: this.pluginsDir }
-            );
-
-            if (stderr && !stderr.includes('WARN')) {
-                throw new Error(stderr);
+            if (!result.success) {
+                return { success: false, error: result.error };
             }
 
-            const packagePath = path.join(installPath, packageName);
-            const validation = await this.validatePlugin(packagePath);
-
-            if (!validation.valid) {
-                throw new Error(validation.error);
-            }
-
+            // Add to plugin configuration
             await this.addPlugin({
-                name: validation.info.name || packageName,
-                path: packagePath,
+                name: result.info.name || packageName,
+                path: result.extractPath,
                 type: 'npm',
-                version: validation.info.version,
+                version: result.info.version,
+                description: result.info.description,
                 enabled: true
             });
 
-            return { success: true, message: `Plugin ${packageName} installed successfully` };
+            return {
+                success: true,
+                message: `Plugin ${packageName} installed successfully`,
+                info: result.info
+            };
         } catch (error) {
             return { success: false, error: error.message };
         }
+    }
+
+    /**
+     * Install multiple plugins from npm
+     * Useful for batch operations
+     * @param {Array<string>} packageNames - Array of package names
+     * @param {Function} onProgress - Optional callback for overall progress
+     * @returns {Promise<Array>} Array of installation results
+     */
+    async installMultipleFromNpm(packageNames, onProgress = null) {
+        const results = [];
+        const total = packageNames.length;
+
+        for (let i = 0; i < total; i++) {
+            const packageName = packageNames[i];
+            const progress = Math.round((i / total) * 100);
+
+            if (onProgress) {
+                onProgress(progress, `Installing ${i + 1}/${total}: ${packageName}`);
+            }
+
+            const result = await this.installFromNpm(packageName);
+            results.push({
+                package: packageName,
+                ...result
+            });
+        }
+
+        return results;
+    }
+
+    /**
+     * Resolve plugin entry point - handles both directory and file plugins
+     * @private
+     * @param {string} fullPath - Full path to plugin (directory or file)
+     * @returns {Promise<string>} Resolved entry point path
+     */
+    async _resolvePluginEntryPoint(fullPath) {
+        const stats = await fs.stat(fullPath);
+        
+        if (stats.isDirectory()) {
+            // For directories, try package.json main field first, then default to plugin.js
+            try {
+                const packageJsonPath = path.join(fullPath, 'package.json');
+                const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'));
+                
+                if (packageJson.main) {
+                    const mainFile = path.join(fullPath, packageJson.main);
+                    await fs.access(mainFile);
+                    return mainFile;
+                }
+            } catch (error) {
+                // package.json doesn't exist or main field not found, continue to default
+            }
+            
+            // Try default plugin.js
+            const defaultPluginPath = path.join(fullPath, 'plugin.js');
+            try {
+                await fs.access(defaultPluginPath);
+                return defaultPluginPath;
+            } catch (error) {
+                throw new Error(`Plugin directory ${fullPath} has no plugin.js and no package.json with main field`);
+            }
+        }
+        
+        // If it's a file, return as-is
+        return fullPath;
     }
 
     async loadPluginsForGeneration() {
@@ -187,9 +273,12 @@ export class PluginManagerService {
                     ? plugin.path
                     : path.join(this.pluginsDir, plugin.path);
 
+                // Resolve entry point for directory plugins
+                const entryPoint = await this._resolvePluginEntryPoint(fullPath);
+
                 loadResults.push({
                     name: plugin.name,
-                    path: fullPath,
+                    path: entryPoint,
                     success: true
                 });
             } catch (error) {

@@ -18,6 +18,7 @@ import {
     Tab,
     Alert,
     CircularProgress,
+    LinearProgress,
     Chip,
     Divider,
     Tooltip
@@ -56,6 +57,8 @@ export default function PluginManagerDialog({ open, onClose }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [installProgress, setInstallProgress] = useState(0);
+    const [installStatus, setInstallStatus] = useState('');
 
     // Debounced setter for npm package input (300ms for text input)
     const debouncedSetNpmPackage = useDebounce(setNpmPackage, 300);
@@ -81,6 +84,24 @@ export default function PluginManagerDialog({ open, onClose }) {
             loadPlugins();
         }
     }, [open, loadPlugins]);
+
+    // Listen for progress updates from main process
+    useEffect(() => {
+        if (!window.api || !window.api.on) {
+            return;
+        }
+
+        const unsubscribe = window.api.on('plugins:install-progress', (data) => {
+            setInstallProgress(data.percentage);
+            setInstallStatus(data.message);
+        });
+
+        return () => {
+            if (unsubscribe) {
+                unsubscribe();
+            }
+        };
+    }, []);
 
     const handleTogglePlugin = async (pluginName) => {
         try {
@@ -121,9 +142,14 @@ export default function PluginManagerDialog({ open, onClose }) {
         try {
             setLoading(true);
             setError('');
+            setInstallProgress(0);
+            setInstallStatus('Starting installation...');
+
             const result = await window.api.plugins.installFromNpm(npmPackage);
+            
             if (result.success) {
-                setSuccess(result.message + ' Refreshing effects...');
+                setInstallStatus('Installation complete! Refreshing effects...');
+                setInstallProgress(100);
                 setNpmPackage('');
                 await loadPlugins();
 
@@ -131,17 +157,25 @@ export default function PluginManagerDialog({ open, onClose }) {
                 // Pass false to reload plugins since we just installed a new one
                 const refreshResult = await window.api.refreshEffectRegistry(false);
                 if (refreshResult.success) {
-                    setSuccess('Plugin installed and effects refreshed successfully!');
+                    setSuccess('✅ Plugin installed and effects refreshed successfully!');
                 } else {
-                    setSuccess('Plugin installed (refresh effects list to see new effects)');
+                    setSuccess('✅ Plugin installed (refresh effects list to see new effects)');
                 }
 
-                setTimeout(() => setSuccess(''), 5000);
+                setTimeout(() => {
+                    setSuccess('');
+                    setInstallProgress(0);
+                    setInstallStatus('');
+                }, 5000);
             } else {
                 setError(result.error || 'Failed to install plugin');
+                setInstallProgress(0);
+                setInstallStatus('');
             }
         } catch (err) {
             setError('Error installing plugin: ' + err.message);
+            setInstallProgress(0);
+            setInstallStatus('');
         } finally {
             setLoading(false);
         }
@@ -314,6 +348,21 @@ export default function PluginManagerDialog({ open, onClose }) {
                             <Typography variant="body2" color="text.secondary" gutterBottom>
                                 Install a plugin package from the NPM registry
                             </Typography>
+                            
+                            {installProgress > 0 && installProgress < 100 && (
+                                <Box style={{ marginBottom: '12px' }}>
+                                    <Box style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            {installStatus}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            {installProgress}%
+                                        </Typography>
+                                    </Box>
+                                    <LinearProgress variant="determinate" value={installProgress} />
+                                </Box>
+                            )}
+                            
                             <Box className="plugin-manager-dialog__form-box plugin-manager-dialog__form-box--input-row">
                                 <TextField
                                     fullWidth
@@ -330,11 +379,11 @@ export default function PluginManagerDialog({ open, onClose }) {
                                 />
                                 <Button
                                     variant="contained"
-                                    startIcon={<GetApp />}
+                                    startIcon={loading ? <CircularProgress size={20} /> : <GetApp />}
                                     onClick={handleInstallNpmPlugin}
                                     disabled={loading || !npmPackage.trim()}
                                 >
-                                    Install
+                                    {loading ? 'Installing...' : 'Install'}
                                 </Button>
                             </Box>
                         </Box>

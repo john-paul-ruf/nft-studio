@@ -2,15 +2,40 @@ import electron from 'electron'
 const { app, BrowserWindow } = electron
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import fs from 'node:fs'
 import SolidIpcHandlers from './src/main/modules/SolidIpcHandlers.js'
 import SafeConsole from './src/main/utils/SafeConsole.js'
 import NodeConsoleInterceptor from './src/main/utils/NodeConsoleInterceptor.js'
+import AsarModuleResolver from './src/utils/AsarModuleResolver.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // Start console interception IMMEDIATELY (before any other code runs)
 // This ensures we capture ALL console output from app startup
 NodeConsoleInterceptor.startIntercepting()
+
+// Configure module resolution for ASAR-packaged apps BEFORE any services load
+// This ensures bundled modules like my-nft-gen can be resolved by plugins and services
+const asarResolver = AsarModuleResolver
+const nodeModulesPath = asarResolver.getNodeModulesPath()
+
+// CRITICAL: Set NODE_PATH environment variable for ES module resolution
+// This must be set BEFORE any modules are loaded, and is essential for plugins
+// to resolve dependencies like my-nft-gen when dynamically imported from outside the app bundle
+const existingNodePath = process.env.NODE_PATH || ''
+const newNodePath = existingNodePath 
+  ? `${nodeModulesPath}${path.delimiter}${existingNodePath}`
+  : nodeModulesPath
+process.env.NODE_PATH = newNodePath
+
+// Verify the path exists and contains my-nft-gen
+const myNftGenPath = path.join(nodeModulesPath, 'my-nft-gen')
+const nodeModulesExists = fs.existsSync(nodeModulesPath)
+const myNftGenExists = fs.existsSync(myNftGenPath)
+
+SafeConsole.log(`[AsarModuleResolver] ✅ NODE_PATH set to: ${newNodePath}`)
+SafeConsole.log(`[AsarModuleResolver] ℹ️  node_modules exists: ${nodeModulesExists}`)
+SafeConsole.log(`[AsarModuleResolver] ℹ️  my-nft-gen exists: ${myNftGenExists}`)
 
 // Handle EPIPE errors globally to prevent crashes
 process.on('uncaughtException', (error) => {
@@ -79,19 +104,31 @@ let ipcHandlers = null
 
 // App event handlers
 app.whenReady().then(async () => {
-  // Create SOLID IPC handlers manager
-  ipcHandlers = new SolidIpcHandlers()
+  try {
+    SafeConsole.log('📱 [main] app.whenReady() fired, initializing...')
+    
+    // Create SOLID IPC handlers manager
+    ipcHandlers = new SolidIpcHandlers()
+    SafeConsole.log('📱 [main] SolidIpcHandlers created')
 
-  // Register all IPC handlers using dependency injection
-  // This is now async - waits for effects to be initialized
-  await ipcHandlers.registerHandlers()
+    // Register all IPC handlers using dependency injection
+    // This is now async - waits for effects to be initialized
+    SafeConsole.log('📱 [main] Registering IPC handlers...')
+    await ipcHandlers.registerHandlers()
+    SafeConsole.log('✅ [main] IPC handlers registered successfully')
 
-  // Create the main window
-  createWindow()
+    // Create the main window
+    SafeConsole.log('📱 [main] Creating main window...')
+    createWindow()
+    SafeConsole.log('✅ [main] Main window created')
 
-  app.on('activate', function () {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
+    app.on('activate', function () {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
+  } catch (error) {
+    SafeConsole.error('❌ [main] Error during app initialization:', error)
+    process.exit(1)
+  }
 })
 
 app.on('window-all-closed', function () {

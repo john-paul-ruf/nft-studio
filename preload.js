@@ -117,5 +117,24 @@ contextBridge.exposeInMainWorld('api', {
         selectLocal: () => ipcRenderer.invoke('plugins:select-local'),
         getForGeneration: () => ipcRenderer.invoke('plugins:get-for-generation'),
         getDebugLogPath: () => ipcRenderer.invoke('plugins:get-debug-log-path')
+    },
+
+    // Event listeners for async updates
+    on: (channel, callback) => {
+        // Create a wrapper for the listener
+        const listener = (event, data) => {
+            callback(data);
+        };
+        
+        ipcRenderer.on(channel, listener);
+        
+        // Return unsubscribe function
+        return () => {
+            ipcRenderer.removeListener(channel, listener);
+        };
+    },
+    
+    off: (channel, callback) => {
+        ipcRenderer.removeListener(channel, callback);
     }
 });

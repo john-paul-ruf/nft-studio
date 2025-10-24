@@ -769,78 +769,64 @@ class EffectRegistryService {
                         try {
                             SafeConsole.log(`🔄 [EffectRegistryService] Loading plugin: ${pluginInfo.name} from ${pluginInfo.path}`);
 
-                            // Try PluginLoader first for development compatibility
-                            let loadedSuccessfully = false;
-
-                            // Always try direct loading methods first (both in dev and production)
-                            // The secure loader should only be used as a last resort
-                            
-                            // Try the standard PluginLoader first
+                            // Use SecurePluginLoader for all plugins (handles import rewriting for my-nft-gen)
                             try {
-                                SafeConsole.log(`🔄 [EffectRegistryService] Attempting PluginLoader for: ${pluginInfo.name}`);
+                                SafeConsole.log(`🔄 [EffectRegistryService] Loading with SecurePluginLoader: ${pluginInfo.name}`);
                                 SafeConsole.log(`   Plugin path: ${pluginInfo.path}`);
-                                await PluginLoader.loadPlugin(pluginInfo.path);
-                                SafeConsole.log(`✅ [EffectRegistryService] Plugin loaded via PluginLoader: ${pluginInfo.name}`);
-                                loadedSuccessfully = true;
-                            } catch (loaderError) {
-                                SafeConsole.log(`⚠️ [EffectRegistryService] PluginLoader failed for ${pluginInfo.name}`);
-                                SafeConsole.log(`   Error name: ${loaderError.name}`);
-                                SafeConsole.log(`   Error message: ${loaderError.message}`);
+                                // Use loadPluginInMainProcess to load plugins with full Node.js module access
+                                // This allows plugins to use my-nft-gen and native modules like 'sharp'
+                                const result = await this.securePluginLoader.loadPluginInMainProcess(pluginInfo.path);
+                                SafeConsole.log(`✅ [EffectRegistryService] Plugin loaded successfully: ${pluginInfo.name}`);
                                 
-                                // Check for circular dependency error
-                                if (loaderError.message && loaderError.message.includes('before initialization')) {
-                                    SafeConsole.log(`   ⚠️ Circular dependency detected - this may be a timing issue`);
-                                    SafeConsole.log(`   💡 Retrying after a short delay...`);
-                                    
-                                    // Wait a bit longer and retry
-                                    await new Promise(resolve => setTimeout(resolve, 500));
+                                // Register loaded effects with the actual EffectRegistry
+                                if (result.success && result.effects && result.effects.length > 0) {
+                                    SafeConsole.log(`📝 [EffectRegistryService] Registering ${result.effects.length} effect(s) from ${pluginInfo.name}`);
                                     
                                     try {
-                                        await PluginLoader.loadPlugin(pluginInfo.path);
-                                        SafeConsole.log(`✅ [EffectRegistryService] Plugin loaded via PluginLoader (retry): ${pluginInfo.name}`);
-                                        loadedSuccessfully = true;
-                                    } catch (retryError) {
-                                        SafeConsole.log(`   ⚠️ Retry also failed, trying alternative method...`);
-                                    }
-                                }
-                                
-                                if (loaderError.stack) {
-                                    SafeConsole.log(`   Error stack: ${loaderError.stack}`);
-                                }
-                                
-                                // Try direct ES module import as a second attempt (if not already loaded)
-                                if (!loadedSuccessfully) {
-                                    try {
-                                        SafeConsole.log(`🔄 [EffectRegistryService] Attempting direct ES module import for: ${pluginInfo.name}`);
-                                        SafeConsole.log(`   Plugin path: ${pluginInfo.path}`);
-                                        await this.loadPluginAsESModule(pluginInfo.path);
-                                        SafeConsole.log(`✅ [EffectRegistryService] Plugin loaded via direct import: ${pluginInfo.name}`);
-                                        loadedSuccessfully = true;
-                                    } catch (importError) {
-                                        SafeConsole.log(`⚠️ [EffectRegistryService] Direct import failed for ${pluginInfo.name}`);
-                                        SafeConsole.log(`   Error name: ${importError.name}`);
-                                        SafeConsole.log(`   Error message: ${importError.message}`);
-                                        if (importError.stack) {
-                                            SafeConsole.log(`   Error stack: ${importError.stack}`);
+                                        // Get the real EffectRegistry to register effects
+                                        const { EffectRegistry } = await this._loadModules();
+                                        
+                                        for (const effectData of result.effects) {
+                                            try {
+                                                SafeConsole.log(`   - Registering effect: ${effectData.name} (${effectData.category})`);
+                                                
+                                                // Use the actual effect class if available (from main process loader)
+                                                // Otherwise, create a wrapper for isolated window results
+                                                const EffectToRegister = effectData.effectClass || this.createSafeEffectWrapper(effectData);
+                                                
+                                                // Register with the actual registry using the static method
+                                                EffectRegistry.registerGlobal(EffectToRegister, effectData.category, {
+                                                    source: 'plugin',
+                                                    pluginName: pluginInfo.name
+                                                });
+                                                
+                                                SafeConsole.log(`   ✅ Effect registered: ${effectData.name}`);
+                                            } catch (regError) {
+                                                SafeConsole.log(`   ⚠️ Warning registering ${effectData.name}: ${regError.message}`);
+                                            }
                                         }
+                                    } catch (registryError) {
+                                        SafeConsole.log(`⚠️ [EffectRegistryService] Could not register effects: ${registryError.message}`);
                                     }
+                                } else if (!result.success) {
+                                    SafeConsole.log(`⚠️ [EffectRegistryService] Plugin failed to load: ${result.error || 'Unknown error'}`);
+                                } else {
+                                    SafeConsole.log(`ℹ️ [EffectRegistryService] No effects returned from ${pluginInfo.name}`);
                                 }
-                            }
-
-                            // If all loading methods failed, log detailed error
-                            if (!loadedSuccessfully) {
-                                SafeConsole.log(`❌ [EffectRegistryService] All plugin loading methods failed for: ${pluginInfo.name}`);
+                            } catch (error) {
+                                SafeConsole.log(`❌ [EffectRegistryService] Failed to load plugin: ${pluginInfo.name}`);
                                 SafeConsole.log(`   Plugin path: ${pluginInfo.path}`);
+                                SafeConsole.log(`   Error: ${error.message}`);
                                 SafeConsole.log(`   `);
-                                SafeConsole.log(`   💡 Troubleshooting tips:`);
+                                SafeConsole.log(`   💡 Troubleshooting:`);
                                 SafeConsole.log(`   1. Ensure the plugin has a valid 'register' function exported`);
-                                SafeConsole.log(`   2. Check that all dependencies (like my-nft-gen) are installed in the plugin directory`);
+                                SafeConsole.log(`   2. Check that all dependencies (like my-nft-gen) are properly installed`);
                                 SafeConsole.log(`   3. Verify the plugin's package.json has "type": "module"`);
                                 SafeConsole.log(`   4. Make sure the plugin file is named 'plugin.js', 'index.js', or 'main.js'`);
-                                SafeConsole.log(`   `);
-                                SafeConsole.log(`   Note: The secure sandbox loader has been disabled because it cannot`);
-                                SafeConsole.log(`   load plugins that require Node.js modules like my-nft-gen.`);
-                                SafeConsole.log(`   Plugins must be compatible with direct ES module loading.`);
+                                SafeConsole.log(`   5. Check the logs above for SecurePluginLoader import rewriting issues`);
+                                if (error.stack) {
+                                    SafeConsole.log(`   Stack trace: ${error.stack}`);
+                                }
                             }
                         } catch (error) {
                             SafeConsole.log(`❌ [EffectRegistryService] Failed to load plugin ${pluginInfo.name}:`, error);
@@ -865,74 +851,12 @@ class EffectRegistryService {
     }
 
     /**
-     * Load a plugin as an ES module using Node.js native import
-     * @param {string} pluginPath - Path to plugin file or directory
-     * @returns {Promise<void>}
-     */
-    async loadPluginAsESModule(pluginPath) {
-        try {
-            // Load required modules first
-            const { EffectRegistry, PluginRegistry } = await this._loadModules();
-            
-            // Determine the actual plugin file
-            let pluginFile = pluginPath;
-            const stats = await fs.stat(pluginPath);
-
-            if (stats.isDirectory()) {
-                // Look for main entry point
-                const possibleFiles = ['plugin.js', 'index.js', 'main.js'];
-                let found = false;
-                for (const file of possibleFiles) {
-                    const testPath = path.join(pluginPath, file);
-                    try {
-                        await fs.access(testPath);
-                        pluginFile = testPath;
-                        SafeConsole.log(`📁 [EffectRegistryService] Found plugin entry: ${file}`);
-                        found = true;
-                        break;
-                    } catch (e) {
-                        // Continue to next file
-                    }
-                }
-                if (!found) {
-                    throw new Error(`No valid entry point found in plugin directory: ${pluginPath}`);
-                }
-            }
-
-            // Convert to file URL for ES module import
-            const pluginUrl = pathToFileURL(pluginFile).href;
-            SafeConsole.log(`📦 [EffectRegistryService] Importing ES module from: ${pluginUrl}`);
-
-            // Import the plugin module
-            const pluginModule = await import(pluginUrl);
-            SafeConsole.log(`✅ [EffectRegistryService] ES module imported successfully`);
-
-            // Check if plugin has a register function
-            if (pluginModule.register && typeof pluginModule.register === 'function') {
-                SafeConsole.log(`🔄 [EffectRegistryService] Calling plugin register function`);
-                await pluginModule.register(EffectRegistry, PluginRegistry);
-                SafeConsole.log(`✅ [EffectRegistryService] Plugin registered successfully`);
-            } else if (pluginModule.default && typeof pluginModule.default.register === 'function') {
-                // Try default export
-                SafeConsole.log(`🔄 [EffectRegistryService] Calling plugin register function (default export)`);
-                await pluginModule.default.register(EffectRegistry, PluginRegistry);
-                SafeConsole.log(`✅ [EffectRegistryService] Plugin registered successfully`);
-            } else {
-                throw new Error('Plugin does not export a register() function');
-            }
-        } catch (error) {
-            SafeConsole.log(`❌ [EffectRegistryService] Failed to load plugin as ES module: ${error.message}`);
-            throw error;
-        }
-    }
-
-    /**
      * Create a safe wrapper for plugin effects
      * @param {Object} effectData - Effect data from sandbox
      * @returns {Class} Safe effect class
      */
     createSafeEffectWrapper(effectData) {
-        return class SafePluginEffect {
+        class SafePluginEffect {
             constructor(...args) {
                 this.effectData = effectData;
                 this.args = args;
@@ -957,7 +881,17 @@ class EffectRegistryService {
                     throw error;
                 }
             }
+        }
+
+        // Set metadata for registry identification
+        SafePluginEffect._name_ = effectData.name;
+        SafePluginEffect._isPluginEffect_ = true;
+        SafePluginEffect._metadata_ = {
+            description: `Plugin effect: ${effectData.name}`,
+            source: 'plugin'
         };
+
+        return SafePluginEffect;
     }
 
     /**

@@ -159,7 +159,6 @@ export async function testElectronIPCBridgeRetryLogic(testEnv) {
         
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                attemptCount = 0;
                 return await mockIpc.invoke(channel, data);
             } catch (error) {
                 lastError = error;

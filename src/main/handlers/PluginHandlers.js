@@ -89,7 +89,21 @@ class PluginHandlers {
         ipcMain.handle('plugins:install-npm', async (event, packageName) => {
             try {
                 await this.ensureInitialized();
-                return await this.pluginManager.installFromNpm(packageName);
+                
+                // Create progress callback that sends updates back to renderer
+                const onProgress = (percentage, message) => {
+                    try {
+                        event.sender.send('plugins:install-progress', {
+                            packageName,
+                            percentage,
+                            message
+                        });
+                    } catch (err) {
+                        console.error('Failed to send progress update:', err);
+                    }
+                };
+                
+                return await this.pluginManager.installFromNpm(packageName, onProgress);
             } catch (error) {
                 console.error('Failed to install npm plugin:', error);
                 return { success: false, error: error.message };

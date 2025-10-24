@@ -300,7 +300,7 @@ export async function testEffectsPanelAddSecondaryEffectWorkflow(testEnv) {
             throw new Error(`Parent effect ${parentId} not found`);
         }
         
-        const secondaryId = `${parentId}-sec-${Date.now()}`;
+        const secondaryId = `${parentId}-sec-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const secondary = {
             id: secondaryId,
             name: secondaryName,
