@@ -271,7 +271,7 @@ export class DeleteKeyframeEffectCommand extends Command {
             projectState.update({ effects: newEffects });
 
             // Get updated count for event
-            const updatedKeyframeEffectsCount = newEffects[parentIndex].attachedEffects?.keyFrame?.length || 0;
+            const updatedKeyframeEffectsCount = newEffects[parentIndex].keyframeEffects?.length || 0;
 
             // Emit event for UI updates
             EventBusService.emit('keyframe:added', {
@@ -287,7 +287,7 @@ export class DeleteKeyframeEffectCommand extends Command {
         // Get parent and keyframe effect for description
         const currentEffects = projectState.getState().effects || [];
         const parentEffect = currentEffects[parentIndex];
-        const keyframeEffect = parentEffect?.attachedEffects?.keyFrame?.[keyframeIndex];
+        const keyframeEffect = parentEffect?.keyframeEffects?.[keyframeIndex];
         const description = CommandDescriptionHelper.describeDelete(
             keyframeEffect,
             keyframeIndex,

@@ -241,6 +241,40 @@ export default function useEffectOperations(projectState) {
         }
     }, [effectOperationsService, projectState]);
 
+    const handleDeleteKeyframeEffect = useCallback(async (parentIndex, keyframeIndex) => {
+        if (!effectOperationsService) {
+            console.error('EffectOperationsService not available');
+            return;
+        }
+
+        try {
+            await effectOperationsService.deleteKeyframeEffect({
+                parentIndex,
+                keyframeIndex,
+                projectState
+            });
+        } catch (error) {
+            console.error('Error deleting keyframe effect:', error);
+        }
+    }, [effectOperationsService, projectState]);
+
+    const handleToggleKeyframeVisibility = useCallback(async (parentIndex, keyframeIndex) => {
+        if (!effectOperationsService) {
+            console.error('EffectOperationsService not available');
+            return;
+        }
+
+        try {
+            await effectOperationsService.toggleKeyframeEffectVisibility({
+                parentIndex,
+                keyframeIndex,
+                projectState
+            });
+        } catch (error) {
+            console.error('Error toggling keyframe visibility:', error);
+        }
+    }, [effectOperationsService, projectState]);
+
     // UI state handlers
     const handleEffectRightClick = useCallback((effect, index, e) => {
         e.preventDefault();
@@ -383,55 +417,20 @@ export default function useEffectOperations(projectState) {
             handleEffectToggleVisibility(identifier);
         }, { component: 'useEffectOperations' });
 
-        const unsubscribeEffectAddSecondary = eventBusService.subscribe('effect:addsecondary', async (payload) => {
-            console.log('🎭 useEffectOperations: Effect add secondary event received:', payload);
+        // 🔒 REMOVED: Duplicate listeners for secondary and keyframe effects
+        // These are now handled exclusively by useEffectManagement.js (active implementation)
+        // Keeping both caused double-execution bug (effects added twice)
 
-            try {
-                // Find the effect in available effects to get proper metadata
-                const effectCategory = availableEffects.secondary || [];
-                const effectData = effectCategory.find(e => e.name === payload.effectName);
-                const registryKey = effectData?.registryKey || payload.effectName;
-
-                // ⚠️ CRITICAL: Start with empty config - NO defaults applied
-                // Effects should be created with empty configuration and user configures them manually
-                const config = {};
-
-                console.log('🎭 useEffectOperations: Creating secondary effect with empty config:', {
-                    effectName: payload.effectName,
-                    registryKey,
-                    config
-                });
-
-                await handleAddSecondaryEffect(payload.parentIndex, payload.effectName, config);
-            } catch (error) {
-                console.error('Error handling add secondary effect event:', error);
-            }
+        const unsubscribeEffectDeleteKeyframe = eventBusService.subscribe('effect:deletekeyframe', (payload) => {
+            console.log('🎭 useEffectOperations: Keyframe delete event received:', payload);
+            console.log('🎭 About to call handleDeleteKeyframeEffect with:', { parentIndex: payload.parentIndex, keyframeIndex: payload.keyframeIndex });
+            handleDeleteKeyframeEffect(payload.parentIndex, payload.keyframeIndex);
         }, { component: 'useEffectOperations' });
 
-        const unsubscribeEffectAddKeyframe = eventBusService.subscribe('effect:addkeyframe', async (payload) => {
-            console.log('🎭 useEffectOperations: Effect add keyframe event received:', payload);
-
-            try {
-                // Find the effect in available effects to get proper metadata
-                const effectCategory = availableEffects.secondary || [];
-                const effectData = effectCategory.find(e => e.name === payload.effectName);
-                const registryKey = effectData?.registryKey || payload.effectName;
-
-                // ⚠️ CRITICAL: Start with empty config - NO defaults applied
-                // Effects should be created with empty configuration and user configures them manually
-                const config = {};
-
-                console.log('🎭 useEffectOperations: Creating keyframe effect with empty config:', {
-                    effectName: payload.effectName,
-                    registryKey,
-                    frame: payload.frame,
-                    config
-                });
-
-                await handleAddKeyframeEffect(payload.parentIndex, payload.effectName, payload.frame, config);
-            } catch (error) {
-                console.error('Error handling add keyframe effect event:', error);
-            }
+        const unsubscribeEffectKeyframeVisibility = eventBusService.subscribe('effect:keyframevisibility', (payload) => {
+            console.log('🎭 useEffectOperations: Keyframe visibility event received:', payload);
+            console.log('🎭 About to call handleToggleKeyframeVisibility with:', { parentIndex: payload.parentIndex, keyframeIndex: payload.keyframeIndex });
+            handleToggleKeyframeVisibility(payload.parentIndex, payload.keyframeIndex);
         }, { component: 'useEffectOperations' });
 
         const unsubscribeEffectsRefreshed = eventBusService.subscribe('effects:refreshed', () => {
@@ -444,8 +443,8 @@ export default function useEffectOperations(projectState) {
             unsubscribeEffectDelete();
             unsubscribeEffectReorder();
             unsubscribeEffectToggleVisibility();
-            unsubscribeEffectAddSecondary();
-            unsubscribeEffectAddKeyframe();
+            unsubscribeEffectDeleteKeyframe();
+            unsubscribeEffectKeyframeVisibility();
             unsubscribeEffectsRefreshed();
         };
     }, [
@@ -455,8 +454,8 @@ export default function useEffectOperations(projectState) {
         handleEffectDelete,
         handleEffectReorder,
         handleEffectToggleVisibility,
-        handleAddSecondaryEffect,
-        handleAddKeyframeEffect,
+        handleDeleteKeyframeEffect,
+        handleToggleKeyframeVisibility,
         availableEffects,
         loadAvailableEffects
     ]);
@@ -478,6 +477,8 @@ export default function useEffectOperations(projectState) {
         handleEffectToggleVisibility,
         handleAddSecondaryEffect,
         handleAddKeyframeEffect,
+        handleDeleteKeyframeEffect,
+        handleToggleKeyframeVisibility,
         
         // UI operations
         handleEffectRightClick,

@@ -200,6 +200,60 @@ export default function EffectItem({
     }, [effect.visible, effectId, onToggleVisibility, eventBusService]);
 
     /**
+     * Handle secondary effect deletion
+     */
+    const handleSecondaryDelete = useCallback((parentIndex, secondaryIndex) => {
+        try {
+            eventBusService?.emit('effectspanel:secondary:delete', {
+                parentIndex,
+                secondaryIndex,
+                component: 'EffectItem'
+            });
+
+            eventBusService?.emit('effectspanel:log:action', {
+                action: 'secondary:effect:delete',
+                effectId,
+                secondaryIndex,
+                component: 'EffectItem'
+            });
+        } catch (error) {
+            console.error('❌ EffectItem: Error deleting secondary effect:', error);
+            eventBusService?.emit('effectspanel:log:error', {
+                component: 'EffectItem',
+                action: 'secondary:delete',
+                error: error.message
+            });
+        }
+    }, [effectId, eventBusService]);
+
+    /**
+     * Handle secondary effect visibility toggle
+     */
+    const handleSecondaryToggleVisibility = useCallback((parentIndex, secondaryIndex) => {
+        try {
+            eventBusService?.emit('effectspanel:secondary:togglevisibility', {
+                parentIndex,
+                secondaryIndex,
+                component: 'EffectItem'
+            });
+
+            eventBusService?.emit('effectspanel:log:action', {
+                action: 'secondary:effect:visibility:toggle',
+                effectId,
+                secondaryIndex,
+                component: 'EffectItem'
+            });
+        } catch (error) {
+            console.error('❌ EffectItem: Error toggling secondary effect visibility:', error);
+            eventBusService?.emit('effectspanel:log:error', {
+                component: 'EffectItem',
+                action: 'secondary:visibility_toggle',
+                error: error.message
+            });
+        }
+    }, [effectId, eventBusService]);
+
+    /**
      * Handle expand/collapse
      */
     const handleToggleExpand = useCallback((e) => {
@@ -435,6 +489,8 @@ export default function EffectItem({
                                     selectedEffect={selectedEffect}
                                     isReadOnly={isReadOnly}
                                     onSecondarySelect={onSecondarySelect}
+                                    onSecondaryDelete={handleSecondaryDelete}
+                                    onToggleVisibility={handleSecondaryToggleVisibility}
                                 />
                             )}
                             {effect.keyframeEffects && effect.keyframeEffects.length > 0 && (

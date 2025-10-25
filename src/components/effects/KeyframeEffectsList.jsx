@@ -128,7 +128,26 @@ export default function KeyframeEffectsList({
      */
     const handleDelete = useCallback((keyframeIndex) => {
         try {
-            onKeyframeDelete(parentIndex, keyframeIndex);
+            console.log('🗑️ KeyframeEffectsList.handleDelete called:', { parentIndex, keyframeIndex, parentEffectId, hasEventBus: !!eventBusService });
+            
+            // Call prop handler if available
+            if (onKeyframeDelete) {
+                console.log('📞 Calling onKeyframeDelete prop');
+                onKeyframeDelete(parentIndex, keyframeIndex);
+            }
+
+            // Also emit event for other listeners
+            if (!eventBusService) {
+                console.error('❌ eventBusService is not available!');
+            } else {
+                console.log('📤 Emitting effectspanel:effect:deletekeyframe event');
+                eventBusService.emit('effectspanel:effect:deletekeyframe', {
+                    parentIndex,
+                    keyframeIndex,
+                    parentEffectId,
+                    component: 'KeyframeEffectsList'
+                });
+            }
 
             eventBusService?.emit('effectspanel:log:action', {
                 action: 'keyframe:effect:delete',
@@ -144,20 +163,45 @@ export default function KeyframeEffectsList({
                 error: error.message
             });
         }
-    }, [parentIndex, onKeyframeDelete, eventBusService]);
+    }, [parentIndex, parentEffectId, onKeyframeDelete, eventBusService]);
 
     /**
      * Handle visibility toggle
      */
     const handleToggleVisibility = useCallback((e, keyframeIndex) => {
         try {
+            console.log('👁️ KeyframeEffectsList.handleToggleVisibility called:', { parentIndex, keyframeIndex, parentEffectId, hasEventBus: !!eventBusService });
+            
             e.stopPropagation();
-            onToggleVisibility(parentIndex, keyframeIndex);
+            
+            // Call prop handler if available
+            if (onToggleVisibility) {
+                console.log('📞 Calling onToggleVisibility prop');
+                onToggleVisibility(parentIndex, keyframeIndex);
+            }
+
+            // Also emit event for other listeners
+            const keyframe = effectsList[keyframeIndex];
+            const isVisible = keyframe?.visible !== false;
+            
+            if (!eventBusService) {
+                console.error('❌ eventBusService is not available!');
+            } else {
+                console.log('📤 Emitting effectspanel:effect:keyframevisibility event');
+                eventBusService.emit('effectspanel:effect:keyframevisibility', {
+                    parentIndex,
+                    keyframeIndex,
+                    parentEffectId,
+                    visible: !isVisible,
+                    component: 'KeyframeEffectsList'
+                });
+            }
 
             eventBusService?.emit('effectspanel:log:action', {
                 action: 'keyframe:effect:visibility:toggle',
                 parentIndex,
                 keyframeIndex,
+                visible: !isVisible,
                 component: 'KeyframeEffectsList'
             });
         } catch (error) {
@@ -168,7 +212,7 @@ export default function KeyframeEffectsList({
                 error: error.message
             });
         }
-    }, [parentIndex, onToggleVisibility, eventBusService]);
+    }, [parentIndex, parentEffectId, effectsList, onToggleVisibility, eventBusService]);
 
     /**
      * Handle drag start

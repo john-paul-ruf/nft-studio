@@ -485,7 +485,7 @@ export default function useEffectManagement(projectState) {
             unsubscribeKeyframeToggleVisibility();
             unsubscribeEffectsRefreshed();
         };
-    }, [eventBusService, effectOperationsService, handleAddEffectDirect, handleEffectDelete, handleEffectReorder, handleEffectToggleVisibility, handleAddSecondaryEffect, handleAddKeyframeEffect, handleSubEffectUpdate, handleConfigUpdateWithContext, projectState, availableEffects, loadAvailableEffects]);
+    }, [eventBusService]);
 
     const handleAddEffect = useCallback((effect) => {
         const currentEffects = projectState.getState().effects || [];

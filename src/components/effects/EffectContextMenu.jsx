@@ -113,7 +113,9 @@ export default function EffectContextMenu({
                 component: 'EffectContextMenu'
             });
 
-            onAddSecondary(secondaryEffectName);
+            // 🔒 CRITICAL: Don't call onAddSecondary callback here!
+            // The event emission is the communication mechanism - calling the callback causes duplicate creation
+            // The event is already being relayed through EventDrivenToolbarActions
         } catch (error) {
             console.error('❌ EffectContextMenu: Error adding secondary effect:', error);
             eventBusService?.emit('effectspanel:log:error', {
@@ -122,7 +124,7 @@ export default function EffectContextMenu({
                 error: error.message
             });
         }
-    }, [effectId, effectIndex, onAddSecondary, eventBusService]);
+    }, [effectId, effectIndex, eventBusService]);
 
     /**
      * Handle keyframe effect selection from submenu
@@ -145,7 +147,9 @@ export default function EffectContextMenu({
                 component: 'EffectContextMenu'
             });
 
-            onAddKeyframe(keyframeEffectName);
+            // 🔒 CRITICAL: Don't call onAddKeyframe callback here!
+            // The event emission is the communication mechanism - calling the callback causes duplicate creation
+            // The event is already being relayed through EventDrivenToolbarActions
         } catch (error) {
             console.error('❌ EffectContextMenu: Error adding keyframe effect:', error);
             eventBusService?.emit('effectspanel:log:error', {
@@ -154,7 +158,7 @@ export default function EffectContextMenu({
                 error: error.message
             });
         }
-    }, [effectId, effectIndex, onAddKeyframe, eventBusService]);
+    }, [effectId, effectIndex, eventBusService]);
 
     /**
      * Handle bulk add keyframes trigger

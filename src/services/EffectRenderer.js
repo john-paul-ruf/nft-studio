@@ -464,8 +464,7 @@ class EffectRenderer {
     _hasChildEffects(effect) {
         // CRITICAL FIX: Use new keyframeEffects property (backward compatible with attachedEffects.keyFrame)
         return (effect.secondaryEffects?.length > 0) ||
-               (effect.keyframeEffects?.length > 0) ||
-               (effect.attachedEffects?.keyFrame?.length > 0);
+               (effect.keyframeEffects?.length > 0);
     }
 
     /**

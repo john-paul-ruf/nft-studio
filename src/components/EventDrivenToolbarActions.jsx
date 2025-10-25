@@ -455,6 +455,35 @@ export default function EventDrivenToolbarActions({ projectState }) {
             { component: 'EventDrivenToolbarActions' }
         );
 
+        // Effect delete keyframe events from KeyframeEffectsList
+        const unsubscribeEffectDeleteKeyframe = eventBusService.subscribe(
+            'effectspanel:effect:deletekeyframe',
+            (payload) => {
+                console.log('🔥 EventDrivenToolbarActions: Delete keyframe effect event received:', payload);
+                console.log('🔥 EventDrivenToolbarActions: Relaying as effectspanel:keyframe:delete (matching useEffectManagement listener)');
+                eventBusService.emit('effectspanel:keyframe:delete', {
+                    parentIndex: payload.parentIndex,
+                    keyframeIndex: payload.keyframeIndex
+                }, { source: 'EventDrivenToolbarActions' });
+            },
+            { component: 'EventDrivenToolbarActions' }
+        );
+
+        // Effect keyframe visibility toggle events from KeyframeEffectsList
+        const unsubscribeEffectKeyframeVisibility = eventBusService.subscribe(
+            'effectspanel:effect:keyframevisibility',
+            (payload) => {
+                console.log('🔥 EventDrivenToolbarActions: Keyframe visibility toggle event received:', payload);
+                console.log('🔥 EventDrivenToolbarActions: Relaying as effectspanel:keyframe:togglevisibility (matching useEffectManagement listener)');
+                eventBusService.emit('effectspanel:keyframe:togglevisibility', {
+                    parentIndex: payload.parentIndex,
+                    keyframeIndex: payload.keyframeIndex,
+                    visible: payload.visible
+                }, { source: 'EventDrivenToolbarActions' });
+            },
+            { component: 'EventDrivenToolbarActions' }
+        );
+
         // EffectConfigurer config change events
         const unsubscribeEffectConfigurerConfig = eventBusService.subscribe(
             'effectconfigurer:config:change',
@@ -588,6 +617,8 @@ export default function EventDrivenToolbarActions({ projectState }) {
             unsubscribeEffectToggleVisibility();
             unsubscribeEffectAddSecondary();
             unsubscribeEffectAddKeyframe();
+            unsubscribeEffectDeleteKeyframe();
+            unsubscribeEffectKeyframeVisibility();
             unsubscribeEffectConfigurerConfig();
             unsubscribeEffectConfigurerAdd();
             unsubscribeEffectConfigurerAttach();
