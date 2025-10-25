@@ -312,6 +312,19 @@ contextBridge.exposeInMainWorld('pluginAPI', {
 
         const myNftGenUrl = pathToFileURL(myNftGenPath).href;
         
+        // Helper function to convert original file path to temp directory URL with .mjs extension
+        const convertToTempUrl = (originalFilePath) => {
+            // Make path relative to plugin root
+            const relPath = path.relative(pluginDir, originalFilePath);
+            // Map to temp directory
+            let tempPath = path.join(tempDir, relPath);
+            // Add .mjs extension if needed
+            if (!tempPath.endsWith('.mjs')) {
+                tempPath = tempPath.replace(/\.js$/, '.mjs');
+            }
+            return pathToFileURL(tempPath).href;
+        };
+        
         // Recursively walk the plugin directory
         const walkDir = async (dir, relativeBase = '', isNodeModules = false) => {
             const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -319,26 +332,14 @@ contextBridge.exposeInMainWorld('pluginAPI', {
             for (const entry of entries) {
                 // Handle directories
                 if (entry.isDirectory()) {
-                    // Skip .git, dist, build (always), but process node_modules for dependency rewriting
-                    if (['.git', 'dist', 'build'].includes(entry.name)) {
+                    // Skip .git, dist, build, and node_modules (always)
+                    // Plugins should NOT bring their own dependencies
+                    if (['.git', 'dist', 'build', 'node_modules'].includes(entry.name)) {
                         SafeConsole.log(`🔒 [SecurePluginLoader] Skipping directory: ${entry.name}`);
                         continue;
                     }
                     
-                    // For node_modules: only process the first level to rewrite my-nft-gen imports
-                    // Skip deeply nested node_modules to avoid bloat
-                    const isNodeModulesDir = entry.name === 'node_modules';
-                    if (isNodeModulesDir && isNodeModules) {
-                        // This is a node_modules within node_modules, skip to avoid deep recursion
-                        SafeConsole.log(`🔒 [SecurePluginLoader] Skipping nested node_modules to avoid bloat`);
-                        continue;
-                    }
-                    
-                    if (isNodeModulesDir) {
-                        SafeConsole.log(`🔒 [SecurePluginLoader] Processing node_modules to rewrite dependency imports`);
-                    }
-                    
-                    const isNestedNodeModules = isNodeModulesDir;
+                    const isNestedNodeModules = false;
                     
                     const subDir = path.join(dir, entry.name);
                     const subRelative = path.join(relativeBase, entry.name);
@@ -346,20 +347,27 @@ contextBridge.exposeInMainWorld('pluginAPI', {
                     // Create corresponding directory in temp location
                     await fs.mkdir(path.join(tempDir, subRelative), { recursive: true });
                     await walkDir(subDir, subRelative, isNestedNodeModules);
-                } else if (entry.name.endsWith('.js')) {
+                } else if (entry.name.endsWith('.js') || entry.name.endsWith('.mjs')) {
                     // Process JavaScript files
                     const fullPath = path.join(dir, entry.name);
-                    const relativePath = path.join(relativeBase, entry.name);
+                    let relativePath = path.join(relativeBase, entry.name);
+                    
+                    // Rename to .mjs extension to ensure ES module recognition
+                    if (!relativePath.endsWith('.mjs')) {
+                        relativePath = relativePath.replace(/\.js$/, '.mjs');
+                    }
+                    
                     const tempPath = path.join(tempDir, relativePath);
                     
                     try {
                         let code = await fs.readFile(fullPath, 'utf8');
                         
                         // Rewrite my-nft-gen imports
+                        // For bare imports (no subpath), append /index.js since ES modules can't import directories
                         code = code.replace(
                             /from\s+['"]my-nft-gen([^'"]*)['"]/g,
                             (match, subpath) => {
-                                const resolvedPath = subpath ? `${myNftGenUrl}${subpath}` : myNftGenUrl;
+                                let resolvedPath = subpath ? `${myNftGenUrl}${subpath}` : `${myNftGenUrl}/index.js`;
                                 SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting in ${relativePath}: ${match} -> ${resolvedPath}`);
                                 return `from '${resolvedPath}'`;
                             }
@@ -368,9 +376,75 @@ contextBridge.exposeInMainWorld('pluginAPI', {
                         code = code.replace(
                             /import\s+['"]my-nft-gen([^'"]*)['"]/g,
                             (match, subpath) => {
-                                const resolvedPath = subpath ? `${myNftGenUrl}${subpath}` : myNftGenUrl;
+                                let resolvedPath = subpath ? `${myNftGenUrl}${subpath}` : `${myNftGenUrl}/index.js`;
                                 SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting in ${relativePath}: ${match} -> ${resolvedPath}`);
                                 return `import '${resolvedPath}'`;
+                            }
+                        );
+                        
+                        // Also rewrite relative local imports to absolute file:// URLs pointing to temp directory
+                        // This ensures imports like './src/effects/...' work correctly and resolve to the rewritten files
+                        // Handle relative imports with single quotes: from './path'
+                        code = code.replace(
+                            /from\s+'([.][/][^']+)'/g,
+                            (match, relativePath) => {
+                                try {
+                                    const resolvedPath = path.resolve(dir, relativePath);
+                                    const tempUrl = convertToTempUrl(resolvedPath);
+                                    SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting relative import in ${relativePath}: ${match} -> ${tempUrl}`);
+                                    return `from '${tempUrl}'`;
+                                } catch (error) {
+                                    SafeConsole.log(`⚠️ [SecurePluginLoader] Failed to resolve relative import ${match}: ${error.message}`);
+                                    return match;
+                                }
+                            }
+                        );
+                        
+                        // Handle relative imports with double quotes: from "./path"
+                        code = code.replace(
+                            /from\s+"([.][/][^"]+)"/g,
+                            (match, relativePath) => {
+                                try {
+                                    const resolvedPath = path.resolve(dir, relativePath);
+                                    const tempUrl = convertToTempUrl(resolvedPath);
+                                    SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting relative import in ${relativePath}: ${match} -> ${tempUrl}`);
+                                    return `from "${tempUrl}"`;
+                                } catch (error) {
+                                    SafeConsole.log(`⚠️ [SecurePluginLoader] Failed to resolve relative import ${match}: ${error.message}`);
+                                    return match;
+                                }
+                            }
+                        );
+                        
+                        // Handle dynamic imports with single quotes: import('./path')
+                        code = code.replace(
+                            /import\s*\(\s*'([.][/][^']+)'\s*\)/g,
+                            (match, relativePath) => {
+                                try {
+                                    const resolvedPath = path.resolve(dir, relativePath);
+                                    const tempUrl = convertToTempUrl(resolvedPath);
+                                    SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting relative dynamic import in ${relativePath}: ${match} -> import('${tempUrl}')`);
+                                    return `import('${tempUrl}')`;
+                                } catch (error) {
+                                    SafeConsole.log(`⚠️ [SecurePluginLoader] Failed to resolve relative import ${match}: ${error.message}`);
+                                    return match;
+                                }
+                            }
+                        );
+                        
+                        // Handle dynamic imports with double quotes: import("./path")
+                        code = code.replace(
+                            /import\s*\(\s*"([.][/][^"]+)"\s*\)/g,
+                            (match, relativePath) => {
+                                try {
+                                    const resolvedPath = path.resolve(dir, relativePath);
+                                    const tempUrl = convertToTempUrl(resolvedPath);
+                                    SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting relative dynamic import in ${relativePath}: ${match} -> import("${tempUrl}")`);
+                                    return `import("${tempUrl}")`;
+                                } catch (error) {
+                                    SafeConsole.log(`⚠️ [SecurePluginLoader] Failed to resolve relative import ${match}: ${error.message}`);
+                                    return match;
+                                }
                             }
                         );
                         
@@ -562,13 +636,111 @@ contextBridge.exposeInMainWorld('pluginAPI', {
                 SafeConsole.log(`   Will attempt import anyway, but module resolution might fail`);
             }
             
+            // Process the entire plugin directory recursively to rewrite ALL imports (not just the entry point)
+            // This is critical because when the entry point imports other plugin files, those files
+            // must also have their my-nft-gen imports rewritten
+            const pluginTimestamp = Date.now();
+            const tempPluginDir = path.join(app.getPath('userData'), `plugin-processed-${pluginTimestamp}`);
+            
+            SafeConsole.log(`🔒 [SecurePluginLoader] Creating temporary processed plugin directory: ${tempPluginDir}`);
+            await fs.mkdir(tempPluginDir, { recursive: true });
+            
+            // Process all files in the plugin directory, rewriting imports in each one
+            await this.processPluginDirectory(pluginDir, tempPluginDir);
+            SafeConsole.log(`✅ [SecurePluginLoader] Processed plugin directory with rewritten imports`);
+            
+            // Set up node_modules in the temp directory so plugins can resolve dependencies
+            // This mirrors the symlink setup we did for the original plugin directory
+            try {
+                const tempNodeModules = path.join(tempPluginDir, 'node_modules');
+                await fs.mkdir(tempNodeModules, { recursive: true });
+                SafeConsole.log(`🔒 [SecurePluginLoader] Setting up node_modules in temp directory`);
+                
+                // Symlink my-nft-gen itself
+                const myNftGenPath = this.resolveMyNftGenPath();
+                if (myNftGenPath) {
+                    const tempMyNftGen = path.join(tempNodeModules, 'my-nft-gen');
+                    const existsCheck = await fs.lstat(tempMyNftGen).catch(() => null);
+                    if (!existsCheck) {
+                        await fs.symlink(myNftGenPath, tempMyNftGen, 'dir');
+                        SafeConsole.log(`✅ [SecurePluginLoader] Symlinked my-nft-gen in temp node_modules`);
+                    }
+                    
+                    // Also symlink my-nft-gen's nested dependencies (sharp, etc.)
+                    try {
+                        const myNftGenNodeModules = path.join(myNftGenPath, 'node_modules');
+                        const myNftGenNodeModulesStats = await fs.lstat(myNftGenNodeModules).catch(() => null);
+                        
+                        if (myNftGenNodeModulesStats && myNftGenNodeModulesStats.isDirectory()) {
+                            SafeConsole.log(`🔒 [SecurePluginLoader] Symlinking my-nft-gen's nested dependencies in temp...`);
+                            const nestedPackages = await fs.readdir(myNftGenNodeModules);
+                            let nestedCount = 0;
+                            
+                            for (const pkg of nestedPackages) {
+                                if (pkg.startsWith('.')) continue;
+                                
+                                const appNestedPkg = path.join(myNftGenNodeModules, pkg);
+                                const tempNestedPkg = path.join(tempNodeModules, pkg);
+                                
+                                const exists = await fs.lstat(tempNestedPkg).catch(() => null);
+                                if (!exists) {
+                                    const isDir = (await fs.lstat(appNestedPkg)).isDirectory();
+                                    await fs.symlink(appNestedPkg, tempNestedPkg, isDir ? 'dir' : 'file');
+                                    nestedCount++;
+                                }
+                            }
+                            SafeConsole.log(`✅ [SecurePluginLoader] Symlinked ${nestedCount} nested dependencies in temp (including sharp)`);
+                        }
+                    } catch (error) {
+                        SafeConsole.log(`⚠️ [SecurePluginLoader] Could not symlink my-nft-gen nested dependencies in temp: ${error.message}`);
+                    }
+                }
+                
+                // Symlink app packages to temp node_modules
+                try {
+                    SafeConsole.log(`🔒 [SecurePluginLoader] Symlinking app dependencies to temp node_modules...`);
+                    const appPackages = await fs.readdir(appNodeModules);
+                    let symlinkCount = 0;
+                    
+                    for (const pkg of appPackages) {
+                        if (pkg === 'my-nft-gen' || pkg.startsWith('.')) continue;
+                        
+                        const appPkg = path.join(appNodeModules, pkg);
+                        const tempPkg = path.join(tempNodeModules, pkg);
+                        
+                        const appPkgStats = await fs.lstat(appPkg).catch(() => null);
+                        const tempPkgStats = await fs.lstat(tempPkg).catch(() => null);
+                        
+                        if (appPkgStats && !tempPkgStats) {
+                            await fs.symlink(appPkg, tempPkg, appPkgStats.isDirectory() ? 'dir' : 'file');
+                            symlinkCount++;
+                        }
+                    }
+                    
+                    SafeConsole.log(`✅ [SecurePluginLoader] Symlinked ${symlinkCount} app packages to temp node_modules`);
+                } catch (symlinkError) {
+                    SafeConsole.log(`⚠️ [SecurePluginLoader] Could not symlink all packages to temp: ${symlinkError.message}`);
+                }
+            } catch (tempSetupError) {
+                SafeConsole.log(`⚠️ [SecurePluginLoader] Could not setup temp node_modules: ${tempSetupError.message}`);
+                SafeConsole.log(`   Will attempt import anyway, but dependency resolution might fail`);
+            }
+            
+            // Now import from the temporary processed directory
+            // The entry point filename has been renamed to .mjs during processing
+            let pluginFileName = path.basename(pluginPath);
+            if (!pluginFileName.endsWith('.mjs')) {
+                pluginFileName = pluginFileName.replace(/\.js$/, '.mjs');
+            }
+            const rewrittenPluginPath = path.join(tempPluginDir, pluginFileName);
+            
             // Convert to URL for ES module import
-            const pluginUrl = pathToFileURL(pluginPath).href;
+            const pluginUrl = pathToFileURL(rewrittenPluginPath).href;
             SafeConsole.log(`🔒 [SecurePluginLoader] Plugin URL: ${pluginUrl}`);
             
-            // Dynamically import the plugin module in the main process
-            // Now with node_modules symlink, the plugin can resolve its dependencies
-            const pluginModule = await import(pluginUrl + `?t=${Date.now()}`); // Add timestamp to bust cache
+            // Dynamically import the rewritten plugin module in the main process
+            // All imports in this file AND all its dependencies now have absolute paths
+            const pluginModule = await import(pluginUrl + `?t=${pluginTimestamp}`); // Add timestamp to bust cache
             
             SafeConsole.log(`🔒 [SecurePluginLoader] Plugin module imported successfully`);
             SafeConsole.log(`🔒 [SecurePluginLoader] Plugin exports:`, Object.keys(pluginModule));
