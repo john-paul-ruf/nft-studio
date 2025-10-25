@@ -539,10 +539,24 @@ export default function useEffectManagement(projectState) {
             const effectData = effectCategory.find(e => e.name === effectName);
             const registryKey = effectData?.registryKey || effectName;
 
-            // ⚠️ CRITICAL: Start with empty config - NO defaults applied
-            // Effects should be created with empty configuration and user configures them manually
-            // This includes NO center defaults, NO saved defaults, NO backend defaults
+            // 🚀 CRITICAL FIX: Fetch and apply default config for new effects
+            // This ensures that position objects are present when the effect is added
+            // Without this, positions won't be available for scaling during orientation changes
+            console.log(`🚀 Fetching default config for new effect: ${effectName}`);
             let processedConfig = {};
+            
+            try {
+                const defaultResult = await window.api.getEffectDefaults(effectName);
+                if (defaultResult.success && defaultResult.defaults) {
+                    processedConfig = defaultResult.defaults;
+                    console.log(`✅ Applied default config for ${effectName}:`, processedConfig);
+                } else {
+                    console.log(`⚠️ No defaults available for ${effectName}, starting with empty config`);
+                }
+            } catch (error) {
+                console.warn(`⚠️ Failed to fetch defaults for ${effectName}, starting with empty config:`, error.message);
+                processedConfig = {};
+            }
 
             // Validate and correct effect type to prevent categorization issues
             let validatedType = effectType;

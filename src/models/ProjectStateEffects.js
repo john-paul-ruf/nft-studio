@@ -40,6 +40,18 @@ export default class ProjectStateEffects {
         const effects = this.getEffects();
         // Convert POJO to Effect instance if needed (backward compatibility)
         const effectInstance = effect instanceof Effect ? effect : Effect.fromPOJO(effect);
+        
+        // DEBUG: Check if effect config has proper position structure
+        console.log(`📌 ADDING EFFECT: ${effectInstance.name}`);
+        console.log(`   Config keys:`, Object.keys(effectInstance.config));
+        
+        // Check for position property
+        for (const [key, value] of Object.entries(effectInstance.config)) {
+            if (value && typeof value === 'object' && (value.name === 'position' || value.name === 'arc-path')) {
+                console.log(`   ✅ Found ${value.name} at ${key}:`, value);
+            }
+        }
+        
         effects.push(effectInstance);
         this.setEffects(effects);
     }

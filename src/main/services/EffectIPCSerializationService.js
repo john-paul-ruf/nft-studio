@@ -207,9 +207,26 @@ class EffectIPCSerializationService {
             }
         }
 
-        // Detect Point2D: has x and y numeric properties
-        if (obj.hasOwnProperty('x') && obj.hasOwnProperty('y') &&
+        // CRITICAL: Detect Position objects BEFORE Point2D
+        // Position objects have name: 'position' property and must be preserved as such
+        if (obj.name === 'position' && obj.hasOwnProperty('x') && obj.hasOwnProperty('y') &&
             typeof obj.x === 'number' && typeof obj.y === 'number') {
+            return 'position';
+        }
+
+        // CRITICAL: Detect arc-path objects BEFORE Point2D
+        // Arc-path objects have name: 'arc-path' and center/radius properties
+        if (obj.name === 'arc-path' && obj.hasOwnProperty('center') &&
+            typeof obj.center === 'object' && typeof obj.center.x === 'number' && typeof obj.center.y === 'number' &&
+            typeof obj.radius === 'number') {
+            return 'arc-path';
+        }
+
+        // Detect Point2D: has x and y numeric properties (and no 'name' property)
+        // This is checked AFTER position/arc-path since those also have x,y properties
+        if (obj.hasOwnProperty('x') && obj.hasOwnProperty('y') &&
+            typeof obj.x === 'number' && typeof obj.y === 'number' &&
+            !obj.name) {
             return 'Point2D';
         }
 
@@ -395,6 +412,30 @@ class EffectIPCSerializationService {
 
                 case 'Point2D':
                     return new Point2D(props.x || 0, props.y || 0);
+
+                case 'position':
+                    // Position objects are plain objects used by effect configs
+                    // Return as plain object with required properties
+                    return {
+                        name: 'position',
+                        x: props.x || 0,
+                        y: props.y || 0
+                    };
+
+                case 'arc-path':
+                    // Arc-path objects are plain objects used by effect configs
+                    // Return as plain object with required properties
+                    return {
+                        name: 'arc-path',
+                        center: {
+                            x: props.center?.x || 0,
+                            y: props.center?.y || 0
+                        },
+                        radius: props.radius || 100,
+                        startAngle: props.startAngle || 0,
+                        endAngle: props.endAngle || 360,
+                        direction: props.direction || 1
+                    };
 
                 case 'ColorPicker':
                     // Reconstruct ColorPicker with preserved properties

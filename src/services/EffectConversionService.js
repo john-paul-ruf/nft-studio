@@ -258,6 +258,7 @@ class EffectConversionService {
      * @returns {Promise<Object>} Hydrated config object
      */
     async convertEffectConfig(settingsConfig, effectName) {
+        console.log(`🚀 EffectConversionService.convertEffectConfig called for: ${effectName}`);
         if (!settingsConfig || typeof settingsConfig !== 'object') {
             return {};
         }
@@ -271,8 +272,14 @@ class EffectConversionService {
                 return {...settingsConfig};
             }
 
-            const defaultConfig = result.defaults;
+            let defaultConfig = result.defaults;
             console.log(`🔧 Retrieved default config for ${effectName} via IPC`);
+            console.log(`📋 Default config BEFORE deserialization:`, JSON.stringify(defaultConfig).substring(0, 300));
+            
+            // CRITICAL: Deserialize objects with __className metadata to restore required properties
+            // like name: 'position' that are needed by PositionScaler
+            defaultConfig = this._deserializeConfigObjects(defaultConfig);
+            console.log(`✅ Default config AFTER deserialization:`, JSON.stringify(defaultConfig).substring(0, 300));
 
             // Compare property names from settings config and default config instance
             // Set the properties of matched objects without overwriting top-level properties
@@ -334,6 +341,7 @@ class EffectConversionService {
             }
 
             console.log(`🎯 Successfully hydrated config for ${effectName} with ${Object.keys(settingsConfig).length} properties`);
+            console.log(`📊 FINAL config after merge (checking positions):`, defaultConfig);
             return defaultConfig;
 
         } catch (error) {
@@ -344,6 +352,128 @@ class EffectConversionService {
             console.warn(`⚠️ Falling back to raw config for ${effectName}`);
             return {...settingsConfig};
         }
+    }
+
+    /**
+     * Deserialize config objects with __className metadata
+     * Converts __className markers back to proper object structures
+     * CRITICAL: Restores properties like name: 'position' that PositionScaler needs
+     * @param {Object} obj - Object to deserialize (can be nested)
+     * @param {WeakSet} visited - Track visited objects to handle circular refs
+     * @returns {Object} Deserialized object
+     * @private
+     */
+    _deserializeConfigObjects(obj, visited = new WeakSet()) {
+        // Handle null/undefined
+        if (obj === null || obj === undefined) {
+            return obj;
+        }
+
+        // Handle primitives
+        if (typeof obj !== 'object') {
+            return obj;
+        }
+
+        // Handle circular references
+        if (visited.has(obj)) {
+            return obj;
+        }
+        visited.add(obj);
+
+        // Handle arrays
+        if (Array.isArray(obj)) {
+            return obj.map(item => this._deserializeConfigObjects(item, visited));
+        }
+
+        // Handle objects with __className metadata
+        if (obj.__className) {
+            const { __className, ...props } = obj;
+            
+            switch (__className) {
+                case 'position':
+                    // CRITICAL: Restore name: 'position' property needed by PositionScaler
+                    return {
+                        name: 'position',
+                        x: props.x ?? 0,
+                        y: props.y ?? 0
+                    };
+                
+                case 'arc-path':
+                    // CRITICAL: Restore name: 'arc-path' property needed by PositionScaler
+                    return {
+                        name: 'arc-path',
+                        center: this._deserializeConfigObjects(props.center || { x: 0, y: 0 }, visited),
+                        radius: props.radius ?? 100,
+                        startAngle: props.startAngle ?? 0,
+                        endAngle: props.endAngle ?? 360,
+                        direction: props.direction ?? 1
+                    };
+                
+                case 'Point2D':
+                    return {
+                        __className: 'Point2D',
+                        x: props.x ?? 0,
+                        y: props.y ?? 0
+                    };
+                
+                case 'ColorPicker':
+                    return {
+                        __className: 'ColorPicker',
+                        selectionType: props.selectionType ?? 'single',
+                        colorValue: props.colorValue ?? '#000000'
+                    };
+                
+                case 'Range':
+                    return {
+                        __className: 'Range',
+                        lower: props.lower ?? 0,
+                        upper: props.upper ?? 1
+                    };
+                
+                case 'PercentageRange':
+                    return {
+                        __className: 'PercentageRange',
+                        lower: this._deserializeConfigObjects(props.lower, visited),
+                        upper: this._deserializeConfigObjects(props.upper, visited)
+                    };
+                
+                case 'PercentageShortestSide':
+                    return {
+                        __className: 'PercentageShortestSide',
+                        percent: props.percent ?? 0.5,
+                        side: 'shortest'
+                    };
+                
+                case 'PercentageLongestSide':
+                    return {
+                        __className: 'PercentageLongestSide',
+                        percent: props.percent ?? 0.5,
+                        side: 'longest'
+                    };
+                
+                case 'DynamicRange':
+                    return {
+                        __className: 'DynamicRange',
+                        bottom: this._deserializeConfigObjects(props.bottom, visited),
+                        top: this._deserializeConfigObjects(props.top, visited)
+                    };
+                
+                default:
+                    // Unknown __className - deserialize recursively and preserve __className
+                    const result = { __className };
+                    for (const [key, value] of Object.entries(props)) {
+                        result[key] = this._deserializeConfigObjects(value, visited);
+                    }
+                    return result;
+            }
+        }
+
+        // Regular objects - deserialize recursively
+        const result = {};
+        for (const [key, value] of Object.entries(obj)) {
+            result[key] = this._deserializeConfigObjects(value, visited);
+        }
+        return result;
     }
 
     /**

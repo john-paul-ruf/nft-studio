@@ -94,12 +94,25 @@ class EffectOperationsService {
             const effectData = effectCategory.find(e => e.name === effectName);
             const registryKey = effectData?.registryKey || effectName;
 
-            // ⚠️ CRITICAL: Start with empty config - NO defaults applied
-            // Effects should be created with empty configuration and user configures them manually
-            // This includes NO center defaults, NO saved defaults, NO backend defaults
+            // 🚀 CRITICAL FIX: Fetch and apply default config for new effects
+            // This ensures that position objects are present when the effect is added
+            // Without this, positions won't be available for scaling during orientation changes
             let processedConfig = {};
+            
+            try {
+                const defaultResult = await window.api.getEffectDefaults(effectName);
+                if (defaultResult.success && defaultResult.defaults) {
+                    processedConfig = defaultResult.defaults;
+                    this.logger.info(`Applied default config for ${effectName}`);
+                } else {
+                    this.logger.info(`No defaults available for ${effectName}, starting with empty config`);
+                }
+            } catch (error) {
+                this.logger.warn(`Failed to fetch defaults for ${effectName}, starting with empty config:`, error.message);
+                processedConfig = {};
+            }
 
-            this.logger.info(`Creating effect with empty config for ${effectName}:`, {
+            this.logger.info(`Creating effect with config for ${effectName}:`, {
                 registryKey,
                 config: processedConfig
             });

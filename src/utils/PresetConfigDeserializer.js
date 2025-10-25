@@ -124,6 +124,28 @@ class PresetConfigDeserializer {
                     y: props.y ?? 0
                 };
 
+            case 'position':
+                // Position objects need the 'name' property for PositionScaler to recognize them
+                return {
+                    name: 'position',
+                    x: props.x ?? 0,
+                    y: props.y ?? 0
+                };
+
+            case 'arc-path':
+                // Arc path objects need the 'name' property for PositionScaler to recognize them
+                return {
+                    name: 'arc-path',
+                    center: {
+                        x: props.center?.x ?? 0,
+                        y: props.center?.y ?? 0
+                    },
+                    radius: props.radius ?? 100,
+                    startAngle: props.startAngle ?? 0,
+                    endAngle: props.endAngle ?? 360,
+                    direction: props.direction ?? 1
+                };
+
             case 'ColorPicker':
                 // CRITICAL: Preserve __type so main process can reconstruct ColorPicker instance
                 return {
