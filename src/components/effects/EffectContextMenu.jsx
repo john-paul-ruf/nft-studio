@@ -190,6 +190,7 @@ export default function EffectContextMenu({
 
     /**
      * Render grouped effect options for submenu
+     * Groups effects by author, then by category
      */
     const renderEffectOptions = useCallback((effects) => {
         if (!effects || effects.length === 0) {
@@ -200,40 +201,88 @@ export default function EffectContextMenu({
             );
         }
 
-        // Group effects by category (e.g., Displacement, Distortion, etc.)
-        const groupedEffects = {};
+        // First group by author
+        const authorGroups = {};
         effects.forEach(effect => {
-            const category = effect.category || 'Other';
-            if (!groupedEffects[category]) {
-                groupedEffects[category] = [];
+            const author = effect.author || 'NFT Studio';
+            if (!authorGroups[author]) {
+                authorGroups[author] = [];
             }
-            groupedEffects[category].push(effect);
+            authorGroups[author].push(effect);
         });
 
-        return Object.entries(groupedEffects).map(([category, categoryEffects]) => (
-            <div key={category}>
-                {Object.keys(groupedEffects).length > 1 && (
-                    <div className="effect-context-menu__header">
-                        {category}
-                    </div>
-                )}
-                {categoryEffects.map((effect) => (
-                    <ContextMenu.Item
-                        key={effect.name || effect.className}
-                        className="effect-context-menu__item"
-                        onSelect={() => {
-                            if (effect.type === 'keyframe') {
-                                handleAddKeyframe(effect.name || effect.className);
-                            } else {
-                                handleAddSecondary(effect.name || effect.className);
-                            }
-                        }}
-                    >
-                        {effect.displayName || effect.name || effect.className}
-                    </ContextMenu.Item>
-                ))}
-            </div>
-        ));
+        // Sort authors: NFT Studio first, then others alphabetically
+        const sortedAuthors = Object.keys(authorGroups).sort((a, b) => {
+            if (a === 'NFT Studio') return -1;
+            if (b === 'NFT Studio') return 1;
+            return a.localeCompare(b);
+        });
+
+        // Flatten all items with headers and separators
+        const items = [];
+        let isFirstAuthor = true;
+
+        sortedAuthors.forEach((author) => {
+            const authorEffects = authorGroups[author];
+            
+            // Add separator between authors (but not before first)
+            if (!isFirstAuthor) {
+                items.push(<ContextMenu.Separator key={`sep-${author}`} className="effect-context-menu__separator" />);
+            }
+            isFirstAuthor = false;
+            
+            // Within each author, group by category
+            const categoryGroups = {};
+            authorEffects.forEach(effect => {
+                const category = effect.category || 'Other';
+                if (!categoryGroups[category]) {
+                    categoryGroups[category] = [];
+                }
+                categoryGroups[category].push(effect);
+            });
+
+            const sortedCategories = Object.keys(categoryGroups).sort();
+
+            // Add author header (always show)
+            items.push(
+                <ContextMenu.Item disabled key={`header-${author}`} className="effect-context-menu__header">
+                    {author}
+                </ContextMenu.Item>
+            );
+
+            // Add category groups
+            sortedCategories.forEach((category) => {
+                // Add category header (show only if multiple categories)
+                if (sortedCategories.length > 1) {
+                    items.push(
+                        <ContextMenu.Item disabled key={`subheader-${author}-${category}`} className="effect-context-menu__subheader">
+                            {category}
+                        </ContextMenu.Item>
+                    );
+                }
+
+                // Add effects in this category
+                categoryGroups[category].forEach((effect) => {
+                    items.push(
+                        <ContextMenu.Item
+                            key={effect.name || effect.className}
+                            className="effect-context-menu__item"
+                            onSelect={() => {
+                                if (effect.type === 'keyframe') {
+                                    handleAddKeyframe(effect.name || effect.className);
+                                } else {
+                                    handleAddSecondary(effect.name || effect.className);
+                                }
+                            }}
+                        >
+                            {effect.displayName || effect.name || effect.className}
+                        </ContextMenu.Item>
+                    );
+                });
+            });
+        });
+
+        return items;
     }, [handleAddSecondary, handleAddKeyframe]);
 
     // If in read-only mode or effect is final, only show delete option

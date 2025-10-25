@@ -53,6 +53,7 @@ class EffectDiscoveryService {
                 registryKey: plugin.name, // Preserve the original registry key
                 displayName: plugin.metadata?.displayName || plugin.name,
                 description: plugin.metadata?.description || '',
+                category: plugin.category || 'Other',
                 className: this.deriveClassName(plugin.name),
                 configClassName: plugin.configClass ? plugin.configClass.name : (this.deriveClassName(plugin.name) + 'Config'),
                 pluginSource: plugin.metadata?.pluginSource || plugin.pluginSource || 'Core Library',
