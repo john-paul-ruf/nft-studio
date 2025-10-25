@@ -16,12 +16,7 @@
 import React, { useCallback, useState } from 'react';
 import PropTypes from 'prop-types';
 import {
-    IconButton,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Button
+    IconButton
 } from '@mui/material';
 import {
     ExpandMore,
@@ -109,7 +104,6 @@ export default function EffectItem({
     onDrop = () => {}
 }) {
     const { eventBusService } = useServices();
-    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [contextMenuPosition, setContextMenuPosition] = useState(null);
 
     /**
@@ -141,22 +135,10 @@ export default function EffectItem({
     }, [effectId, effectType, onSelect, eventBusService]);
 
     /**
-     * Handle effect deletion with confirmation
+     * Handle effect deletion
      */
     const handleDelete = useCallback(() => {
         try {
-            setDeleteConfirmOpen(true);
-        } catch (error) {
-            console.error('❌ EffectItem: Error opening delete confirmation:', error);
-        }
-    }, []);
-
-    /**
-     * Confirm deletion
-     */
-    const handleConfirmDelete = useCallback(() => {
-        try {
-            setDeleteConfirmOpen(false);
             onDelete();
 
             eventBusService?.emit('effectspanel:log:action', {
@@ -523,35 +505,6 @@ export default function EffectItem({
                 secondaryEffects={secondaryEffects}
                 keyframeEffects={keyframeEffects}
             />
-
-            {/* Delete Confirmation Dialog */}
-            <Dialog
-                open={deleteConfirmOpen}
-                onClose={() => setDeleteConfirmOpen(false)}
-                aria-labelledby="delete-dialog-title"
-            >
-                <DialogTitle id="delete-dialog-title">
-                    Delete Effect?
-                </DialogTitle>
-                <DialogContent>
-                    <div>
-                        Are you sure you want to delete <strong>{formatEffectName(effect)}</strong>?
-                        {effect.secondaryEffects?.length > 0 || effect.keyframeEffects?.length > 0 ? (
-                            <div className="effect-item__delete-warning">
-                                This effect has nested effects that will also be removed.
-                            </div>
-                        ) : null}
-                    </div>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setDeleteConfirmOpen(false)}>
-                        Cancel
-                    </Button>
-                    <Button onClick={handleConfirmDelete} color="error" variant="contained">
-                        Delete
-                    </Button>
-                </DialogActions>
-            </Dialog>
         </ContextMenu.Root>
     );
 }
