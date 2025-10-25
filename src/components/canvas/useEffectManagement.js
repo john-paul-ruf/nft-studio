@@ -7,7 +7,9 @@ import {
     UpdateEffectCommand,
     ReorderEffectsCommand,
     AddSecondaryEffectCommand,
+    UpdateSecondaryEffectCommand,
     AddKeyframeEffectCommand,
+    UpdateKeyframeEffectCommand,
     ReorderSecondaryEffectsCommand,
     ReorderKeyframeEffectsCommand,
     DeleteSecondaryEffectCommand,
@@ -373,6 +375,69 @@ export default function useEffectManagement(projectState) {
             }
         }, { component: 'useEffectManagement' });
 
+        // 🔒 CRITICAL: Also listen to effectconfigurer:config:change events
+        // EffectConfigurer (used in Canvas.jsx right drawer) emits this event directly
+        // This handles keyframe/secondary edits from the right-side config panel
+        const unsubscribeEffectConfigurerConfigChange = eventBusService.subscribe('effectconfigurer:config:change', (payload) => {
+            console.log('🎭 useEffectManagement: EffectConfigurer config change event received:', {
+                effectId: payload?.effectId,
+                effectType: payload?.effectType,
+                subEffectIndex: payload?.subEffectIndex,
+                configKeys: Object.keys(payload?.config || {})
+            });
+
+            // Convert effectconfigurer:config:change to effect:config:change format
+            // The EffectEventCoordinator sends: {config, effectId, effectIndex, effectType, subEffectIndex, effect}
+            // We need to handle it the same way as effect:config:change from EffectsPanel
+            if (payload.effectIndex !== undefined || payload.effectId) {
+                const currentEffects = projectState.getState().effects || [];
+                
+                // CRITICAL FIX: Prioritize effect ID if provided (prevents race conditions)
+                let effectId = payload.effectId;
+                let effectIndex = payload.effectIndex;
+                
+                if (effectId) {
+                    // Effect ID provided - resolve to current index (handles reordering)
+                    const currentIndex = currentEffects.findIndex(e => e.id === effectId);
+                    if (currentIndex === -1) {
+                        console.error('❌ useEffectManagement: Effect with ID not found (may have been deleted):', { 
+                            effectId,
+                            originalIndex: effectIndex
+                        });
+                        return;
+                    }
+                    effectIndex = currentIndex;
+                } else {
+                    // Fallback: No effect ID provided, use index and look up ID
+                    const effect = currentEffects[effectIndex];
+                    if (!effect || !effect.id) {
+                        console.error('❌ useEffectManagement: Cannot update effect without ID', { 
+                            effectIndex, 
+                            effect 
+                        });
+                        return;
+                    }
+                    effectId = effect.id;
+                }
+                
+                const context = {
+                    effectId, // Store ID for reliable tracking across reorders
+                    effectIndex,
+                    effectType: payload.effectType || 'primary',
+                    subIndex: payload.subEffectIndex !== undefined ? payload.subEffectIndex : null
+                };
+
+                console.log('🎯 useEffectManagement: Setting editing context from effectconfigurer event with ID:', context);
+                setEditingEffect(context);
+
+                // Use context directly instead of relying on async state update
+                handleConfigUpdateWithContext(payload.config, context);
+            } else {
+                // Fallback to old behavior if no context provided
+                handleSubEffectUpdate(payload.config);
+            }
+        }, { component: 'useEffectManagement' });
+
         const unsubscribeEffectAttach = eventBusService.subscribe('effect:attach', (payload) => {
             console.log('🎭 useEffectManagement: Effect attach event received:', payload);
             // Handle effect attachment (secondary/keyframe effects from EffectConfigurer)
@@ -476,6 +541,7 @@ export default function useEffectManagement(projectState) {
             unsubscribeEffectAddSecondary();
             unsubscribeEffectAddKeyframe();
             unsubscribeEffectConfigChange();
+            unsubscribeEffectConfigurerConfigChange();
             unsubscribeEffectAttach();
             unsubscribeSecondaryReorder();
             unsubscribeKeyframeReorder();
@@ -999,16 +1065,22 @@ export default function useEffectManagement(projectState) {
                 ...(existingSecondaryEffect?.config || {}),
                 ...newConfig
             };
-            updatedSecondaryEffects[context.subIndex] = {
-                ...existingSecondaryEffect,
-                config: mergedConfig
-            };
-            const updatedEffect = {
-                ...mainEffect,
-                secondaryEffects: updatedSecondaryEffects
-            };
-            // 🔒 CRITICAL: Pass effect ID, not index
-            handleEffectUpdate(mainEffect.id, updatedEffect);
+            
+            // 🔒 CRITICAL FIX: Use UpdateSecondaryEffectCommand instead of UpdateEffectCommand
+            // This ensures secondary updates have specialized persistence logic
+            console.log('🔧 useEffectManagement: Creating UpdateSecondaryEffectCommand for:', {
+                parentIndex: effectIndex,
+                secondaryIndex: context.subIndex,
+                updates: { config: mergedConfig }
+            });
+            
+            const updateSecondaryCommand = new UpdateSecondaryEffectCommand(
+                projectState,
+                effectIndex,
+                context.subIndex,
+                { config: mergedConfig }
+            );
+            commandService.execute(updateSecondaryCommand);
         } else if (context.effectType === 'keyframe' && context.subIndex !== null) {
             console.log('🔧 useEffectManagement: Updating keyframe effect config at index:', context.subIndex);
             
@@ -1034,19 +1106,27 @@ export default function useEffectManagement(projectState) {
                 config: mergedConfig
             };
             
-            // CRITICAL FIX: Update using new keyframeEffects property (single source of truth)
-            const updatedEffect = {
-                ...mainEffect,
-                keyframeEffects: updatedKeyframeEffects
-            };
-            // 🔒 CRITICAL: Pass effect ID, not index
-            handleEffectUpdate(mainEffect.id, updatedEffect);
-            }
+            // 🔒 CRITICAL FIX: Use UpdateKeyframeEffectCommand instead of UpdateEffectCommand
+            // This ensures keyframe updates have specialized persistence logic
+            console.log('🔧 useEffectManagement: Creating UpdateKeyframeEffectCommand for:', {
+                parentIndex: effectIndex,
+                keyframeIndex: context.subIndex,
+                updates: { config: mergedConfig }
+            });
+            
+            const updateKeyframeCommand = new UpdateKeyframeEffectCommand(
+                projectState,
+                effectIndex,
+                context.subIndex,
+                { config: mergedConfig }
+            );
+            commandService.execute(updateKeyframeCommand);
+        }
         }, { 
             key: updateKey, 
             replace: true // Replace pending updates for the same effect to avoid stale updates
         });
-    }, [projectState, handleEffectUpdate, updateQueue]);
+    }, [projectState, handleEffectUpdate, updateQueue, commandService]);
 
     const handleSubEffectUpdate = useCallback((newConfig) => {
         if (!editingEffect) {
@@ -1095,16 +1175,15 @@ export default function useEffectManagement(projectState) {
                 ...(existingSecondaryEffect?.config || {}),
                 ...newConfig
             };
-            updatedSecondaryEffects[editingEffect.subIndex] = {
-                ...existingSecondaryEffect,
-                config: mergedConfig
-            };
-            const updatedEffect = {
-                ...mainEffect,
-                secondaryEffects: updatedSecondaryEffects
-            };
-            // 🔒 CRITICAL: Pass effect ID, not index
-            handleEffectUpdate(mainEffect.id, updatedEffect);
+            
+            // 🔒 CRITICAL FIX: Use UpdateSecondaryEffectCommand instead of UpdateEffectCommand
+            const updateSecondaryCommand = new UpdateSecondaryEffectCommand(
+                projectState,
+                effectIndex,
+                editingEffect.subIndex,
+                { config: mergedConfig }
+            );
+            commandService.execute(updateSecondaryCommand);
         } else if (editingEffect.effectType === 'keyframe' && editingEffect.subIndex !== null) {
             // CRITICAL FIX: Use new keyframeEffects property (backward compatible with attachedEffects.keyFrame)
             const currentKeyframeEffects = mainEffect.keyframeEffects || 
@@ -1122,20 +1201,17 @@ export default function useEffectManagement(projectState) {
                 ...(existingKeyframeEffect?.config || {}),
                 ...newConfig
             };
-            updatedKeyframeEffects[editingEffect.subIndex] = {
-                ...existingKeyframeEffect,
-                config: mergedConfig
-            };
             
-            // CRITICAL FIX: Update using new keyframeEffects property (single source of truth)
-            const updatedEffect = {
-                ...mainEffect,
-                keyframeEffects: updatedKeyframeEffects
-            };
-            // 🔒 CRITICAL: Pass effect ID, not index
-            handleEffectUpdate(mainEffect.id, updatedEffect);
+            // 🔒 CRITICAL FIX: Use UpdateKeyframeEffectCommand instead of UpdateEffectCommand
+            const updateKeyframeCommand = new UpdateKeyframeEffectCommand(
+                projectState,
+                effectIndex,
+                editingEffect.subIndex,
+                { config: mergedConfig }
+            );
+            commandService.execute(updateKeyframeCommand);
         }
-    }, [editingEffect, projectState, handleEffectUpdate, resolveEffectIndex]);
+    }, [editingEffect, projectState, resolveEffectIndex, commandService]);
 
     const handleAddSecondaryEffect = useCallback((targetEffect, effectIndex, newSecondaryEffect) => {
         try {

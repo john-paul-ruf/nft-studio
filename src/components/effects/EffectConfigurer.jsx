@@ -117,7 +117,10 @@ function EffectConfigurer({
                     effectId: effectContext?.effectId,
                     effectIndex: effectContext?.effectIndex,
                     effectName: effectContext?.effectName,
+                    effectType: effectContext?.effectType,
+                    subIndex: effectContext?.subIndex,
                     configKeys: Object.keys(config),
+                    fullEffectContext: effectContext,
                     metadata
                 });
                 
@@ -248,6 +251,37 @@ function EffectConfigurer({
         }
     }, [initialConfig, selectedEffect?.effectId, resolutionKey, services.updateCoordinator]);
 
+    // 🔒 CRITICAL: Sync Canvas.selectedEffect when editing nested effects (keyframe/secondary)
+    // When EffectConfigurer is editing a keyframe/secondary, emit effect:selected so Canvas updates too
+    // This ensures Canvas.selectedEffect has the correct effectType and subIndex for proper command routing
+    useEffect(() => {
+        if (!selectedEffect || !eventBusService) return;
+
+        // Check if we're editing a nested effect (keyframe or secondary)
+        const isNestedEffect = selectedEffect.effectType === 'keyframe' || 
+                              selectedEffect.effectType === 'secondary' ||
+                              (selectedEffect.subIndex !== null && selectedEffect.subIndex !== undefined);
+
+        if (isNestedEffect) {
+            console.log('🎯 EffectConfigurer: Syncing Canvas.selectedEffect for nested effect:', {
+                effectId: selectedEffect.effectId,
+                effectIndex: selectedEffect.effectIndex,
+                effectType: selectedEffect.effectType,
+                subIndex: selectedEffect.subIndex,
+                name: selectedEffect.name
+            });
+
+            // Emit effect:selected to update Canvas.selectedEffect with correct nested effect context
+            eventBusService.emit('effect:selected', {
+                effectId: selectedEffect.effectId,
+                effectIndex: selectedEffect.effectIndex,
+                effectType: selectedEffect.effectType,
+                subIndex: selectedEffect.subIndex,
+                name: selectedEffect.name
+            }, { component: 'EffectConfigurer' });
+        }
+    }, [selectedEffect?.effectId, selectedEffect?.effectType, selectedEffect?.subIndex, eventBusService]);
+
     // Load configuration schema when effect changes
     useEffect(() => {
         const loadSchema = async () => {
@@ -324,7 +358,10 @@ function EffectConfigurer({
                     effectId: selectedEffect?.effectId,
                     effectIndex: selectedEffect?.effectIndex,
                     effectName: selectedEffect?.effectName,
-                    effectType: selectedEffect?.effectType
+                    effectType: selectedEffect?.effectType,
+                    // 🔒 CRITICAL: Include subIndex for keyframe/secondary effects (identifies which nested effect to update)
+                    // NOTE: Must use !== undefined check, not || null, because 0 is a valid falsy index value
+                    subIndex: selectedEffect?.subIndex !== undefined ? selectedEffect.subIndex : null
                 }
             }
         );
@@ -358,7 +395,10 @@ function EffectConfigurer({
                     effectId: selectedEffect?.effectId,
                     effectIndex: selectedEffect?.effectIndex,
                     effectName: selectedEffect?.effectName,
-                    effectType: selectedEffect?.effectType
+                    effectType: selectedEffect?.effectType,
+                    // 🔒 CRITICAL: Include subIndex for keyframe/secondary effects (identifies which nested effect to update)
+                    // NOTE: Must use !== undefined check, not || null, because 0 is a valid falsy index value
+                    subIndex: selectedEffect?.subIndex !== undefined ? selectedEffect.subIndex : null
                 }
             }
         );

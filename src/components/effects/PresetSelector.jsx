@@ -73,13 +73,25 @@ function PresetSelector({ selectedEffect, onPresetSelect }) {
                     
                     if (presetsResult.success && presetsResult.presets) {
                         console.log('✅ PresetSelector: Found', presetsResult.presets.length, 'presets');
-                        const all = presetsResult.presets;
+                        // Deduplicate presets by name and source to prevent duplicates in dropdown
+                        const uniquePresets = Array.from(
+                            new Map(
+                                presetsResult.presets.map(p => [
+                                    `${p?.name || ''}-${p?.metadata?.source || 'unknown'}`,
+                                    p
+                                ])
+                            ).values()
+                        );
+                        const all = uniquePresets;
                         const built = all.filter(p => p?.metadata?.source === 'builtin');
                         const usr = all.filter(p => p?.metadata?.source === 'user');
                         setPresets(all);
                         setBuiltIn(built);
                         setUser(usr);
                         setHasPresets(all.length > 0);
+                        if (presetsResult.presets.length !== all.length) {
+                            console.log(`⚠️ PresetSelector: Deduplicated ${presetsResult.presets.length - all.length} duplicate presets`);
+                        }
                     } else {
                         console.log('⚠️ PresetSelector: No presets in result');
                         setPresets([]);
@@ -113,13 +125,25 @@ function PresetSelector({ selectedEffect, onPresetSelect }) {
             if (hasRes.hasPresets) {
                 const presetsResult = await window.api.getEffectPresets(selectedEffect.registryKey);
                 if (presetsResult?.success && presetsResult.presets) {
-                    const all = presetsResult.presets;
+                    // Deduplicate presets by name and source to prevent duplicates in dropdown
+                    const uniquePresets = Array.from(
+                        new Map(
+                            presetsResult.presets.map(p => [
+                                `${p?.name || ''}-${p?.metadata?.source || 'unknown'}`,
+                                p
+                            ])
+                        ).values()
+                    );
+                    const all = uniquePresets;
                     const built = all.filter(p => p?.metadata?.source === 'builtin');
                     const usr = all.filter(p => p?.metadata?.source === 'user');
                     setPresets(all);
                     setBuiltIn(built);
                     setUser(usr);
                     setHasPresets(all.length > 0);
+                    if (presetsResult.presets.length !== all.length) {
+                        console.log(`⚠️ PresetSelector: Deduplicated ${presetsResult.presets.length - all.length} duplicate presets`);
+                    }
                 }
             } else {
                 setPresets([]);

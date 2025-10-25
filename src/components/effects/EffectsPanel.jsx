@@ -281,23 +281,6 @@ export default function EffectsPanel({
     useEffect(() => {
         if (!eventBusService) return;
 
-        // Effect selection events
-        const unsubscribeSelect = eventBusService.subscribe('effect:selected', (payload, event) => {
-            try {
-                const { effectId, effectType } = payload || {};
-                if (effectId) {
-                    // Pass effect ID directly - hook handles ID-to-index conversion
-                    selectEffect(effectId, effectType);
-                    logger.logAction('effect:selected', 'Effect selected', {
-                        effectId,
-                        effectType,
-                    });
-                }
-            } catch (error) {
-                logger.logError('Error handling effect:selected event', error);
-            }
-        });
-
         // Effect add events
         const unsubscribeAdd = eventBusService.subscribe('effectspanel:effect:add', async (payload, event) => {
             try {
@@ -414,13 +397,12 @@ export default function EffectsPanel({
         });
 
         return () => {
-            unsubscribeSelect?.();
             unsubscribeAdd?.();
             unsubscribeDelete?.();
             unsubscribeReorder?.();
             unsubscribeVisibility?.();
         };
-    }, [eventBusService, logger, selectEffect, clearSelection, onEffectDelete, onEffectReorder, onEffectToggleVisibility, commandService, effectCommandService, projectState]);
+    }, [eventBusService, logger, clearSelection, onEffectDelete, onEffectReorder, onEffectToggleVisibility, commandService, effectCommandService, projectState]);
 
     // Close config panel when entering read-only mode
     useEffect(() => {
@@ -451,6 +433,10 @@ export default function EffectsPanel({
                 effectIndex: selectedEffect.effectIndex,
                 effectType: selectedEffect.effectType || 'primary',
                 config: config,  // 🔒 CRITICAL: Include the full config object!
+                // 🔒 CRITICAL: Include subEffectIndex for keyframe/secondary effects
+                // This is essential for useEffectManagement to properly route the update
+                // NOTE: Must use !== undefined check, not || null, because 0 is a valid falsy index value
+                subEffectIndex: selectedEffect.subIndex !== undefined ? selectedEffect.subIndex : null,
                 timestamp: Date.now(),
             });
         }

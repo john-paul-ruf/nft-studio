@@ -32,6 +32,7 @@ export {
 
 export {
     AddKeyframeEffectCommand,
+    UpdateKeyframeEffectCommand,
     DeleteKeyframeEffectCommand,
     ReorderKeyframeEffectsCommand
 } from '../services/KeyframeEffectCommandService.js';

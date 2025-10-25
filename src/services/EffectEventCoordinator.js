@@ -165,15 +165,18 @@ export class EffectEventCoordinator {
                 effectId: selectedEffect?.effectId,
                 effectIndex: selectedEffect?.effectIndex,
                 effectName: selectedEffect?.effectName || selectedEffect?.name,
+                effectType: selectedEffect?.effectType,
+                subIndex: selectedEffect?.subIndex,
                 configKeys: Object.keys(newConfig || {}),
-                config: newConfig
+                config: newConfig,
+                fullSelectedEffect: selectedEffect
             });
 
             // Emit through event bus with proper payload structure
             // 🔒 CRITICAL: Match the payload structure expected by useEffectManagement
             // The payload must have: effectId, effectIndex, config, effectType, subEffectIndex
             if (this.eventBus) {
-                this.eventBus.emit('effectconfigurer:config:change', {
+                const payload = {
                     config: newConfig,
                     effectId: selectedEffect?.effectId,
                     effectIndex: selectedEffect?.effectIndex,
@@ -183,7 +186,11 @@ export class EffectEventCoordinator {
                     // Keep 'effect' for backward compatibility
                     effect: selectedEffect,
                     timestamp: new Date().toISOString()
-                }, {
+                };
+                
+                console.log('📤 EffectEventCoordinator: Emitting payload:', payload);
+                
+                this.eventBus.emit('effectconfigurer:config:change', payload, {
                     source: 'EffectEventCoordinator',
                     component: 'EffectConfigurer'
                 });
