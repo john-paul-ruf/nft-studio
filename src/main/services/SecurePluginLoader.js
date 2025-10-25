@@ -159,30 +159,263 @@ contextBridge.exposeInMainWorld('pluginAPI', {
     }
 
     /**
-     * Resolve my-nft-gen package path
+     * Resolve any npm package path
+     * @param {string} packageName - Name of package to resolve
      * @returns {string|null} Resolved path or null if not found
      */
-    resolveMyNftGenPath() {
+    resolvePackagePath(packageName) {
         try {
-            // Try to resolve my-nft-gen from node_modules
-            const nodeModulesPath = path.join(process.cwd(), 'node_modules', 'my-nft-gen');
+            // Try to resolve from process.cwd() node_modules (dev mode)
+            const nodeModulesPath = path.join(process.cwd(), 'node_modules', packageName);
             if (fsSync.existsSync(nodeModulesPath)) {
-                // It might be a symlink, resolve it
+                SafeConsole.log(`✅ [SecurePluginLoader] Found ${packageName} in cwd: ${nodeModulesPath}`);
                 return fsSync.realpathSync(nodeModulesPath);
             }
             
-            // Try alternative paths
+            // Try from app path node_modules (production)
             const appPath = app.getAppPath();
-            const altPath = path.join(appPath, 'node_modules', 'my-nft-gen');
+            const altPath = path.join(appPath, 'node_modules', packageName);
             if (fsSync.existsSync(altPath)) {
+                SafeConsole.log(`✅ [SecurePluginLoader] Found ${packageName} in app path: ${altPath}`);
                 return fsSync.realpathSync(altPath);
             }
             
+            // Try from ASAR unpacked resources
+            // When ASAR is unpacked, files go to app.asar.unpacked/ directory
+            try {
+                if (process.resourcesPath) {
+                    // process.resourcesPath points to the Resources directory
+                    // app.asar and app.asar.unpacked are sibling directories in Resources
+                    const asarUnpackedPath = path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', packageName);
+                    if (fsSync.existsSync(asarUnpackedPath)) {
+                        SafeConsole.log(`✅ [SecurePluginLoader] Found ${packageName} in ASAR unpacked resources: ${asarUnpackedPath}`);
+                        return fsSync.realpathSync(asarUnpackedPath);
+                    }
+                }
+            } catch (e) {
+                SafeConsole.log(`⚠️ [SecurePluginLoader] Error checking ASAR resources path: ${e.message}`);
+            }
+            
+            // Try to find from main process module path in ASAR context
+            try {
+                if (process.mainModule?.filename?.includes?.('.asar')) {
+                    // If filename is /path/to/app.asar/main.js, we need /path/to/app.asar.unpacked
+                    const asarDir = path.dirname(process.mainModule.filename); // /path/to/app.asar
+                    const parentDir = path.dirname(asarDir); // /path/to
+                    const unpackedPath = path.join(parentDir, 'app.asar.unpacked', 'node_modules', packageName);
+                    if (fsSync.existsSync(unpackedPath)) {
+                        SafeConsole.log(`✅ [SecurePluginLoader] Found ${packageName} via ASAR unpacked: ${unpackedPath}`);
+                        return fsSync.realpathSync(unpackedPath);
+                    }
+                }
+            } catch (e) {
+                SafeConsole.log(`⚠️ [SecurePluginLoader] Error checking ASAR unpacked path: ${e.message}`);
+            }
+            
+            SafeConsole.log(`⚠️ [SecurePluginLoader] Could not resolve ${packageName} in any location`);
             return null;
         } catch (error) {
-            SafeConsole.log(`⚠️ [SecurePluginLoader] Error resolving my-nft-gen path:`, error.message);
+            SafeConsole.log(`⚠️ [SecurePluginLoader] Error resolving ${packageName} path:`, error.message);
             return null;
         }
+    }
+
+    /**
+     * Resolve my-nft-gen package path (legacy wrapper)
+     * @returns {string|null} Resolved path or null if not found
+     */
+    resolveMyNftGenPath() {
+        return this.resolvePackagePath('my-nft-gen');
+    }
+
+    /**
+     * Resolve the entry point file for a package
+     * For bare imports like 'from "my-nft-gen"', we need to resolve to the actual entry file
+     * @param {string} packagePath - Path to the package directory
+     * @returns {string} Entry point file path
+     */
+    resolvePackageEntryPoint(packagePath) {
+        try {
+            // Try to read package.json to find the actual entry point
+            const packageJsonPath = path.join(packagePath, 'package.json');
+            if (fsSync.existsSync(packageJsonPath)) {
+                const packageJson = JSON.parse(fsSync.readFileSync(packageJsonPath, 'utf8'));
+                
+                // Check for ES module entry points (exports, module, main in that order)
+                if (packageJson.exports) {
+                    if (typeof packageJson.exports === 'string') {
+                        return path.join(packagePath, packageJson.exports);
+                    }
+                    if (packageJson.exports['.']) {
+                        const mainExport = packageJson.exports['.'];
+                        if (typeof mainExport === 'string') {
+                            return path.join(packagePath, mainExport);
+                        }
+                        if (mainExport.import) {
+                            return path.join(packagePath, mainExport.import);
+                        }
+                    }
+                }
+                
+                if (packageJson.module) {
+                    return path.join(packagePath, packageJson.module);
+                }
+                
+                if (packageJson.main) {
+                    return path.join(packagePath, packageJson.main);
+                }
+            }
+            
+            // Fallback: check for common entry points
+            const commonEntryPoints = ['index.mjs', 'index.js', 'index.cjs', 'dist/index.mjs', 'dist/index.js'];
+            for (const entryPoint of commonEntryPoints) {
+                const fullPath = path.join(packagePath, entryPoint);
+                if (fsSync.existsSync(fullPath)) {
+                    SafeConsole.log(`✅ [SecurePluginLoader] Using entry point: ${entryPoint}`);
+                    return fullPath;
+                }
+            }
+            
+            // Default to index.mjs if nothing else found
+            SafeConsole.log(`⚠️ [SecurePluginLoader] No entry point found, defaulting to index.mjs`);
+            return path.join(packagePath, 'index.mjs');
+        } catch (error) {
+            SafeConsole.log(`⚠️ [SecurePluginLoader] Error resolving entry point: ${error.message}`);
+            // Fallback to index.mjs
+            return path.join(packagePath, 'index.mjs');
+        }
+    }
+
+    /**
+     * Rewrite imports for a specific npm package to use absolute paths
+     * @param {string} code - Plugin code
+     * @param {string} packageName - Package name to rewrite imports for
+     * @returns {string} Modified code with absolute imports
+     */
+    rewritePackageImports(code, packageName) {
+        // Check if code has any imports from this package
+        if (!code.includes(packageName)) {
+            return code;
+        }
+        
+        const packagePath = this.resolvePackagePath(packageName);
+        
+        if (!packagePath) {
+            SafeConsole.log(`❌ [SecurePluginLoader] CRITICAL: Could not resolve ${packageName}`);
+            SafeConsole.log(`   Plugin imports from '${packageName}' will fail!`);
+            SafeConsole.log(`   Checked paths:`);
+            SafeConsole.log(`     - process.cwd()/node_modules (dev)`);
+            SafeConsole.log(`     - app.getAppPath()/node_modules`);
+            SafeConsole.log(`     - process.resourcesPath/app.asar.unpacked/node_modules (production)`);
+            SafeConsole.log(`     - process.mainModule ASAR unpacked path (fallback)`);
+            SafeConsole.log(`   process.cwd() = ${process.cwd()}`);
+            SafeConsole.log(`   app.getAppPath() = ${app.getAppPath()}`);
+            SafeConsole.log(`   process.resourcesPath = ${process.resourcesPath}`);
+            return code;
+        }
+
+        // Convert filesystem path to file:// URL for ES modules
+        const packageUrl = pathToFileURL(packagePath).href;
+        SafeConsole.log(`✅ [SecurePluginLoader] Resolved ${packageName} to: ${packagePath}`);
+        SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting imports to use: ${packageUrl}`);
+
+        // Resolve the entry point for bare imports (without subpath)
+        const entryPointPath = this.resolvePackageEntryPoint(packagePath);
+        const entryPointUrl = pathToFileURL(entryPointPath).href;
+        SafeConsole.log(`✅ [SecurePluginLoader] Entry point for bare imports: ${entryPointUrl}`);
+
+        // Escape special regex characters in package name for safe regex use
+        const escapedPackageName = packageName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        // Build regex patterns to match various import/require styles
+        // We need separate patterns for single and double quotes to match them correctly
+        
+        // Pattern for: from 'package-name' or from 'package-name/subpath'
+        const fromSingleQuotePattern = `from\\s+'${escapedPackageName}([^']*)'`;
+        // Pattern for: from "package-name" or from "package-name/subpath"
+        const fromDoubleQuotePattern = `from\\s+"${escapedPackageName}([^"]*)"`;
+        // Pattern for: import 'package-name' or import 'package-name/subpath'
+        const importSingleQuotePattern = `import\\s+'${escapedPackageName}([^']*)'`;
+        // Pattern for: import "package-name" or import "package-name/subpath"
+        const importDoubleQuotePattern = `import\\s+"${escapedPackageName}([^"]*)"`;
+        // Pattern for: require('package-name') or require('package-name/subpath')
+        const requireSingleQuotePattern = `require\\('${escapedPackageName}([^']*)'\\)`;
+        // Pattern for: require("package-name") or require("package-name/subpath")
+        const requireDoubleQuotePattern = `require\\("${escapedPackageName}([^"]*)\"\\)`;
+
+        // Replace from imports with single quotes
+        if (code.includes(`from '${packageName}`)) {
+            code = code.replace(new RegExp(fromSingleQuotePattern, 'g'), (match, subpath) => {
+                const resolved = subpath ? packageUrl + subpath : entryPointUrl;
+                SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting: ${match} -> from '${resolved}'`);
+                return `from '${resolved}'`;
+            });
+        }
+
+        // Replace from imports with double quotes
+        if (code.includes(`from "${packageName}`)) {
+            code = code.replace(new RegExp(fromDoubleQuotePattern, 'g'), (match, subpath) => {
+                const resolved = subpath ? packageUrl + subpath : entryPointUrl;
+                SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting: ${match} -> from "${resolved}"`);
+                return `from "${resolved}"`;
+            });
+        }
+
+        // Replace import statements with single quotes
+        if (code.includes(`import '${packageName}`)) {
+            code = code.replace(new RegExp(importSingleQuotePattern, 'g'), (match, subpath) => {
+                const resolved = subpath ? packageUrl + subpath : entryPointUrl;
+                SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting: ${match} -> import '${resolved}'`);
+                return `import '${resolved}'`;
+            });
+        }
+
+        // Replace import statements with double quotes
+        if (code.includes(`import "${packageName}`)) {
+            code = code.replace(new RegExp(importDoubleQuotePattern, 'g'), (match, subpath) => {
+                const resolved = subpath ? packageUrl + subpath : entryPointUrl;
+                SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting: ${match} -> import "${resolved}"`);
+                return `import "${resolved}"`;
+            });
+        }
+
+        // Replace require statements with single quotes
+        if (code.includes(`require('${packageName}`)) {
+            code = code.replace(new RegExp(requireSingleQuotePattern, 'g'), (match, subpath) => {
+                const resolved = subpath ? packageUrl + subpath : entryPointUrl;
+                SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting: ${match} -> require('${resolved}')`);
+                return `require('${resolved}')`;
+            });
+        }
+
+        // Replace require statements with double quotes
+        if (code.includes(`require("${packageName}`)) {
+            code = code.replace(new RegExp(requireDoubleQuotePattern, 'g'), (match, subpath) => {
+                const resolved = subpath ? packageUrl + subpath : entryPointUrl;
+                SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting: ${match} -> require("${resolved}")`);
+                return `require("${resolved}")`;
+            });
+        }
+
+        // Handle dynamic imports with single quotes: import('package-name/subpath')
+        if (code.includes(`import('${packageName}`)) {
+            code = code.replace(new RegExp(`import\\s*\\(\\s*'${escapedPackageName}([^']*)'\\s*\\)`, 'g'), (match, subpath) => {
+                const resolved = subpath ? packageUrl + subpath : entryPointUrl;
+                SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting dynamic import: ${match} -> import('${resolved}')`);
+                return `import('${resolved}')`;
+            });
+        }
+
+        // Handle dynamic imports with double quotes: import("package-name/subpath")
+        if (code.includes(`import("${packageName}`)) {
+            code = code.replace(new RegExp(`import\\s*\\(\\s*"${escapedPackageName}([^"]*)\"\\s*\\)`, 'g'), (match, subpath) => {
+                const resolved = subpath ? packageUrl + subpath : entryPointUrl;
+                SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting dynamic import: ${match} -> import("${resolved}")`);
+                return `import("${resolved}")`;
+            });
+        }
+
+        return code;
     }
 
     /**
@@ -192,36 +425,15 @@ contextBridge.exposeInMainWorld('pluginAPI', {
      * @returns {string} Modified code with absolute imports
      */
     rewriteImportsWithAbsolutePaths(code, pluginDir = null) {
-        const myNftGenPath = this.resolveMyNftGenPath();
+        // List of packages that plugins commonly depend on and that should be resolved from app node_modules
+        // NOTE: my-nft-gen must be resolved for production (ASAR) to work properly
+        // Even though it has proper exports, plugins need to import it and it won't be found
+        // in the isolated temp directory without explicit resolution
+        const packagesToRewrite = ['my-nft-gen', 'sharp', '@img/sharp-darwin-arm64', '@img/sharp-darwin-x64'];
         
-        if (!myNftGenPath) {
-            SafeConsole.log(`⚠️ [SecurePluginLoader] Could not resolve my-nft-gen, imports may fail`);
-        } else {
-            // Convert filesystem path to file:// URL for ES modules
-            const myNftGenUrl = pathToFileURL(myNftGenPath).href;
-            SafeConsole.log(`🔒 [SecurePluginLoader] Resolved my-nft-gen to: ${myNftGenPath}`);
-            SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting imports to use: ${myNftGenUrl}`);
-
-            // Replace all imports from 'my-nft-gen' with absolute path
-            // This handles both package imports and direct subpath imports
-            code = code.replace(
-                /from\s+['"]my-nft-gen([^'"]*)['"]/g,
-                (match, subpath) => {
-                    const resolvedPath = subpath ? `${myNftGenUrl}${subpath}` : myNftGenUrl;
-                    SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting import: ${match} -> ${resolvedPath}`);
-                    return `from '${resolvedPath}'`;
-                }
-            );
-
-            // Also handle import statements
-            code = code.replace(
-                /import\s+['"]my-nft-gen([^'"]*)['"]/g,
-                (match, subpath) => {
-                    const resolvedPath = subpath ? `${myNftGenUrl}${subpath}` : myNftGenUrl;
-                    SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting import: ${match} -> ${resolvedPath}`);
-                    return `import '${resolvedPath}'`;
-                }
-            );
+        // Rewrite imports for all known packages
+        for (const pkg of packagesToRewrite) {
+            code = this.rewritePackageImports(code, pkg);
         }
 
         // Rewrite relative local imports (./src/..., ../..., etc.) to absolute paths
@@ -306,11 +518,11 @@ contextBridge.exposeInMainWorld('pluginAPI', {
     async processPluginDirectory(pluginDir, tempDir) {
         const myNftGenPath = this.resolveMyNftGenPath();
         if (!myNftGenPath) {
-            SafeConsole.log(`⚠️ [SecurePluginLoader] Could not resolve my-nft-gen, skipping recursive processing`);
-            return;
+            SafeConsole.log(`⚠️ [SecurePluginLoader] Could not resolve my-nft-gen initially, will still process plugin files`);
+            SafeConsole.log(`   Import rewriting may fail, but will attempt anyway`);
         }
 
-        const myNftGenUrl = pathToFileURL(myNftGenPath).href;
+        const myNftGenUrl = myNftGenPath ? pathToFileURL(myNftGenPath).href : null;
         
         // Helper function to convert original file path to temp directory URL with .mjs extension
         const convertToTempUrl = (originalFilePath) => {
@@ -362,25 +574,23 @@ contextBridge.exposeInMainWorld('pluginAPI', {
                     try {
                         let code = await fs.readFile(fullPath, 'utf8');
                         
-                        // Rewrite my-nft-gen imports
-                        // For bare imports (no subpath), append /index.js since ES modules can't import directories
-                        code = code.replace(
-                            /from\s+['"]my-nft-gen([^'"]*)['"]/g,
-                            (match, subpath) => {
-                                let resolvedPath = subpath ? `${myNftGenUrl}${subpath}` : `${myNftGenUrl}/index.js`;
-                                SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting in ${relativePath}: ${match} -> ${resolvedPath}`);
-                                return `from '${resolvedPath}'`;
-                            }
-                        );
+                        // Log original imports for debugging
+                        if (code.includes('my-nft-gen')) {
+                            SafeConsole.log(`🔒 [SecurePluginLoader] File has my-nft-gen imports: ${fullPath}`);
+                            const importLines = code.split('\n').filter(line => line.includes('my-nft-gen'));
+                            importLines.forEach(line => SafeConsole.log(`   Original: ${line.trim()}`));
+                        }
                         
-                        code = code.replace(
-                            /import\s+['"]my-nft-gen([^'"]*)['"]/g,
-                            (match, subpath) => {
-                                let resolvedPath = subpath ? `${myNftGenUrl}${subpath}` : `${myNftGenUrl}/index.js`;
-                                SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting in ${relativePath}: ${match} -> ${resolvedPath}`);
-                                return `import '${resolvedPath}'`;
+                        // Rewrite all npm package imports using the generic method
+                        const packagesToRewrite = ['my-nft-gen', 'sharp', '@img/sharp-darwin-arm64', '@img/sharp-darwin-x64'];
+                        for (const pkg of packagesToRewrite) {
+                            const beforeLength = code.length;
+                            code = this.rewritePackageImports(code, pkg);
+                            const afterLength = code.length;
+                            if (beforeLength !== afterLength && pkg === 'my-nft-gen') {
+                                SafeConsole.log(`✅ [SecurePluginLoader] Rewrote my-nft-gen imports in: ${fullPath}`);
                             }
-                        );
+                        }
                         
                         // Also rewrite relative local imports to absolute file:// URLs pointing to temp directory
                         // This ensures imports like './src/effects/...' work correctly and resolve to the rewritten files
@@ -491,6 +701,35 @@ contextBridge.exposeInMainWorld('pluginAPI', {
             SafeConsole.log(`🔒 [SecurePluginLoader] App root: ${appRoot}`);
             SafeConsole.log(`🔒 [SecurePluginLoader] Plugin directory: ${pluginDir}`);
             SafeConsole.log(`🔒 [SecurePluginLoader] App node_modules: ${appNodeModules}`);
+            SafeConsole.log(`🔒 [SecurePluginLoader] App node_modules exists: ${fsSync.existsSync(appNodeModules)}`);
+            
+            // Verify app node_modules exists, if not try alternative paths
+            let finalAppNodeModules = appNodeModules;
+            if (!fsSync.existsSync(appNodeModules)) {
+                SafeConsole.log(`⚠️ [SecurePluginLoader] Calculated app node_modules not found, trying alternatives...`);
+                
+                // Try process.cwd()
+                const cwdNodeModules = path.join(process.cwd(), 'node_modules');
+                if (fsSync.existsSync(cwdNodeModules)) {
+                    SafeConsole.log(`✅ [SecurePluginLoader] Found node_modules at cwd: ${cwdNodeModules}`);
+                    finalAppNodeModules = cwdNodeModules;
+                } else {
+                    // Try app.getPath('appPath')
+                    try {
+                        const appPath = app.getAppPath();
+                        const appPathNodeModules = path.join(appPath, 'node_modules');
+                        if (fsSync.existsSync(appPathNodeModules)) {
+                            SafeConsole.log(`✅ [SecurePluginLoader] Found node_modules at app path: ${appPathNodeModules}`);
+                            finalAppNodeModules = appPathNodeModules;
+                        }
+                    } catch (e) {
+                        SafeConsole.log(`⚠️ [SecurePluginLoader] Could not get app path: ${e.message}`);
+                    }
+                }
+            }
+            
+            SafeConsole.log(`🔒 [SecurePluginLoader] Using app node_modules: ${finalAppNodeModules}`);
+            SafeConsole.log(`🔒 [SecurePluginLoader] Final app node_modules exists: ${fsSync.existsSync(finalAppNodeModules)}`);
             
             // Create a proper node_modules directory in the plugin directory
             // We'll symlink packages and patch my-nft-gen's package.json for compatibility
@@ -512,7 +751,7 @@ contextBridge.exposeInMainWorld('pluginAPI', {
                 // Create a symlink for my-nft-gen but with a patched package.json
                 // We use a directory with a patched package.json + symlinks to the actual package
                 const pluginMyNftGen = path.join(pluginNodeModules, 'my-nft-gen');
-                const appMyNftGen = path.join(appNodeModules, 'my-nft-gen');
+                const appMyNftGen = path.join(finalAppNodeModules, 'my-nft-gen');
                 
                 // Check if app has my-nft-gen
                 const appStats = await fs.lstat(appMyNftGen).catch(() => null);
@@ -607,14 +846,14 @@ contextBridge.exposeInMainWorld('pluginAPI', {
                 // This allows plugins to use any dependency the app has
                 try {
                     SafeConsole.log(`🔒 [SecurePluginLoader] Symlinking app dependencies...`);
-                    const appPackages = await fs.readdir(appNodeModules);
+                    const appPackages = await fs.readdir(finalAppNodeModules);
                     let symlinkCount = 0;
                     
                     for (const pkg of appPackages) {
                         // Skip if already processed or is a hidden file
                         if (pkg === 'my-nft-gen' || pkg.startsWith('.')) continue;
                         
-                        const appPkg = path.join(appNodeModules, pkg);
+                        const appPkg = path.join(finalAppNodeModules, pkg);
                         const pluginPkg = path.join(pluginNodeModules, pkg);
                         
                         const appPkgStats = await fs.lstat(appPkg).catch(() => null);
@@ -671,9 +910,13 @@ contextBridge.exposeInMainWorld('pluginAPI', {
                         const myNftGenNodeModules = path.join(myNftGenPath, 'node_modules');
                         const myNftGenNodeModulesStats = await fs.lstat(myNftGenNodeModules).catch(() => null);
                         
+                        SafeConsole.log(`🔒 [SecurePluginLoader] Checking my-nft-gen node_modules: ${myNftGenNodeModules}`);
+                        SafeConsole.log(`🔒 [SecurePluginLoader] my-nft-gen node_modules exists: ${!!myNftGenNodeModulesStats}`);
+                        
                         if (myNftGenNodeModulesStats && myNftGenNodeModulesStats.isDirectory()) {
                             SafeConsole.log(`🔒 [SecurePluginLoader] Symlinking my-nft-gen's nested dependencies in temp...`);
                             const nestedPackages = await fs.readdir(myNftGenNodeModules);
+                            SafeConsole.log(`🔒 [SecurePluginLoader] Found ${nestedPackages.length} nested packages: ${nestedPackages.join(', ')}`);
                             let nestedCount = 0;
                             
                             for (const pkg of nestedPackages) {
@@ -687,9 +930,15 @@ contextBridge.exposeInMainWorld('pluginAPI', {
                                     const isDir = (await fs.lstat(appNestedPkg)).isDirectory();
                                     await fs.symlink(appNestedPkg, tempNestedPkg, isDir ? 'dir' : 'file');
                                     nestedCount++;
+                                    if (pkg === 'sharp') {
+                                        SafeConsole.log(`✅ [SecurePluginLoader] Symlinked 'sharp': ${appNestedPkg} -> ${tempNestedPkg}`);
+                                    }
                                 }
                             }
                             SafeConsole.log(`✅ [SecurePluginLoader] Symlinked ${nestedCount} nested dependencies in temp (including sharp)`);
+                        } else {
+                            SafeConsole.log(`⚠️ [SecurePluginLoader] my-nft-gen node_modules not found: ${myNftGenNodeModules}`);
+                            SafeConsole.log(`   Will try to symlink app packages directly instead`);
                         }
                     } catch (error) {
                         SafeConsole.log(`⚠️ [SecurePluginLoader] Could not symlink my-nft-gen nested dependencies in temp: ${error.message}`);
@@ -699,13 +948,15 @@ contextBridge.exposeInMainWorld('pluginAPI', {
                 // Symlink app packages to temp node_modules
                 try {
                     SafeConsole.log(`🔒 [SecurePluginLoader] Symlinking app dependencies to temp node_modules...`);
-                    const appPackages = await fs.readdir(appNodeModules);
+                    SafeConsole.log(`🔒 [SecurePluginLoader] App node_modules: ${finalAppNodeModules}`);
+                    const appPackages = await fs.readdir(finalAppNodeModules);
+                    SafeConsole.log(`🔒 [SecurePluginLoader] Found ${appPackages.length} app packages`);
                     let symlinkCount = 0;
                     
                     for (const pkg of appPackages) {
-                        if (pkg === 'my-nft-gen' || pkg.startsWith('.')) continue;
+                        if (pkg.startsWith('.')) continue;
                         
-                        const appPkg = path.join(appNodeModules, pkg);
+                        const appPkg = path.join(finalAppNodeModules, pkg);
                         const tempPkg = path.join(tempNodeModules, pkg);
                         
                         const appPkgStats = await fs.lstat(appPkg).catch(() => null);
@@ -714,6 +965,9 @@ contextBridge.exposeInMainWorld('pluginAPI', {
                         if (appPkgStats && !tempPkgStats) {
                             await fs.symlink(appPkg, tempPkg, appPkgStats.isDirectory() ? 'dir' : 'file');
                             symlinkCount++;
+                            if (pkg === 'sharp') {
+                                SafeConsole.log(`✅ [SecurePluginLoader] Symlinked 'sharp' from app: ${appPkg} -> ${tempPkg}`);
+                            }
                         }
                     }
                     

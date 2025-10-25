@@ -1,5 +1,9 @@
 import defaultLogger from '../main/utils/logger.js';
 import asarModuleResolver from '../utils/AsarModuleResolver.js';
+import fs from 'fs/promises';
+import fsSync from 'fs';
+import path from 'path';
+import { pathToFileURL } from 'url';
 
 /**
  * Manages the lifecycle of plugin loading and initialization
@@ -89,6 +93,191 @@ export class PluginLifecycleManager {
     }
 
     /**
+     * Find the plugin root directory (where package.json lives)
+     * @private
+     * @param {string} entryPointPath - Path to the plugin entry point
+     * @returns {Promise<string>} Path to plugin root directory
+     */
+    async _findPluginRoot(entryPointPath) {
+        try {
+            let currentDir = path.dirname(entryPointPath);
+            
+            // Walk up the directory tree looking for package.json
+            for (let i = 0; i < 10; i++) {
+                const packageJsonPath = path.join(currentDir, 'package.json');
+                try {
+                    await fs.access(packageJsonPath);
+                    this.logger.debug(`Found plugin root at: ${currentDir}`);
+                    return currentDir;
+                } catch (error) {
+                    // Continue searching
+                }
+                
+                const parentDir = path.dirname(currentDir);
+                if (parentDir === currentDir) {
+                    // Reached filesystem root
+                    break;
+                }
+                currentDir = parentDir;
+            }
+            
+            // If no package.json found, use the entry point's directory
+            this.logger.warn(`No package.json found for plugin, using entry point directory: ${path.dirname(entryPointPath)}`);
+            return path.dirname(entryPointPath);
+        } catch (error) {
+            this.logger.warn(`Error finding plugin root: ${error.message}`);
+            return path.dirname(entryPointPath);
+        }
+    }
+
+    /**
+     * Set up node_modules symlinks for a plugin
+     * This allows plugins to access app dependencies like 'sharp'
+     * @private
+     * @param {string} pluginRootDir - Root directory of the plugin
+     * @returns {Promise<void>}
+     */
+    async _setupPluginNodeModules(pluginRootDir) {
+        try {
+            const pluginNodeModules = path.join(pluginRootDir, 'node_modules');
+            
+            this.logger.info(`[SetupPluginNodeModules] Plugin root: ${pluginRootDir}`);
+            this.logger.info(`[SetupPluginNodeModules] Target node_modules: ${pluginNodeModules}`);
+            
+            // Check if node_modules already exists
+            const stats = await fs.lstat(pluginNodeModules).catch(() => null);
+            if (stats && stats.isDirectory()) {
+                this.logger.info(`[SetupPluginNodeModules] Plugin already has node_modules directory: ${pluginNodeModules}`);
+                // Don't try to set up symlinks if it already exists to avoid conflicts
+                return;
+            }
+            
+            this.logger.info(`[SetupPluginNodeModules] Setting up node_modules for plugin: ${pluginRootDir}`);
+            
+            // Create node_modules directory
+            await fs.mkdir(pluginNodeModules, { recursive: true });
+            this.logger.info(`[SetupPluginNodeModules] Created node_modules directory: ${pluginNodeModules}`);
+            
+            // Get the app's node_modules path
+            const appNodeModules = this.moduleResolver.getNodeModulesPath();
+            this.logger.info(`[SetupPluginNodeModules] App node_modules path: ${appNodeModules}`);
+            
+            if (!appNodeModules || !fsSync.existsSync(appNodeModules)) {
+                this.logger.warn(`[SetupPluginNodeModules] Could not locate app node_modules at ${appNodeModules}, skipping symlink setup`);
+                return;
+            }
+            
+            // Symlink my-nft-gen with nested dependencies
+            try {
+                const appMyNftGen = path.join(appNodeModules, 'my-nft-gen');
+                const appStats = await fs.lstat(appMyNftGen).catch(() => null);
+                
+                this.logger.info(`[SetupPluginNodeModules] App my-nft-gen path: ${appMyNftGen}`);
+                this.logger.info(`[SetupPluginNodeModules] App my-nft-gen exists: ${!!appStats}`);
+                
+                if (appStats) {
+                    const pluginMyNftGen = path.join(pluginNodeModules, 'my-nft-gen');
+                    
+                    // Create directory and symlink my-nft-gen's files
+                    await fs.mkdir(pluginMyNftGen, { recursive: true });
+                    
+                    // Symlink all files and directories from app's my-nft-gen
+                    try {
+                        const entries = await fs.readdir(appMyNftGen, { withFileTypes: true });
+                        this.logger.info(`[SetupPluginNodeModules] Found ${entries.length} entries in my-nft-gen`);
+                        
+                        for (const entry of entries) {
+                            if (entry.name === 'package.json' || entry.name.startsWith('.')) {
+                                continue;
+                            }
+                            
+                            const appFile = path.join(appMyNftGen, entry.name);
+                            const pluginFile = path.join(pluginMyNftGen, entry.name);
+                            
+                            const pluginExists = await fs.lstat(pluginFile).catch(() => null);
+                            if (!pluginExists) {
+                                await fs.symlink(appFile, pluginFile, entry.isDirectory() ? 'dir' : 'file');
+                            }
+                        }
+                        
+                        this.logger.info(`[SetupPluginNodeModules] ✅ Symlinked my-nft-gen to plugin`);
+                    } catch (error) {
+                        this.logger.warn(`[SetupPluginNodeModules] Error symlinking my-nft-gen contents: ${error.message}`);
+                    }
+                    
+                    // Symlink my-nft-gen's nested node_modules (especially important for 'sharp')
+                    try {
+                        const myNftGenNodeModules = path.join(appMyNftGen, 'node_modules');
+                        const myNftGenStats = await fs.lstat(myNftGenNodeModules).catch(() => null);
+                        
+                        this.logger.info(`[SetupPluginNodeModules] my-nft-gen node_modules path: ${myNftGenNodeModules}`);
+                        this.logger.info(`[SetupPluginNodeModules] my-nft-gen node_modules exists: ${!!myNftGenStats}`);
+                        
+                        if (myNftGenStats && myNftGenStats.isDirectory()) {
+                            const nestedPackages = await fs.readdir(myNftGenNodeModules);
+                            this.logger.info(`[SetupPluginNodeModules] Found ${nestedPackages.length} nested packages in my-nft-gen (including sharp)`);
+                            
+                            for (const pkg of nestedPackages) {
+                                if (pkg.startsWith('.')) continue;
+                                
+                                const appNestedPkg = path.join(myNftGenNodeModules, pkg);
+                                const pluginNestedPkg = path.join(pluginNodeModules, pkg);
+                                
+                                const exists = await fs.lstat(pluginNestedPkg).catch(() => null);
+                                if (!exists) {
+                                    const isDir = (await fs.lstat(appNestedPkg)).isDirectory();
+                                    await fs.symlink(appNestedPkg, pluginNestedPkg, isDir ? 'dir' : 'file');
+                                    this.logger.debug(`[SetupPluginNodeModules] Symlinked: ${pkg}`);
+                                }
+                            }
+                            
+                            this.logger.info(`[SetupPluginNodeModules] ✅ Symlinked my-nft-gen's nested dependencies (including sharp)`);
+                        }
+                    } catch (error) {
+                        this.logger.warn(`[SetupPluginNodeModules] Error symlinking my-nft-gen nested dependencies: ${error.message}`);
+                    }
+                }
+            } catch (error) {
+                this.logger.warn(`[SetupPluginNodeModules] Error setting up my-nft-gen symlinks: ${error.message}`);
+            }
+            
+            // Symlink other app packages to plugin's node_modules
+            try {
+                const appPackages = await fs.readdir(appNodeModules);
+                this.logger.info(`[SetupPluginNodeModules] Found ${appPackages.length} packages in app node_modules`);
+                
+                let symlinkedCount = 0;
+                for (const pkg of appPackages) {
+                    if (pkg === 'my-nft-gen' || pkg.startsWith('.')) continue;
+                    
+                    const appPkg = path.join(appNodeModules, pkg);
+                    const pluginPkg = path.join(pluginNodeModules, pkg);
+                    
+                    const appPkgStats = await fs.lstat(appPkg).catch(() => null);
+                    const pluginPkgStats = await fs.lstat(pluginPkg).catch(() => null);
+                    
+                    if (appPkgStats && !pluginPkgStats) {
+                        await fs.symlink(appPkg, pluginPkg, appPkgStats.isDirectory() ? 'dir' : 'file');
+                        symlinkedCount++;
+                        if (pkg === 'sharp') {
+                            this.logger.info(`[SetupPluginNodeModules] ✅ Symlinked 'sharp' to plugin`);
+                        }
+                    }
+                }
+                
+                this.logger.info(`[SetupPluginNodeModules] Symlinked ${symlinkedCount} app packages to plugin`);
+            } catch (error) {
+                this.logger.warn(`[SetupPluginNodeModules] Error symlinking app packages: ${error.message}`);
+            }
+            
+            this.logger.info(`✅ Plugin node_modules setup complete: ${pluginNodeModules}`);
+        } catch (error) {
+            this.logger.error(`Failed to setup plugin node_modules: ${error.message}`);
+            // Don't throw - allow plugin to load anyway, may still work with NODE_PATH
+        }
+    }
+
+    /**
      * Fix broken imports in plugin files
      * Converts relative my-nft-gen paths to proper npm package imports
      * @private
@@ -97,9 +286,6 @@ export class PluginLifecycleManager {
      */
     async _fixPluginImports(filePath) {
         try {
-            const fs = await import('fs/promises');
-            const path = await import('path');
-            
             // Read the file content
             let content = await fs.readFile(filePath, 'utf8');
             const originalContent = content;
@@ -213,6 +399,16 @@ export class PluginLifecycleManager {
         try {
             // Resolve entry point if path is a directory
             let resolvedPath = await this._resolvePluginPath(pluginInfo.path);
+            this.logger.info(`[LoadSinglePlugin] Resolved path: ${resolvedPath}`);
+            
+            // Find the plugin root directory
+            const pluginRootDir = await this._findPluginRoot(resolvedPath);
+            this.logger.info(`[LoadSinglePlugin] Found plugin root: ${pluginRootDir}`);
+            
+            // Set up node_modules symlinks before loading the plugin
+            // This allows the plugin to access app dependencies like 'sharp'
+            this.logger.info(`[LoadSinglePlugin] Setting up node_modules symlinks...`);
+            await this._setupPluginNodeModules(pluginRootDir);
             
             // Fix any broken imports in the plugin
             resolvedPath = await this._fixPluginImports(resolvedPath);
