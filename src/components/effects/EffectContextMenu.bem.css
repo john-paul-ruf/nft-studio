@@ -2,19 +2,19 @@
  * EffectContextMenu BEM Styling
  * 
  * Radix UI context menu component styling with semantic BEM classes.
- * Separates static layout/appearance from dynamic theme colors.
+ * Uses design tokens from src/styles.css for seamless theme integration.
  * 
- * CSS Variables (theme-dependent):
- * - --effect-context-menu-bg: Menu background color
- * - --effect-context-menu-border: Menu border color
- * - --effect-context-menu-shadow: Menu shadow
- * - --effect-context-menu-item-color: Item text color
- * - --effect-context-menu-item-hover-bg: Item hover background
- * - --effect-context-menu-separator-color: Separator border color
- * - --effect-context-menu-disabled-color: Disabled item text color
- * - --effect-context-menu-header-color: Category header text color
+ * Design Tokens (theme-aware):
+ * - --color-surface-1: Menu background color (adapts to light/dark themes)
+ * - --color-border: Menu border & separator color
+ * - --shadow-2: Menu shadow elevation
+ * - --color-fg: Item text color (primary text)
+ * - --color-hover-bg: Item hover background with smooth transition
+ * - --color-text-disabled: Disabled item text color
+ * - --color-text-secondary: Category header text color
  * 
  * Block: .effect-context-menu__*
+ * Themes: Automatically adapts via [data-theme] selector on root
  */
 
 /* ============================================
@@ -22,10 +22,10 @@
    ============================================ */
 
 .effect-context-menu__content {
-  background-color: var(--effect-context-menu-bg, #ffffff) !important;
-  border: 1px solid var(--effect-context-menu-border, #e0e0e0) !important;
+  background-color: var(--color-surface-1, var(--background-paper, #ffffff)) !important;
+  border: 1px solid var(--color-border, var(--divider, #e0e0e0)) !important;
   border-radius: 6px !important;
-  box-shadow: var(--effect-context-menu-shadow, 0 8px 32px rgba(0, 0, 0, 0.15)) !important;
+  box-shadow: var(--shadow-2, 0 8px 32px rgba(0, 0, 0, 0.15)) !important;
   padding: 4px !important;
   min-width: 200px !important;
   z-index: 10000 !important;
@@ -42,13 +42,14 @@
   padding: 8px 12px !important;
   font-size: 14px !important;
   cursor: pointer !important;
-  color: var(--effect-context-menu-item-color, #000000) !important;
+  color: var(--color-fg, var(--text-primary, #000000)) !important;
   user-select: none !important;
   outline: none !important;
 }
 
 .effect-context-menu__item:hover {
-  background-color: var(--effect-context-menu-item-hover-bg, #f5f5f5) !important;
+  background-color: var(--color-hover-bg, var(--action-hover, #f5f5f5)) !important;
+  transition: background-color 150ms cubic-bezier(0.2, 0, 0, 1) !important;
 }
 
 /* ============================================
@@ -58,7 +59,7 @@
 .effect-context-menu__item[disabled],
 .effect-context-menu__disabled-item {
   font-style: italic !important;
-  color: var(--effect-context-menu-disabled-color, #9e9e9e) !important;
+  color: var(--color-text-disabled, rgba(224, 224, 224, 0.5)) !important;
   cursor: default !important;
   pointer-events: none !important;
 }
@@ -75,7 +76,7 @@
   user-select: none !important;
   line-height: 1.4 !important;
   letter-spacing: 0.5px !important;
-  color: var(--effect-context-menu-header-color, #757575) !important;
+  color: var(--color-text-secondary, var(--text-secondary, #757575)) !important;
 }
 
 /* ============================================
@@ -110,6 +111,6 @@
 
 .effect-context-menu__separator {
   height: 1px !important;
-  background-color: var(--effect-context-menu-separator-color, #e0e0e0) !important;
+  background-color: var(--color-border, var(--divider, #e0e0e0)) !important;
   margin: 4px 0 !important;
 }

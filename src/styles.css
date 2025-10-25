@@ -117,6 +117,16 @@
     /* Warning Variants */
     --color-warning-dark: #b8862e;
     
+    /* ========== SECONDARY COLOR TOKENS ========== */
+    /* Additional background and foreground variants for component styling */
+    --color-bg-secondary: #2a2a2a;
+    --color-bg-tertiary: #353535;
+    --color-fg-secondary: var(--text-secondary);
+    --color-bg-contrast: #ffffff;  /* Text color for contrast on colored backgrounds */
+    
+    /* Shadow Aliases */
+    --shadow-lg: var(--shadow-3);
+    
     /* ========== SPACING SCALE ========== */
     /* 4px-based scale: quarter-rem increments */
     --space-1: 0.25rem;      /* 4px */
@@ -127,6 +137,12 @@
     --space-6: 2rem;         /* 32px */
     --space-7: 2.5rem;       /* 40px */
     --space-8: 3rem;         /* 48px */
+    
+    /* Semantic spacing aliases */
+    --space-xs: var(--space-1);    /* 4px - extra small */
+    --space-sm: var(--space-2);    /* 8px - small */
+    --space-md: var(--space-4);    /* 16px - medium */
+    --space-lg: var(--space-5);    /* 24px - large */
     
     /* ========== BORDER RADIUS ========== */
     --radius-sm: 4px;
@@ -199,6 +215,13 @@
     --color-active-bg: rgba(42, 111, 187, 0.1);
     --color-focus-ring: #2a6fbb;
     --color-warning-dark: #9a6f23;
+    
+    /* Secondary color tokens for light theme */
+    --color-bg-secondary: #f5f5f5;
+    --color-bg-tertiary: #eeeeee;
+    --color-fg-secondary: #666666;
+    --color-bg-contrast: #ffffff;
+    --shadow-lg: var(--shadow-3);
 }
 
 [data-theme="dark"] {
@@ -242,6 +265,13 @@
     --color-active-bg: rgba(90, 139, 181, 0.15);
     --color-focus-ring: #5a8bb5;
     --color-warning-dark: #b8862e;
+    
+    /* Secondary color tokens for dark theme */
+    --color-bg-secondary: #2a2a2a;
+    --color-bg-tertiary: #353535;
+    --color-fg-secondary: #a0a0a0;
+    --color-bg-contrast: #ffffff;
+    --shadow-lg: var(--shadow-3);
 }
 
 body {
