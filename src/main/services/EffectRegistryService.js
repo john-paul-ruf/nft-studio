@@ -10,16 +10,40 @@ import SafeConsole from "../utils/SafeConsole.js";
 // Note: my-nft-gen modules are dynamically imported in _loadModules() to avoid path resolution issues in production
 
 /**
+ * Send IPC message to renderer process
+ * @param {string} channel - IPC channel name
+ * @param {*} data - Data to send
+ */
+function sendToRenderer(channel, data) {
+    try {
+        const windows = BrowserWindow.getAllWindows();
+        if (windows.length > 0) {
+            windows.forEach(window => {
+                try {
+                    window.webContents.send(channel, data);
+                } catch (err) {
+                    SafeConsole.log(`⚠️ [EffectRegistryService] Failed to send IPC message to window: ${err.message}`);
+                }
+            });
+        }
+    } catch (error) {
+        SafeConsole.log(`⚠️ [EffectRegistryService] Failed to send to renderer: ${error.message}`);
+    }
+}
+
+/**
  * Service responsible for effect registry operations only
  * Follows Single Responsibility Principle
  */
 class EffectRegistryService {
 
-    constructor() {
+    constructor(applicationFactory = null) {
         this.coreEffectsRegistered = false;
-        this.securePluginLoader = null;
+        this.applicationFactory = applicationFactory;
         // Cache for dynamically imported modules
         this._moduleCache = {};
+        // Track initialization promise to prevent concurrent executions
+        this._initializationPromise = null;
     }
     
     /**
@@ -64,131 +88,307 @@ class EffectRegistryService {
 
     /**
      * Ensure core effects are registered only once using new enhanced registration with config linking
+     * Uses registry cache for faster startup when available
      * @returns {Promise<void>}
      */
     async ensureCoreEffectsRegistered() {
+        console.log('📞 [EffectRegistryService] ensureCoreEffectsRegistered() called');
+        
+        // CRITICAL: Prevent concurrent executions by returning the same promise
+        // if initialization is already in progress
+        if (this._initializationPromise) {
+            console.log('   ↩️ Already initializing, returning cached promise');
+            return this._initializationPromise;
+        }
+
         if (!this.coreEffectsRegistered) {
-            try {
-                SafeConsole.log('🔄 [EffectRegistryService] Starting core effects registration...');
-                
-                // Load modules dynamically
-                const { PluginLoader, ConfigLinker, EnhancedEffectsRegistration } = await this._loadModules();
-                
-                // CRITICAL: Pre-load base classes to avoid circular dependency issues
-                // This ensures LayerEffect and other base classes are fully initialized
-                // before any effects (core or plugin) try to extend them
-                SafeConsole.log('🔄 [EffectRegistryService] Pre-loading base classes...');
-                try {
-                    // Import base classes in dependency order
-                    await import('my-nft-gen/src/core/Settings.js');
-                    await import('my-nft-gen/src/core/layer/Layer.js');
-                    await import('my-nft-gen/src/core/layer/LayerEffect.js');
-                    await import('my-nft-gen/src/core/factory/canvas/Canvas2dFactory.js');
-                    await import('my-nft-gen/src/core/factory/layer/LayerFactory.js');
-                    
-                    // Add a small delay to ensure module initialization completes
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    SafeConsole.log('✅ [EffectRegistryService] Base classes pre-loaded');
-                } catch (preloadError) {
-                    SafeConsole.log('⚠️ [EffectRegistryService] Base class pre-load warning:', preloadError.message);
-                    // Continue anyway - this is just a precaution
+            console.log('   🔄 First call, starting initialization...');
+            // Start the initialization and cache the promise
+            this._initializationPromise = this._performInitialization().then(
+                result => {
+                    console.log('✅ [EffectRegistryService] _performInitialization() COMPLETED SUCCESSFULLY');
+                    return result;
+                },
+                error => {
+                    console.error('❌ [EffectRegistryService] _performInitialization() FAILED WITH ERROR:');
+                    console.error('   Error message:', error?.message);
+                    console.error('   Stack:', error?.stack);
+                    throw error;
                 }
-                
-                // Use the simpler PluginLoader approach that avoids validation issues
-                // Ensure effects are loaded
-                SafeConsole.log('🔄 [EffectRegistryService] Loading core effects...');
-                
-                // Try loading with retry logic for circular dependency issues
-                let coreEffectsLoaded = false;
-                let retryCount = 0;
-                const maxRetries = 3;
-                
-                while (!coreEffectsLoaded && retryCount < maxRetries) {
-                    try {
-                        await PluginLoader.ensureEffectsLoaded();
-                        coreEffectsLoaded = true;
-                        SafeConsole.log('✅ [EffectRegistryService] Core effects loaded');
-                    } catch (loadError) {
-                        retryCount++;
-                        if (loadError.message && loadError.message.includes('before initialization')) {
-                            SafeConsole.log(`⚠️ [EffectRegistryService] Circular dependency detected (attempt ${retryCount}/${maxRetries})`);
-                            if (retryCount < maxRetries) {
-                                SafeConsole.log(`   💡 Waiting ${retryCount * 200}ms before retry...`);
-                                await new Promise(resolve => setTimeout(resolve, retryCount * 200));
-                            } else {
-                                SafeConsole.log(`   ❌ Max retries reached, trying fallback method...`);
-                                throw loadError;
-                            }
+            );
+            try {
+                await this._initializationPromise;
+            } finally {
+                // Don't clear the promise - keep it cached so subsequent calls return immediately
+                // (they'll just await the same resolved promise)
+            }
+        }
+
+        return this._initializationPromise;
+    }
+
+    /**
+     * Perform the actual initialization
+     * @private
+     */
+    async _performInitialization() {
+        // CRITICAL: Log at the very start to ensure this is called
+        console.log('═══════════════════════════════════════════════════════════════');
+        console.log('🚀🚀🚀 [EffectRegistryService] STARTUP SEQUENCE BEGINNING 🚀🚀🚀');
+        console.log('═══════════════════════════════════════════════════════════════');
+        
+        try {
+            SafeConsole.log('🚀 [EffectRegistryService] STARTUP: _performInitialization() started');
+
+            // Load modules dynamically
+            const { PluginLoader, ConfigLinker, EnhancedEffectsRegistration } = await this._loadModules();
+            
+            // 🏗️ ARCHITECTURE: Core effects are ALWAYS loaded from my-nft-gen
+            // This ensures effects are always available regardless of cache state.
+            // Cache optimization only affects plugin discovery, not core effects or config linking.
+            SafeConsole.log('🔄 [EffectRegistryService] Loading core effects from my-nft-gen...');
+            
+            // Try loading with retry logic for circular dependency issues
+            let coreEffectsLoaded = false;
+            let retryCount = 0;
+            const maxRetries = 3;
+            
+            while (!coreEffectsLoaded && retryCount < maxRetries) {
+                try {
+                    await PluginLoader.ensureEffectsLoaded();
+                    coreEffectsLoaded = true;
+                    SafeConsole.log('✅ [EffectRegistryService] Core effects loaded');
+                } catch (loadError) {
+                    retryCount++;
+                    if (loadError.message && loadError.message.includes('before initialization')) {
+                        SafeConsole.log(`⚠️ [EffectRegistryService] Circular dependency detected (attempt ${retryCount}/${maxRetries})`);
+                        if (retryCount < maxRetries) {
+                            SafeConsole.log(`   💡 Waiting ${retryCount * 200}ms before retry...`);
+                            await new Promise(resolve => setTimeout(resolve, retryCount * 200));
                         } else {
+                            SafeConsole.log(`   ❌ Max retries reached, trying fallback method...`);
                             throw loadError;
                         }
+                    } else {
+                        throw loadError;
                     }
                 }
+            }
 
-                // Also try to link configs if possible
+            // 🔗 CRITICAL: ConfigLinker ALWAYS runs to connect core effects to their config schemas
+            // This is the single source of truth for effect editability
+            // ConfigRegistry must be populated for effects to appear in the UI config panel
+            let configsLinked = false;
+            try {
+                SafeConsole.log('🔄 [EffectRegistryService] Linking configs to core effects...');
+                SafeConsole.log('   📊 Before ConfigLinker.linkEffectsWithConfigs():');
+                
+                // Check PluginRegistry to see what effects exist
+                const { PluginRegistry, ConfigRegistry: ConfigRegistryBefore, EffectRegistry: EffectReg } = await this._loadModules();
+                const pluginsBeforeLink = PluginRegistry.getAllPlugins ? PluginRegistry.getAllPlugins() : [];
+                SafeConsole.log(`   📍 PluginRegistry has ${Array.isArray(pluginsBeforeLink) ? pluginsBeforeLink.length : 0} plugins loaded`);
+                
+                // 🔍 DIAGNOSTIC: Deep inspect PluginRegistry structure
                 try {
-                    SafeConsole.log('🔄 [EffectRegistryService] Linking configs...');
-                    await ConfigLinker.linkEffectsWithConfigs();
-                    SafeConsole.log('✅ [EffectRegistryService] Configs linked');
-                } catch (linkError) {
-                    // Config linking is optional - effects will still work without it
-                    SafeConsole.log('⚠️ [EffectRegistryService] Config linking skipped:', linkError.message);
+                    const sampleEffect = Array.isArray(pluginsBeforeLink) ? pluginsBeforeLink[0] : null;
+                    const sampleEffectName = sampleEffect?.name;
+                    if (sampleEffect) {
+                        SafeConsole.log(`   📍 Sample effect "${sampleEffectName}" structure:`, {
+                            type: typeof sampleEffect,
+                            hasEffectClass: !!sampleEffect?.effectClass,
+                            hasConfigClass: !!sampleEffect?.configClass,
+                            keys: Object.keys(sampleEffect || {}).slice(0, 10)
+                        });
+                        
+                        if (sampleEffect?.effectClass) {
+                            SafeConsole.log(`      ↳ EffectClass properties:`, {
+                                name: sampleEffect.effectClass.name,
+                                hasConfigClass: !!sampleEffect.effectClass.configClass,
+                                hasConfig: !!sampleEffect.effectClass.Config,
+                                staticProps: Object.getOwnPropertyNames(sampleEffect.effectClass).slice(0, 8)
+                            });
+                        }
+                    }
+                } catch (inspectErr) {
+                    SafeConsole.log(`   ⚠️ Failed to inspect sample effect:`, inspectErr.message);
                 }
+                
+                // Call ConfigLinker
+                SafeConsole.log('   🔗 Calling ConfigLinker.linkEffectsWithConfigs()...');
+                await ConfigLinker.linkEffectsWithConfigs();
+                SafeConsole.log('   ✅ ConfigLinker.linkEffectsWithConfigs() completed without error');
+                
+                // Check ConfigRegistry AFTER linking
+                SafeConsole.log('   📊 After ConfigLinker.linkEffectsWithConfigs():');
+                const allConfigs = ConfigRegistryBefore.getAll ? ConfigRegistryBefore.getAll() : {};
+                const configCount = Object.keys(allConfigs).length;
+                SafeConsole.log(`   📍 ConfigRegistry now has ${configCount} configs`);
+                if (configCount > 0) {
+                    SafeConsole.log(`   📍 First 10 config names:`, Object.keys(allConfigs).slice(0, 10));
+                } else {
+                    // ConfigRegistry is still empty after ConfigLinker - this is a SILENT FAILURE
+                    SafeConsole.log(`   ⚠️ SILENT FAILURE: ConfigLinker completed but ConfigRegistry is still empty!`);
+                    
+                    // Try to diagnose why - check if configs can be loaded from effects
+                    SafeConsole.log('   🔍 Attempting direct config discovery from loaded effects...');
+                    try {
+                        // Try to get configs from effect classes directly
+                        const effectCategories = await import('my-nft-gen/src/core/registry/EffectCategories.js').then(m => m.EffectCategories);
+                        const categories = [effectCategories.PRIMARY, effectCategories.SECONDARY, effectCategories.KEY_FRAME, effectCategories.FINAL_IMAGE];
+                        let foundConfigsInEffects = 0;
+                        
+                        for (const category of categories) {
+                            const effects = EffectReg.getByCategoryGlobal(category);
+                            if (Array.isArray(effects)) {
+                                for (const effect of effects) {
+                                    if (effect?.configClass) {
+                                        foundConfigsInEffects++;
+                                    }
+                                }
+                            } else if (effects && typeof effects === 'object') {
+                                for (const [, effectClass] of Object.entries(effects)) {
+                                    if (effectClass?.configClass) {
+                                        foundConfigsInEffects++;
+                                    }
+                                }
+                            }
+                        }
+                        SafeConsole.log(`      Found ${foundConfigsInEffects} effect classes with configClass attached`);
+                    } catch (discoverErr) {
+                        SafeConsole.log(`      Failed to discover configs in effects:`, discoverErr.message);
+                    }
+                }
+                
+                configsLinked = configCount > 0;
+                SafeConsole.log(`✅ [EffectRegistryService] Configs linked (success=${configsLinked})`);
+                
+            } catch (linkError) {
+                // 🚨 LOG AS ERROR - this indicates a production issue
+                SafeConsole.log('❌ [EffectRegistryService] CRITICAL: Config linking failed:', linkError.message);
+                SafeConsole.log('   Stack:', linkError.stack);
+                SafeConsole.log('   Full error object:', JSON.stringify(linkError, null, 2));
+                SafeConsole.log('   ⚠️ BEFORE calling _manuallyRestoreConfigs (Approach 1 - exception handler)');
+                
+                // Try manual fallback: directly access loaded plugins and register their configs
+                try {
+                    SafeConsole.log('   ⏳ About to call _manuallyRestoreConfigs()...');
+                    await this._manuallyRestoreConfigs();
+                    SafeConsole.log('✅ [EffectRegistryService] Configs manually restored (fallback)');
+                } catch (fallbackError) {
+                    SafeConsole.log('❌ [EffectRegistryService] Manual config restoration also failed:', fallbackError.message);
+                    SafeConsole.log('   Stack:', fallbackError.stack);
+                    SafeConsole.log('   Core effects will have limited editability - this indicates a build or deployment issue');
+                }
+            }
+            
+            // If ConfigLinker silently failed to populate ConfigRegistry, run manual restoration
+            if (!configsLinked) {
+                SafeConsole.log('⚠️ [EffectRegistryService] ConfigLinker did not populate ConfigRegistry, attempting manual restoration...');
+                SafeConsole.log('   ⚠️ BEFORE calling _manuallyRestoreConfigs (Approach 2 - silent failure handler)');
+                try {
+                    SafeConsole.log('   ⏳ About to call _manuallyRestoreConfigs()...');
+                    await this._manuallyRestoreConfigs();
+                    SafeConsole.log('✅ [EffectRegistryService] Configs manually restored (as fallback for silent failure)');
+                } catch (fallbackError) {
+                    SafeConsole.log('❌ [EffectRegistryService] Manual config restoration also failed:', fallbackError.message);
+                    SafeConsole.log('   Stack:', fallbackError.stack);
+                }
+            }
+
+            this.coreEffectsRegistered = true;
+            SafeConsole.log('✅ [EffectRegistryService] Core effects registration complete');
+
+            // Save to cache for next startup (if applicationFactory is available)
+            // NOTE: Don't await this - save in background to prevent blocking app startup
+            if (this.applicationFactory) {
+                // Fire and forget - save cache in background
+                this._saveToCache().catch(err => {
+                    SafeConsole.log('⚠️ [EffectRegistryService] Background cache save failed (non-critical):', err.message);
+                });
+            }
+
+            // NOTE: Plugin loading is now ONLY handled by PluginLoaderOrchestrator at app startup
+            // This ensures the architectural constraint: "plugins register ONLY at startup or via plugin manager"
+            // The orchestrator is initialized by main.js before IPC handlers are registered
+            SafeConsole.log('✅ [EffectRegistryService] Core effects ready. Plugins will be loaded by PluginLoaderOrchestrator at startup.');
+
+            // DISABLED: Debug logging was causing startup hangs (even with Promise.race timeout)
+            // The app doesn't need this for functionality—it's just diagnostic
+            // await this.logRegistryState();
+        } catch (error) {
+            SafeConsole.log('❌ [EffectRegistryService] Failed to register core effects:', error);
+
+            // Try the original enhanced registration as a fallback
+            try {
+                const { EnhancedEffectsRegistration } = await this._loadModules();
+                await EnhancedEffectsRegistration.registerEffectsFromPackage('my-nft-effects-core');
 
                 this.coreEffectsRegistered = true;
-                SafeConsole.log('✅ [EffectRegistryService] Core effects registration complete');
-                
-                // Load plugins AFTER core effects are fully registered to avoid circular dependencies
-                SafeConsole.log('🔄 [EffectRegistryService] Loading user plugins...');
-                await this.loadPluginsForUI();
-                SafeConsole.log('✅ [EffectRegistryService] User plugins loaded');
-                
-                // Log registry state for debugging
-                await this.logRegistryState();
-            } catch (error) {
-                SafeConsole.log('❌ [EffectRegistryService] Failed to register core effects:', error);
-
-                // Try the original enhanced registration as a fallback
-                try {
-                    const { EnhancedEffectsRegistration } = await this._loadModules();
-                    await EnhancedEffectsRegistration.registerEffectsFromPackage('my-nft-effects-core');
-
-                    this.coreEffectsRegistered = true;
-                    SafeConsole.log('✅ [EffectRegistryService] Core effects loaded using enhanced registration');
-                } catch (fallbackError) {
-                    SafeConsole.log('❌ [EffectRegistryService] All registration methods failed:', fallbackError);
-                    throw error; // Re-throw original error
-                }
+                SafeConsole.log('✅ [EffectRegistryService] Core effects loaded using enhanced registration');
+            } catch (fallbackError) {
+                SafeConsole.log('❌ [EffectRegistryService] All registration methods failed:', fallbackError);
+                // Mark as registered anyway to prevent infinite retries
+                this.coreEffectsRegistered = true;
+                throw error; // Re-throw original error
             }
         }
     }
-    
+
     /**
      * Log the current state of the registry for debugging
+     * With timeout protection to prevent startup stalls
      * @returns {Promise<void>}
      */
     async logRegistryState() {
-        try {
-            const { PluginRegistry, EffectCategories } = await this._loadModules();
-            const primaryEffects = PluginRegistry.getByCategory(EffectCategories.PRIMARY);
-            const secondaryEffects = PluginRegistry.getByCategory(EffectCategories.SECONDARY);
-            const keyFrameEffects = PluginRegistry.getByCategory(EffectCategories.KEY_FRAME);
-            const finalImageEffects = PluginRegistry.getByCategory(EffectCategories.FINAL_IMAGE);
-            
-            SafeConsole.log('📊 [EffectRegistryService] Current registry state:', {
-                primary: primaryEffects.length,
-                secondary: secondaryEffects.length,
-                keyFrame: keyFrameEffects.length,
-                finalImage: finalImageEffects.length
-            });
-            
-            // Log the names of all effects
-            SafeConsole.log('📊 [EffectRegistryService] Primary effects:', primaryEffects.map(p => p.name).join(', '));
-            SafeConsole.log('📊 [EffectRegistryService] Secondary effects:', secondaryEffects.map(p => p.name).join(', '));
-            SafeConsole.log('📊 [EffectRegistryService] Final image effects:', finalImageEffects.map(p => p.name).join(', '));
-        } catch (error) {
-            SafeConsole.log('❌ [EffectRegistryService] Failed to log registry state:', error);
-        }
+        // Add timeout to prevent startup hangs from debug logging
+        const timeoutPromise = new Promise(resolve => {
+            setTimeout(() => {
+                SafeConsole.log('⏱️ [EffectRegistryService] Registry state logging timed out (skipping to unblock startup)');
+                resolve();
+            }, 3000); // 3 second timeout
+        });
+
+        const loggingPromise = (async () => {
+            try {
+                const { PluginRegistry, EffectCategories } = await this._loadModules();
+                
+                // Wrap synchronous calls with try-catch to catch any hanging operations
+                let primaryEffects, secondaryEffects, keyFrameEffects, finalImageEffects;
+                
+                try {
+                    primaryEffects = PluginRegistry.getByCategory(EffectCategories.PRIMARY);
+                    secondaryEffects = PluginRegistry.getByCategory(EffectCategories.SECONDARY);
+                    keyFrameEffects = PluginRegistry.getByCategory(EffectCategories.KEY_FRAME);
+                    finalImageEffects = PluginRegistry.getByCategory(EffectCategories.FINAL_IMAGE);
+                } catch (syncError) {
+                    SafeConsole.log('⚠️ [EffectRegistryService] Error reading registry categories:', syncError.message);
+                    return;
+                }
+                
+                SafeConsole.log('📊 [EffectRegistryService] Current registry state:', {
+                    primary: primaryEffects ? primaryEffects.length : 0,
+                    secondary: secondaryEffects ? secondaryEffects.length : 0,
+                    keyFrame: keyFrameEffects ? keyFrameEffects.length : 0,
+                    finalImage: finalImageEffects ? finalImageEffects.length : 0
+                });
+                
+                // Log the names of all effects
+                if (primaryEffects && Array.isArray(primaryEffects)) {
+                    SafeConsole.log('📊 [EffectRegistryService] Primary effects:', primaryEffects.map(p => p.name).join(', '));
+                }
+                if (secondaryEffects && Array.isArray(secondaryEffects)) {
+                    SafeConsole.log('📊 [EffectRegistryService] Secondary effects:', secondaryEffects.map(p => p.name).join(', '));
+                }
+                if (finalImageEffects && Array.isArray(finalImageEffects)) {
+                    SafeConsole.log('📊 [EffectRegistryService] Final image effects:', finalImageEffects.map(p => p.name).join(', '));
+                }
+            } catch (error) {
+                SafeConsole.log('❌ [EffectRegistryService] Failed to log registry state:', error.message);
+            }
+        })();
+
+        // Race: whichever completes first (logging or timeout)
+        return Promise.race([loggingPromise, timeoutPromise]);
     }
 
     /**
@@ -653,10 +853,14 @@ class EffectRegistryService {
 
     /**
      * Get modern plugin registry with config linking
+     * NOTE: Does NOT re-register plugins - only returns the registry
+     * Plugins are registered ONLY at app startup via PluginLoaderOrchestrator
      * @returns {Promise<Object>} Plugin registry
      */
     async getPluginRegistry() {
-        await this.ensureCoreEffectsRegistered();
+        // CRITICAL: Don't call ensureCoreEffectsRegistered() here
+        // That method registers plugins, which should ONLY happen at app startup
+        // Getting the registry during render should NOT trigger re-registration
         const { PluginRegistry } = await this._loadModules();
         return PluginRegistry;
     }
@@ -738,116 +942,21 @@ class EffectRegistryService {
 
     /**
      * Load plugins for UI display (called during initial effect registry setup)
+     *
+     * @deprecated As of Phase 3 refactor - use PluginLoaderOrchestrator instead
+     * Kept for backward compatibility, delegates to orchestrator when available
+     *
      * @returns {Promise<void>}
      */
     async loadPluginsForUI() {
-        try {
-            // Load modules to ensure PluginLoader is available
-            const { PluginLoader } = await this._loadModules();
-            
-            // Initialize secure plugin loader if not already done
-            if (!this.securePluginLoader) {
-                this.securePluginLoader = new SecurePluginLoader();
-            }
-
-            // Get enabled plugins
-            const appDataPath = app.getPath('userData');
-            const pluginManager = new PluginManagerService(appDataPath);
-            await pluginManager.initialize();
-
-            const pluginPaths = await pluginManager.loadPluginsForGeneration();
-
-            SafeConsole.log(`📦 [EffectRegistryService] Found ${pluginPaths.length} plugin(s) to load`);
-            SafeConsole.log(`📦 [EffectRegistryService] Running in ${app.isPackaged ? 'PRODUCTION' : 'DEVELOPMENT'} mode`);
-            SafeConsole.log(`📦 [EffectRegistryService] app.isPackaged: ${app.isPackaged}, NODE_ENV: ${process.env.NODE_ENV}`);
-
-            if (pluginPaths.length > 0) {
-                SafeConsole.log('📦 [EffectRegistryService] Loading plugins for UI:', pluginPaths);
-
-                for (const pluginInfo of pluginPaths) {
-                    if (pluginInfo.success) {
-                        try {
-                            SafeConsole.log(`🔄 [EffectRegistryService] Loading plugin: ${pluginInfo.name} from ${pluginInfo.path}`);
-
-                            // Use SecurePluginLoader for all plugins (handles import rewriting for my-nft-gen)
-                            try {
-                                SafeConsole.log(`🔄 [EffectRegistryService] Loading with SecurePluginLoader: ${pluginInfo.name}`);
-                                SafeConsole.log(`   Plugin path: ${pluginInfo.path}`);
-                                // Use loadPluginInMainProcess to load plugins with full Node.js module access
-                                // This allows plugins to use my-nft-gen and native modules like 'sharp'
-                                const result = await this.securePluginLoader.loadPluginInMainProcess(pluginInfo.path);
-                                SafeConsole.log(`✅ [EffectRegistryService] Plugin loaded successfully: ${pluginInfo.name}`);
-                                
-                                // Register loaded effects with the actual EffectRegistry
-                                if (result.success && result.effects && result.effects.length > 0) {
-                                    SafeConsole.log(`📝 [EffectRegistryService] Registering ${result.effects.length} effect(s) from ${pluginInfo.name}`);
-                                    
-                                    try {
-                                        // Get the real EffectRegistry to register effects
-                                        const { EffectRegistry } = await this._loadModules();
-                                        
-                                        for (const effectData of result.effects) {
-                                            try {
-                                                SafeConsole.log(`   - Registering effect: ${effectData.name} (${effectData.category})`);
-                                                
-                                                // Use the actual effect class if available (from main process loader)
-                                                // Otherwise, create a wrapper for isolated window results
-                                                const EffectToRegister = effectData.effectClass || this.createSafeEffectWrapper(effectData);
-                                                
-                                                // Register with the actual registry using the static method
-                                                EffectRegistry.registerGlobal(EffectToRegister, effectData.category, {
-                                                    source: 'plugin',
-                                                    pluginName: pluginInfo.name
-                                                });
-                                                
-                                                SafeConsole.log(`   ✅ Effect registered: ${effectData.name}`);
-                                            } catch (regError) {
-                                                SafeConsole.log(`   ⚠️ Warning registering ${effectData.name}: ${regError.message}`);
-                                            }
-                                        }
-                                    } catch (registryError) {
-                                        SafeConsole.log(`⚠️ [EffectRegistryService] Could not register effects: ${registryError.message}`);
-                                    }
-                                } else if (!result.success) {
-                                    SafeConsole.log(`⚠️ [EffectRegistryService] Plugin failed to load: ${result.error || 'Unknown error'}`);
-                                } else {
-                                    SafeConsole.log(`ℹ️ [EffectRegistryService] No effects returned from ${pluginInfo.name}`);
-                                }
-                            } catch (error) {
-                                SafeConsole.log(`❌ [EffectRegistryService] Failed to load plugin: ${pluginInfo.name}`);
-                                SafeConsole.log(`   Plugin path: ${pluginInfo.path}`);
-                                SafeConsole.log(`   Error: ${error.message}`);
-                                SafeConsole.log(`   `);
-                                SafeConsole.log(`   💡 Troubleshooting:`);
-                                SafeConsole.log(`   1. Ensure the plugin has a valid 'register' function exported`);
-                                SafeConsole.log(`   2. Check that all dependencies (like my-nft-gen) are properly installed`);
-                                SafeConsole.log(`   3. Verify the plugin's package.json has "type": "module"`);
-                                SafeConsole.log(`   4. Make sure the plugin file is named 'plugin.js', 'index.js', or 'main.js'`);
-                                SafeConsole.log(`   5. Check the logs above for SecurePluginLoader import rewriting issues`);
-                                if (error.stack) {
-                                    SafeConsole.log(`   Stack trace: ${error.stack}`);
-                                }
-                            }
-                        } catch (error) {
-                            SafeConsole.log(`❌ [EffectRegistryService] Failed to load plugin ${pluginInfo.name}:`, error);
-                            SafeConsole.log(`   Plugin path: ${pluginInfo.path}`);
-                            SafeConsole.log(`   Error: ${error.message}`);
-                            if (error.stack) {
-                                SafeConsole.log(`   Stack trace: ${error.stack}`);
-                            }
-                        }
-                    }
-                }
-
-                SafeConsole.log(`✅ [EffectRegistryService] Finished loading ${pluginPaths.length} plugin(s)`);
-            } else {
-                SafeConsole.log('ℹ️ [EffectRegistryService] No plugins found to load');
-            }
-        } catch (error) {
-            SafeConsole.log('❌ [EffectRegistryService] Failed to load plugins for UI:', error.message);
-            SafeConsole.log('   Error details:', error.stack || error.toString());
-            // Don't throw - this is optional for UI display
-        }
+        // DEPRECATED: This method should not be called directly
+        // Plugin loading is now ONLY handled by PluginLoaderOrchestrator at app startup
+        // This method exists only for backwards compatibility in tests
+        
+        SafeConsole.log('❌ [EffectRegistryService] loadPluginsForUI() is deprecated and should not be called');
+        SafeConsole.log('   Plugins are loaded by PluginLoaderOrchestrator during app startup');
+        
+        throw new Error('EffectRegistryService.loadPluginsForUI() is deprecated. Plugins must be loaded via PluginLoaderOrchestrator.loadInstalledPlugins()');
     }
 
     /**
@@ -938,12 +1047,9 @@ class EffectRegistryService {
             // Load modules to ensure they're available
             const { EffectCategories, ConfigLinker } = await this._loadModules();
 
-            // Only reload plugins if not explicitly skipped
-            // This prevents infinite loops when refreshRegistry is called from plugin:loaded events
-            if (!skipPluginReload) {
-                // Reload plugins to ensure they're properly loaded
-                await this.loadPluginsForUI();
-            }
+            // NOTE: Plugin reloading is now ONLY handled by PluginLoaderOrchestrator
+            // This method only refreshes the registry, not loads new plugins
+            SafeConsole.log('⚠️ [EffectRegistryService] Registry refresh will NOT reload plugins');
 
             // Force config linking again to pick up new plugins
             try {
@@ -993,6 +1099,546 @@ class EffectRegistryService {
             });
         } catch (error) {
             SafeConsole.error('Failed to emit effects refreshed event:', error);
+        }
+    }
+
+    // ==================== CONFIG RESTORATION FALLBACK ====================
+
+    /**
+     * Manually restore configs when ConfigLinker fails
+     * This is an enhanced fallback that:
+     * 1. First tries to copy configs from my-nft-gen's ConfigRegistry (most direct approach)
+     * 2. Then checks for configs attached to effect classes
+     * 3. Finally attempts dynamic imports as last resort
+     * This fixes the production issue where configs aren't attached during build
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _manuallyRestoreConfigs() {
+        let EffectRegistry, ConfigRegistry, EffectCategories;
+        try {
+            SafeConsole.log('   🔍 [EffectRegistryService] Starting enhanced manual config restoration...');
+            
+            // Load modules with better error logging
+            try {
+                const modules = await this._loadModules();
+                EffectRegistry = modules.EffectRegistry;
+                ConfigRegistry = modules.ConfigRegistry;
+                EffectCategories = modules.EffectCategories;
+                SafeConsole.log('   ✅ Modules loaded successfully');
+            } catch (moduleLoadError) {
+                SafeConsole.log('   ❌ Failed to load modules:', moduleLoadError.message);
+                throw moduleLoadError;
+            }
+            
+            let configsRegistered = 0;
+            
+            // Try approach 1: Copy configs from my-nft-gen's ConfigRegistry
+            SafeConsole.log('   📋 Approach 1: Copying from my-nft-gen ConfigRegistry...');
+            try {
+                const nftGenConfigs = await this._copyConfigsFromNftGenRegistry();
+                configsRegistered += nftGenConfigs;
+                if (nftGenConfigs > 0) {
+                    SafeConsole.log(`   ✅ Approach 1 successful: Copied ${nftGenConfigs} configs from my-nft-gen ConfigRegistry`);
+                } else {
+                    SafeConsole.log(`   ⚠️ Approach 1 returned 0 configs - my-nft-gen registry may be empty or inaccessible`);
+                }
+            } catch (err) {
+                SafeConsole.log(`   ⚠️ Approach 1 failed: ${err.message}`);
+            }
+            
+            // Try approach 2: Fall back to checking effect classes and dynamic imports
+            if (configsRegistered === 0) {
+                SafeConsole.log('   📌 Approach 2: Checking effect classes and attempting dynamic imports...');
+                
+                try {
+                    // Get all loaded effects from the registry
+                    const categories = [EffectCategories.PRIMARY, EffectCategories.SECONDARY, EffectCategories.KEY_FRAME, EffectCategories.FINAL_IMAGE];
+                    let effectsChecked = 0;
+                    
+                    for (const category of categories) {
+                        try {
+                            const effects = EffectRegistry.getByCategoryGlobal(category);
+                            SafeConsole.log(`   📂 Category "${category}": effects=`, typeof effects, Array.isArray(effects) ? effects.length : Object.keys(effects || {}).length);
+                            
+                            if (Array.isArray(effects)) {
+                                for (const effect of effects) {
+                                    effectsChecked++;
+                                    if (effect && effect.constructor) {
+                                        const effectClass = effect.constructor;
+                                        const effectName = effectClass._name_ || effectClass.name;
+                                        
+                                        // Try path 1: Config already attached to effect
+                                        let configClassName = effectClass.configClass || effectClass.Config;
+                                        
+                                        if (!configClassName) {
+                                            // Try path 2: Dynamic import for core effects
+                                            SafeConsole.log(`      🔄 Attempting dynamic import for ${effectName}...`);
+                                            configClassName = await this._dynamicallyImportConfigForEffect(effectName);
+                                        }
+                                        
+                                        if (configClassName) {
+                                            try {
+                                                ConfigRegistry.registerGlobal(effectName, {
+                                                    ConfigClass: configClassName,
+                                                    effectName: effectName
+                                                });
+                                                configsRegistered++;
+                                                SafeConsole.log(`         ✅ Registered config for ${effectName}`);
+                                            } catch (regError) {
+                                                SafeConsole.log(`         ⚠️ Failed to register config for ${effectName}:`, regError.message);
+                                            }
+                                        } else {
+                                            SafeConsole.log(`         ❌ No config found for ${effectName} (not in class, dynamic import failed)`);
+                                        }
+                                    }
+                                }
+                            } else if (effects && typeof effects === 'object') {
+                                // Effects might be an object map instead of array
+                                for (const [effectName, effectClass] of Object.entries(effects)) {
+                                    effectsChecked++;
+                                    
+                                    // Try path 1: Config already attached to effect
+                                    let configClassName = effectClass?.configClass;
+                                    
+                                    if (!configClassName) {
+                                        // Try path 2: Dynamic import for core effects
+                                        SafeConsole.log(`      🔄 Attempting dynamic import for ${effectName}...`);
+                                        configClassName = await this._dynamicallyImportConfigForEffect(effectName);
+                                    }
+                                    
+                                    if (configClassName) {
+                                        try {
+                                            ConfigRegistry.registerGlobal(effectName, {
+                                                ConfigClass: configClassName,
+                                                effectName: effectName
+                                            });
+                                            configsRegistered++;
+                                            SafeConsole.log(`         ✅ Registered config for ${effectName}`);
+                                        } catch (regError) {
+                                            SafeConsole.log(`         ⚠️ Failed to register config for ${effectName}:`, regError.message);
+                                        }
+                                    } else {
+                                        SafeConsole.log(`         ❌ No config found for ${effectName} (not in class, dynamic import failed)`);
+                                    }
+                                }
+                            }
+                        } catch (categoryError) {
+                            SafeConsole.log(`   ⚠️ Error processing category ${category}:`, categoryError.message);
+                        }
+                    }
+                    
+                    SafeConsole.log(`   📦 Approach 2 registered ${configsRegistered} configs out of ${effectsChecked} effects checked`);
+                } catch (approach2Error) {
+                    SafeConsole.log(`   ❌ Approach 2 failed completely:`, approach2Error.message);
+                }
+            }
+            
+            SafeConsole.log(`   📊 [EffectRegistryService] Manual restoration complete: ${configsRegistered} configs registered`);
+        } catch (error) {
+            SafeConsole.log('❌ [EffectRegistryService] Manual config restoration encountered critical error:', error.message);
+            SafeConsole.log('   Stack:', error.stack);
+            throw error;
+        }
+    }
+
+    /**
+     * Copy configs from my-nft-gen's ConfigRegistry to our local ConfigRegistry
+     * This is the most direct approach since my-nft-gen already has all configs loaded
+     * @returns {Promise<number>} Number of configs successfully copied
+     * @private
+     */
+    async _copyConfigsFromNftGenRegistry() {
+        let nftGenConfigRegistry = null;
+        try {
+            SafeConsole.log(`      🔄 Attempting to import my-nft-gen's ConfigRegistry...`);
+            
+            // Import my-nft-gen's ConfigRegistry module
+            const configRegistryModule = await import('my-nft-gen/src/core/registry/ConfigRegistry.js');
+            SafeConsole.log(`      📦 ConfigRegistry module loaded, exports:`, Object.keys(configRegistryModule || {}));
+            
+            // Get the ConfigRegistry class
+            nftGenConfigRegistry = configRegistryModule.ConfigRegistry;
+            if (!nftGenConfigRegistry) {
+                SafeConsole.log(`      ⚠️ No ConfigRegistry export found. Trying default export...`);
+                nftGenConfigRegistry = configRegistryModule.default;
+            }
+            
+            if (!nftGenConfigRegistry) {
+                SafeConsole.log(`      ❌ ConfigRegistry not found in module exports`);
+                return 0;
+            }
+            
+            SafeConsole.log(`      ✅ ConfigRegistry class loaded, methods:`, Object.keys(nftGenConfigRegistry || {}).slice(0, 10));
+            
+            const { ConfigRegistry: LocalConfigRegistry } = await this._loadModules();
+            
+            // Get all configs from my-nft-gen
+            let nftGenConfigs = {};
+            
+            // Try getAll() method first
+            if (typeof nftGenConfigRegistry.getAll === 'function') {
+                SafeConsole.log(`      🔍 Calling getAll() on nftGenConfigRegistry...`);
+                nftGenConfigs = nftGenConfigRegistry.getAll();
+                SafeConsole.log(`      📍 getAll() returned:`, {
+                    type: typeof nftGenConfigs,
+                    isObject: nftGenConfigs && typeof nftGenConfigs === 'object',
+                    keys: Object.keys(nftGenConfigs || {}).length,
+                    firstFive: Object.keys(nftGenConfigs || {}).slice(0, 5)
+                });
+            } else if (typeof nftGenConfigRegistry.getAllGlobal === 'function') {
+                SafeConsole.log(`      🔍 Calling getAllGlobal() on nftGenConfigRegistry...`);
+                nftGenConfigs = nftGenConfigRegistry.getAllGlobal();
+                SafeConsole.log(`      📍 getAllGlobal() returned:`, {
+                    type: typeof nftGenConfigs,
+                    isObject: nftGenConfigs && typeof nftGenConfigs === 'object',
+                    keys: Object.keys(nftGenConfigs || {}).length,
+                    firstFive: Object.keys(nftGenConfigs || {}).slice(0, 5)
+                });
+            } else {
+                SafeConsole.log(`      ⚠️ NftGenConfigRegistry has no getAll/getAllGlobal methods. Available methods:`, Object.getOwnPropertyNames(nftGenConfigRegistry).slice(0, 15));
+                return 0;
+            }
+            
+            if (!nftGenConfigs || Object.keys(nftGenConfigs).length === 0) {
+                SafeConsole.log(`      ⚠️ NftGenConfigRegistry returned empty (null, undefined, or empty object)`);
+                SafeConsole.log(`      📌 Attempting fallback: extracting configs directly from loaded effect classes...`);
+                return await this._extractConfigsFromEffectClasses();
+            }
+            
+            SafeConsole.log(`      📋 Copying ${Object.keys(nftGenConfigs).length} configs from my-nft-gen registry...`);
+            
+            // Copy each config from my-nft-gen's registry to our local registry
+            let copiedCount = 0;
+            const failedConfigs = [];
+            
+            for (const [effectName, configData] of Object.entries(nftGenConfigs)) {
+                try {
+                    LocalConfigRegistry.registerGlobal(effectName, configData);
+                    copiedCount++;
+                    SafeConsole.log(`         ✅ Copied config for ${effectName}`);
+                } catch (copyError) {
+                    failedConfigs.push(effectName);
+                    SafeConsole.log(`         ⚠️ Failed to copy config for ${effectName}:`, copyError.message);
+                }
+            }
+            
+            SafeConsole.log(`      📊 Copy result: ${copiedCount} succeeded, ${failedConfigs.length} failed`);
+            if (failedConfigs.length > 0 && failedConfigs.length <= 10) {
+                SafeConsole.log(`         Failed configs: ${failedConfigs.join(', ')}`);
+            }
+            
+            return copiedCount;
+        } catch (error) {
+            SafeConsole.log(`      💥 CRITICAL ERROR in _copyConfigsFromNftGenRegistry: ${error.message}`);
+            SafeConsole.log(`         Stack trace:`, error.stack);
+            throw new Error(`Failed to copy configs from my-nft-gen ConfigRegistry: ${error.message}`);
+        }
+    }
+
+    /**
+     * Dynamically import a config class for an effect
+     * Converts effect name to config class name and imports from my-nft-gen
+     * Example: "hex" -> "HexConfig" from my-nft-gen/src/core/configs/
+     * @param {string} effectName - Name of the effect (e.g., "hex", "blur-filter")
+     * @returns {Promise<Class|null>} Config class if found, null otherwise
+     * @private
+     */
+    async _dynamicallyImportConfigForEffect(effectName) {
+        try {
+            // Convert effect name to config class name
+            // "hex" -> "HexConfig", "blur-filter" -> "BlurFilterConfig"
+            const configClassName = this._deriveConfigClassName(effectName);
+            
+            SafeConsole.log(`         📋 Derived config class name: ${configClassName}`);
+            
+            // Try to dynamically import the config from my-nft-gen
+            const importPath = `my-nft-gen/src/core/configs/${configClassName}.js`;
+            
+            try {
+                const module = await import(importPath);
+                const ConfigClass = module[configClassName] || module.default;
+                
+                if (ConfigClass) {
+                    SafeConsole.log(`         ✅ Successfully imported ${configClassName} from ${importPath}`);
+                    return ConfigClass;
+                } else {
+                    SafeConsole.log(`         ⚠️ Imported module but no ${configClassName} export found`);
+                }
+            } catch (importError) {
+                // This is expected for some edge cases, log at debug level
+                SafeConsole.log(`         ℹ️ Could not import ${importPath}: ${importError.message}`);
+            }
+            
+            // Try alternative paths
+            const alternativePaths = [
+                `my-nft-gen/src/core/configs/${configClassName}Config.js`,
+                `my-nft-gen/lib/core/configs/${configClassName}.js`
+            ];
+            
+            for (const altPath of alternativePaths) {
+                try {
+                    const module = await import(altPath);
+                    const ConfigClass = module[configClassName] || Object.values(module)[0];
+                    
+                    if (ConfigClass && typeof ConfigClass === 'function') {
+                        SafeConsole.log(`         ✅ Successfully imported from alternative path: ${altPath}`);
+                        return ConfigClass;
+                    }
+                } catch (altError) {
+                    // Continue to next alternative
+                }
+            }
+            
+            return null;
+        } catch (error) {
+            SafeConsole.log(`         ⚠️ Dynamic import failed for ${effectName}:`, error.message);
+            return null;
+        }
+    }
+
+    /**
+     * Convert effect name to config class name
+     * Examples: "hex" -> "HexConfig", "blur-filter" -> "BlurFilterConfig", "redEye" -> "RedEyeConfig"
+     * @param {string} effectName - Effect name
+     * @returns {string} Config class name
+     * @private
+     */
+    _deriveConfigClassName(effectName) {
+        // Handle kebab-case, snake_case, and camelCase
+        const parts = effectName
+            .split(/[-_\s]/)
+            .filter(p => p.length > 0);
+        
+        return parts
+            .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+            .join('')
+            + 'Config';
+    }
+
+    /**
+     * Extract and register configs directly from loaded effect classes
+     * This is the ultimate fallback when my-nft-gen's ConfigRegistry is empty
+     * @returns {Promise<number>} Number of configs extracted and registered
+     * @private
+     */
+    async _extractConfigsFromEffectClasses() {
+        try {
+            SafeConsole.log(`      🔍 Extracting configs directly from loaded effect classes...`);
+            const { ConfigRegistry: LocalConfigRegistry, EffectRegistry, EffectCategories } = await this._loadModules();
+            
+            let configsExtracted = 0;
+            const categories = [EffectCategories.PRIMARY, EffectCategories.SECONDARY, EffectCategories.KEY_FRAME, EffectCategories.FINAL_IMAGE];
+            
+            for (const category of categories) {
+                try {
+                    const effects = EffectRegistry.getByCategoryGlobal(category);
+                    
+                    if (Array.isArray(effects)) {
+                        // Effects is an array
+                        for (const effect of effects) {
+                            if (effect && effect.constructor) {
+                                const effectClass = effect.constructor;
+                                const effectName = effectClass._name_ || effectClass.name;
+                                
+                                // Extract Config from the effect class
+                                const ConfigClass = effectClass.Config || effectClass.configClass;
+                                if (ConfigClass) {
+                                    try {
+                                        LocalConfigRegistry.registerGlobal(effectName, {
+                                            ConfigClass,
+                                            effectName
+                                        });
+                                        configsExtracted++;
+                                        SafeConsole.log(`         ✅ Extracted config for ${effectName} from effect class`);
+                                    } catch (regError) {
+                                        SafeConsole.log(`         ⚠️ Failed to register extracted config for ${effectName}:`, regError.message);
+                                    }
+                                }
+                            }
+                        }
+                    } else if (effects && typeof effects === 'object') {
+                        // Effects is an object map
+                        for (const [effectName, effectClass] of Object.entries(effects)) {
+                            // Extract Config from the effect class
+                            const ConfigClass = effectClass?.Config || effectClass?.configClass;
+                            if (ConfigClass) {
+                                try {
+                                    LocalConfigRegistry.registerGlobal(effectName, {
+                                        ConfigClass,
+                                        effectName
+                                    });
+                                    configsExtracted++;
+                                    SafeConsole.log(`         ✅ Extracted config for ${effectName} from effect class`);
+                                } catch (regError) {
+                                    SafeConsole.log(`         ⚠️ Failed to register extracted config for ${effectName}:`, regError.message);
+                                }
+                            }
+                        }
+                    }
+                } catch (categoryError) {
+                    SafeConsole.log(`      ⚠️ Error processing category ${category}:`, categoryError.message);
+                }
+            }
+            
+            SafeConsole.log(`      ✅ Config extraction complete: ${configsExtracted} configs extracted from effect classes`);
+            return configsExtracted;
+        } catch (error) {
+            SafeConsole.log(`      ❌ Config extraction failed:`, error.message);
+            return 0;
+        }
+    }
+
+    // ==================== CACHE INTEGRATION METHODS ====================
+
+    /**
+     * Try to load effects from cache (fast path)
+     * @returns {Promise<boolean>} True if cache was used successfully
+     * @private
+     */
+    async _tryLoadFromCache() {
+        try {
+            const registryCacheService = this.applicationFactory.getRegistryCacheService();
+            const cache = await registryCacheService.loadCache();
+
+            if (!cache) {
+                SafeConsole.log('ℹ️ [EffectRegistryService] No cache found, loading normally');
+                return false;
+            }
+
+            // Get current plugins to validate cache
+            const appDataPath = app.getPath('userData');
+            const pluginManager = new PluginManagerService(appDataPath);
+            await pluginManager.initialize();
+            const currentPlugins = await pluginManager.getPlugins();
+
+            // Validate cache is still valid
+            const isValid = await registryCacheService.validateCache(currentPlugins);
+
+            if (!isValid) {
+                SafeConsole.log('ℹ️ [EffectRegistryService] Cache invalid (plugins changed), loading normally');
+                await registryCacheService.invalidateCache();
+                return false;
+            }
+
+            SafeConsole.log('✅ [EffectRegistryService] Loading effects from cache (fast path)');
+
+            // Restore from cache (much faster than re-registering)
+            await this._restoreFromCache(cache);
+
+            SafeConsole.log('✅ [EffectRegistryService] Registry restored from cache');
+            await this.logRegistryState();
+
+            return true;
+        } catch (error) {
+            SafeConsole.error('⚠️ [EffectRegistryService] Cache load error:', error.message);
+            return false;
+        }
+    }
+
+    /**
+     * Restore registry from cache
+     * @param {Object} cache - Cache data
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _restoreFromCache(cache) {
+        // 🔑 CORE EFFECTS: Load from my-nft-gen directly
+        // They're already there and stable, just ensure they're loaded
+        const { PluginLoader } = await this._loadModules();
+        SafeConsole.log('🚀 [EffectRegistryService] Loading core effects from my-nft-gen...');
+        await PluginLoader.ensureEffectsLoaded();
+        SafeConsole.log('✅ [EffectRegistryService] Core effects loaded - they already have configs attached in my-nft-gen');
+
+        // 📦 PLUGINS: Note cached plugin metadata
+        // The actual plugin loading is handled by PluginLoaderOrchestrator at app startup
+        const pluginCount = (cache.plugins || []).length;
+        SafeConsole.log(`📦 [EffectRegistryService] Cache indicates ${pluginCount} plugin(s) were previously installed`);
+        SafeConsole.log('   ℹ️ Plugin loading will be handled by PluginLoaderOrchestrator at startup');
+    }
+
+    /**
+     * Capture current registry state for caching
+     * With timeout to prevent startup hangs
+     * @returns {Promise<Object>} Registry state
+     * @private
+     */
+    async _captureRegistryState() {
+        // Timeout to prevent plugin manager initialization from blocking startup
+        const capturePromise = (async () => {
+            try {
+                const { EffectRegistry, EffectCategories } = await this._loadModules();
+
+                // Get all registered effects by category
+                const primaryEffects = EffectRegistry.getByCategoryGlobal(EffectCategories.PRIMARY);
+                const secondaryEffects = EffectRegistry.getByCategoryGlobal(EffectCategories.SECONDARY);
+                const keyFrameEffects = EffectRegistry.getByCategoryGlobal(EffectCategories.KEY_FRAME);
+                const finalImageEffects = EffectRegistry.getByCategoryGlobal(EffectCategories.FINAL_IMAGE);
+
+                // Get plugin data - WITH TIMEOUT to prevent hangs
+                const appDataPath = app.getPath('userData');
+                const pluginManager = new PluginManagerService(appDataPath);
+                
+                // Add timeout to plugin manager initialization (max 2 seconds)
+                const pluginInitPromise = new Promise((resolve) => {
+                    setTimeout(() => {
+                        SafeConsole.log('⏱️ [EffectRegistryService] Plugin manager initialization timed out, skipping plugin capture for cache');
+                        resolve([]);
+                    }, 2000);
+                });
+                
+                const pluginInitWithTimeout = Promise.race([
+                    pluginManager.initialize().then(() => pluginManager.getPlugins()),
+                    pluginInitPromise
+                ]);
+
+                const plugins = await pluginInitWithTimeout;
+
+                // 🔑 IMPORTANT: Cache ONLY plugins, NOT core effects
+                // Core effects are stable in my-nft-gen and are loaded directly via PluginLoader.ensureEffectsLoaded()
+                return {
+                    plugins: Array.isArray(plugins) ? plugins : []
+                };
+            } catch (error) {
+                SafeConsole.log('⚠️ [EffectRegistryService] Failed to capture registry state:', error.message);
+                return {
+                    plugins: []
+                };
+            }
+        })();
+
+        // Overall timeout for entire capture operation (3 seconds max)
+        return Promise.race([
+            capturePromise,
+            new Promise(resolve => {
+                setTimeout(() => {
+                    SafeConsole.log('⏱️ [EffectRegistryService] Registry state capture timed out, returning empty state for cache');
+                    resolve({
+                        plugins: []
+                    });
+                }, 3000);
+            })
+        ]);
+    }
+
+    /**
+     * Save current registry state to cache
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _saveToCache() {
+        try {
+            const registryCacheService = this.applicationFactory.getRegistryCacheService();
+            const registryData = await this._captureRegistryState();
+
+            await registryCacheService.saveCache(registryData);
+
+            const stats = registryCacheService.getCacheStats();
+            // Note: Cache only contains plugins, core effects are loaded from my-nft-gen
+            SafeConsole.log(`💾 [EffectRegistryService] Cache saved: ${stats.pluginCount} plugins`);
+        } catch (error) {
+            SafeConsole.error('⚠️ [EffectRegistryService] Failed to save cache:', error.message);
+            // Don't throw - cache save failure is non-critical
         }
     }
 

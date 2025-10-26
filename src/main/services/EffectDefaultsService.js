@@ -73,61 +73,29 @@ class EffectDefaultsService {
     }
 
     /**
-     * Dynamically import config class from my-nft-effects-core
+     * Get config class directly from registry (no dynamic imports needed)
+     * The registry should already have configs linked by ConfigLinker
      * @param {string} effectName - Effect name
      * @returns {Promise<Function|null>} Config class or null
      */
-    async dynamicImportConfigClass(effectName) {
+    async getConfigFromRegistry(effectName) {
         try {
-            // Create a mapping of known effect names to their config import paths
-            const configMapping = await this.buildConfigMapping();
-
-            if (configMapping[effectName]) {
-                const configModule = await import(configMapping[effectName]);
-                const configClassName = this.getConfigClassName(effectName);
-                return configModule[configClassName];
+            // First try getting from the registry via effectRegistryService
+            // This uses the linked configs which should be populated by ConfigLinker
+            const plugin = await this.effectRegistryService.getEffectWithConfig(effectName);
+            
+            if (plugin && plugin.configClass) {
+                return plugin.configClass;
             }
 
             return null;
         } catch (error) {
-            console.warn(`⚠️  Failed to dynamically import config for ${effectName}:`, error.message);
+            console.warn(`⚠️ Failed to get config from registry for ${effectName}:`, error.message);
             return null;
         }
     }
 
-    /**
-     * Build mapping of effect names to config import paths
-     * @returns {Promise<Object>} Mapping object
-     */
-    async buildConfigMapping() {
-        // Static mapping for known effects using the actual file path structure
-        const basePath = './node_modules/my-nft-gen/../my-nft-effects-core/src/effects';
-        return {
-            'amp': `${basePath}/primaryEffects/amp/AmpConfig.js`,
-            'fuzz-flare': `${basePath}/primaryEffects/fuzz-flare/FuzzFlareConfig.js`,
-            'hex': `${basePath}/primaryEffects/hex/HexConfig.js`,
-            'gates': `${basePath}/primaryEffects/gates/GatesConfig.js`,
-            'layered-hex-now-with-fuzz': `${basePath}/primaryEffects/layeredHex/LayeredHexConfig.js`,
-            'glow': `${basePath}/secondaryEffects/glow/GlowConfig.js`,
-            'fade': `${basePath}/secondaryEffects/fade/FadeConfig.js`,
-            'blur': `${basePath}/finalImageEffects/blur/BlurConfig.js`,
-            'pixelate': `${basePath}/finalImageEffects/pixelate/PixelateConfig.js`
-            // Add more mappings as needed
-        };
-    }
 
-    /**
-     * Get expected config class name from effect name
-     * @param {string} effectName - Effect name
-     * @returns {string} Config class name
-     */
-    getConfigClassName(effectName) {
-        // Convert effect name to config class name (e.g., 'amp' -> 'AmpConfig')
-        const words = effectName.split('-').map(word =>
-            word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-        );
-        return words.join('') + 'Config';
-    }
 }
 
 // Export singleton instance

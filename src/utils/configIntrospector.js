@@ -34,21 +34,29 @@ class ConfigIntrospector {
                 projectData: projectData
             });
 
+            safeConsoleLog('🔌 Frontend: Backend returned config introspection result:', {
+                success: result.success,
+                error: result.error,
+                hasDefaultInstance: !!result.defaultInstance,
+                defaultInstanceKeys: result.defaultInstance ? Object.keys(result.defaultInstance) : [],
+                fullResult: result
+            });
+
             if (result.success) {
                 // Use the default instance as the source of truth for UI fields
-                safeConsoleLog('Config introspection result:', result);
-                safeConsoleLog('Default instance properties:', Object.keys(result.defaultInstance));
-                safeConsoleLog('Using default config instance for UI generation:', result.defaultInstance);
+                safeConsoleLog('✅ Frontend: Config introspection successful for:', effectMetadata.registryKey);
+                safeConsoleLog('   Default instance properties:', Object.keys(result.defaultInstance));
+                safeConsoleLog('   Using default config instance for UI generation:', result.defaultInstance);
 
                 const schema = this.convertDefaultInstanceToSchema(result.defaultInstance);
-                safeConsoleLog('Generated schema fields:', schema.fields.map(f => ({name: f.name, type: f.type})));
+                safeConsoleLog('   Generated schema fields:', schema.fields.map(f => ({name: f.name, type: f.type})));
 
                 // Keep the default instance for initialization
                 schema.defaultInstance = result.defaultInstance;
 
                 return schema;
             } else {
-                safeConsoleError('Config introspection failed:', result.error);
+                safeConsoleError(`❌ Frontend: Config introspection failed for ${effectMetadata.registryKey}:`, result.error);
                 throw new Error(`Config introspection failed: ${result.error}`);
             }
         } catch (error) {

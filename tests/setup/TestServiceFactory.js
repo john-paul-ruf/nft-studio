@@ -11,6 +11,9 @@ import ColorSchemeService from '../../src/services/ColorSchemeService.js';
 import PreferencesService from '../../src/services/PreferencesService.js';
 import { PositionScaler } from '../../src/utils/PositionScaler.js';
 import ResolutionMapper from '../../src/utils/ResolutionMapper.js';
+import { PluginManagerService } from '../../src/services/PluginManagerService.js';
+import RegistryCacheService from '../../src/main/services/RegistryCacheService.js';
+import PluginLoaderOrchestrator from '../../src/services/PluginLoaderOrchestrator.js';
 
 // Test-compatible service implementations
 
@@ -775,13 +778,31 @@ class TestEffectRegistryService {
     }
     
     /**
+     * Get the effects registry instance (test implementation)
+     * Returns a registry-like object with effects organized by category
+     * @returns {Object|null} Registry with getByCategoryGlobal method
+     */
+    getEffectsRegistry() {
+        // Return a registry-like object that matches the expected interface
+        return {
+            getByCategoryGlobal: (category) => {
+                return this.effectsByCategory[category] ? Object.fromEntries(this.effectsByCategory[category]) : {};
+            },
+            getGlobal: (effectName) => this.effects.get(effectName) || null,
+            getAll: () => Object.fromEntries(this.effects)
+        };
+    }
+    
+    /**
      * Load plugins for UI display (test implementation)
+     * DEPRECATED: This method is no longer supported. Use PluginLoaderOrchestrator.loadInstalledPlugins() instead
      * @returns {Promise<void>}
+     * @throws {Error} Always throws - method is deprecated
      */
     async loadPluginsForUI() {
-        // Test implementation - simulate plugin loading
-        console.log('🔄 Test: Loading plugins for UI...');
-        // In test environment, this is a no-op but shouldn't throw
+        // Match the real service behavior - deprecated method that throws
+        console.log('❌ [TestEffectRegistryService] loadPluginsForUI() is deprecated and should not be called');
+        throw new Error('EffectRegistryService.loadPluginsForUI() is deprecated. Plugins must be loaded via PluginLoaderOrchestrator.loadInstalledPlugins()');
     }
     
     /**
@@ -792,9 +813,8 @@ class TestEffectRegistryService {
     async refreshRegistry(skipPluginReload = false) {
         console.log('🔄 Test: Refreshing effect registry...');
         
-        if (!skipPluginReload) {
-            await this.loadPluginsForUI();
-        }
+        // Skip the deprecated loadPluginsForUI call since it's been removed
+        // Plugins are now loaded via PluginLoaderOrchestrator
         
         // Simulate refresh
         console.log('✅ Test: Effect registry refreshed');
@@ -1035,10 +1055,30 @@ class TestServiceFactory {
         this.container.registerSingleton('dialogService', () => new TestDialogService());
         this.container.registerSingleton('fileSystemService', () => new TestFileSystemService(this.testDirectory));
         this.container.registerSingleton('imageService', () => new ImageService());
-        this.container.registerSingleton('effectRegistryService', () => new TestEffectRegistryService());
+        
+        // Register EffectRegistryService (will create the instance)
+        const createEffectRegistryService = () => new TestEffectRegistryService();
+        this.container.registerSingleton('EffectRegistryService', createEffectRegistryService);
+        this.container.registerSingleton('effectRegistryService', createEffectRegistryService);
+        
         this.container.registerSingleton('configProcessingService', () => new TestConfigProcessingService());
         this.container.registerSingleton('logger', () => new TestLogger());
         this.container.registerSingleton('RenderService', () => new TestRenderService());
+        
+        // Register plugin services for Phase 6 integration tests (both lowercase and PascalCase for compatibility)
+        const createRegistryCacheService = () => new RegistryCacheService(this.testDirectory);
+        this.container.registerSingleton('RegistryCacheService', createRegistryCacheService);
+        this.container.registerSingleton('registryCacheService', createRegistryCacheService);
+        
+        const createPluginManagerService = () => new PluginManagerService(this.testDirectory);
+        this.container.registerSingleton('PluginManagerService', createPluginManagerService);
+        this.container.registerSingleton('pluginManagerService', createPluginManagerService);
+        
+        // Register PluginLoaderOrchestrator singleton with this factory reference
+        this.container.registerSingleton('PluginLoaderOrchestrator', (container) => {
+            // Pass factory and test directory so it doesn't try to use Electron's app.getPath()
+            return new PluginLoaderOrchestrator(this, this.testDirectory);
+        });
         
         // Register EventBusService (required by CommandService and others)
         // Use TestEventBusService for isolated test instances
@@ -1121,6 +1161,26 @@ class TestServiceFactory {
     
     getLogger() {
         return this.container.resolve('logger');
+    }
+    
+    getPluginManager() {
+        return this.container.resolve('PluginManagerService');
+    }
+    
+    getRegistryCache() {
+        return this.container.resolve('RegistryCacheService');
+    }
+    
+    getPluginLoaderOrchestrator() {
+        return this.container.resolve('PluginLoaderOrchestrator');
+    }
+    
+    getEffectRegistryService() {
+        return this.container.resolve('effectRegistryService');
+    }
+    
+    getRegistryCacheService() {
+        return this.container.resolve('RegistryCacheService');
     }
     
     getService(serviceName) {

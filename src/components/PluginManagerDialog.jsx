@@ -81,9 +81,10 @@ export default function PluginManagerDialog({ open, onClose }) {
 
     useEffect(() => {
         if (open) {
+            console.log('📋 PluginManagerDialog: Dialog opened, loading plugins');
             loadPlugins();
         }
-    }, [open, loadPlugins]);
+    }, [open]);
 
     // Listen for progress updates from main process
     useEffect(() => {
@@ -91,15 +92,41 @@ export default function PluginManagerDialog({ open, onClose }) {
             return;
         }
 
-        const unsubscribe = window.api.on('plugins:install-progress', (data) => {
-            setInstallProgress(data.percentage);
-            setInstallStatus(data.message);
+        // Listen for npm install progress
+        const unsubscribeNpm = window.api.on('plugins:install-progress', (data) => {
+            console.log('📊 PluginManagerDialog: Install progress:', data);
+            setInstallProgress(data.percentage || 0);
+            setInstallStatus(data.message || 'Installing...');
+        });
+
+        // Also listen for orchestrator operation progress (more detailed)
+        const unsubscribeOp = window.api.on('plugins:operation-progress', (data) => {
+            console.log('📊 PluginManagerDialog: Operation progress:', data);
+            if (data.operation === 'install') {
+                // Convert orchestrator progress format (phase, message, percent)
+                const percentage = data.percent !== undefined ? data.percent : 0;
+                const message = data.message || `${data.phase || 'installing'}...`;
+                setInstallProgress(percentage);
+                setInstallStatus(message);
+            }
+        });
+        
+        // Listen for plugin operation completion and refresh plugin list
+        const unsubscribeComplete = window.api.on('plugins:operation-complete', (data) => {
+            console.log('✅ PluginManagerDialog: Plugin operation complete event received:', data);
+            if (data.success) {
+                const operationType = data.operation || 'unknown';
+                if (['install', 'uninstall', 'reload'].includes(operationType)) {
+                    console.log(`🔧 PluginManagerDialog: Plugin ${operationType} complete, refreshing plugin list`);
+                    loadPlugins();
+                }
+            }
         });
 
         return () => {
-            if (unsubscribe) {
-                unsubscribe();
-            }
+            if (unsubscribeNpm) unsubscribeNpm();
+            if (unsubscribeOp) unsubscribeOp();
+            if (unsubscribeComplete) unsubscribeComplete();
         };
     }, []);
 
@@ -148,19 +175,20 @@ export default function PluginManagerDialog({ open, onClose }) {
             const result = await window.api.plugins.installFromNpm(npmPackage);
             
             if (result.success) {
-                setInstallStatus('Installation complete! Refreshing effects...');
+                setInstallStatus('Installation complete! Reloading effects...');
                 setInstallProgress(100);
                 setNpmPackage('');
+                
+                // Reload plugins list (updates the installed plugins dialog tab)
                 await loadPlugins();
 
-                // Refresh the effect registry to include the new plugin
-                // Pass false to reload plugins since we just installed a new one
-                const refreshResult = await window.api.refreshEffectRegistry(false);
-                if (refreshResult.success) {
-                    setSuccess('✅ Plugin installed and effects refreshed successfully!');
-                } else {
-                    setSuccess('✅ Plugin installed (refresh effects list to see new effects)');
-                }
+                // Trigger effects panel to refresh the available effects
+                // This is important because the effects panel listens for plugins:operation-complete
+                // but we also want to immediately show the success message
+                setSuccess(`✅ Plugin "${result.plugin?.name || npmPackage}" installed successfully (${result.plugin?.effects?.length || 0} effects loaded)!`);
+                
+                // The orchestrator has already registered the effects and emitted events
+                // The effects panel should refresh automatically via useEffectManagement listener
 
                 setTimeout(() => {
                     setSuccess('');
@@ -194,21 +222,28 @@ export default function PluginManagerDialog({ open, onClose }) {
                     enabled: true
                 };
 
-                const addResult = await window.api.plugins.add(pluginData);
+                // Use the orchestrator for full install+load workflow
+                setInstallStatus('Loading local plugin...');
+                setInstallProgress(50);
+
+                const addResult = await window.api.plugins.installAndLoad?.(pluginData) 
+                    || await window.api.plugins.add(pluginData);
+                
                 if (addResult.success) {
-                    setSuccess('Local plugin added successfully. Refreshing effects...');
+                    setInstallProgress(100);
                     await loadPlugins();
 
-                    // Refresh the effect registry to include the new plugin
-                    // Pass false to reload plugins since we just added a new one
-                    const refreshResult = await window.api.refreshEffectRegistry(false);
-                    if (refreshResult.success) {
-                        setSuccess('Plugin added and effects refreshed successfully!');
-                    } else {
-                        setSuccess('Plugin added (refresh effects list to see new effects)');
-                    }
+                    // Show success message
+                    setSuccess(`✅ Local plugin "${pluginData.name}" added successfully (${addResult.plugin?.effects?.length || 0} effects loaded)!`);
+                    
+                    // The orchestrator has already registered the effects and emitted events
+                    // The effects panel should refresh automatically via useEffectManagement listener
 
-                    setTimeout(() => setSuccess(''), 5000);
+                    setTimeout(() => {
+                        setSuccess('');
+                        setInstallProgress(0);
+                        setInstallStatus('');
+                    }, 5000);
                 } else {
                     setError(addResult.error || 'Failed to add plugin');
                 }

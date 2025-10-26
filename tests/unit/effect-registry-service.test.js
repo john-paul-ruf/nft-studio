@@ -498,7 +498,8 @@ async function testDebugRegistry() {
 
 /**
  * Test EffectRegistryService.loadPluginsForUI()
- * Tests plugin loading for UI display
+ * DEPRECATED: This method is now deprecated as of Phase 4 refactor
+ * It should throw an error since plugins must be loaded via PluginLoaderOrchestrator
  */
 async function testLoadPluginsForUI() {
     const testEnv = new TestEnvironment();
@@ -507,19 +508,27 @@ async function testLoadPluginsForUI() {
         await testEnv.setup();
         const effectRegistryService = testEnv.getService('effectRegistryService');
         
-        // Test loading plugins for UI
-        // This method doesn't return anything, but should not throw errors
-        await effectRegistryService.loadPluginsForUI();
-        
-        // If we get here without throwing, the method worked
-        console.log('✅ testLoadPluginsForUI: Plugin loading for UI working correctly');
-        return { success: true };
+        // This method is deprecated and MUST throw an error to enforce the architectural constraint:
+        // "Plugins register ONLY at app startup or when added through plugin manager"
+        try {
+            await effectRegistryService.loadPluginsForUI();
+            // If we reach here, the constraint is violated - should have thrown
+            console.log('❌ testLoadPluginsForUI: FAILED - Method should throw an error');
+            return { success: false, message: 'loadPluginsForUI() should throw an error (deprecated)' };
+        } catch (depreciationError) {
+            // Expected behavior - method throws error
+            if (depreciationError.message.includes('deprecated')) {
+                console.log('✅ testLoadPluginsForUI: Method correctly throws deprecation error');
+                return { success: true };
+            } else {
+                console.log('⚠️ testLoadPluginsForUI: Throws error but message unclear:', depreciationError.message);
+                return { success: true }; // Still counts as success - constraint enforced
+            }
+        }
         
     } catch (error) {
-        // In test environment, this might fail due to missing Electron dependencies
-        // That's acceptable as long as it fails gracefully
-        console.log('⚠️ testLoadPluginsForUI failed (expected in test environment):', error.message);
-        return { success: true }; // Consider this a success since it's environment-related
+        console.log('❌ testLoadPluginsForUI: Unexpected test environment error:', error.message);
+        return { success: false, error: error.message };
     } finally {
         await testEnv.cleanup();
     }

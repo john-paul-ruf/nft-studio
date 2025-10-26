@@ -25,11 +25,12 @@ import { PluginManagerService } from '../../services/PluginManagerService.js';
  * - API compatibility
  */
 class NftProjectManager {
-    constructor(logger = null, eventBus = null) {
+    constructor(logger = null, eventBus = null, effectRegistryService = null) {
         // Dependency injection following Dependency Inversion Principle
         this.logger = logger || defaultLogger;
         this.fileSystemRenderer = new FileSystemRenderer();
         this.renderMethod = process.env.RENDER_METHOD || 'hybrid';
+        this.effectRegistryService = effectRegistryService; // Shared registry service to avoid temp directory creation
 
         // Initialize extracted services
         let appDataPath;
@@ -379,7 +380,8 @@ class NftProjectManager {
             // Process each effect individually to maintain panel order
             const processedEffects = await effectProcessor.processEffects(
                 [effect],
-                myNftGenPath
+                myNftGenPath,
+                this.effectRegistryService // Pass shared registry to avoid creating temp directories on each render
             );
 
             // Add the processed effect to the appropriate array based on type

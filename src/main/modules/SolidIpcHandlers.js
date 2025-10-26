@@ -48,7 +48,7 @@ class SolidIpcHandlers {
             new PreviewHandlers(effectsManager),
             new EventBusHandlers(),
             new ProjectPersistenceHandlers(),
-            new PluginHandlers()
+            new PluginHandlers(this.serviceFactory) // Phase 4: Pass factory for orchestrator access
         ];
 
         // Register all handlers

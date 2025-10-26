@@ -85,6 +85,22 @@ class TestEnvironment {
     }
 
     /**
+     * Get real PluginManagerService (Phase 6 tests)
+     * @returns {PluginManagerService} Real service instance
+     */
+    getPluginManager() {
+        return this.serviceFactory.getPluginManager();
+    }
+
+    /**
+     * Get real RegistryCacheService (Phase 6 tests)
+     * @returns {RegistryCacheService} Real service instance
+     */
+    getRegistryCache() {
+        return this.serviceFactory.getRegistryCache();
+    }
+
+    /**
      * Get any service by name
      * @param {string} serviceName - Service name
      * @returns {*} Real service instance

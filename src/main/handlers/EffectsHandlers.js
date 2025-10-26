@@ -1,5 +1,4 @@
 import { ipcMain } from 'electron';
-import EffectRegistryService from '../services/EffectRegistryService.js';
 import SafeConsole from '../utils/SafeConsole.js';
 
 // Module-level cache for my-nft-gen imports
@@ -20,6 +19,8 @@ async function _loadModules() {
 class EffectsHandlers {
     constructor(effectsManager) {
         this.effectsManager = effectsManager;
+        // Use singleton EffectRegistryService from manager to avoid multiple initializations
+        this.registryService = effectsManager?.effectRegistryService || null;
     }
 
     /**
@@ -130,10 +131,9 @@ class EffectsHandlers {
         ipcMain.handle('refresh-effect-registry', async (event, skipPluginReload = true) => {
             try {
                 // Refresh the effect registry (useful after loading plugins)
-                const registryService = new EffectRegistryService();
                 // Pass skipPluginReload=true by default when called from UI to prevent infinite loops
                 // The UI typically calls this after plugin:loaded events, so we don't need to reload plugins again
-                await registryService.refreshRegistry(skipPluginReload);
+                await this.registryService.refreshRegistry(skipPluginReload);
 
                 // Return updated effects list
                 const effects = await this.effectsManager.getAvailableEffects();
@@ -153,8 +153,7 @@ class EffectsHandlers {
 
         ipcMain.handle('debug-effect-registry', async (event) => {
             try {
-                const registryService = new EffectRegistryService();
-                const debugInfo = await registryService.debugRegistry();
+                const debugInfo = await this.registryService.debugRegistry();
                 
                 return {
                     success: true,
@@ -172,8 +171,7 @@ class EffectsHandlers {
         // Preset-related handlers
         ipcMain.handle('get-effect-presets', async (event, effectName) => {
             try {
-                const registryService = new EffectRegistryService();
-                const presets = await registryService.getPresetsForEffect(effectName);
+                const presets = await this.registryService.getPresetsForEffect(effectName);
                 
                 return {
                     success: true,
@@ -191,8 +189,7 @@ class EffectsHandlers {
 
         ipcMain.handle('get-preset', async (event, { effectName, presetName }) => {
             try {
-                const registryService = new EffectRegistryService();
-                const preset = await registryService.getPreset(effectName, presetName);
+                const preset = await this.registryService.getPreset(effectName, presetName);
                 
                 return {
                     success: true,
@@ -210,8 +207,7 @@ class EffectsHandlers {
 
         ipcMain.handle('has-presets', async (event, effectName) => {
             try {
-                const registryService = new EffectRegistryService();
-                const hasPresets = await registryService.hasPresets(effectName);
+                const hasPresets = await this.registryService.hasPresets(effectName);
                 
                 return {
                     success: true,
@@ -229,8 +225,7 @@ class EffectsHandlers {
 
         ipcMain.handle('get-preset-names', async (event, effectName) => {
             try {
-                const registryService = new EffectRegistryService();
-                const names = await registryService.getPresetNames(effectName);
+                const names = await this.registryService.getPresetNames(effectName);
                 
                 return {
                     success: true,
@@ -249,14 +244,13 @@ class EffectsHandlers {
         // User preset persistence
         ipcMain.handle('save-user-preset', async (event, { effectName, presetName, config }) => {
             try {
-                const registryService = new EffectRegistryService();
-                const map = await registryService._readUserPresetsMap();
+                const map = await this.registryService._readUserPresetsMap();
                 const namesForEffect = map[effectName] || {};
                 if (namesForEffect[presetName]) {
                     return { success: false, error: 'Duplicate preset name' };
                 }
                 map[effectName] = { ...namesForEffect, [presetName]: config };
-                const ok = await registryService._writeUserPresetsMap(map);
+                const ok = await this.registryService._writeUserPresetsMap(map);
                 return { success: ok };
             } catch (error) {
                 SafeConsole.error('Error saving user preset via IPC:', error);
@@ -266,11 +260,10 @@ class EffectsHandlers {
 
         ipcMain.handle('delete-user-preset', async (event, { effectName, presetName }) => {
             try {
-                const registryService = new EffectRegistryService();
-                const map = await registryService._readUserPresetsMap();
+                const map = await this.registryService._readUserPresetsMap();
                 if (map?.[effectName]?.[presetName]) {
                     delete map[effectName][presetName];
-                    const ok = await registryService._writeUserPresetsMap(map);
+                    const ok = await this.registryService._writeUserPresetsMap(map);
                     return { success: ok };
                 }
                 return { success: true };
@@ -282,8 +275,7 @@ class EffectsHandlers {
 
         ipcMain.handle('list-user-presets', async (event, effectName) => {
             try {
-                const registryService = new EffectRegistryService();
-                const map = await registryService._readUserPresetsMap();
+                const map = await this.registryService._readUserPresetsMap();
                 const list = Object.keys(map?.[effectName] || {});
                 return { success: true, names: list };
             } catch (error) {

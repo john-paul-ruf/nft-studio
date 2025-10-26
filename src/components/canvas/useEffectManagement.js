@@ -141,6 +141,36 @@ export default function useEffectManagement(projectState) {
     useEffect(() => {
         loadAvailableEffects();
     }, [loadAvailableEffects]);
+    
+    // Listen for plugin installation events and refresh effects
+    useEffect(() => {
+        if (!window.api || !window.api.on) return;
+        
+        console.log('🎭 useEffectManagement: Setting up plugin event listeners');
+        
+        // Listen for plugin:installed events from main process
+        const unsubscribePluginInstalled = window.api.on('plugin:installed', async (data) => {
+            console.log('🎭 useEffectManagement: Plugin installed event received:', data);
+            // Refresh available effects when a plugin is installed
+            await refreshAvailableEffects();
+        });
+        
+        // Listen for plugin orchestrator completion
+        const unsubscribePluginComplete = window.api.on('plugins:operation-complete', async (data) => {
+            console.log('🎭 useEffectManagement: Plugin operation complete event received:', data);
+            if (data.operation === 'install' && data.success) {
+                console.log('🎭 useEffectManagement: Refreshing available effects after plugin installation');
+                // Refresh available effects when plugin installation completes
+                await refreshAvailableEffects();
+            }
+        });
+        
+        return () => {
+            console.log('🎭 useEffectManagement: Cleaning up plugin event listeners');
+            if (unsubscribePluginInstalled) unsubscribePluginInstalled();
+            if (unsubscribePluginComplete) unsubscribePluginComplete();
+        };
+    }, []);
 
     // Listen for all effect events from event-driven architecture
     useEffect(() => {

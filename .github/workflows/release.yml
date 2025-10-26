@@ -1,0 +1,65 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: windows-latest
+            platform: win
+          - os: macos-latest
+            platform: mac
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Rebuild native modules
+        run: npm run rebuild
+        continue-on-error: true
+      
+      - name: Build application
+        run: npm run build
+      
+      - name: Create distribution
+        run: npm run package:${{ matrix.platform }}
+      
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            build/**/*.dmg
+            build/**/*.zip
+            build/**/*.exe
+            build/**/*.msi
+            build/**/*.AppImage
+            build/**/*.deb
+            build/**/*.snap
+          generate_release_notes: true
+          body: |
+            ## Changes in this Release
+            _See below for commit history_
+
+            ---
+
+            does it work? may the odds be ever in your favor...
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

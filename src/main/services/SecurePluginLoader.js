@@ -1,147 +1,60 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import electronPkg from 'electron';
+const { app, BrowserWindow, ipcMain } = electronPkg;
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
 import { pathToFileURL, fileURLToPath } from 'url';
 import SafeConsole from '../utils/SafeConsole.js';
 import Module from 'module';
+import { ProcessedPluginDirCacheService } from './ProcessedPluginDirCacheService.js';
 
 // Define __filename and __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Static flag to track if IPC handlers have been registered
-let ipcHandlersRegistered = false;
-
-// Static maps to share data across all instances
-const globalPluginResults = new Map();
-
 /**
- * Secure plugin loader using Electron's context isolation
- * Plugins run in isolated renderer processes with limited API access
+ * Secure Plugin Loader
+ *
+ * Purpose: Loads plugins in the main process with import rewriting.
+ * This service focuses on:
+ * - Processing plugin directories (rewriting imports)
+ * - Resolving package paths (my-nft-gen, etc.)
+ * - Loading plugins in main process context
+ * - Caching processed plugin directories
+ *
+ * Refactored in Phase 3 to remove:
+ * - Isolated window approach (loadPlugin)
+ * - Plugin preload script generation
+ * - Redundant IPC handlers (now in dedicated IPC service)
  */
 export class SecurePluginLoader {
-    constructor() {
-        this.pluginWindows = new Map();
-        this.pluginResults = globalPluginResults; // Use shared map
-        this.setupIPC();
+    constructor(appDataPath = null) {
+        this.processedPluginDirs = new Map(); // In-memory cache: pluginPath -> temp directory path
+        this.importedPlugins = new Map(); // Cache: pluginUrl -> module (prevents re-registration)
+        this.dirCacheService = new ProcessedPluginDirCacheService(appDataPath); // Persistent cache
     }
 
     /**
-     * Setup IPC handlers for plugin communication (only once)
+     * Initialize the loader (load persistent cache)
+     * @returns {Promise<void>}
      */
-    setupIPC() {
-        // Only register handlers once to avoid "second handler" error
-        if (ipcHandlersRegistered) {
-            SafeConsole.log('🔒 [SecurePluginLoader] IPC handlers already registered, skipping');
-            return;
+    async initialize() {
+        try {
+            const cache = await this.dirCacheService.loadCache();
+            if (cache) {
+                // Populate in-memory map from persistent cache
+                const mappings = this.dirCacheService.getAllMappings();
+                for (const [sourceDir, processedDir] of Object.entries(mappings)) {
+                    this.processedPluginDirs.set(sourceDir, processedDir);
+                }
+                SafeConsole.log(`✅ [SecurePluginLoader] Initialized with ${this.processedPluginDirs.size} cached plugin directories`);
+            }
+        } catch (error) {
+            SafeConsole.log(`⚠️ [SecurePluginLoader] Could not load persistent cache: ${error.message}`);
         }
-
-        SafeConsole.log('🔒 [SecurePluginLoader] Registering IPC handlers');
-
-        // Handle plugin registration requests
-        ipcMain.handle('plugin:register-effect', async (event, data) => {
-            const windowId = BrowserWindow.fromWebContents(event.sender)?.id;
-            SafeConsole.log(`📥 [SecurePluginLoader] Received effect registration from window ${windowId}:`, data.name);
-
-            // Store registration data
-            const results = globalPluginResults.get(windowId) || { effects: [], configs: [] };
-            results.effects.push(data);
-            globalPluginResults.set(windowId, results);
-
-            return { success: true };
-        });
-
-        ipcMain.handle('plugin:register-config', async (event, data) => {
-            const windowId = BrowserWindow.fromWebContents(event.sender)?.id;
-            SafeConsole.log(`📥 [SecurePluginLoader] Received config registration from window ${windowId}:`, data.name);
-
-            // Store registration data
-            const results = globalPluginResults.get(windowId) || { effects: [], configs: [] };
-            results.configs.push(data);
-            globalPluginResults.set(windowId, results);
-
-            return { success: true };
-        });
-
-        ipcMain.handle('plugin:ready', async (event) => {
-            const windowId = BrowserWindow.fromWebContents(event.sender)?.id;
-            SafeConsole.log(`✅ [SecurePluginLoader] Plugin window ${windowId} is ready`);
-            
-            // Store completion status so the waiting code knows the plugin is done
-            const results = globalPluginResults.get(windowId) || { effects: [], configs: [] };
-            results.ready = true; // Mark as ready
-            globalPluginResults.set(windowId, results);
-            
-            return { success: true };
-        });
-
-        ipcMain.handle('plugin:error', async (event, error) => {
-            const windowId = BrowserWindow.fromWebContents(event.sender)?.id;
-            SafeConsole.log(`❌ [SecurePluginLoader] Plugin window ${windowId} error:`, error);
-
-            const results = globalPluginResults.get(windowId) || { effects: [], configs: [] };
-            results.error = error;
-            globalPluginResults.set(windowId, results);
-
-            return { success: false };
-        });
-
-        ipcHandlersRegistered = true;
-        SafeConsole.log('✅ [SecurePluginLoader] IPC handlers registered successfully');
     }
 
-    /**
-     * Create plugin preload script
-     */
-    async createPluginPreload() {
-        const preloadPath = path.join(app.getPath('userData'), 'plugin-preload.js');
-
-        const preloadCode = `
-const { contextBridge, ipcRenderer } = require('electron');
-
-// Expose limited API to plugins
-contextBridge.exposeInMainWorld('pluginAPI', {
-    // Registration functions
-    registerEffect: async (name, effectCode, category) => {
-        return await ipcRenderer.invoke('plugin:register-effect', {
-            name,
-            effectCode: effectCode.toString(),
-            category
-        });
-    },
-
-    registerConfig: async (name, configCode) => {
-        return await ipcRenderer.invoke('plugin:register-config', {
-            name,
-            configCode: configCode.toString()
-        });
-    },
-
-    // Signal ready
-    ready: async () => {
-        return await ipcRenderer.invoke('plugin:ready');
-    },
-
-    // Report error
-    error: async (message) => {
-        return await ipcRenderer.invoke('plugin:error', message);
-    },
-
-    // Safe console
-    console: {
-        log: (...args) => console.log('[Plugin]', ...args),
-        error: (...args) => console.error('[Plugin]', ...args),
-        warn: (...args) => console.warn('[Plugin]', ...args)
-    }
-});
-`;
-
-        await fs.writeFile(preloadPath, preloadCode, 'utf8');
-        return preloadPath;
-    }
-
-    /**
+    /**d
      * Detect if plugin code uses ES module syntax
      * @param {string} code - Plugin code
      * @returns {boolean} True if ES module
@@ -191,6 +104,13 @@ contextBridge.exposeInMainWorld('pluginAPI', {
                         SafeConsole.log(`✅ [SecurePluginLoader] Found ${packageName} in ASAR unpacked resources: ${asarUnpackedPath}`);
                         return fsSync.realpathSync(asarUnpackedPath);
                     }
+                    
+                    // Check if package is INSIDE the ASAR archive itself
+                    const asarPath = path.join(process.resourcesPath, 'app.asar', 'node_modules', packageName);
+                    if (fsSync.existsSync(asarPath)) {
+                        SafeConsole.log(`✅ [SecurePluginLoader] Found ${packageName} inside ASAR: ${asarPath}`);
+                        return fsSync.realpathSync(asarPath);
+                    }
                 }
             } catch (e) {
                 SafeConsole.log(`⚠️ [SecurePluginLoader] Error checking ASAR resources path: ${e.message}`);
@@ -206,6 +126,13 @@ contextBridge.exposeInMainWorld('pluginAPI', {
                     if (fsSync.existsSync(unpackedPath)) {
                         SafeConsole.log(`✅ [SecurePluginLoader] Found ${packageName} via ASAR unpacked: ${unpackedPath}`);
                         return fsSync.realpathSync(unpackedPath);
+                    }
+                    
+                    // Also check inside ASAR
+                    const insideAsarPath = path.join(asarDir, 'node_modules', packageName);
+                    if (fsSync.existsSync(insideAsarPath)) {
+                        SafeConsole.log(`✅ [SecurePluginLoader] Found ${packageName} inside ASAR (via mainModule): ${insideAsarPath}`);
+                        return fsSync.realpathSync(insideAsarPath);
                     }
                 }
             } catch (e) {
@@ -287,7 +214,63 @@ contextBridge.exposeInMainWorld('pluginAPI', {
     }
 
     /**
+     * Check if a path is inside an ASAR archive
+     * @param {string} filePath - Path to check
+     * @returns {boolean} True if path is inside ASAR
+     */
+    isInsideAsar(filePath) {
+        return filePath && filePath.includes('.asar');
+    }
+
+    /**
+     * Copy a directory recursively (for ASAR contents)
+     * @param {string} src - Source directory
+     * @param {string} dest - Destination directory
+     * @returns {Promise<void>}
+     */
+    async copyDirectory(src, dest) {
+        await fs.mkdir(dest, { recursive: true });
+        const entries = await fs.readdir(src, { withFileTypes: true });
+        
+        for (const entry of entries) {
+            const srcPath = path.join(src, entry.name);
+            const destPath = path.join(dest, entry.name);
+            
+            if (entry.isDirectory()) {
+                await this.copyDirectory(srcPath, destPath);
+            } else {
+                await fs.copyFile(srcPath, destPath);
+            }
+        }
+    }
+
+    /**
+     * Link or copy a directory to destination (symlink if outside ASAR, copy if inside)
+     * @param {string} src - Source path
+     * @param {string} dest - Destination path
+     * @param {boolean} isDir - Whether source is a directory
+     * @returns {Promise<void>}
+     */
+    async linkOrCopy(src, dest, isDir = true) {
+        // Check if source is inside ASAR
+        if (this.isInsideAsar(src)) {
+            SafeConsole.log(`  📋 Copying from ASAR (can't symlink): ${path.basename(src)}`);
+            if (isDir) {
+                await this.copyDirectory(src, dest);
+            } else {
+                await fs.mkdir(path.dirname(dest), { recursive: true });
+                await fs.copyFile(src, dest);
+            }
+        } else {
+            // Safe to symlink
+            SafeConsole.log(`  📎 Symlinking: ${path.basename(src)}`);
+            await fs.symlink(src, dest, isDir ? 'dir' : 'file');
+        }
+    }
+
+    /**
      * Rewrite imports for a specific npm package to use absolute paths
+     * NOTE: my-nft-gen is NOT rewritten - it uses node_modules resolution
      * @param {string} code - Plugin code
      * @param {string} packageName - Package name to rewrite imports for
      * @returns {string} Modified code with absolute imports
@@ -296,6 +279,16 @@ contextBridge.exposeInMainWorld('pluginAPI', {
         // Check if code has any imports from this package
         if (!code.includes(packageName)) {
             return code;
+        }
+        
+        // NEVER rewrite my-nft-gen imports - always use node_modules resolution
+        // This is critical because:
+        // 1. We set up proper node_modules symlinks in both plugin and temp directories
+        // 2. Rewriting to file:// URLs breaks nested module resolution
+        // 3. When LayerEffect.js imports from my-nft-gen, it needs node_modules context
+        if (packageName === 'my-nft-gen') {
+            SafeConsole.log(`🔒 [SecurePluginLoader] Skipping import rewriting for ${packageName} - using node_modules resolution`);
+            return code; // Don't rewrite - keep bare imports
         }
         
         const packagePath = this.resolvePackagePath(packageName);
@@ -314,7 +307,15 @@ contextBridge.exposeInMainWorld('pluginAPI', {
             return code;
         }
 
-        // Convert filesystem path to file:// URL for ES modules
+        // If package is inside ASAR, DON'T rewrite to absolute paths
+        // Instead, keep bare imports and rely on node_modules resolution
+        // This works because we copy ASAR contents to node_modules
+        if (this.isInsideAsar(packagePath)) {
+            SafeConsole.log(`✅ [SecurePluginLoader] Resolved ${packageName} to ASAR path: ${packagePath}`);
+            SafeConsole.log(`🔒 [SecurePluginLoader] Skipping import rewriting (using node_modules resolution instead)`);
+            return code; // Don't rewrite - keep bare imports
+        }
+
         const packageUrl = pathToFileURL(packagePath).href;
         SafeConsole.log(`✅ [SecurePluginLoader] Resolved ${packageName} to: ${packagePath}`);
         SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting imports to use: ${packageUrl}`);
@@ -682,50 +683,101 @@ contextBridge.exposeInMainWorld('pluginAPI', {
     }
 
     /**
+     * Resolve app node_modules path, handling ASAR packaging
+     * @returns {string|null} Path to app's node_modules or null if not found
+     */
+    resolveAppNodeModulesPath() {
+        try {
+            // First, try direct calculation from file location
+            const appRoot = path.dirname(path.dirname(path.dirname(path.dirname(__filename)))); // Go up from src/main/services
+            const appNodeModules = path.join(appRoot, 'node_modules');
+            if (fsSync.existsSync(appNodeModules)) {
+                SafeConsole.log(`✅ [SecurePluginLoader] Found node_modules via direct path: ${appNodeModules}`);
+                return appNodeModules;
+            }
+            
+            // Try process.cwd()
+            const cwdNodeModules = path.join(process.cwd(), 'node_modules');
+            if (fsSync.existsSync(cwdNodeModules)) {
+                SafeConsole.log(`✅ [SecurePluginLoader] Found node_modules at cwd: ${cwdNodeModules}`);
+                return cwdNodeModules;
+            }
+            
+            // Handle ASAR packaging - check process.resourcesPath and ASAR unpacked
+            try {
+                if (process.resourcesPath) {
+                    // Check ASAR unpacked first
+                    const asarUnpackedNodeModules = path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules');
+                    if (fsSync.existsSync(asarUnpackedNodeModules)) {
+                        SafeConsole.log(`✅ [SecurePluginLoader] Found node_modules in ASAR unpacked: ${asarUnpackedNodeModules}`);
+                        return asarUnpackedNodeModules;
+                    }
+                    
+                    // Check inside ASAR archive (may work via Node's ASAR support)
+                    const asarNodeModules = path.join(process.resourcesPath, 'app.asar', 'node_modules');
+                    if (fsSync.existsSync(asarNodeModules)) {
+                        SafeConsole.log(`✅ [SecurePluginLoader] Found node_modules inside ASAR: ${asarNodeModules}`);
+                        return asarNodeModules;
+                    }
+                }
+            } catch (e) {
+                SafeConsole.log(`⚠️ [SecurePluginLoader] Error checking ASAR resources: ${e.message}`);
+            }
+            
+            // Last resort: app.getAppPath()
+            try {
+                const appPath = app.getAppPath();
+                const appPathNodeModules = path.join(appPath, 'node_modules');
+                if (fsSync.existsSync(appPathNodeModules)) {
+                    SafeConsole.log(`✅ [SecurePluginLoader] Found node_modules at app path: ${appPathNodeModules}`);
+                    return appPathNodeModules;
+                }
+            } catch (e) {
+                SafeConsole.log(`⚠️ [SecurePluginLoader] Could not resolve via app.getAppPath(): ${e.message}`);
+            }
+            
+            SafeConsole.log(`❌ [SecurePluginLoader] Could not resolve app node_modules path`);
+            return null;
+        } catch (error) {
+            SafeConsole.log(`❌ [SecurePluginLoader] Error resolving app node_modules: ${error.message}`);
+            return null;
+        }
+    }
+
+    /**
      * Load a plugin directly in the main process (Node.js context)
      * This allows plugins to use Node.js modules like my-nft-gen with native dependencies (sharp, etc.)
      * @param {string} pluginPath - Path to plugin file
      * @returns {Promise<Object>} Plugin load result
      */
-    async loadPluginInMainProcess(pluginPath) {
+    async loadPluginInMainProcess(pluginPath, progressCallback = null) {
         try {
             SafeConsole.log(`🔒 [SecurePluginLoader] Loading plugin in main process: ${pluginPath}`);
             
+            // Report progress
+            const reportProgress = (phase, message, percent) => {
+                if (progressCallback) {
+                    progressCallback(phase, message, percent);
+                }
+            };
+            
             // Get the app's root node_modules path for module resolution
             // This allows plugins to resolve my-nft-gen and other app dependencies
-            const appRoot = path.dirname(path.dirname(path.dirname(path.dirname(__filename)))); // Go up from src/main/services
-            const appNodeModules = path.join(appRoot, 'node_modules');
-            const pluginDir = path.dirname(pluginPath);
+            // Note: pluginPath can be either a directory (plugin root) or a file
+            const pluginStats = await fs.lstat(pluginPath).catch(() => null);
+            const pluginDir = pluginStats && pluginStats.isDirectory() ? pluginPath : path.dirname(pluginPath);
             const pluginNodeModules = path.join(pluginDir, 'node_modules');
             
-            SafeConsole.log(`🔒 [SecurePluginLoader] App root: ${appRoot}`);
             SafeConsole.log(`🔒 [SecurePluginLoader] Plugin directory: ${pluginDir}`);
-            SafeConsole.log(`🔒 [SecurePluginLoader] App node_modules: ${appNodeModules}`);
-            SafeConsole.log(`🔒 [SecurePluginLoader] App node_modules exists: ${fsSync.existsSync(appNodeModules)}`);
             
-            // Verify app node_modules exists, if not try alternative paths
-            let finalAppNodeModules = appNodeModules;
-            if (!fsSync.existsSync(appNodeModules)) {
-                SafeConsole.log(`⚠️ [SecurePluginLoader] Calculated app node_modules not found, trying alternatives...`);
-                
-                // Try process.cwd()
-                const cwdNodeModules = path.join(process.cwd(), 'node_modules');
-                if (fsSync.existsSync(cwdNodeModules)) {
-                    SafeConsole.log(`✅ [SecurePluginLoader] Found node_modules at cwd: ${cwdNodeModules}`);
-                    finalAppNodeModules = cwdNodeModules;
-                } else {
-                    // Try app.getPath('appPath')
-                    try {
-                        const appPath = app.getAppPath();
-                        const appPathNodeModules = path.join(appPath, 'node_modules');
-                        if (fsSync.existsSync(appPathNodeModules)) {
-                            SafeConsole.log(`✅ [SecurePluginLoader] Found node_modules at app path: ${appPathNodeModules}`);
-                            finalAppNodeModules = appPathNodeModules;
-                        }
-                    } catch (e) {
-                        SafeConsole.log(`⚠️ [SecurePluginLoader] Could not get app path: ${e.message}`);
-                    }
-                }
+            reportProgress('setup-node-modules', 'Setting up plugin node_modules...', 5);
+            
+            // Resolve app node_modules with ASAR support
+            const finalAppNodeModules = this.resolveAppNodeModulesPath();
+            
+            if (!finalAppNodeModules) {
+                SafeConsole.log(`❌ [SecurePluginLoader] CRITICAL: Could not resolve app node_modules in any location`);
+                SafeConsole.log(`   Plugin may fail to load dependencies`);
             }
             
             SafeConsole.log(`🔒 [SecurePluginLoader] Using app node_modules: ${finalAppNodeModules}`);
@@ -747,6 +799,8 @@ contextBridge.exposeInMainWorld('pluginAPI', {
                     await fs.rm(pluginNodeModules, { recursive: true, force: true });
                     await fs.mkdir(pluginNodeModules, { recursive: true });
                 }
+                
+                reportProgress('symlink', 'Symlinking dependencies...', 15);
                 
                 // Create a symlink for my-nft-gen but with a patched package.json
                 // We use a directory with a patched package.json + symlinks to the actual package
@@ -798,9 +852,8 @@ contextBridge.exposeInMainWorld('pluginAPI', {
                             // Check if plugin version already exists
                             const pluginExists = await fs.lstat(pluginFile).catch(() => null);
                             if (!pluginExists) {
-                                await fs.symlink(appFile, pluginFile, entry.isDirectory() ? 'dir' : 'file');
+                                await this.linkOrCopy(appFile, pluginFile, entry.isDirectory());
                                 symlinkCount++;
-                                SafeConsole.log(`  📎 Symlinked: ${entry.name}`);
                             }
                         }
                         SafeConsole.log(`✅ [SecurePluginLoader] Ensured ${symlinkCount} symlinks for my-nft-gen`);
@@ -827,15 +880,15 @@ contextBridge.exposeInMainWorld('pluginAPI', {
                                 const appNestedPkg = path.join(myNftGenNodeModules, pkg);
                                 const pluginNestedPkg = path.join(pluginNodeModules, pkg);
                                 
-                                // Only symlink if not already present
+                                // Only link/copy if not already present
                                 const exists = await fs.lstat(pluginNestedPkg).catch(() => null);
                                 if (!exists) {
                                     const isDir = (await fs.lstat(appNestedPkg)).isDirectory();
-                                    await fs.symlink(appNestedPkg, pluginNestedPkg, isDir ? 'dir' : 'file');
+                                    await this.linkOrCopy(appNestedPkg, pluginNestedPkg, isDir);
                                     nestedCount++;
                                 }
                             }
-                            SafeConsole.log(`✅ [SecurePluginLoader] Symlinked ${nestedCount} nested dependencies (including sharp)`);
+                            SafeConsole.log(`✅ [SecurePluginLoader] Linked/Copied ${nestedCount} nested dependencies (including sharp)`);
                         }
                     } catch (error) {
                         SafeConsole.log(`⚠️ [SecurePluginLoader] Could not symlink my-nft-gen nested dependencies: ${error.message}`);
@@ -860,7 +913,7 @@ contextBridge.exposeInMainWorld('pluginAPI', {
                         const pluginPkgStats = await fs.lstat(pluginPkg).catch(() => null);
                         
                         if (appPkgStats && !pluginPkgStats) {
-                            await fs.symlink(appPkg, pluginPkg, appPkgStats.isDirectory() ? 'dir' : 'file');
+                            await this.linkOrCopy(appPkg, pluginPkg, appPkgStats.isDirectory());
                             symlinkCount++;
                         }
                     }
@@ -878,31 +931,49 @@ contextBridge.exposeInMainWorld('pluginAPI', {
             // Process the entire plugin directory recursively to rewrite ALL imports (not just the entry point)
             // This is critical because when the entry point imports other plugin files, those files
             // must also have their my-nft-gen imports rewritten
+
+            // Check if we've already processed this plugin directory
+            let tempPluginDir = this.processedPluginDirs.get(pluginDir);
             const pluginTimestamp = Date.now();
-            const tempPluginDir = path.join(app.getPath('userData'), `plugin-processed-${pluginTimestamp}`);
-            
-            SafeConsole.log(`🔒 [SecurePluginLoader] Creating temporary processed plugin directory: ${tempPluginDir}`);
-            await fs.mkdir(tempPluginDir, { recursive: true });
-            
-            // Process all files in the plugin directory, rewriting imports in each one
-            await this.processPluginDirectory(pluginDir, tempPluginDir);
-            SafeConsole.log(`✅ [SecurePluginLoader] Processed plugin directory with rewritten imports`);
+
+            if (tempPluginDir) {
+                SafeConsole.log(`🔒 [SecurePluginLoader] Using cached processed plugin directory: ${tempPluginDir}`);
+                reportProgress('process-directory', 'Using cached processed plugin...', 35);
+            } else {
+                reportProgress('process-directory', 'Processing plugin directory with import rewrites...', 25);
+                tempPluginDir = path.join(app.getPath('userData'), `plugin-processed-${pluginTimestamp}`);
+
+                SafeConsole.log(`🔒 [SecurePluginLoader] Creating temporary processed plugin directory: ${tempPluginDir}`);
+                await fs.mkdir(tempPluginDir, { recursive: true });
+
+                // Process all files in the plugin directory, rewriting imports in each one
+                await this.processPluginDirectory(pluginDir, tempPluginDir);
+                SafeConsole.log(`✅ [SecurePluginLoader] Processed plugin directory with rewritten imports`);
+
+                reportProgress('process-directory', 'Caching processed plugin directory...', 35);
+                
+                // Cache the processed directory for future use (both in-memory and persistent)
+                this.processedPluginDirs.set(pluginDir, tempPluginDir);
+                await this.dirCacheService.recordMapping(pluginDir, tempPluginDir);
+                SafeConsole.log(`✅ [SecurePluginLoader] Cached processed directory for plugin: ${pluginDir}`);
+            }
             
             // Set up node_modules in the temp directory so plugins can resolve dependencies
             // This mirrors the symlink setup we did for the original plugin directory
             try {
+                reportProgress('symlink', 'Setting up temp node_modules...', 40);
                 const tempNodeModules = path.join(tempPluginDir, 'node_modules');
                 await fs.mkdir(tempNodeModules, { recursive: true });
                 SafeConsole.log(`🔒 [SecurePluginLoader] Setting up node_modules in temp directory`);
                 
-                // Symlink my-nft-gen itself
+                // Link or copy my-nft-gen itself (copy if in ASAR)
                 const myNftGenPath = this.resolveMyNftGenPath();
                 if (myNftGenPath) {
                     const tempMyNftGen = path.join(tempNodeModules, 'my-nft-gen');
                     const existsCheck = await fs.lstat(tempMyNftGen).catch(() => null);
                     if (!existsCheck) {
-                        await fs.symlink(myNftGenPath, tempMyNftGen, 'dir');
-                        SafeConsole.log(`✅ [SecurePluginLoader] Symlinked my-nft-gen in temp node_modules`);
+                        await this.linkOrCopy(myNftGenPath, tempMyNftGen, true);
+                        SafeConsole.log(`✅ [SecurePluginLoader] Linked/Copied my-nft-gen in temp node_modules`);
                     }
                     
                     // Also symlink my-nft-gen's nested dependencies (sharp, etc.)
@@ -928,14 +999,14 @@ contextBridge.exposeInMainWorld('pluginAPI', {
                                 const exists = await fs.lstat(tempNestedPkg).catch(() => null);
                                 if (!exists) {
                                     const isDir = (await fs.lstat(appNestedPkg)).isDirectory();
-                                    await fs.symlink(appNestedPkg, tempNestedPkg, isDir ? 'dir' : 'file');
+                                    await this.linkOrCopy(appNestedPkg, tempNestedPkg, isDir);
                                     nestedCount++;
                                     if (pkg === 'sharp') {
-                                        SafeConsole.log(`✅ [SecurePluginLoader] Symlinked 'sharp': ${appNestedPkg} -> ${tempNestedPkg}`);
+                                        SafeConsole.log(`✅ [SecurePluginLoader] Linked/Copied 'sharp' in temp`);
                                     }
                                 }
                             }
-                            SafeConsole.log(`✅ [SecurePluginLoader] Symlinked ${nestedCount} nested dependencies in temp (including sharp)`);
+                            SafeConsole.log(`✅ [SecurePluginLoader] Linked/Copied ${nestedCount} nested dependencies in temp (including sharp)`);
                         } else {
                             SafeConsole.log(`⚠️ [SecurePluginLoader] my-nft-gen node_modules not found: ${myNftGenNodeModules}`);
                             SafeConsole.log(`   Will try to symlink app packages directly instead`);
@@ -963,15 +1034,15 @@ contextBridge.exposeInMainWorld('pluginAPI', {
                         const tempPkgStats = await fs.lstat(tempPkg).catch(() => null);
                         
                         if (appPkgStats && !tempPkgStats) {
-                            await fs.symlink(appPkg, tempPkg, appPkgStats.isDirectory() ? 'dir' : 'file');
+                            await this.linkOrCopy(appPkg, tempPkg, appPkgStats.isDirectory());
                             symlinkCount++;
                             if (pkg === 'sharp') {
-                                SafeConsole.log(`✅ [SecurePluginLoader] Symlinked 'sharp' from app: ${appPkg} -> ${tempPkg}`);
+                                SafeConsole.log(`✅ [SecurePluginLoader] Linked/Copied 'sharp' from app to temp`);
                             }
                         }
                     }
                     
-                    SafeConsole.log(`✅ [SecurePluginLoader] Symlinked ${symlinkCount} app packages to temp node_modules`);
+                    SafeConsole.log(`✅ [SecurePluginLoader] Linked/Copied ${symlinkCount} app packages to temp node_modules`);
                 } catch (symlinkError) {
                     SafeConsole.log(`⚠️ [SecurePluginLoader] Could not symlink all packages to temp: ${symlinkError.message}`);
                 }
@@ -982,19 +1053,82 @@ contextBridge.exposeInMainWorld('pluginAPI', {
             
             // Now import from the temporary processed directory
             // The entry point filename has been renamed to .mjs during processing
-            let pluginFileName = path.basename(pluginPath);
-            if (!pluginFileName.endsWith('.mjs')) {
-                pluginFileName = pluginFileName.replace(/\.js$/, '.mjs');
+            // First, determine the actual entry point file
+            let entryPointFile = null;
+            
+            // If pluginPath is a directory, try to find the entry point from package.json
+            // Otherwise, use its basename
+            if (pluginStats && pluginStats.isDirectory()) {
+                // It's a directory, try to find the entry point from package.json
+                const packageJsonPath = path.join(pluginPath, 'package.json');
+                try {
+                    const packageContent = await fs.readFile(packageJsonPath, 'utf-8');
+                    const packageJson = JSON.parse(packageContent);
+                    let mainFile = packageJson.main || packageJson.exports;
+                    
+                    // Handle different exports formats
+                    if (typeof mainFile === 'object') {
+                        mainFile = mainFile['.'] || mainFile['./index.js'] || mainFile['./index.mjs'];
+                    }
+                    
+                    entryPointFile = mainFile ? path.basename(mainFile) : 'index.js';
+                } catch (error) {
+                    SafeConsole.log(`⚠️ [SecurePluginLoader] Could not read package.json, defaulting to index.js`);
+                    entryPointFile = 'index.js';
+                }
+            } else {
+                // It's a file path, use its basename
+                entryPointFile = path.basename(pluginPath);
             }
-            const rewrittenPluginPath = path.join(tempPluginDir, pluginFileName);
+            
+            // Convert to .mjs if needed
+            if (!entryPointFile.endsWith('.mjs')) {
+                entryPointFile = entryPointFile.replace(/\.js$/, '.mjs');
+                // If it's index.js, make it index.mjs
+                if (entryPointFile === 'index.js') {
+                    entryPointFile = 'index.mjs';
+                }
+            }
+            
+            const rewrittenPluginPath = path.join(tempPluginDir, entryPointFile);
+            SafeConsole.log(`🔒 [SecurePluginLoader] Entry point file: ${entryPointFile}`);
+            SafeConsole.log(`🔒 [SecurePluginLoader] Rewritten plugin path: ${rewrittenPluginPath}`);
+            
+            // Verify the file exists
+            const rewrittenStats = await fs.lstat(rewrittenPluginPath).catch(() => null);
+            if (!rewrittenStats) {
+                SafeConsole.log(`⚠️ [SecurePluginLoader] Entry point file not found: ${rewrittenPluginPath}`);
+                const tempFiles = await fs.readdir(tempPluginDir).catch(() => []);
+                SafeConsole.log(`   Temp plugin dir exists: ${(await fs.lstat(tempPluginDir).catch(() => null)) ? 'YES' : 'NO'}`);
+                SafeConsole.log(`   Files in temp plugin dir (${tempPluginDir}):`, tempFiles);
+                SafeConsole.log(`   Looking for original entry point: ${entryPointFile} (converted to .mjs)`);
+                SafeConsole.log(`   Original pluginPath was: ${pluginPath}`);
+                SafeConsole.log(`   Original pluginStats isDirectory: ${pluginStats?.isDirectory()}`);
+                throw new Error(`Plugin entry point not found: ${entryPointFile} (looked in ${rewrittenPluginPath})`);
+            }
             
             // Convert to URL for ES module import
             const pluginUrl = pathToFileURL(rewrittenPluginPath).href;
             SafeConsole.log(`🔒 [SecurePluginLoader] Plugin URL: ${pluginUrl}`);
             
-            // Dynamically import the rewritten plugin module in the main process
-            // All imports in this file AND all its dependencies now have absolute paths
-            const pluginModule = await import(pluginUrl + `?t=${pluginTimestamp}`); // Add timestamp to bust cache
+            reportProgress('import', 'Importing plugin module...', 50);
+            
+            // CRITICAL: Check if we've already imported this plugin
+            // Re-importing with different cache-bust params causes register() to be called again
+            let pluginModule = this.importedPlugins.get(pluginUrl);
+            if (pluginModule) {
+                SafeConsole.log(`🔒 [SecurePluginLoader] Using cached plugin module (prevents re-registration)`);
+                reportProgress('import', 'Using cached plugin module...', 60);
+            } else {
+                // Dynamically import the rewritten plugin module in the main process
+                // All imports in this file AND all its dependencies now have absolute paths
+                // NOTE: We do NOT use cache-bust query params here - they cause register() to be called repeatedly
+                pluginModule = await import(pluginUrl);
+                // Cache the imported module to prevent re-registration on future loads
+                this.importedPlugins.set(pluginUrl, pluginModule);
+                SafeConsole.log(`🔒 [SecurePluginLoader] Cached plugin module for future use`);
+                reportProgress('import', 'Plugin module imported', 65);
+            }
             
             SafeConsole.log(`🔒 [SecurePluginLoader] Plugin module imported successfully`);
             SafeConsole.log(`🔒 [SecurePluginLoader] Plugin exports:`, Object.keys(pluginModule));
@@ -1081,11 +1215,21 @@ contextBridge.exposeInMainWorld('pluginAPI', {
                 
                 // Call the register function
                 SafeConsole.log(`🔒 [SecurePluginLoader] Calling plugin register() function...`);
+                reportProgress('import', 'Registering plugin effects...', 70);
                 try {
                     // Try 3-argument form (EffectRegistry, ConfigRegistry, PositionRegistry) first
                     await pluginModule.register(mockEffectRegistry, mockConfigRegistry, mockPositionRegistry);
                     SafeConsole.log(`🔒 [SecurePluginLoader] Plugin register() function completed successfully`);
                     SafeConsole.log(`🔒 [SecurePluginLoader] Total effects captured: ${registeredEffects.length}`);
+                    
+                    reportProgress('import', `Successfully registered ${registeredEffects.length} effects`, 80);
+                    reportProgress('import', `Finalizing file system operations...`, 85);
+                    
+                    // Allow a brief moment for any pending file system operations to settle
+                    // This ensures symlinks and writes are fully committed before continuing
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    reportProgress('import', `Plugin loading complete`, 90);
                     
                     // Return the captured effects with their classes
                     // EffectRegistryService will handle the actual registration
@@ -1114,463 +1258,6 @@ contextBridge.exposeInMainWorld('pluginAPI', {
         } catch (error) {
             SafeConsole.log(`❌ [SecurePluginLoader] Failed to load plugin in main process: ${error.message}`);
             SafeConsole.log(`❌ [SecurePluginLoader] Stack: ${error.stack}`);
-            
-            return {
-                success: false,
-                error: error.message,
-                effects: [],
-                configs: []
-            };
-        }
-    }
-
-    /**
-     * Load a plugin in an isolated context (fallback for special cases)
-     * @param {string} pluginPath - Path to plugin file
-     * @returns {Promise<Object>} Plugin load result
-     */
-    async loadPlugin(pluginPath) {
-        let pluginWindow = null;
-
-        try {
-            SafeConsole.log(`🔒 [SecurePluginLoader] Loading plugin in isolated context: ${pluginPath}`);
-            SafeConsole.log(`🔒 [SecurePluginLoader] Plugin path exists: ${await fs.access(pluginPath).then(() => true).catch(() => false)}`);
-
-            // Create preload script
-            const preloadPath = await this.createPluginPreload();
-
-            // Create hidden window for plugin execution
-            pluginWindow = new BrowserWindow({
-                width: 1,
-                height: 1,
-                show: false,
-                webPreferences: {
-                    preload: preloadPath,
-                    contextIsolation: true,
-                    nodeIntegration: false,
-                    sandbox: true,
-                    webSecurity: true
-                }
-            });
-
-            const windowId = pluginWindow.id;
-            this.pluginWindows.set(windowId, pluginWindow);
-
-            // Read plugin code first
-            const pluginCode = await fs.readFile(pluginPath, 'utf8');
-            
-            // Detect if this is an ES module
-            const isESModule = this.isESModule(pluginCode);
-            SafeConsole.log(`🔒 [SecurePluginLoader] Plugin type: ${isESModule ? 'ES Module' : 'CommonJS/Plain'}`);
-
-            let pluginHtml;
-            
-            if (isESModule) {
-                // For ES modules, we need to process the entire plugin directory
-                // to ensure ALL nested imports are rewritten
-                
-                // Find the actual plugin root (where package.json is, or entry point's directory)
-                let pluginDir = path.dirname(pluginPath);
-                
-                // Try to find package.json to locate the actual package root
-                // Walk up from the entry point to find package.json
-                let currentDir = pluginDir;
-                let foundPackageRoot = false;
-                for (let i = 0; i < 10; i++) {
-                    const packageJsonPath = path.join(currentDir, 'package.json');
-                    try {
-                        await fs.access(packageJsonPath);
-                        pluginDir = currentDir; // Use the package root
-                        foundPackageRoot = true;
-                        SafeConsole.log(`🔒 [SecurePluginLoader] Found package root at: ${pluginDir}`);
-                        break;
-                    } catch (e) {
-                        // Not found, try parent directory
-                    }
-                    const parentDir = path.dirname(currentDir);
-                    if (parentDir === currentDir) {
-                        // Reached filesystem root
-                        break;
-                    }
-                    currentDir = parentDir;
-                }
-                
-                if (!foundPackageRoot) {
-                    SafeConsole.log(`🔒 [SecurePluginLoader] No package.json found, using entry point directory: ${pluginDir}`);
-                }
-                
-                const pluginTimestamp = Date.now();
-                const processedPluginDir = path.join(app.getPath('userData'), `plugin-processed-${pluginTimestamp}`);
-                
-                SafeConsole.log(`🔒 [SecurePluginLoader] Processing plugin directory recursively: ${pluginDir}`);
-                SafeConsole.log(`🔒 [SecurePluginLoader] Output directory: ${processedPluginDir}`);
-                
-                // Declare these variables before the try block so they're accessible later
-                let transformedCode;
-                let pluginModulePath;
-                let pluginModuleUrl;
-                
-                try {
-                    // Create output directory
-                    await fs.mkdir(processedPluginDir, { recursive: true });
-                    
-                    // Process entire plugin directory recursively
-                    await this.processPluginDirectory(pluginDir, processedPluginDir);
-                    
-                    // Use the processed entry point instead of the original
-                    // Calculate the relative path from plugin root to the entry point
-                    const relativePath = path.relative(pluginDir, pluginPath);
-                    const processedPluginPath = path.join(processedPluginDir, relativePath);
-                    
-                    SafeConsole.log(`🔒 [SecurePluginLoader] Original plugin path: ${pluginPath}`);
-                    SafeConsole.log(`🔒 [SecurePluginLoader] Relative path: ${relativePath}`);
-                    SafeConsole.log(`🔒 [SecurePluginLoader] Processed plugin path: ${processedPluginPath}`);
-                    
-                    // Read the processed plugin code
-                    transformedCode = await fs.readFile(processedPluginPath, 'utf8');
-                    
-                    SafeConsole.log(`🔒 [SecurePluginLoader] Processing plugin code`);
-                    
-                    // Rewrite imports to use absolute paths
-                    // Pass processedPluginDir so relative imports are resolved correctly
-                    transformedCode = this.rewriteImportsWithAbsolutePaths(transformedCode, processedPluginDir);
-                    
-                    // The imports are already rewritten by processPluginDirectory and rewriteImportsWithAbsolutePaths
-                    // For ES modules with proper export statements, we can use them as-is
-                    const isESModule = this.isESModule(transformedCode);
-                    
-                    pluginModulePath = path.join(app.getPath('userData'), `plugin-module-${pluginTimestamp}.js`);
-                    pluginModuleUrl = pathToFileURL(pluginModulePath).href;
-                    
-                    SafeConsole.log(`🔒 [SecurePluginLoader] Plugin module path: ${pluginModulePath}`);
-                    SafeConsole.log(`🔒 [SecurePluginLoader] Plugin module URL: ${pluginModuleUrl}`);
-                    SafeConsole.log(`🔒 [SecurePluginLoader] Detected ES module: ${isESModule}`);
-                    
-                    // For ES modules, never transform exports - just use as-is
-                    // ES modules will be imported and their exports accessed directly
-                    if (!isESModule) {
-                        SafeConsole.log(`🔒 [SecurePluginLoader] Transforming exports for non-ES module plugin`);
-                        
-                        // Handle export default (must be done first to avoid conflicts)
-                        transformedCode = transformedCode.replace(/export\s+default\s+/g, 'window.__pluginExport = ');
-                        
-                        // Handle export { ... } (named exports)
-                        transformedCode = transformedCode.replace(/export\s+\{([^}]+)\}/g, (match, exports) => {
-                            const exportNames = exports.split(',').map(e => e.trim().split(/\s+as\s+/)[0]);
-                            return `window.__pluginExports = { ${exportNames.join(', ')} };`;
-                        });
-                        
-                        // Handle export const/let/var declarations
-                        transformedCode = transformedCode.replace(
-                            /export\s+((?:const|let|var)\s+(\w+)\s*=\s*[^;\n]+[;\n]?)/gm,
-                            (match, declaration, name) => {
-                                SafeConsole.log(`🔒 [SecurePluginLoader] Transformed variable export: ${name}`);
-                                const cleanDeclaration = declaration.trim().endsWith(';') ? declaration : declaration.trim() + ';';
-                                return `${cleanDeclaration}\nwindow.__pluginExport_${name} = ${name};`;
-                            }
-                        );
-                        
-                        // Handle export function declarations
-                        transformedCode = transformedCode.replace(
-                            /export\s+((?:async\s+)?function\s+(\w+)\s*\([^)]*\)\s*\{)/g,
-                            (match, declaration, name) => {
-                                SafeConsole.log(`🔒 [SecurePluginLoader] Transformed function export: ${name}`);
-                                return declaration;
-                            }
-                        );
-                        
-                        // Handle export class declarations
-                        transformedCode = transformedCode.replace(
-                            /export\s+(class\s+(\w+)(?:\s+extends\s+\w+)?\s*\{)/g,
-                            (match, declaration, name) => {
-                                SafeConsole.log(`🔒 [SecurePluginLoader] Transformed class export: ${name}`);
-                                return declaration;
-                            }
-                        );
-                    } else {
-                        SafeConsole.log(`🔒 [SecurePluginLoader] ES module detected - preserving all code as-is (no transformation)`);
-                    }
-                    
-                    // Debug: Show first 1500 chars and last 500 chars of transformed code
-                    SafeConsole.log(`🔒 [SecurePluginLoader] Transformed code length: ${transformedCode.length}`);
-                    SafeConsole.log(`🔒 [SecurePluginLoader] Transformed code preview (first 1500 chars):`);
-                    SafeConsole.log(transformedCode.substring(0, 1500));
-                    SafeConsole.log(`🔒 [SecurePluginLoader] ... [middle content truncated] ...`);
-                    SafeConsole.log(`🔒 [SecurePluginLoader] Transformed code preview (last 500 chars):`);
-                    SafeConsole.log(transformedCode.substring(Math.max(0, transformedCode.length - 500)));
-                    
-                    // Check for suspicious patterns that might cause syntax errors
-                    if (transformedCode.includes('Unexpected identifier') || transformedCode.includes('export Mock')) {
-                        SafeConsole.log(`⚠️ [SecurePluginLoader] WARNING: Code contains suspicious export pattern`);
-                    }
-                    
-                    // Verify the code doesn't have corrupted export statements
-                    const exportLines = transformedCode.split('\n').filter((line, idx) => {
-                        return line.trim().startsWith('export ') && (idx === 0 || !transformedCode.split('\n')[idx - 1].trim().endsWith('\\'));
-                    });
-                    SafeConsole.log(`🔒 [SecurePluginLoader] Found ${exportLines.length} export statements`);
-                    exportLines.slice(0, 5).forEach((line, i) => {
-                        SafeConsole.log(`  Export ${i + 1}: ${line.substring(0, 100)}`);
-                    });
-                    
-                    // Note: We skip syntax validation here because the transformed code
-                    // will be executed as an ES module (with <script type="module">),
-                    // which supports features like import.meta that would fail in new Function().
-                    // Any syntax errors will be caught during actual execution in the sandbox.
-                    SafeConsole.log(`✅ [SecurePluginLoader] Code transformation complete (validation deferred to module execution)`);
-                    
-                    SafeConsole.log(`🔒 [SecurePluginLoader] Writing transformed code to: ${pluginModulePath}`);
-                    await fs.writeFile(pluginModulePath, transformedCode, 'utf8');
-                    SafeConsole.log(`🔒 [SecurePluginLoader] Transformed code written successfully (${transformedCode.length} bytes)`);
-                } catch (transformError) {
-                    SafeConsole.log(`❌ [SecurePluginLoader] Failed to transform plugin code: ${transformError.message}`);
-                    throw new Error(`Plugin transformation failed: ${transformError.message}`);
-                }
-                
-                // Create HTML that loads the ES module with import maps
-                // Get the resolved path to my-nft-gen BEFORE creating the HTML
-                const myNftGenPath = this.resolveMyNftGenPath();
-                const myNftGenUrl = myNftGenPath ? pathToFileURL(myNftGenPath).href : null;
-                
-                SafeConsole.log(`🔒 [SecurePluginLoader] Setting up import map for my-nft-gen: ${myNftGenUrl}`);
-                
-                // Create import map to resolve my-nft-gen from anywhere in the plugin hierarchy
-                // This ensures nested imports also resolve correctly
-                if (!myNftGenUrl) {
-                    SafeConsole.log(`⚠️ [SecurePluginLoader] Could not resolve my-nft-gen path for import map - plugins may fail to load if they depend on my-nft-gen`);
-                }
-                
-                const importMap = myNftGenUrl ? `
-    <script type="importmap">
-    {
-        "imports": {
-            "my-nft-gen": ${JSON.stringify(myNftGenUrl)},
-            "my-nft-gen/": ${JSON.stringify(myNftGenUrl + '/')}
-        }
-    }
-    </script>
-                ` : '';
-                
-                pluginHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Plugin Sandbox</title>
-    ${importMap}
-</head>
-<body>
-    <script type="module">
-        (async function() {
-            try {
-                window.pluginAPI.console.log('Loading plugin module from: ${pluginModuleUrl}');
-                
-                // Import the plugin module
-                const pluginModule = await import('${pluginModuleUrl}');
-                
-                window.pluginAPI.console.log('Plugin module imported successfully');
-                window.pluginAPI.console.log('Plugin exports:', Object.keys(pluginModule));
-                
-                // Check if this is a my-nft-gen style plugin with a register() function
-                if (pluginModule.register && typeof pluginModule.register === 'function') {
-                    window.pluginAPI.console.log('Detected my-nft-gen plugin with register() function');
-                    
-                    // Create mock EffectRegistry and PositionRegistry to capture registrations
-                    let registrationCount = 0;
-                    const mockEffectRegistry = {
-                        registerGlobal: (effectClass, category, metadata) => {
-                            registrationCount++;
-                            window.pluginAPI.console.log(\`Mock EffectRegistry.registerGlobal called ($\{registrationCount}):\`, {
-                                name: effectClass._name_ || effectClass.name,
-                                category: category,
-                                metadata: metadata
-                            });
-                            
-                            // Register the effect via our API
-                            window.pluginAPI.registerEffect(
-                                effectClass._name_ || effectClass.name,
-                                effectClass.toString(),
-                                category
-                            );
-                        },
-                        hasGlobal: (name) => {
-                            window.pluginAPI.console.log('Mock EffectRegistry.hasGlobal called:', name);
-                            return false; // Always return false to allow registration
-                        },
-                        getByCategoryGlobal: (category) => {
-                            window.pluginAPI.console.log('Mock EffectRegistry.getByCategoryGlobal called:', category);
-                            return {}; // Return empty object
-                        }
-                    };
-                    
-                    const mockPositionRegistry = {
-                        register: (name, positionClass) => {
-                            window.pluginAPI.console.log('Mock PositionRegistry.register called:', name);
-                        }
-                    };
-                    
-                    // Call the register function with mock registries
-                    window.pluginAPI.console.log('Calling plugin register() function...');
-                    window.pluginAPI.console.log('Mock registries ready:', {
-                        effectRegistry: typeof mockEffectRegistry,
-                        positionRegistry: typeof mockPositionRegistry
-                    });
-                    
-                    try {
-                        const registerResult = await pluginModule.register(mockEffectRegistry, mockPositionRegistry);
-                        window.pluginAPI.console.log('Plugin register() function completed successfully');
-                        window.pluginAPI.console.log('Register result:', registerResult);
-                        window.pluginAPI.console.log(\`Total effects registered via mock registry: $\{registrationCount}\`);
-                    } catch (registerError) {
-                        window.pluginAPI.console.error('Error in register() function:', registerError.message);
-                        window.pluginAPI.console.error('Stack:', registerError.stack);
-                        throw registerError;
-                    }
-                } else {
-                    // Fallback to old behavior for non-my-nft-gen plugins
-                    window.pluginAPI.console.log('Not a my-nft-gen plugin, checking for other export patterns');
-                    
-                    // Give the module time to execute
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    
-                    // Check for exported plugin registration
-                    if (window.__pluginExport) {
-                        window.pluginAPI.console.log('Found default export');
-                        // Handle default export
-                        if (typeof window.__pluginExport === 'function') {
-                            window.pluginAPI.console.log('Calling default export function');
-                            await window.__pluginExport(
-                                window.pluginAPI.registerEffect,
-                                window.pluginAPI.registerConfig,
-                                window.pluginAPI.console
-                            );
-                        }
-                    }
-                    
-                    // Handle named exports
-                    let exportCount = 0;
-                    for (const key in window) {
-                        if (key.startsWith('__pluginExport_')) {
-                            const exportName = key.replace('__pluginExport_', '');
-                            window.pluginAPI.console.log('Found named export:', exportName);
-                            exportCount++;
-                        }
-                    }
-                    
-                    window.pluginAPI.console.log('Plugin loaded with ' + exportCount + ' named exports');
-                }
-                
-                // Signal success
-                await window.pluginAPI.ready();
-            } catch (error) {
-                console.error('Plugin execution failed:', error);
-                window.pluginAPI.console.error('Plugin execution failed:', error.message);
-                window.pluginAPI.console.error('Stack:', error.stack);
-                await window.pluginAPI.error(error.message + ' (Stack: ' + error.stack + ')');
-            }
-        })();
-    </script>
-</body>
-</html>`;
-            } else {
-                // For non-ES modules, use the original approach
-                // Escape the plugin code for safe embedding
-                const escapedPluginCode = pluginCode
-                    .replace(/\\/g, '\\\\')
-                    .replace(/`/g, '\\`')
-                    .replace(/\$/g, '\\$');
-
-                pluginHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Plugin Sandbox</title>
-</head>
-<body>
-    <script>
-        (async function() {
-            try {
-                // Plugin code is embedded directly
-                const pluginCode = \`${escapedPluginCode}\`;
-
-                // Create a function from the plugin code
-                const pluginFunction = new Function('registerEffect', 'registerConfig', 'console', pluginCode);
-
-                // Execute with our safe API
-                pluginFunction(
-                    window.pluginAPI.registerEffect,
-                    window.pluginAPI.registerConfig,
-                    window.pluginAPI.console
-                );
-
-                // Signal success
-                await window.pluginAPI.ready();
-            } catch (error) {
-                console.error('Plugin execution failed:', error);
-                await window.pluginAPI.error(error.message);
-            }
-        })();
-    </script>
-</body>
-</html>`;
-            }
-
-            // Write temporary HTML file
-            const htmlPath = path.join(app.getPath('userData'), `plugin-${Date.now()}.html`);
-            await fs.writeFile(htmlPath, pluginHtml, 'utf8');
-
-            // Load the HTML
-            await pluginWindow.loadFile(htmlPath);
-
-            // Wait for plugin to complete (with timeout)
-            await new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    reject(new Error('Plugin execution timeout'));
-                }, 10000); // 10 second timeout
-
-                const checkInterval = setInterval(() => {
-                    const results = this.pluginResults.get(windowId);
-                    // Check if plugin is ready (has registered something or sent ready signal)
-                    if (results && (results.ready || results.effects?.length > 0 || results.configs?.length > 0 || results.error)) {
-                        clearInterval(checkInterval);
-                        clearTimeout(timeout);
-                        resolve(results);
-                    }
-                }, 100);
-            });
-
-            // Get results
-            const results = this.pluginResults.get(windowId);
-
-            // Clean up
-            await fs.unlink(htmlPath).catch(() => {});
-            this.pluginResults.delete(windowId);
-            this.pluginWindows.delete(windowId);
-            pluginWindow.destroy();
-
-            SafeConsole.log(`✅ [SecurePluginLoader] Plugin loaded successfully:`, {
-                effects: results?.effects?.length || 0,
-                configs: results?.configs?.length || 0
-            });
-
-            return {
-                success: !results?.error,
-                effects: results?.effects || [],
-                configs: results?.configs || [],
-                error: results?.error
-            };
-
-        } catch (error) {
-            SafeConsole.log(`❌ [SecurePluginLoader] Failed to load plugin: ${error.message}`);
-
-            // Clean up on error
-            if (pluginWindow) {
-                const windowId = pluginWindow.id;
-                this.pluginResults.delete(windowId);
-                this.pluginWindows.delete(windowId);
-                pluginWindow.destroy();
-            }
 
             return {
                 success: false,
@@ -1579,17 +1266,6 @@ contextBridge.exposeInMainWorld('pluginAPI', {
                 configs: []
             };
         }
-    }
-
-    /**
-     * Clean up all plugin windows
-     */
-    cleanup() {
-        for (const [windowId, window] of this.pluginWindows) {
-            window.destroy();
-        }
-        this.pluginWindows.clear();
-        this.pluginResults.clear();
     }
 }
 

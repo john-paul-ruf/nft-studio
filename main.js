@@ -117,6 +117,34 @@ app.whenReady().then(async () => {
     await ipcHandlers.registerHandlers()
     SafeConsole.log('✅ [main] IPC handlers registered successfully')
 
+    // Phase 4a: Cleanup orphaned resources from previous sessions
+    try {
+      SafeConsole.log('🧹 [main] Running startup cleanup for orphaned resources...')
+      const orchestrator = ipcHandlers.serviceFactory.getPluginLoaderOrchestrator()
+      await orchestrator.initialize()
+      const cleanupResult = await orchestrator.cleanupOrphanedResources()
+      if (cleanupResult.success) {
+        SafeConsole.log(`✅ [main] Cleanup complete: ${cleanupResult.tempDirsRemoved} dirs removed`)
+      }
+    } catch (cleanupError) {
+      SafeConsole.log('⚠️ [main] Startup cleanup failed (non-critical):', cleanupError.message)
+    }
+
+    // Phase 4b: Load installed plugins at startup (SINGLE POINT OF ENTRY for plugin loading)
+    // This ensures plugins are ONLY registered at:
+    // 1. App startup (here via loadInstalledPlugins)
+    // 2. User install (via PluginHandlers IPC)
+    try {
+      SafeConsole.log('📦 [main] Loading installed plugins at startup...')
+      const orchestrator = ipcHandlers.serviceFactory.getPluginLoaderOrchestrator()
+      const loadResult = await orchestrator.loadInstalledPlugins()
+      if (loadResult.success) {
+        SafeConsole.log(`✅ [main] Plugins loaded: ${loadResult.loaded} loaded, ${loadResult.failed} failed`)
+      }
+    } catch (pluginError) {
+      SafeConsole.log('⚠️ [main] Plugin loading at startup failed (non-critical):', pluginError.message)
+    }
+
     // Create the main window
     SafeConsole.log('📱 [main] Creating main window...')
     createWindow()

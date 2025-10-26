@@ -1,6 +1,10 @@
 import React, { useEffect } from 'react';
 import { ServiceProvider, useServices } from './contexts/ServiceContext.js';
 import { useNavigation } from './hooks/useNavigation.js';
+import { usePluginNotifications } from './hooks/usePluginNotifications.js';
+import { usePluginLoading } from './hooks/usePluginLoading.js';
+import Toast from './components/Toast.jsx';
+import LoadingOverlay from './components/LoadingOverlay.jsx';
 import Intro from './pages/Intro.jsx';
 import ProjectWizard from './pages/ProjectWizard.jsx';
 import Canvas from './pages/Canvas.jsx';
@@ -16,6 +20,8 @@ import './App.bem.css';
 function AppRouter() {
     const { currentView, currentParams, navigateToWizard, navigateToCanvas, navigateToIntro } = useNavigation();
     const { projectStateManager, eventBusService } = useServices();
+    const { notification, closeNotification } = usePluginNotifications();
+    const { operation, visible } = usePluginLoading(); // Phase 5: Plugin loading overlay
 
     // Debug logging for router state
     console.log('🔍 App Router:', { currentView, currentParams });
@@ -271,6 +277,8 @@ function AppRouter() {
     return (
         <div className="app">
             {renderCurrentView()}
+            <Toast notification={notification} onClose={closeNotification} />
+            <LoadingOverlay operation={operation} visible={visible} />
         </div>
     );
 }

@@ -114,6 +114,7 @@ contextBridge.exposeInMainWorld('api', {
         toggle: (pluginName) => ipcRenderer.invoke('plugins:toggle', pluginName),
         validate: (pluginPath) => ipcRenderer.invoke('plugins:validate', pluginPath),
         installFromNpm: (packageName) => ipcRenderer.invoke('plugins:install-npm', packageName),
+        installAndLoad: (pluginData) => ipcRenderer.invoke('plugins:install-and-load', pluginData),
         selectLocal: () => ipcRenderer.invoke('plugins:select-local'),
         getForGeneration: () => ipcRenderer.invoke('plugins:get-for-generation'),
         getDebugLogPath: () => ipcRenderer.invoke('plugins:get-debug-log-path')

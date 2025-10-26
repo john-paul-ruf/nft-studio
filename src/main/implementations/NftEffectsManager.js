@@ -24,10 +24,19 @@ import EffectIPCSerializationService from '../services/EffectIPCSerializationSer
  * - EffectIPCSerializationService: IPC serialization/deserialization
  */
 class NftEffectsManager {
-    constructor(effectRegistryService = null, configProcessingService = null) {
+    constructor(effectRegistryService, configProcessingService) {
         // Dependency injection following Dependency Inversion Principle
-        this.effectRegistryService = effectRegistryService || new EffectRegistryService();
-        this.configProcessingService = configProcessingService || new ConfigProcessingService();
+        // CRITICAL: Both parameters are REQUIRED - no fallbacks allowed
+        // Fallbacks would create multiple EffectRegistryService instances and cause initialization loops
+        if (!effectRegistryService) {
+            throw new Error('NftEffectsManager requires an effectRegistryService instance');
+        }
+        if (!configProcessingService) {
+            throw new Error('NftEffectsManager requires a configProcessingService instance');
+        }
+        
+        this.effectRegistryService = effectRegistryService;
+        this.configProcessingService = configProcessingService;
         
         // Initialize service instances
         this.ipcSerializationService = new EffectIPCSerializationService();

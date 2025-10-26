@@ -40,11 +40,26 @@ class EffectMetadataService {
      */
     async getEffectSchema(effectName) {
         try {
+            // First, get the effect plugin to find the correct registry key
+            let plugin = await this.effectRegistryService.getEffectWithConfig(effectName);
+            
+            if (!plugin) {
+                // Try lowercase as fallback
+                plugin = await this.effectRegistryService.getEffectWithConfig(effectName.toLowerCase());
+            }
+            
+            if (!plugin) {
+                console.error(`Effect not found: ${effectName}`);
+                return { fields: [] };
+            }
+
+            // Use effectClass._name_ (internal registry key) to look up config
+            const registryKey = plugin.effectClass?._name_ || effectName;
             const ConfigRegistry = await this.effectRegistryService.getConfigRegistry();
-            const configData = ConfigRegistry.getGlobal(effectName);
+            const configData = ConfigRegistry.getGlobal(registryKey);
 
             if (!configData || !configData.ConfigClass) {
-                console.error(`No config found for effect: ${effectName}`);
+                console.error(`No config found for effect: ${effectName} (registry key: ${registryKey})`);
                 return { fields: [] };
             }
 

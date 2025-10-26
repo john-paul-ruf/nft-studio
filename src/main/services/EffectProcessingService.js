@@ -45,12 +45,18 @@ class EffectProcessingService {
      * Process effects configuration into LayerConfig instances
      * @param {Array} effects - Array of effect configurations
      * @param {string} myNftGenPath - Path to my-nft-gen module
+     * @param {EffectRegistryService} effectRegistryService - Optional shared registry service instance
      * @returns {Promise<Array>} Array of LayerConfig instances
      */
 
-    static async processEffects(effects, myNftGenPath) {
+    static async processEffects(effects, myNftGenPath, effectRegistryService) {
         const { LayerConfig } = await _loadModules();
-        const registryService = new EffectRegistryService();
+        // CRITICAL: effectRegistryService is REQUIRED - no fallback allowed
+        // Creating a new instance would trigger duplicate initialization cycles
+        if (!effectRegistryService) {
+            throw new Error('EffectProcessingService.processEffects() requires effectRegistryService parameter');
+        }
+        const registryService = effectRegistryService;
         const EffectRegistry = await registryService.getEffectRegistry();
         const ConfigRegistry = await registryService.getConfigRegistry();
 
@@ -95,7 +101,7 @@ class EffectProcessingService {
                 }
 
                 // Verify this is the correct derived class
-                const configInstance = await this.createConfigInstance(effect, myNftGenPath);
+                const configInstance = await this.createConfigInstance(effect, myNftGenPath, registryService);
 
                 // Process attached secondary effects - single source of truth
                 const possibleSecondaryEffects = [];
@@ -179,9 +185,10 @@ class EffectProcessingService {
      * Create configuration instance for an effect
      * @param {Object} effect - Effect configuration
      * @param {string} myNftGenPath - Path to my-nft-gen module
+     * @param {EffectRegistryService} effectRegistryService - Optional shared registry service instance
      * @returns {Promise<Object>} Configuration instance
      */
-    static async createConfigInstance(effect, myNftGenPath) {
+    static async createConfigInstance(effect, myNftGenPath, effectRegistryService = null) {
         const { ConfigReconstructor } = await _loadModules();
         
         // Always preserve user config as fallback
@@ -198,8 +205,11 @@ class EffectProcessingService {
         // CRITICAL: Deserialize config if it contains serialized class instances (from presets)
         // This handles configs that come from preset selection, which are serialized for IPC transmission
         SafeConsole.log(`🔍 [EffectProcessingService] Raw userConfig BEFORE deserialization for ${effect.registryKey}:`, JSON.stringify(userConfig, null, 2));
-        const registryService = new EffectRegistryService();
-        userConfig = await registryService._deserializeConfig(userConfig);
+        // CRITICAL: Use provided registry service - never create a new instance
+        if (!effectRegistryService) {
+            throw new Error('EffectProcessingService requires effectRegistryService for deserialization');
+        }
+        userConfig = await effectRegistryService._deserializeConfig(userConfig);
         SafeConsole.log(`🔍 [EffectProcessingService] userConfig AFTER _deserializeConfig for ${effect.registryKey}:`, JSON.stringify(userConfig, null, 2));
         
         // DEBUG: Log config after deserialization
@@ -240,12 +250,12 @@ class EffectProcessingService {
 
             // Check if ConfigReconstructor properly handled ColorPicker objects
             // If not, we need to manually reconstruct them
-            hydratedConfig = await this.reconstructColorPickers(hydratedConfig, userConfig, effectName);
+            hydratedConfig = await this.reconstructColorPickers(hydratedConfig, userConfig, effectName, effectRegistryService);
 
             // Check if ConfigReconstructor properly handled PercentageRange objects
             // If not, we need to manually reconstruct them (especially sequencePixelConstant)
             SafeConsole.log(`🔍 [EffectProcessingService] Before reconstructPercentageRanges for ${effectName}:`, JSON.stringify(hydratedConfig, null, 2));
-            hydratedConfig = await this.reconstructPercentageRanges(hydratedConfig, userConfig, effectName);
+            hydratedConfig = await this.reconstructPercentageRanges(hydratedConfig, userConfig, effectName, effectRegistryService);
             SafeConsole.log(`🔍 [EffectProcessingService] After reconstructPercentageRanges for ${effectName}:`, JSON.stringify(hydratedConfig, null, 2));
         } catch (reconstructionError) {
 
@@ -258,14 +268,17 @@ class EffectProcessingService {
             }
 
             // Try to manually reconstruct ColorPicker objects as fallback
-            hydratedConfig = await this.reconstructColorPickers(userConfig, userConfig, effect.registryKey);
+            hydratedConfig = await this.reconstructColorPickers(userConfig, userConfig, effect.registryKey, effectRegistryService);
         }
 
         try {
-            const registryService = new EffectRegistryService();
+            // CRITICAL: Use provided registry service - never create a new instance
+            if (!effectRegistryService) {
+                throw new Error('EffectProcessingService requires effectRegistryService for effect registration');
+            }
 
             // Ensure effects are registered with configs linked
-            await registryService.ensureCoreEffectsRegistered();
+            await effectRegistryService.ensureCoreEffectsRegistered();
 
             // Get effect name from registryKey only
             const effectName = effect.registryKey;
@@ -281,14 +294,14 @@ class EffectProcessingService {
             }
 
             // Use the new plugin registry with linked config classes
-            const plugin = await registryService.getEffectWithConfig(effectName);
+            const plugin = await effectRegistryService.getEffectWithConfig(effectName);
 
             if (!plugin) {
                 // Try with the effect's _name_ property
-                const EffectRegistry = await registryService.getEffectRegistry();
+                const EffectRegistry = await effectRegistryService.getEffectRegistry();
                 const EffectClass = EffectRegistry.getGlobal(effectName);
                 if (EffectClass && EffectClass._name_) {
-                    const pluginByName = await registryService.getEffectWithConfig(EffectClass._name_);
+                    const pluginByName = await effectRegistryService.getEffectWithConfig(EffectClass._name_);
                     if (pluginByName && pluginByName.configClass) {
                         SafeConsole.log(`✅ Found config class for ${effectName} via _name_: ${pluginByName.configClass.name}`);
                         
@@ -403,13 +416,17 @@ class EffectProcessingService {
      * @param {Object} config - Config object that may have ColorPicker properties
      * @param {Object} originalConfig - Original config with serialized ColorPicker data
      * @param {string} effectName - Name of the effect for logging and introspection
+     * @param {EffectRegistryService} effectRegistryService - Optional shared registry service instance
      * @returns {Promise<Object>} Config with reconstructed ColorPicker objects
      */
-    static async reconstructColorPickers(config, originalConfig, effectName) {
+    static async reconstructColorPickers(config, originalConfig, effectName, effectRegistryService) {
         try {
             // Get the config class to introspect property types
-            const registryService = new EffectRegistryService();
-            const plugin = await registryService.getEffectWithConfig(effectName);
+            // CRITICAL: effectRegistryService is REQUIRED - never create a new instance
+            if (!effectRegistryService) {
+                throw new Error('EffectProcessingService.reconstructColorPickers() requires effectRegistryService parameter');
+            }
+            const plugin = await effectRegistryService.getEffectWithConfig(effectName);
 
             // Create a type map from the default config instance
             const typeMap = new Map();
@@ -501,18 +518,22 @@ class EffectProcessingService {
      * @param {Object} config - Config object that may have PercentageRange properties
      * @param {Object} originalConfig - Original config with serialized PercentageRange data
      * @param {string} effectName - Name of the effect for logging
+     * @param {EffectRegistryService} effectRegistryService - Optional shared registry service instance
      * @returns {Promise<Object>} Config with reconstructed PercentageRange objects
      */
-    static async reconstructPercentageRanges(config, originalConfig, effectName) {
+    static async reconstructPercentageRanges(config, originalConfig, effectName, effectRegistryService) {
         SafeConsole.log(`🔍 [reconstructPercentageRanges] Called for ${effectName} with config:`, JSON.stringify(config, null, 2));
-        
+
         try {
             // Load required modules
             const { PercentageRange, PercentageShortestSide, PercentageLongestSide } = await _loadModules();
-            
+
             // Get the config class to introspect property types
-            const registryService = new EffectRegistryService();
-            const plugin = await registryService.getEffectWithConfig(effectName);
+            // CRITICAL: effectRegistryService is REQUIRED - never create a new instance
+            if (!effectRegistryService) {
+                throw new Error('EffectProcessingService.reconstructPercentageRanges() requires effectRegistryService parameter');
+            }
+            const plugin = await effectRegistryService.getEffectWithConfig(effectName);
 
             // Create a type map from the default config instance
             const typeMap = new Map();
@@ -580,7 +601,7 @@ class EffectProcessingService {
                     SafeConsole.log(`🔧 Reconstructing PercentageRange for ${effectName}.${key} (detected via introspection)`);
 
                     // Get default values for this field
-                    const defaults = await this.getPercentageRangeDefaults(key, effectName);
+                    const defaults = await this.getPercentageRangeDefaults(key, effectName, effectRegistryService);
 
                     // Use defaults for empty objects, or try to extract from serialized data
                     let lowerPercent = defaults.lowerPercent;
@@ -630,9 +651,10 @@ class EffectProcessingService {
      * Get default values for specific PercentageRange fields
      * @param {string} fieldName - Field name
      * @param {string} effectName - Effect name for preferences lookup
+     * @param {EffectRegistryService} effectRegistryService - Optional shared registry service instance
      * @returns {Promise<Object>} Default values for the field
      */
-    static async getPercentageRangeDefaults(fieldName, effectName) {
+    static async getPercentageRangeDefaults(fieldName, effectName, effectRegistryService = null) {
         try {
             // First priority: Check user preferences for saved defaults
             if (typeof window !== 'undefined' && window.api) {
@@ -652,7 +674,7 @@ class EffectProcessingService {
 
         try {
             // Second priority: Try to get defaults from the original config class
-            const configDefaults = await this.getConfigClassDefaults(effectName, fieldName);
+            const configDefaults = await this.getConfigClassDefaults(effectName, fieldName, effectRegistryService);
             if (configDefaults) {
                 return configDefaults;
             }
@@ -694,17 +716,36 @@ class EffectProcessingService {
      * Try to get defaults by instantiating the original config class
      * @param {string} effectName - Effect name
      * @param {string} fieldName - Field name
+     * @param {EffectRegistryService} effectRegistryService - Optional shared registry service instance
      * @returns {Promise<Object|null>} Default values or null
      */
-    static async getConfigClassDefaults(effectName, fieldName) {
+    static async getConfigClassDefaults(effectName, fieldName, effectRegistryService) {
         try {
-            const registryService = new EffectRegistryService();
-            const ConfigRegistry = await registryService.getConfigRegistry();
+            // CRITICAL: effectRegistryService is REQUIRED - never create a new instance
+            if (!effectRegistryService) {
+                throw new Error('EffectProcessingService.getConfigClassDefaults() requires effectRegistryService parameter');
+            }
+            
+            // Get the plugin to find the correct registry key
+            let plugin = await effectRegistryService.getEffectWithConfig(effectName);
+            if (!plugin) {
+                plugin = await effectRegistryService.getEffectWithConfig(effectName.toLowerCase());
+            }
+            
+            if (!plugin || !plugin.effectClass) {
+                SafeConsole.warn(`Could not find effect: ${effectName}`);
+                return null;
+            }
 
-            const ConfigClass = ConfigRegistry.getGlobal(effectName);
-            if (ConfigClass) {
+            const ConfigRegistry = await effectRegistryService.getConfigRegistry();
+            
+            // Use effectClass._name_ (internal registry key) to look up config
+            const registryKey = plugin.effectClass._name_ || effectName;
+            const configData = ConfigRegistry.getGlobal(registryKey);
+            
+            if (configData && configData.ConfigClass) {
                 // Create a default instance
-                const defaultConfig = new ConfigClass({});
+                const defaultConfig = new configData.ConfigClass({});
                 const fieldValue = defaultConfig[fieldName];
 
                 if (fieldValue && fieldValue.constructor?.name === 'PercentageRange') {

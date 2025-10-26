@@ -57,16 +57,114 @@ class ConfigIntrospectionService {
                 throw new Error(`Effect not found: ${effectName}. Available effects: ${allNames.join(', ')}`);
             }
 
-            if (!plugin.configClass) {
-                throw new Error(`Config not found for effect: ${effectName}`);
+            // Log what we got from the registry
+            console.log(`✅ Backend: Found plugin for "${effectName}":`, {
+                hasConfigClass: !!plugin.configClass,
+                hasEffectClass: !!plugin.effectClass,
+                configClassName: plugin.configClass?.name || 'N/A',
+                effectClassName: plugin.effectClass?.name || 'N/A',
+                pluginKeys: Object.keys(plugin || {})
+            });
+            
+            // DEBUG: Log what properties are on the effectClass
+            if (plugin.effectClass) {
+                const effectClassProps = Object.getOwnPropertyNames(plugin.effectClass);
+                const effectClassMethods = Object.getOwnPropertyNames(Object.getPrototypeOf(plugin.effectClass) || {});
+                console.log(`   DEBUG: effectClass properties (first 15):`, effectClassProps.slice(0, 15));
+                console.log(`   DEBUG: effectClass ALL static properties:`, effectClassProps);
+                console.log(`   DEBUG: effectClass has these static properties:`, {
+                    hasConfigClass: !!plugin.effectClass.configClass,
+                    hasConfig: !!plugin.effectClass.Config,
+                    hasDefaultConfig: !!plugin.effectClass.defaultConfig,
+                    hasGetConfigSchema: typeof plugin.effectClass.getConfigSchema === 'function'
+                });
+                
+                // Try to find any property that looks like it could be a config
+                const configLikeProps = effectClassProps.filter(p => 
+                    p.toLowerCase().includes('config') || 
+                    p.toLowerCase().includes('schema') ||
+                    p.toLowerCase().includes('field')
+                );
+                console.log(`   DEBUG: Config-like properties on effectClass:`, configLikeProps);
+                
+                // 🔍 PRODUCTION DEBUG: Log the actual effectClass to see structure
+                console.log(`   DEBUG: effectClass full object:`, plugin.effectClass);
+                console.log(`   DEBUG: effectClass.prototype:`, Object.getPrototypeOf(plugin.effectClass));
             }
 
-            const ConfigClass = plugin.configClass;
+            // 🔒 CRITICAL FIX: Get config from ConfigRegistry using effectClass._name_ (the internal registry key)
+            // Configs are registered separately and stored in ConfigRegistry
+            let ConfigClass = plugin.configClass;
+            
+            if (!ConfigClass) {
+                console.log(`⚠️ Backend: Config class not in plugin object, checking ConfigRegistry...`);
+                try {
+                    const ConfigRegistry = await this.effectRegistryService.getConfigRegistry();
+                    
+                    // IMPORTANT: Use effectClass._name_ (internal registry key), not effectName (display name)
+                    const registryKey = plugin.effectClass._name_ || effectName;
+                    console.log(`   ConfigRegistry lookup key: "${registryKey}" (from effectClass._name_)`);
+                    
+                    const configData = ConfigRegistry.getGlobal(registryKey);
+                    
+                    console.log(`   ConfigRegistry lookup for "${registryKey}":`, {
+                        found: !!configData,
+                        hasConfigClass: !!configData?.ConfigClass,
+                        configKeys: configData ? Object.keys(configData) : []
+                    });
+                    
+                    // DEBUG: Log all registered configs to help diagnose the issue
+                    const allConfigs = ConfigRegistry.getGlobal();
+                    console.log(`   DEBUG: All registered configs (first 20):`, allConfigs ? Object.keys(allConfigs).slice(0, 20) : 'empty');
+                    
+                    if (configData && configData.ConfigClass) {
+                        ConfigClass = configData.ConfigClass;
+                        console.log(`✅ Backend: Retrieved config class from ConfigRegistry using key "${registryKey}"`);
+                    }
+                } catch (registryError) {
+                    console.warn(`⚠️ Backend: ConfigRegistry lookup failed:`, registryError.message);
+                }
+            }
+            
+            // Fallback: Try to get from effectClass properties
+            if (!ConfigClass && plugin.effectClass) {
+                console.warn(`⚠️ Backend: Config not in ConfigRegistry, attempting fallback from effectClass`);
+                console.log(`   Checking plugin.effectClass for config...`, {
+                    hasConfigClass: !!plugin.effectClass.configClass,
+                    hasConfig: !!plugin.effectClass.Config,
+                    effectClassKeys: Object.keys(plugin.effectClass || {})
+                });
+                
+                // Try to get the config class from the effect's configClass property
+                if (plugin.effectClass.configClass) {
+                    ConfigClass = plugin.effectClass.configClass;
+                    console.log(`✅ Backend: Retrieved config class from effect.configClass`);
+                } else if (plugin.effectClass.Config) {
+                    ConfigClass = plugin.effectClass.Config;
+                    console.log(`✅ Backend: Retrieved config class from effect.Config`);
+                }
+                
+                // NOTE: Dynamic import fallback disabled
+                // In production (asar bundle), dynamic imports with relative paths don't work
+                // The configs MUST be loaded during EffectRegistryService initialization
+                // via ConfigLinker.linkEffectsWithConfigs() or the fallback _manuallyRestoreConfigs()
+                if (!ConfigClass) {
+                    console.log(`⚠️ Backend: Config not found. This indicates ConfigLinker failed during startup.`);
+                    console.log(`   Ensure EffectRegistryService properly initializes the ConfigRegistry at app startup.`);
+                }
+            }
+            
+            if (!ConfigClass) {
+                throw new Error(`Config not found for effect: ${effectName} (missing from both ConfigRegistry and effectClass)`);
+            }
+
+            const actualConfigClass = ConfigClass;
 
             // Create default instance with project data (always pass an object)
             let defaultInstance;
             try {
-                defaultInstance = new ConfigClass(projectData || {});
+                defaultInstance = new actualConfigClass(projectData || {});
+                console.log(`✅ Backend: Config instance created for ${effectName}, properties:`, Object.keys(defaultInstance || {}));
             } catch (error) {
                 console.error(`Error creating config instance for ${effectName}:`, error);
                 throw new Error(`Failed to create config for effect ${effectName}: ${error.message}`);
@@ -77,6 +175,7 @@ class ConfigIntrospectionService {
 
             // Serialize the config instance for IPC safety using deep object cloning
             const serializedInstance = this.ipcSerializationService.deepSerializeForIPC(defaultInstance);
+            console.log(`✅ Backend: Config serialized for ${effectName}, serialized properties:`, Object.keys(serializedInstance || {}));
 
             return {
                 success: true,
@@ -114,6 +213,23 @@ class ConfigIntrospectionService {
             console.warn('Failed to initialize color pickers:', error.message);
             // Don't throw - fallback to existing behavior
         }
+    }
+
+    /**
+     * Convert effect name to config class name
+     * Examples: "hex" -> "HexConfig", "blur-filter" -> "BlurFilterConfig", "redEye" -> "RedEyeConfig"
+     * @param {string} effectName - Effect name
+     * @returns {string} Config class name
+     * @private
+     */
+    _getConfigClassName(effectName) {
+        // Convert kebab-case and camelCase to PascalCase
+        return effectName
+            .split('-')
+            .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+            .join('')
+            .replace(/([a-z])([A-Z])/g, '$1$2')  // Handle existing camelCase
+            + 'Config';
     }
 
     /**

@@ -74,10 +74,11 @@ export class PluginManagerService {
     async removePlugin(name) {
         const index = this.pluginConfigs.findIndex(p => p.name === name);
         if (index >= 0) {
+            const plugin = this.pluginConfigs[index];
             this.pluginConfigs.splice(index, 1);
             await this.savePluginConfigs();
             this.loadedPlugins.delete(name);
-            return { success: true, message: 'Plugin removed successfully' };
+            return { success: true, message: 'Plugin removed successfully', plugin };
         }
         return { success: false, message: 'Plugin not found' };
     }
@@ -292,6 +293,50 @@ export class PluginManagerService {
             }
         }
 
+        // REMOVED: AUTO-DISCOVERY (moved to explicit initialization phase)
+        // Plugins are now ONLY registered at:
+        // 1. App startup via PluginLoaderOrchestrator.loadInstalledPlugins()
+        // 2. User install via PluginHandlers IPC
+        // This ensures the constraint: "plugins register ONLY at startup or when added through plugin manager"
+
         return loadResults;
+    }
+
+    /**
+     * Get plugin by name
+     * @param {string} name - Plugin name
+     * @returns {Promise<Object|null>} Plugin data or null
+     */
+    async getPluginByName(name) {
+        return this.pluginConfigs.find(p => p.name === name) || null;
+    }
+
+    /**
+     * Get plugin metadata (extended info)
+     * @param {string} name - Plugin name
+     * @returns {Promise<Object|null>} Plugin metadata or null
+     */
+    async getPluginMetadata(name) {
+        const plugin = await this.getPluginByName(name);
+        if (!plugin) return null;
+
+        try {
+            const fullPath = path.isAbsolute(plugin.path)
+                ? plugin.path
+                : path.join(this.pluginsDir, plugin.path);
+
+            const validation = await this.validatePlugin(fullPath);
+
+            return {
+                ...plugin,
+                validation,
+                fullPath
+            };
+        } catch (error) {
+            return {
+                ...plugin,
+                validation: { valid: false, error: error.message }
+            };
+        }
     }
 }

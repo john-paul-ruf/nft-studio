@@ -7,6 +7,8 @@ import ImageService from '../services/ImageService.js';
 import FrameService from '../services/FrameService.js';
 import EffectRegistryService from '../services/EffectRegistryService.js';
 import ConfigProcessingService from '../services/ConfigProcessingService.js';
+import RegistryCacheService from '../services/RegistryCacheService.js';
+import PluginLoaderOrchestrator from '../../services/PluginLoaderOrchestrator.js';
 
 // Implementations
 import ElectronFileOperations from '../implementations/ElectronFileOperations.js';
@@ -59,11 +61,14 @@ class ServiceFactory {
         this.container.registerSingleton('dialogService', () => new DialogService());
         this.container.registerSingleton('fileSystemService', () => new FileSystemService());
         this.container.registerSingleton('imageService', () => new ImageService());
+        this.container.registerSingleton('registryCacheService', () => new RegistryCacheService());
+        this.container.registerSingleton('pluginLoaderOrchestrator', () => new PluginLoaderOrchestrator(this));
         
         // Create effect registry and initialize it in background
         this.container.registerSingleton('effectRegistryService', () => {
             if (!this.effectRegistryService) {
-                this.effectRegistryService = new EffectRegistryService();
+                // Pass the factory instance so EffectRegistryService can access cache
+                this.effectRegistryService = new EffectRegistryService(this);
                 // Start initialization in background
                 SafeConsole.log('🔄 [ServiceFactory] Starting effect registry initialization...');
                 this.effectsInitPromise = this.effectRegistryService.ensureCoreEffectsRegistered()
@@ -107,7 +112,9 @@ class ServiceFactory {
 
         this.container.registerSingleton('projectManager', (container) => {
             return new NftProjectManager(
-                container.resolve('logger')
+                container.resolve('logger'),
+                null, // eventBus
+                container.resolve('effectRegistryService') // shared registry service to avoid temp directory creation
             );
         });
         
@@ -183,6 +190,30 @@ class ServiceFactory {
      */
     hasService(name) {
         return this.container.has(name);
+    }
+
+    /**
+     * Get registry cache service
+     * @returns {RegistryCacheService} Registry cache service
+     */
+    getRegistryCacheService() {
+        return this.container.resolve('registryCacheService');
+    }
+
+    /**
+     * Get effect registry service
+     * @returns {EffectRegistryService} Effect registry service
+     */
+    getEffectRegistryService() {
+        return this.container.resolve('effectRegistryService');
+    }
+
+    /**
+     * Get plugin loader orchestrator
+     * @returns {PluginLoaderOrchestrator} Plugin loader orchestrator
+     */
+    getPluginLoaderOrchestrator() {
+        return this.container.resolve('pluginLoaderOrchestrator');
     }
 
     /**

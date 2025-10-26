@@ -7,6 +7,8 @@ class DependencyContainer {
     constructor() {
         this.dependencies = new Map();
         this.singletons = new Map();
+        // Track in-flight resolution promises to prevent race conditions during async creation
+        this.resolutionPromises = new Map();
     }
 
     /**
@@ -46,7 +48,8 @@ class DependencyContainer {
      * @returns {*} Resolved dependency
      */
     resolve(name) {
-        // Check if singleton instance already exists
+        // CRITICAL: Check if singleton instance already exists
+        // This prevents creating multiple instances even with concurrent calls
         if (this.singletons.has(name)) {
             return this.singletons.get(name);
         }
@@ -57,12 +60,22 @@ class DependencyContainer {
             throw new Error(`Dependency '${name}' not found. Make sure it's registered.`);
         }
 
+        // For singletons, prevent race conditions by checking again before creating
+        // If another call started resolving this singleton while we were waiting, use that result
+        if (dependency.singleton && this.singletons.has(name)) {
+            return this.singletons.get(name);
+        }
+
         // Create instance using factory
         const instance = dependency.factory(this);
 
         // Store singleton instance if needed
+        // CRITICAL: Store BEFORE returning to prevent race conditions
+        // Any subsequent calls will get the cached instance
         if (dependency.singleton) {
             this.singletons.set(name, instance);
+            // Also clear any in-flight promise tracking since we've now cached the instance
+            this.resolutionPromises.delete(name);
         }
 
         return instance;
