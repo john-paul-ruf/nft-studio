@@ -52,7 +52,6 @@ jobs:
             build/**/*.msi
             build/**/*.AppImage
             build/**/*.deb
-            build/**/*.snap
           generate_release_notes: true
           body: |
             ## Changes in this Release

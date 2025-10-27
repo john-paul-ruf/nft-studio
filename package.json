@@ -176,12 +176,6 @@
           "arch": [
             "x64"
           ]
-        },
-        {
-          "target": "snap",
-          "arch": [
-            "x64"
-          ]
         }
       ],
       "maintainer": "john.paul.ruf",
