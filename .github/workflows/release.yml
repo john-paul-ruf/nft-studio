@@ -23,8 +23,8 @@ jobs:
           - os: windows-latest
             platform: win
             files: |
-              build/**/*.exe
-              build/**/*.msi
+              build/**/NFT\ Studio\ Setup*.exe
+              build/**/NFT\ Studio.exe
           - os: macos-latest
             platform: mac
             files: |
