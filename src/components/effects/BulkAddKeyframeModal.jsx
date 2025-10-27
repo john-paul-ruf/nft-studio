@@ -23,7 +23,7 @@ import { PlayArrow, Schedule } from '@mui/icons-material';
 import EffectConfigurer from './EffectConfigurer.jsx';
 import BulkPositionQuickPick from './BulkPositionQuickPick.jsx';
 import PreferencesService from '../../services/PreferencesService.js';
-import ConfigIntrospector from '../../utils/ConfigIntrospector.js';
+import ConfigIntrospector from '../../utils/configIntrospector.js';
 import useDebounce from '../../hooks/useDebounce.js';
 import './bulk-add-keyframe-modal.bem.css';
 

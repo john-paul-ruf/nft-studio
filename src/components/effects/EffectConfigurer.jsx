@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { ConfigIntrospector } from '../../utils/ConfigIntrospector.js';
+import { ConfigIntrospector } from '../../utils/configIntrospector.js';
 import EffectFormRenderer from '../forms/EffectFormRenderer.jsx';
 import AttachedEffectsDisplay from '../forms/AttachedEffectsDisplay.jsx';
 import PercentChanceControl from '../forms/PercentChanceControl.jsx';
