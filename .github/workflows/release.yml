@@ -40,7 +40,7 @@ jobs:
         run: npm run build
       
       - name: Create distribution
-        run: electron-builder --${{ matrix.platform }} --publish=never
+        run: npx electron-builder --${{ matrix.platform }} --publish=never
       
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
