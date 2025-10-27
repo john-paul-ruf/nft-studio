@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*.*.*'
 
+permissions:
+  contents: write
+  
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -14,10 +17,19 @@ jobs:
         include:
           - os: ubuntu-latest
             platform: linux
+            files: |
+              build/**/*.AppImage
+              build/**/*.deb
           - os: windows-latest
             platform: win
+            files: |
+              build/**/*.exe
+              build/**/*.msi
           - os: macos-latest
             platform: mac
+            files: |
+              build/**/*.dmg
+              build/**/*.zip
     
     steps:
       - name: Checkout code
@@ -45,13 +57,7 @@ jobs:
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            build/**/*.dmg
-            build/**/*.zip
-            build/**/*.exe
-            build/**/*.msi
-            build/**/*.AppImage
-            build/**/*.deb
+          files: ${{ matrix.files }}
           generate_release_notes: true
           body: |
             ## Changes in this Release
