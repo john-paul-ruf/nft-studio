@@ -32,6 +32,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
+      - name: Install app dependencies
+        run: npx electron-builder install-app-deps
+      
       - name: Rebuild native modules
         run: npm run rebuild
         continue-on-error: true
