@@ -492,7 +492,8 @@ class EffectOperationsService {
                 className: effectName,
                 registryKey: effectName,
                 type: 'secondary',
-                config
+                config,
+                visible: true
             };
 
             const addSecondaryCommand = new AddSecondaryEffectCommand(
@@ -546,7 +547,8 @@ class EffectOperationsService {
                 registryKey: effectName,
                 type: 'keyframe',
                 frame: frame,
-                config
+                config,
+                visible: true
             };
 
             const addKeyframeCommand = new AddKeyframeEffectCommand(

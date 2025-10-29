@@ -87,11 +87,16 @@ export default class ProjectStateCore {
         // Log detailed config for each effect
         if (this.state?.effects) {
             this.state.effects.forEach((effect, idx) => {
-                console.log(`📝 ProjectStateCore.update: Effect[${idx}] config:`, {
+                console.log(`📝 ProjectStateCore.update: Effect[${idx}]:`, {
                     id: effect.id,
                     name: effect.name || effect.className,
-                    configKeys: Object.keys(effect.config || {}),
-                    config: effect.config
+                    visible: effect.visible,
+                    hasSecondaryEffects: !!effect.secondaryEffects?.length,
+                    secondaryEffectCount: effect.secondaryEffects?.length || 0,
+                    hasKeyframeEffects: !!effect.keyframeEffects?.length,
+                    keyframeEffectCount: effect.keyframeEffects?.length || 0,
+                    keyframeEffectsDetails: effect.keyframeEffects?.map(k => ({ id: k.id, name: k.name, visible: k.visible })) || [],
+                    configKeys: Object.keys(effect.config || {})
                 });
             });
         }

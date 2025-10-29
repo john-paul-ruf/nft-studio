@@ -370,10 +370,13 @@ class NftProjectManager {
             console.log('🔍 NftProjectManager - Effect before processing:', {
                 name: effect.name || effect.registryKey,
                 type: effectType,
+                id: effect.id,
+                visible: effect.visible,
                 hasSecondaryEffects: !!effect.secondaryEffects,
                 secondaryEffectsCount: effect.secondaryEffects?.length || 0,
                 hasKeyframeEffects: !!effect.keyframeEffects,
                 keyframeEffectsCount: effect.keyframeEffects?.length || 0,
+                keyframeDetails: effect.keyframeEffects?.map(k => ({ id: k.id, name: k.name, registryKey: k.registryKey, visible: k.visible, hasConfig: !!k.config })) || [],
                 effectKeys: Object.keys(effect)
             });
             

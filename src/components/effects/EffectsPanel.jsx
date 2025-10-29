@@ -537,7 +537,8 @@ export default function EffectsPanel({
                     registryKey: registryKey,
                     config: config,
                     type: 'keyframe',
-                    id: `keyframe-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+                    id: `keyframe-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+                    visible: true  // ✅ CRITICAL: Ensure keyframe effects are visible by default
                 };
 
                 // Create and execute the command

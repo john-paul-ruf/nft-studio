@@ -283,7 +283,8 @@ export default function useEffectManagement(projectState) {
                         className: effectData?.className || payload.effectName,
                         registryKey: registryKey, // Use the registryKey we looked up
                         type: 'secondary',
-                        config
+                        config,
+                        visible: true
                     };
 
                     console.log('🎭 EVENT HANDLER: Created secondaryEffectData:', {
@@ -340,7 +341,8 @@ export default function useEffectManagement(projectState) {
                         className: effectData?.className || payload.effectName,
                         registryKey: registryKey, // Use the registryKey we looked up
                         type: 'keyframe',
-                        config
+                        config,
+                        visible: true
                     };
 
                     console.log('🎭 useEffectManagement: Adding keyframe effect:', keyframeEffectData);
