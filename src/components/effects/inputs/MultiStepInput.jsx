@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import RangeInput from './RangeInput.jsx';
 import useDebounce from '../../../hooks/useDebounce.js';
 import './MultiStepInput.bem.css';
@@ -7,6 +7,12 @@ function MultiStepInput({ field, value, onChange, projectData }) {
     const [steps, setSteps] = useState(value || field.default || []);
     // Local state for percentage inputs to provide immediate feedback
     const [percentageInputs, setPercentageInputs] = useState({});
+
+    // Sync local state when value prop changes (e.g., switching between effects)
+    useEffect(() => {
+        setSteps(value || field.default || []);
+        setPercentageInputs({}); // Clear input overrides when effect changes
+    }, [value, field.default]);
 
     // Available algorithm types for step types
     const algorithmTypes = [

@@ -144,15 +144,22 @@ export class Effect {
      * 
      * Used for serialization (IPC, file persistence, etc.)
      * 
+     * CRITICAL: Deep-clones config to ensure array/object properties
+     * don't create shared references between effect instances
+     * 
      * @returns {Object} Plain object representation
      */
     toPOJO() {
+        // Import ConfigCloner at module level would cause circular dependency,
+        // so we do a simple JSON deep clone here for the config
+        const clonedConfig = this.config ? JSON.parse(JSON.stringify(this.config)) : {};
+        
         const pojo = {
             id: this.id,
             name: this.name,
             className: this.className,
             registryKey: this.registryKey,
-            config: this.config,
+            config: clonedConfig,  // 🔒 CRITICAL: Clone config to prevent shared references
             type: this.type,
             percentChance: this.percentChance,
             visible: this.visible,

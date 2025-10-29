@@ -19,6 +19,7 @@ import { useServices } from '../../contexts/ServiceContext.js';
 import PreferencesService from '../../services/PreferencesService.js';
 import EffectOperationsService from '../../services/EffectOperationsService.js';
 import { UpdateQueue } from '../../utils/UpdateQueue.js';
+import ConfigCloner from '../../utils/ConfigCloner.js';
 
 
 export default function useEffectManagement(projectState) {
@@ -400,9 +401,12 @@ export default function useEffectManagement(projectState) {
                 setEditingEffect(context);
 
                 // Use context directly instead of relying on async state update
+                console.log('🎭 useEffectManagement: Calling handleConfigUpdateWithContext with context:', context);
                 handleConfigUpdateWithContext(payload.config, context);
+                console.log('🎭 useEffectManagement: ✅ handleConfigUpdateWithContext completed');
             } else {
                 // Fallback to old behavior if no context provided
+                console.log('🎭 useEffectManagement: ⚠️ No context provided, falling back to handleSubEffectUpdate');
                 handleSubEffectUpdate(payload.config);
             }
         }, { component: 'useEffectManagement' });
@@ -411,11 +415,13 @@ export default function useEffectManagement(projectState) {
         // EffectConfigurer (used in Canvas.jsx right drawer) emits this event directly
         // This handles keyframe/secondary edits from the right-side config panel
         const unsubscribeEffectConfigurerConfigChange = eventBusService.subscribe('effectconfigurer:config:change', (payload) => {
-            console.log('🎭 useEffectManagement: EffectConfigurer config change event received:', {
+            console.log('🎭 useEffectManagement: ✅ EffectConfigurer config change event RECEIVED:', {
                 effectId: payload?.effectId,
+                effectName: payload?.effectName,
                 effectType: payload?.effectType,
                 subEffectIndex: payload?.subEffectIndex,
-                configKeys: Object.keys(payload?.config || {})
+                configKeys: Object.keys(payload?.config || {}),
+                hasPayload: !!payload
             });
 
             // Convert effectconfigurer:config:change to effect:config:change format
@@ -463,9 +469,12 @@ export default function useEffectManagement(projectState) {
                 setEditingEffect(context);
 
                 // Use context directly instead of relying on async state update
+                console.log('🎭 useEffectManagement: Calling handleConfigUpdateWithContext with context:', context);
                 handleConfigUpdateWithContext(payload.config, context);
+                console.log('🎭 useEffectManagement: ✅ handleConfigUpdateWithContext completed');
             } else {
                 // Fallback to old behavior if no context provided
+                console.log('🎭 useEffectManagement: ⚠️ No context provided, falling back to handleSubEffectUpdate');
                 handleSubEffectUpdate(payload.config);
             }
         }, { component: 'useEffectManagement' });
@@ -1061,13 +1070,15 @@ export default function useEffectManagement(projectState) {
             console.log('🔧 useEffectManagement: Existing config:', mainEffect.config);
             console.log('🔧 useEffectManagement: New config:', newConfig);
             
-            // CRITICAL FIX: Merge new config with existing config instead of replacing
-            // This prevents config properties from being lost when only partial updates are sent
-            const mergedConfig = {
-                ...(mainEffect.config || {}),
-                ...newConfig
-            };
-            console.log('🔧 useEffectManagement: Merged config:', mergedConfig);
+            // 🔒 CRITICAL FIX: Merge configs with deep cloning to prevent shared reference bugs
+            // When array properties (like elementGastonMultiStep) are shared at the class level,
+            // this ensures each effect instance gets its own independent copy
+            // This prevents edits to one effect from affecting all other instances
+            const mergedConfig = ConfigCloner.mergeConfigsWithCloning(
+                mainEffect.config || {},
+                newConfig
+            );
+            console.log('🔧 useEffectManagement: Merged config with cloning:', mergedConfig);
             
             const updatedEffect = {
                 ...mainEffect,
@@ -1093,10 +1104,11 @@ export default function useEffectManagement(projectState) {
                 return;
             }
             
-            const mergedConfig = {
-                ...(existingSecondaryEffect?.config || {}),
-                ...newConfig
-            };
+            // 🔒 CRITICAL FIX: Merge configs with deep cloning to prevent shared reference bugs
+            const mergedConfig = ConfigCloner.mergeConfigsWithCloning(
+                existingSecondaryEffect?.config || {},
+                newConfig
+            );
             
             // 🔒 CRITICAL FIX: Use UpdateSecondaryEffectCommand instead of UpdateEffectCommand
             // This ensures secondary updates have specialized persistence logic
@@ -1129,10 +1141,11 @@ export default function useEffectManagement(projectState) {
                 return;
             }
             
-            const mergedConfig = {
-                ...(existingKeyframeEffect?.config || {}),
-                ...newConfig
-            };
+            // 🔒 CRITICAL FIX: Merge configs with deep cloning to prevent shared reference bugs
+            const mergedConfig = ConfigCloner.mergeConfigsWithCloning(
+                existingKeyframeEffect?.config || {},
+                newConfig
+            );
             updatedKeyframeEffects[context.subIndex] = {
                 ...existingKeyframeEffect,
                 config: mergedConfig

@@ -188,15 +188,20 @@ export class EffectEventCoordinator {
                     timestamp: new Date().toISOString()
                 };
                 
-                console.log('📤 EffectEventCoordinator: Emitting payload:', payload);
+                console.log('📤 EffectEventCoordinator: Emitting effectconfigurer:config:change event with payload:', {
+                    effectId: payload.effectId,
+                    effectName: payload.effectName,
+                    configKeys: Object.keys(payload.config || {}),
+                    hasEventBus: !!this.eventBus
+                });
                 
                 this.eventBus.emit('effectconfigurer:config:change', payload, {
                     source: 'EffectEventCoordinator',
                     component: 'EffectConfigurer'
                 });
-                this.logger.log('📡 EffectEventCoordinator: Event emitted to event bus with proper payload structure');
+                this.logger.log('✅ EffectEventCoordinator: Event emitted successfully to event bus');
             } else {
-                this.logger.warn('⚠️ EffectEventCoordinator: No event bus available - event not emitted!');
+                this.logger.warn('⚠️ EffectEventCoordinator: No event bus available - event NOT emitted!');
             }
 
             // Call backward compatibility callback

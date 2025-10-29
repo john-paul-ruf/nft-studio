@@ -19,6 +19,7 @@ import { useNavigation } from '../hooks/useNavigation.js';
 import { useServices } from '../contexts/ServiceContext.js';
 import PreferencesService from '../services/PreferencesService.js';
 import ResolutionMapper from '../utils/ResolutionMapper.js';
+import ConfigCloner from '../utils/ConfigCloner.js';
 
 // Material-UI imports
 import {
@@ -301,6 +302,8 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                         configKeys: Object.keys(effectData.config || {}).slice(0, 3)
                     });
                     
+                    // 🔒 CRITICAL: Deep-clone config to prevent multiple effects of same type from sharing references
+                    // This prevents "changes in UI affect other effects" bug when toggling effects off/on
                     setSelectedEffect({
                         effectId: payload.effectId,
                         effectIndex: payload.effectIndex,
@@ -310,7 +313,7 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                         registryKey: effectData.name || effectData.className,
                         className: effectData.className,
                         id: effectData.id,
-                        config: effectData.config || {},
+                        config: ConfigCloner.deepClone(effectData.config || {}),
                     });
                     // Auto-expand config panel when effect is selected
                     setConfigPanelExpanded(true);

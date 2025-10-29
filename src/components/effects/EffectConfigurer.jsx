@@ -13,6 +13,7 @@ import EffectFormValidator from '../../services/EffectFormValidator.js';
 import EffectConfigurationManager from '../../services/EffectConfigurationManager.js';
 import EffectEventCoordinator from '../../services/EffectEventCoordinator.js';
 import EffectUpdateCoordinator from '../../services/EffectUpdateCoordinator.js';
+import ConfigCloner from '../../utils/ConfigCloner.js';
 import {
     Box,
     Typography,
@@ -85,6 +86,13 @@ function EffectConfigurer({
     const { eventBusService } = useServices();
     const theme = useTheme();
 
+    // 🔒 CRITICAL: Verify eventBusService is available
+    if (!eventBusService) {
+        console.error('❌ EffectConfigurer: eventBusService is NOT available - config changes will NOT be persisted!');
+    } else {
+        console.log('✅ EffectConfigurer: eventBusService is available');
+    }
+
     // 🔒 CRITICAL: Store onConfigChange in ref for the update coordinator callback
     // The effect context is captured at schedule time and stored in metadata
     const onConfigChangeRef = useRef(onConfigChange);
@@ -92,6 +100,9 @@ function EffectConfigurer({
     // Initialize services with dependency injection
     const [services] = useState(() => {
         const eventBus = eventBusService || { emit: () => {}, subscribe: () => {} };
+        if (!eventBusService) {
+            console.error('⚠️ EffectConfigurer: Creating mock event bus - THIS IS A FALLBACK AND SHOULD NOT HAPPEN');
+        }
         const logger = { log: console.log, error: console.error };
         
         const validator = new EffectFormValidator({ eventBus, logger });
@@ -148,7 +159,10 @@ function EffectConfigurer({
     const [percentChance, setPercentChance] = useState(100);
     const [validationErrors, setValidationErrors] = useState({});
     const [isConfigComplete, setIsConfigComplete] = useState(false);
-    const [effectConfig, setEffectConfig] = useState(initialConfig || {});
+    // 🔒 CRITICAL: Deep-clone initialConfig to prevent shared references between effects
+    const [effectConfig, setEffectConfig] = useState(() => 
+        ConfigCloner.deepClone(initialConfig || {})
+    );
     
     // Refs for performance optimization
     const configRef = useRef(effectConfig);
@@ -193,16 +207,23 @@ function EffectConfigurer({
         // If selection changed while a debounced update is pending, flush it so A's config is applied to A
         if (effectChanged) {
             try {
-                services.updateCoordinator.flush?.();
+                console.log('🔄 EffectConfigurer: Effect selection changed, flushing pending updates:', {
+                    prevEffectId: prevEffectIdRef.current,
+                    currentId: currentId
+                });
+                const flushResult = services.updateCoordinator.flush?.();
+                console.log('✅ EffectConfigurer: Flush completed with result:', flushResult);
             } catch (e) {
-                console.warn('EffectConfigurer: flush on selection change failed', e);
+                console.error('❌ EffectConfigurer: flush on selection change failed', e);
             }
             // Reset user-modified flag when switching effects to avoid blocking sync to the new effect's config
             services.updateCoordinator.setUserModified?.(false);
             // Apply the newly selected effect's initial config immediately for UI correctness
             if (initialConfig && Object.keys(initialConfig).length > 0) {
-                setEffectConfig(initialConfig);
-                configRef.current = initialConfig;
+                // 🔒 CRITICAL: Deep-clone initialConfig to prevent shared references
+                const clonedConfig = ConfigCloner.deepClone(initialConfig);
+                setEffectConfig(clonedConfig);
+                configRef.current = clonedConfig;
                 services.updateCoordinator.setEditingExistingEffect?.(true);
                 defaultsLoadedForEffect.current = currentId;
             } else {
@@ -227,8 +248,10 @@ function EffectConfigurer({
                     effect: selectedEffect?.registryKey,
                     initialConfig
                 });
-                setEffectConfig(initialConfig);
-                configRef.current = initialConfig;
+                // 🔒 CRITICAL: Deep-clone initialConfig to prevent shared references
+                const clonedConfig = ConfigCloner.deepClone(initialConfig);
+                setEffectConfig(clonedConfig);
+                configRef.current = clonedConfig;
                 // Mark that we're editing an existing effect and should never load defaults
                 services.updateCoordinator.setEditingExistingEffect(true);
                 defaultsLoadedForEffect.current = selectedEffect?.effectId;
@@ -357,7 +380,7 @@ function EffectConfigurer({
                 effectContext: {
                     effectId: selectedEffect?.effectId,
                     effectIndex: selectedEffect?.effectIndex,
-                    effectName: selectedEffect?.effectName,
+                    effectName: selectedEffect?.name || selectedEffect?.effectName,
                     effectType: selectedEffect?.effectType,
                     // 🔒 CRITICAL: Include subIndex for keyframe/secondary effects (identifies which nested effect to update)
                     // NOTE: Must use !== undefined check, not || null, because 0 is a valid falsy index value
@@ -394,7 +417,7 @@ function EffectConfigurer({
                 effectContext: {
                     effectId: selectedEffect?.effectId,
                     effectIndex: selectedEffect?.effectIndex,
-                    effectName: selectedEffect?.effectName,
+                    effectName: selectedEffect?.name || selectedEffect?.effectName,
                     effectType: selectedEffect?.effectType,
                     // 🔒 CRITICAL: Include subIndex for keyframe/secondary effects (identifies which nested effect to update)
                     // NOTE: Must use !== undefined check, not || null, because 0 is a valid falsy index value

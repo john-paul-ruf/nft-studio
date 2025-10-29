@@ -52,6 +52,9 @@ import { ElectronIPCBridge } from '../../services/ElectronIPCBridge.js';
 import EffectCommandService from '../../services/EffectCommandService.js';
 import { AddKeyframeEffectCommand } from '../../services/KeyframeEffectCommandService.js';
 
+// Utilities
+import ConfigCloner from '../../utils/ConfigCloner.js';
+
 // Constants
 import EFFECTS_PANEL_CONSTANTS from './EffectsPanelConstants.js';
 
@@ -222,8 +225,9 @@ export default function EffectsPanel({
                 registryKey: effectData.name || effectData.className,
                 className: effectData.className,
                 id: effectData.id,
-                // 🔒 CRITICAL: Include config so EffectConfigPanel can pass it as initialConfig
-                config: effectData.config || {},
+                // 🔒 CRITICAL: Deep-clone config to prevent multiple effects of same type from sharing references
+                // This prevents "changes in UI affect other effects" bug when toggling effects off/on
+                config: ConfigCloner.deepClone(effectData.config || {}),
                 // ... any other effect properties that might be needed
             };
             

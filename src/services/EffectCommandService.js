@@ -12,6 +12,7 @@ import { Command } from './CommandService.js';
 import EventBusService from './EventBusService.js';
 import CommandDescriptionHelper from '../utils/CommandDescriptionHelper.js';
 import { Effect } from '../models/Effect.js';
+import ConfigCloner from '../utils/ConfigCloner.js';
 
 /**
  * Service for creating and managing primary effect commands
@@ -145,8 +146,13 @@ export class UpdateEffectCommand extends Command {
                 visible: patchPOJO.visible ?? prevPOJO.visible
             };
 
-            // Deep-merge config specifically; ignore null to prevent constructor errors
-            mergedRoot.config = deepMerge(prevPOJO.config || {}, patchPOJO.config || {});
+            // 🔒 CRITICAL FIX: Deep-merge config with cloning to prevent shared reference bugs
+            // Use ConfigCloner to ensure array properties don't create shared references
+            // This prevents edits to one effect from affecting all other instances
+            mergedRoot.config = ConfigCloner.mergeConfigsWithCloning(
+                prevPOJO.config || {},
+                patchPOJO.config || {}
+            );
 
             // Preserve nested arrays if patch omits them
             if (!('secondaryEffects' in patchPOJO)) mergedRoot.secondaryEffects = prevPOJO.secondaryEffects || [];
@@ -162,9 +168,12 @@ export class UpdateEffectCommand extends Command {
                 effectId: effectInstance.id,
                 effectName: effectInstance.name || effectInstance.className,
                 config: effectInstance.config,
-                configKeys: Object.keys(effectInstance.config || {})
+                configKeys: Object.keys(effectInstance.config || {}),
+                previousConfig: previousEffect?.config,
+                configChanged: JSON.stringify(previousEffect?.config) !== JSON.stringify(effectInstance.config)
             });
             projectState.update({ effects: newEffects });
+            console.log('✅ UpdateEffectCommand: ProjectState updated with new effects');
 
             // Emit event for UI updates
             EventBusService.emit('effect:updated', {
