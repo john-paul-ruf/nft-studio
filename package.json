@@ -29,6 +29,9 @@
     "generate-icons": "node scripts/generate-icons.js",
     "package": "npm run build && electron-builder --mac --win --linux",
     "package:mac": "npm run build && electron-builder --mac",
+    "package:mac:x64": "npm run build && electron-builder --mac -c.mac.target=dmg -c.mac.target=zip -c.mac.artifactName='${productName}-${version}-x64.${ext}'",
+    "package:mac:arm64": "npm run build && electron-builder --mac -c.mac.target=dmg -c.mac.target=zip -c.mac.artifactName='${productName}-${version}-arm64.${ext}'",
+    "package:mac:universal": "npm run build && electron-builder --mac -c.mac.target=dmg -c.mac.target=zip -c.mac.artifactName='${productName}-${version}-universal.${ext}'",
     "package:win": "npm run build && electron-builder --win",
     "package:linux": "npm run build && electron-builder --linux",
     "dist": "npm run build && electron-builder --publish=never",
@@ -106,13 +109,15 @@
         {
           "target": "dmg",
           "arch": [
-            "x64"
+            "x64",
+            "arm64"
           ]
         },
         {
           "target": "zip",
           "arch": [
-            "x64"
+            "x64",
+            "arm64"
           ]
         }
       ]

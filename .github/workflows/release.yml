@@ -52,7 +52,12 @@ jobs:
         run: npm run build
       
       - name: Create distribution
-        run: npx electron-builder --${{ matrix.platform }} --publish=never
+        run: |
+          if [ "${{ matrix.platform }}" = "mac" ]; then
+            npx electron-builder --mac -c.mac.artifactName='${productName}-${version}-x64.${ext}' --publish=never
+          else
+            npx electron-builder --${{ matrix.platform }} --publish=never
+          fi
       
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
