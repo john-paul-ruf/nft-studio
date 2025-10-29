@@ -118,7 +118,7 @@ class EffectProcessingService {
                         const secondaryEffectName = secondaryEffect.registryKey;
                         const SecondaryEffectClass = EffectRegistry.getGlobal(secondaryEffectName);
                         if (SecondaryEffectClass) {
-                            const secondaryConfigInstance = await this.createConfigInstance(secondaryEffect, myNftGenPath);
+                            const secondaryConfigInstance = await this.createConfigInstance(secondaryEffect, myNftGenPath, registryService);
 
                             const secondaryLayerConfig = new LayerConfig({
                                 name: secondaryEffectName,
@@ -147,7 +147,7 @@ class EffectProcessingService {
                         const keyframeEffectName = keyframeEffect.registryKey;
                         const KeyframeEffectClass = EffectRegistry.getGlobal(keyframeEffectName);
                         if (KeyframeEffectClass) {
-                            const keyframeConfigInstance = await this.createConfigInstance(keyframeEffect, myNftGenPath);
+                            const keyframeConfigInstance = await this.createConfigInstance(keyframeEffect, myNftGenPath, registryService);
 
                             const keyframeLayerConfig = new LayerConfig({
                                 name: keyframeEffectName,
