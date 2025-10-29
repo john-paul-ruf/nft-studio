@@ -50,6 +50,7 @@ import { ElectronIPCBridge } from '../../services/ElectronIPCBridge.js';
 
 // Command Services
 import EffectCommandService from '../../services/EffectCommandService.js';
+import { AddKeyframeEffectCommand } from '../../services/KeyframeEffectCommandService.js';
 
 // Constants
 import EFFECTS_PANEL_CONSTANTS from './EffectsPanelConstants.js';
@@ -104,7 +105,7 @@ export default function EffectsPanel({
     const {
         specialtyModalOpen,
         bulkAddModalOpen,
-        bulkAddTargetId,
+        bulkAddTargetIndex,
         openSpecialtyModal,
         closeSpecialtyModal,
         openBulkAddModal,
@@ -396,13 +397,29 @@ export default function EffectsPanel({
             }
         });
 
+        // Bulk add keyframes event (triggered from context menu)
+        const unsubscribeBulkAddKeyframes = eventBusService.subscribe('effectspanel:context:bulk:add:keyframes', (payload, event) => {
+            try {
+                const { effectId, effectIndex } = payload || {};
+                logger.logAction('bulk:add:keyframes', 'Bulk add keyframes modal triggered', {
+                    effectId,
+                    effectIndex,
+                });
+                // Open the modal with the target effect index
+                openBulkAddModal(effectIndex);
+            } catch (error) {
+                logger.logError('Error handling effectspanel:context:bulk:add:keyframes event', error);
+            }
+        });
+
         return () => {
             unsubscribeAdd?.();
             unsubscribeDelete?.();
             unsubscribeReorder?.();
             unsubscribeVisibility?.();
+            unsubscribeBulkAddKeyframes?.();
         };
-    }, [eventBusService, logger, clearSelection, onEffectDelete, onEffectReorder, onEffectToggleVisibility, commandService, effectCommandService, projectState]);
+    }, [eventBusService, logger, clearSelection, onEffectDelete, onEffectReorder, onEffectToggleVisibility, commandService, effectCommandService, projectState, openBulkAddModal]);
 
     // Close config panel when entering read-only mode
     useEffect(() => {
@@ -466,6 +483,84 @@ export default function EffectsPanel({
         closeSpecialtyModal();
         logger.logAction('modal:specialty_close', 'Specialty modal closed');
     }, [closeSpecialtyModal, logger]);
+
+    /**
+     * Handle bulk adding keyframe effects to a parent effect
+     * Called when user confirms the BulkAddKeyframeModal with multiple keyframe instances
+     * 
+     * @param {Array} keyframeEffectsData - Array of keyframe effect objects with:
+     *   - registryKey: Effect name (e.g., 'GlitchEffect')
+     *   - frame: Frame number for the keyframe
+     *   - config: Configuration object for the effect
+     */
+    const handleBulkAddKeyframes = useCallback((keyframeEffectsData) => {
+        if (!keyframeEffectsData || !Array.isArray(keyframeEffectsData) || keyframeEffectsData.length === 0) {
+            logger.logError('handleBulkAddKeyframes: No keyframe effects data provided');
+            return;
+        }
+
+        if (bulkAddTargetIndex === null || bulkAddTargetIndex === undefined) {
+            logger.logError('handleBulkAddKeyframes: No parent effect index specified');
+            return;
+        }
+
+        const state = projectState?.getState?.();
+        const effects = state?.effects || [];
+        const parentEffect = effects[bulkAddTargetIndex];
+
+        if (!parentEffect) {
+            logger.logError('handleBulkAddKeyframes: Parent effect not found at index', { bulkAddTargetIndex });
+            return;
+        }
+
+        logger.logAction('bulk:keyframes:add', 'Adding bulk keyframes', {
+            parentEffectId: parentEffect.id,
+            parentEffectIndex: bulkAddTargetIndex,
+            keyframeCount: keyframeEffectsData.length,
+        });
+
+        // Create and execute commands for each keyframe
+        try {
+            keyframeEffectsData.forEach((keyframeData, index) => {
+                const { registryKey, frame, config } = keyframeData;
+                
+                logger.logDebug(`Adding keyframe ${index + 1}/${keyframeEffectsData.length}`, {
+                    registryKey,
+                    frame,
+                    configKeys: Object.keys(config || {}).slice(0, 5),
+                });
+
+                // Create the keyframe effect object with config
+                const keyframeEffect = {
+                    name: registryKey,
+                    className: registryKey,
+                    registryKey: registryKey,
+                    config: config,
+                    type: 'keyframe',
+                    id: `keyframe-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+                };
+
+                // Create and execute the command
+                if (commandService && projectState) {
+                    const command = new AddKeyframeEffectCommand(
+                        projectState,
+                        bulkAddTargetIndex,
+                        keyframeEffect,
+                        registryKey,
+                        frame
+                    );
+                    commandService.execute(command);
+                }
+            });
+
+            closeBulkAddModal();
+            logger.logAction('bulk:keyframes:complete', 'Bulk keyframes added successfully', {
+                count: keyframeEffectsData.length
+            });
+        } catch (error) {
+            logger.logError('Error adding bulk keyframes', error);
+        }
+    }, [bulkAddTargetIndex, projectState, commandService, logger, closeBulkAddModal]);
 
     /**
      * EffectsList callbacks - wired to state and events
@@ -678,10 +773,11 @@ export default function EffectsPanel({
 
             {bulkAddModalOpen && (
                 <BulkAddKeyframeModal
-                    open={bulkAddModalOpen}
+                    isOpen={bulkAddModalOpen}
                     onClose={closeBulkAddModal}
-                    effectId={bulkAddTargetId}
+                    onBulkAdd={handleBulkAddKeyframes}
                     projectState={projectState}
+                    keyframeEffects={availableEffects?.keyFrame || []}
                 />
             )}
         </div>
