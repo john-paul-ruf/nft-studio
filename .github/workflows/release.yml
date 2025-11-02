@@ -52,6 +52,7 @@ jobs:
         run: npm run build
       
       - name: Create distribution
+        shell: bash
         run: |
           if [ "${{ matrix.platform }}" = "mac" ]; then
             npx electron-builder --mac -c.mac.artifactName='${productName}-${version}-x64.${ext}' --publish=never
