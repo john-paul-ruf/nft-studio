@@ -340,6 +340,126 @@ export default function EffectItem({
     }, [effectId, effectIndex, eventBusService]);
 
     /**
+     * Handle secondary effects reorder
+     */
+    const handleSecondaryReorder = useCallback((parentIndex, sourceIndex, targetIndex) => {
+        try {
+            console.log('🔄 EffectItem.handleSecondaryReorder called with:', { parentIndex, sourceIndex, targetIndex, effectId });
+            eventBusService?.emit('effectspanel:secondary:reorder', {
+                parentIndex,
+                sourceIndex,
+                targetIndex,
+                parentEffectId: effectId,
+                component: 'EffectItem'
+            });
+            console.log('📤 EffectItem: Emitted effectspanel:secondary:reorder event');
+
+            eventBusService?.emit('effectspanel:log:action', {
+                action: 'secondary:effect:reorder',
+                parentIndex,
+                sourceIndex,
+                targetIndex,
+                component: 'EffectItem'
+            });
+        } catch (error) {
+            console.error('❌ EffectItem: Error reordering secondary effects:', error);
+            eventBusService?.emit('effectspanel:log:error', {
+                component: 'EffectItem',
+                action: 'secondary:reorder',
+                error: error.message
+            });
+        }
+    }, [effectId, eventBusService]);
+
+    /**
+     * Handle keyframe effects reorder
+     */
+    const handleKeyframeReorder = useCallback((parentIndex, sourceIndex, targetIndex) => {
+        try {
+            console.log('🔄 EffectItem.handleKeyframeReorder called with:', { parentIndex, sourceIndex, targetIndex, effectId });
+            eventBusService?.emit('effectspanel:keyframe:reorder', {
+                parentIndex,
+                sourceIndex,
+                targetIndex,
+                parentEffectId: effectId,
+                component: 'EffectItem'
+            });
+            console.log('📤 EffectItem: Emitted effectspanel:keyframe:reorder event');
+
+            eventBusService?.emit('effectspanel:log:action', {
+                action: 'keyframe:effect:reorder',
+                parentIndex,
+                sourceIndex,
+                targetIndex,
+                component: 'EffectItem'
+            });
+        } catch (error) {
+            console.error('❌ EffectItem: Error reordering keyframe effects:', error);
+            eventBusService?.emit('effectspanel:log:error', {
+                component: 'EffectItem',
+                action: 'keyframe:reorder',
+                error: error.message
+            });
+        }
+    }, [effectId, eventBusService]);
+
+    /**
+     * Handle keyframe effect deletion
+     */
+    const handleKeyframeDelete = useCallback((parentIndex, keyframeIndex) => {
+        try {
+            eventBusService?.emit('effectspanel:keyframe:delete', {
+                parentIndex,
+                keyframeIndex,
+                parentEffectId: effectId,
+                component: 'EffectItem'
+            });
+
+            eventBusService?.emit('effectspanel:log:action', {
+                action: 'keyframe:effect:delete',
+                parentIndex,
+                keyframeIndex,
+                component: 'EffectItem'
+            });
+        } catch (error) {
+            console.error('❌ EffectItem: Error deleting keyframe effect:', error);
+            eventBusService?.emit('effectspanel:log:error', {
+                component: 'EffectItem',
+                action: 'keyframe:delete',
+                error: error.message
+            });
+        }
+    }, [effectId, eventBusService]);
+
+    /**
+     * Handle keyframe effect visibility toggle
+     */
+    const handleKeyframeToggleVisibility = useCallback((parentIndex, keyframeIndex) => {
+        try {
+            eventBusService?.emit('effectspanel:keyframe:togglevisibility', {
+                parentIndex,
+                keyframeIndex,
+                parentEffectId: effectId,
+                component: 'EffectItem'
+            });
+
+            eventBusService?.emit('effectspanel:log:action', {
+                action: 'keyframe:effect:visibility:toggle',
+                parentIndex,
+                keyframeIndex,
+                component: 'EffectItem'
+            });
+        } catch (error) {
+            console.error('❌ EffectItem: Error toggling keyframe visibility:', error);
+            eventBusService?.emit('effectspanel:log:error', {
+                component: 'EffectItem',
+                action: 'keyframe:visibility:toggle',
+                error: error.message
+            });
+        }
+    }, [effectId, eventBusService]);
+
+    /**
      * Handle context menu
      */
     const handleContextMenu = useCallback(() => {
@@ -376,24 +496,24 @@ export default function EffectItem({
     ].filter(Boolean).join(' ');
 
     return (
-        <ContextMenu.Root>
-            <ContextMenu.Trigger asChild>
-                <div
-                    onKeyDown={handleKeyDown}
-                    onDragStart={effectType === 'primary' ? (e) => onDragStart(e, effectIndex) : undefined}
-                    onDragOver={effectType === 'primary' ? onDragOver : undefined}
-                    onDrop={effectType === 'primary' ? (e) => onDrop(e, effectIndex) : undefined}
-                    draggable={effectType === 'primary' && !isReadOnly}
-                    tabIndex={0}
-                    role="button"
-                    aria-selected={isSelected}
-                    aria-label={`Effect: ${formatEffectName(effect)}`}
-                    className="effects-list__item-wrapper"
-                >
+        <div
+            onKeyDown={handleKeyDown}
+            onDragStart={(effectType === 'primary' || effectType === 'final') ? (e) => onDragStart(e, effectIndex) : undefined}
+            onDragOver={(effectType === 'primary' || effectType === 'final') ? onDragOver : undefined}
+            onDrop={(effectType === 'primary' || effectType === 'final') ? (e) => onDrop(e, effectIndex) : undefined}
+            draggable={(effectType === 'primary' || effectType === 'final') && !isReadOnly}
+            className="effects-list__item-wrapper"
+        >
+            <ContextMenu.Root>
+                <ContextMenu.Trigger asChild>
                     <div
                         className={itemClassName}
                         onClick={handleSelect}
                         onContextMenu={handleContextMenu}
+                        tabIndex={0}
+                        role="button"
+                        aria-selected={isSelected}
+                        aria-label={`Effect: ${formatEffectName(effect)}`}
                     >
                         {/* Expand/Collapse Button */}
                         {hasChildren && (
@@ -458,54 +578,58 @@ export default function EffectItem({
                         >
                             <Delete className="effects-list__icon--medium" />
                         </IconButton>
+
+                        {/* Secondary and Keyframe Effects (expanded) */}
+                        {isExpanded && (
+                            <div className="effects-list__item__children">
+                                {effect.secondaryEffects && effect.secondaryEffects.length > 0 && (
+                                    <SecondaryEffectsList
+                                        parentEffect={effect}
+                                        parentIndex={effectIndex}
+                                        parentEffectId={effectId}
+                                        selectedEffect={selectedEffect}
+                                        isReadOnly={isReadOnly}
+                                        onSecondarySelect={onSecondarySelect}
+                                        onSecondaryDelete={handleSecondaryDelete}
+                                        onToggleVisibility={handleSecondaryToggleVisibility}
+                                        onReorder={handleSecondaryReorder}
+                                    />
+                                )}
+                                {effect.keyframeEffects && effect.keyframeEffects.length > 0 && (
+                                    <KeyframeEffectsList
+                                        parentEffect={effect}
+                                        parentIndex={effectIndex}
+                                        parentEffectId={effectId}
+                                        selectedEffect={selectedEffect}
+                                        isReadOnly={isReadOnly}
+                                        onKeyframeSelect={onKeyframeSelect}
+                                        onKeyframeDelete={handleKeyframeDelete}
+                                        onToggleVisibility={handleKeyframeToggleVisibility}
+                                        onReorder={handleKeyframeReorder}
+                                    />
+                                )}
+                            </div>
+                        )}
                     </div>
+                </ContextMenu.Trigger>
 
-                    {/* Secondary and Keyframe Effects (expanded) */}
-                    {isExpanded && (
-                        <div className="effects-list__item__children">
-                            {effect.secondaryEffects && effect.secondaryEffects.length > 0 && (
-                                <SecondaryEffectsList
-                                    parentEffect={effect}
-                                    parentIndex={effectIndex}
-                                    parentEffectId={effectId}
-                                    selectedEffect={selectedEffect}
-                                    isReadOnly={isReadOnly}
-                                    onSecondarySelect={onSecondarySelect}
-                                    onSecondaryDelete={handleSecondaryDelete}
-                                    onToggleVisibility={handleSecondaryToggleVisibility}
-                                />
-                            )}
-                            {effect.keyframeEffects && effect.keyframeEffects.length > 0 && (
-                                <KeyframeEffectsList
-                                    parentEffect={effect}
-                                    parentIndex={effectIndex}
-                                    parentEffectId={effectId}
-                                    selectedEffect={selectedEffect}
-                                    isReadOnly={isReadOnly}
-                                    onKeyframeSelect={onKeyframeSelect}
-                                />
-                            )}
-                        </div>
-                    )}
-                </div>
-            </ContextMenu.Trigger>
-
-            {/* Context Menu - Render with EffectContextMenu component */}
-            <EffectContextMenu
-                effect={effect}
-                effectId={effectId}
-                effectIndex={effectIndex}
-                effectType={effectType}
-                isFinalEffect={isFinalEffect}
-                isReadOnly={isReadOnly}
-                onDelete={handleDelete}
-                onAddSecondary={handleAddSecondary}
-                onAddKeyframe={handleAddKeyframe}
-                onBulkAddKeyframes={handleBulkAddKeyframes}
-                secondaryEffects={secondaryEffects}
-                keyframeEffects={keyframeEffects}
-            />
-        </ContextMenu.Root>
+                {/* Context Menu - Render with EffectContextMenu component */}
+                <EffectContextMenu
+                    effect={effect}
+                    effectId={effectId}
+                    effectIndex={effectIndex}
+                    effectType={effectType}
+                    isFinalEffect={isFinalEffect}
+                    isReadOnly={isReadOnly}
+                    onDelete={handleDelete}
+                    onAddSecondary={handleAddSecondary}
+                    onAddKeyframe={handleAddKeyframe}
+                    onBulkAddKeyframes={handleBulkAddKeyframes}
+                    secondaryEffects={secondaryEffects}
+                    keyframeEffects={keyframeEffects}
+                />
+            </ContextMenu.Root>
+        </div>
     );
 }
 

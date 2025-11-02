@@ -223,7 +223,7 @@ export default function EffectsList({
     }, [selectedEffect]);
 
     /**
-     * Handle primary effect drag start
+     * Handle primary/final effect drag start
      */
     const handleDragStart = useCallback((e, effectIndex) => {
         try {
@@ -234,15 +234,18 @@ export default function EffectsList({
                 return;
             }
 
+            // Determine effect type from the effect itself
+            const effectType = effect.type === 'finalImage' ? 'final' : 'primary';
+
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', JSON.stringify({
-                type: 'primary',
+                type: effectType,
                 sourceIndex: effectIndex,
                 effectId: effect.id
             }));
 
             eventBusService?.emit('effectspanel:log:action', {
-                action: 'primary:effect:drag:start',
+                action: `${effectType}:effect:drag:start`,
                 effectIndex,
                 effectId: effect.id,
                 component: 'EffectsList'
@@ -265,15 +268,15 @@ export default function EffectsList({
     }, []);
 
     /**
-     * Handle drop to reorder primary effects
+     * Handle drop to reorder primary/final effects
      */
     const handleDrop = useCallback((e, targetIndex) => {
         try {
             e.preventDefault();
             const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
 
-            // Only handle primary effect drops
-            if (dragData.type === 'primary' && dragData.sourceIndex !== targetIndex) {
+            // Handle both primary and final effect drops
+            if ((dragData.type === 'primary' || dragData.type === 'final') && dragData.sourceIndex !== targetIndex) {
                 const freshEffects = projectState?.getState()?.effects || effects;
                 const sourceEffect = freshEffects[dragData.sourceIndex];
                 const targetEffect = freshEffects[targetIndex];
@@ -287,7 +290,7 @@ export default function EffectsList({
                     }, { component: 'EffectsList' });
 
                     eventBusService?.emit('effectspanel:log:action', {
-                        action: 'primary:effect:reorder',
+                        action: `${dragData.type}:effect:reorder`,
                         sourceIndex: dragData.sourceIndex,
                         targetIndex,
                         fromId: sourceEffect.id,
@@ -331,7 +334,7 @@ export default function EffectsList({
                             return null;
                         }
 
-                        const effectType = effect.type || 'primary';
+                        const effectType = effect.type === 'finalImage' ? 'final' : 'primary';
                         const isSelected = isEffectSelected(effectId, effectType);
                         const isExpanded = expandedEffects.has(`${sectionType}-${sortedIndex}`);
                         const hasChildren = (effect.secondaryEffects?.length > 0) ||

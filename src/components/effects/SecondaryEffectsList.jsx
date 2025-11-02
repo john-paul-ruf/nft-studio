@@ -162,6 +162,8 @@ export default function SecondaryEffectsList({
      */
     const handleDragStart = useCallback((e, secondaryIndex) => {
         try {
+            console.log('🎯 SecondaryEffectsList: handleDragStart fired', { parentIndex, secondaryIndex });
+            e.stopPropagation(); // ✅ Prevent bubbling to parent EffectItem
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', JSON.stringify({
                 type: 'secondary',
@@ -185,6 +187,7 @@ export default function SecondaryEffectsList({
      */
     const handleDragOver = useCallback((e) => {
         try {
+            e.stopPropagation(); // ✅ Prevent bubbling to parent EffectItem
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
         } catch (error) {
@@ -197,12 +200,16 @@ export default function SecondaryEffectsList({
      */
     const handleDrop = useCallback((e, targetIndex) => {
         try {
+            console.log('🎯 SecondaryEffectsList: handleDrop fired', { targetIndex, parentIndex });
+            e.stopPropagation(); // ✅ Prevent bubbling to parent EffectItem
             e.preventDefault();
             const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+            console.log('🎯 SecondaryEffectsList: dragData parsed:', dragData);
 
             if (dragData.type === 'secondary' &&
                 dragData.parentIndex === parentIndex &&
                 dragData.sourceIndex !== targetIndex) {
+                console.log('🎯 SecondaryEffectsList: Calling onReorder with:', { parentIndex, sourceIndex: dragData.sourceIndex, targetIndex });
                 onReorder(parentIndex, dragData.sourceIndex, targetIndex);
 
                 eventBusService?.emit('effectspanel:log:action', {
@@ -211,6 +218,15 @@ export default function SecondaryEffectsList({
                     sourceIndex: dragData.sourceIndex,
                     targetIndex,
                     component: 'SecondaryEffectsList'
+                });
+            } else {
+                console.warn('🎯 SecondaryEffectsList: Drop condition not met', {
+                    isSecondary: dragData.type === 'secondary',
+                    parentMatch: dragData.parentIndex === parentIndex,
+                    sameIndex: dragData.sourceIndex === targetIndex,
+                    dragDataType: dragData.type,
+                    dragDataParentIndex: dragData.parentIndex,
+                    dragDataSourceIndex: dragData.sourceIndex
                 });
             }
         } catch (error) {

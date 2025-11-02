@@ -51,6 +51,8 @@ import { ElectronIPCBridge } from '../../services/ElectronIPCBridge.js';
 // Command Services
 import EffectCommandService from '../../services/EffectCommandService.js';
 import { AddKeyframeEffectCommand } from '../../services/KeyframeEffectCommandService.js';
+import SecondaryEffectCommandService from '../../services/SecondaryEffectCommandService.js';
+import KeyframeEffectCommandService from '../../services/KeyframeEffectCommandService.js';
 
 // Utilities
 import ConfigCloner from '../../utils/ConfigCloner.js';
@@ -270,8 +272,12 @@ export default function EffectsPanel({
         })
     );
 
-    // Initialize Effect Command Service for creating commands
+    // Initialize Command Services for creating commands
+    // NOTE: These are already singleton instances exported from their respective services
+    // Don't instantiate them again with 'new' - that causes the "is not a constructor" error
     const [effectCommandService] = useState(() => EffectCommandService);
+    const [secondaryEffectCommandService] = useState(() => SecondaryEffectCommandService);
+    const [keyframeEffectCommandService] = useState(() => KeyframeEffectCommandService);
 
     // Log initialization
     useEffect(() => {
@@ -355,22 +361,57 @@ export default function EffectsPanel({
 
                 if (hasValidParams) {
                     // Use commandService if available to execute reorder command
+                    console.log('🔄 EffectsPanel: Reorder event received', {
+                        reorderFromId,
+                        reorderToId,
+                        hasCommandService: !!commandService,
+                        hasEffectCommandService: !!effectCommandService,
+                        hasProjectState: !!projectState,
+                    });
+                    
                     if (commandService && effectCommandService && projectState) {
-                        // Create the reorder command using EffectCommandService
-                        // Pass effect IDs if available (prevents stale reference bugs)
-                        const reorderCommand = effectCommandService.createReorderCommand(
-                            projectState,
-                            reorderFromId,  // Pass ID or index
-                            reorderToId     // Pass ID or index
-                        );
-                        
-                        // Execute the command via CommandService
-                        commandService.execute(reorderCommand);
+                        try {
+                            // Create the reorder command using EffectCommandService
+                            // Pass effect IDs if available (prevents stale reference bugs)
+                            const reorderCommand = effectCommandService.createReorderCommand(
+                                projectState,
+                                reorderFromId,  // Pass ID or index
+                                reorderToId     // Pass ID or index
+                            );
+                            
+                            console.log('🔄 EffectsPanel: Reorder command created', {
+                                commandType: reorderCommand.type,
+                                description: reorderCommand.description
+                            });
+                            
+                            // Execute the command via CommandService
+                            commandService.execute(reorderCommand);
+                            console.log('✅ EffectsPanel: Reorder command executed');
+                        } catch (cmdError) {
+                            console.error('❌ EffectsPanel: Error creating/executing reorder command', cmdError);
+                            throw cmdError;
+                        }
                     } else if (onEffectReorder) {
                         // Fallback to callback if services not available
+                        console.warn('⚠️ EffectsPanel: Services not available, using fallback callback');
                         onEffectReorder(fromId, toId);
+                    } else {
+                        console.error('❌ EffectsPanel: No reorder handler available', {
+                            hasCommandService: !!commandService,
+                            hasEffectCommandService: !!effectCommandService,
+                            hasProjectState: !!projectState,
+                            hasCallback: !!onEffectReorder
+                        });
                     }
                 } else {
+                    console.warn('⚠️ EffectsPanel: Could not resolve effect IDs/indices for reorder', {
+                        fromIdx,
+                        toIdx,
+                        fromId,
+                        toId,
+                        reorderFromId,
+                        reorderToId
+                    });
                     logger.logDebug('Could not resolve effect IDs/indices for reorder', {
                         fromIdx,
                         toIdx,
@@ -416,14 +457,175 @@ export default function EffectsPanel({
             }
         });
 
+        // Secondary effects reorder events
+        const unsubscribeSecondaryReorder = eventBusService.subscribe('effectspanel:secondary:reorder', (payload, event) => {
+            try {
+                const { parentIndex, sourceIndex, targetIndex } = payload || {};
+                console.log('🔄 EffectsPanel: Secondary reorder event received', {
+                    parentIndex,
+                    sourceIndex,
+                    targetIndex,
+                    hasCommandService: !!commandService,
+                    hasSecondaryService: !!secondaryEffectCommandService,
+                    hasProjectState: !!projectState,
+                });
+                
+                logger.logAction('secondary:effect:reorder', 'Secondary effect reordered', {
+                    parentIndex,
+                    sourceIndex,
+                    targetIndex,
+                });
+
+                if (commandService && projectState && secondaryEffectCommandService) {
+                    try {
+                        const reorderCommand = secondaryEffectCommandService.createReorderCommand(
+                            projectState,
+                            parentIndex,
+                            sourceIndex,
+                            targetIndex
+                        );
+                        console.log('🔄 EffectsPanel: Secondary reorder command created and executing');
+                        commandService.execute(reorderCommand);
+                        console.log('✅ EffectsPanel: Secondary reorder command executed');
+                    } catch (cmdError) {
+                        console.error('❌ EffectsPanel: Error with secondary reorder command', cmdError);
+                        throw cmdError;
+                    }
+                } else {
+                    console.error('❌ EffectsPanel: Secondary reorder - services not available', {
+                        hasCommandService: !!commandService,
+                        hasProjectState: !!projectState,
+                        hasSecondaryService: !!secondaryEffectCommandService
+                    });
+                }
+            } catch (error) {
+                logger.logError('Error handling effectspanel:secondary:reorder event', error);
+                console.error('❌ EffectsPanel: Secondary reorder error:', error);
+            }
+        });
+
+        // Keyframe effects reorder events
+        const unsubscribeKeyframeReorder = eventBusService.subscribe('effectspanel:keyframe:reorder', (payload, event) => {
+            try {
+                const { parentIndex, sourceIndex, targetIndex } = payload || {};
+                console.log('🔄 EffectsPanel: Keyframe reorder event received', {
+                    parentIndex,
+                    sourceIndex,
+                    targetIndex,
+                    hasCommandService: !!commandService,
+                    hasKeyframeService: !!keyframeEffectCommandService,
+                    hasProjectState: !!projectState,
+                });
+                
+                logger.logAction('keyframe:effect:reorder', 'Keyframe effect reordered', {
+                    parentIndex,
+                    sourceIndex,
+                    targetIndex,
+                });
+
+                if (commandService && projectState && keyframeEffectCommandService) {
+                    try {
+                        const reorderCommand = keyframeEffectCommandService.createReorderCommand(
+                            projectState,
+                            parentIndex,
+                            sourceIndex,
+                            targetIndex
+                        );
+                        console.log('🔄 EffectsPanel: Keyframe reorder command created and executing');
+                        commandService.execute(reorderCommand);
+                        console.log('✅ EffectsPanel: Keyframe reorder command executed');
+                    } catch (cmdError) {
+                        console.error('❌ EffectsPanel: Error with keyframe reorder command', cmdError);
+                        throw cmdError;
+                    }
+                } else {
+                    console.error('❌ EffectsPanel: Keyframe reorder - services not available', {
+                        hasCommandService: !!commandService,
+                        hasProjectState: !!projectState,
+                        hasKeyframeService: !!keyframeEffectCommandService
+                    });
+                }
+            } catch (error) {
+                logger.logError('Error handling effectspanel:keyframe:reorder event', error);
+                console.error('❌ EffectsPanel: Keyframe reorder error:', error);
+            }
+        });
+
+        // Keyframe effect delete events
+        const unsubscribeKeyframeDelete = eventBusService.subscribe('effectspanel:keyframe:delete', (payload, event) => {
+            try {
+                const { parentIndex, keyframeIndex } = payload || {};
+                logger.logAction('keyframe:effect:delete', 'Keyframe effect deleted', {
+                    parentIndex,
+                    keyframeIndex,
+                });
+
+                if (commandService && projectState && keyframeEffectCommandService) {
+                    const deleteCommand = keyframeEffectCommandService.createDeleteCommand(
+                        projectState,
+                        parentIndex,
+                        keyframeIndex
+                    );
+                    commandService.execute(deleteCommand);
+                }
+            } catch (error) {
+                logger.logError('Error handling effectspanel:keyframe:delete event', error);
+            }
+        });
+
+        // Keyframe effect visibility toggle events
+        const unsubscribeKeyframeVisibility = eventBusService.subscribe('effectspanel:keyframe:togglevisibility', (payload, event) => {
+            try {
+                const { parentIndex, keyframeIndex } = payload || {};
+                logger.logAction('keyframe:effect:visibility:toggle', 'Keyframe effect visibility toggled', {
+                    parentIndex,
+                    keyframeIndex,
+                });
+
+                if (projectState) {
+                    const state = projectState.getState?.();
+                    const effects = state?.effects || [];
+                    
+                    if (parentIndex >= 0 && parentIndex < effects.length) {
+                        const parentEffect = effects[parentIndex];
+                        const keyframeEffects = parentEffect.keyframeEffects || [];
+                        
+                        if (keyframeIndex >= 0 && keyframeIndex < keyframeEffects.length) {
+                            const keyframeEffect = keyframeEffects[keyframeIndex];
+                            const newParent = {
+                                ...parentEffect,
+                                keyframeEffects: keyframeEffects.map((kf, idx) => 
+                                    idx === keyframeIndex 
+                                        ? { ...kf, visible: kf.visible === false ? true : false }
+                                        : kf
+                                )
+                            };
+                            
+                            const newEffects = effects.map((eff, idx) => 
+                                idx === parentIndex ? newParent : eff
+                            );
+                            
+                            projectState.update({ effects: newEffects });
+                        }
+                    }
+                }
+            } catch (error) {
+                logger.logError('Error handling effectspanel:keyframe:togglevisibility event', error);
+            }
+        });
+
         return () => {
             unsubscribeAdd?.();
             unsubscribeDelete?.();
             unsubscribeReorder?.();
             unsubscribeVisibility?.();
             unsubscribeBulkAddKeyframes?.();
+            unsubscribeSecondaryReorder?.();
+            unsubscribeKeyframeReorder?.();
+            unsubscribeKeyframeDelete?.();
+            unsubscribeKeyframeVisibility?.();
         };
-    }, [eventBusService, logger, clearSelection, onEffectDelete, onEffectReorder, onEffectToggleVisibility, commandService, effectCommandService, projectState, openBulkAddModal]);
+    }, [eventBusService, logger, clearSelection, onEffectDelete, onEffectReorder, onEffectToggleVisibility, commandService, effectCommandService, secondaryEffectCommandService, keyframeEffectCommandService, projectState, openBulkAddModal]);
 
     // Close config panel when entering read-only mode
     useEffect(() => {
