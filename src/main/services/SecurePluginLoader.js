@@ -442,9 +442,9 @@ export class SecurePluginLoader {
             const pluginDirUrl = pathToFileURL(pluginDir).href;
             SafeConsole.log(`🔒 [SecurePluginLoader] Rewriting relative local imports using base: ${pluginDirUrl}`);
 
-            // Handle relative imports with single quotes: from './path'
+            // Handle relative imports with single quotes: from './path' or from '../../path'
             code = code.replace(
-                /from\s+'([.][/][^']+)'/g,
+                /from\s+'(\.\.?\/[^']+)'/g,
                 (match, relativePath) => {
                     try {
                         const resolvedPath = path.resolve(pluginDir, relativePath);
@@ -458,9 +458,9 @@ export class SecurePluginLoader {
                 }
             );
 
-            // Handle relative imports with double quotes: from "./path"
+            // Handle relative imports with double quotes: from "./path" or from "../../path"
             code = code.replace(
-                /from\s+"([.][/][^"]+)"/g,
+                /from\s+"(\.\.?\/[^"]+)"/g,
                 (match, relativePath) => {
                     try {
                         const resolvedPath = path.resolve(pluginDir, relativePath);
@@ -474,9 +474,9 @@ export class SecurePluginLoader {
                 }
             );
 
-            // Handle dynamic import() calls with single quotes: import('./path')
+            // Handle dynamic import() calls with single quotes: import('./path') or import('../../path')
             code = code.replace(
-                /import\s*\(\s*'([.][/][^']+)'\s*\)/g,
+                /import\s*\(\s*'(\.\.?\/[^']+)'\s*\)/g,
                 (match, relativePath) => {
                     try {
                         const resolvedPath = path.resolve(pluginDir, relativePath);
@@ -490,9 +490,9 @@ export class SecurePluginLoader {
                 }
             );
 
-            // Handle dynamic import() calls with double quotes: import("./path")
+            // Handle dynamic import() calls with double quotes: import("./path") or import("../../path")
             code = code.replace(
-                /import\s*\(\s*"([.][/][^"]+)"\s*\)/g,
+                /import\s*\(\s*"(\.\.?\/[^"]+)"\s*\)/g,
                 (match, relativePath) => {
                     try {
                         const resolvedPath = path.resolve(pluginDir, relativePath);
@@ -594,10 +594,10 @@ export class SecurePluginLoader {
                         }
                         
                         // Also rewrite relative local imports to absolute file:// URLs pointing to temp directory
-                        // This ensures imports like './src/effects/...' work correctly and resolve to the rewritten files
-                        // Handle relative imports with single quotes: from './path'
+                        // This ensures imports like './src/effects/...' and '../../base/...' work correctly and resolve to the rewritten files
+                        // Handle relative imports with single quotes: from './path' or from '../../path'
                         code = code.replace(
-                            /from\s+'([.][/][^']+)'/g,
+                            /from\s+'(\.\.?\/[^']+)'/g,
                             (match, relativePath) => {
                                 try {
                                     const resolvedPath = path.resolve(dir, relativePath);
@@ -611,9 +611,9 @@ export class SecurePluginLoader {
                             }
                         );
                         
-                        // Handle relative imports with double quotes: from "./path"
+                        // Handle relative imports with double quotes: from "./path" or from "../../path"
                         code = code.replace(
-                            /from\s+"([.][/][^"]+)"/g,
+                            /from\s+"(\.\.?\/[^"]+)"/g,
                             (match, relativePath) => {
                                 try {
                                     const resolvedPath = path.resolve(dir, relativePath);
@@ -627,9 +627,9 @@ export class SecurePluginLoader {
                             }
                         );
                         
-                        // Handle dynamic imports with single quotes: import('./path')
+                        // Handle dynamic imports with single quotes: import('./path') or import('../../path')
                         code = code.replace(
-                            /import\s*\(\s*'([.][/][^']+)'\s*\)/g,
+                            /import\s*\(\s*'(\.\.?\/[^']+)'\s*\)/g,
                             (match, relativePath) => {
                                 try {
                                     const resolvedPath = path.resolve(dir, relativePath);
@@ -643,9 +643,9 @@ export class SecurePluginLoader {
                             }
                         );
                         
-                        // Handle dynamic imports with double quotes: import("./path")
+                        // Handle dynamic imports with double quotes: import("./path") or import("../../path")
                         code = code.replace(
-                            /import\s*\(\s*"([.][/][^"]+)"\s*\)/g,
+                            /import\s*\(\s*"(\.\.?\/[^"]+)"\s*\)/g,
                             (match, relativePath) => {
                                 try {
                                     const resolvedPath = path.resolve(dir, relativePath);
