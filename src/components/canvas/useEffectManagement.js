@@ -894,8 +894,8 @@ export default function useEffectManagement(projectState) {
             keyframeEffectsCount: mainEffect.keyframeEffects?.length || 0
         });
 
-        if (context.effectType === 'primary') {
-            console.log('✅ getEditingEffectData: Returning primary effect');
+        if (context.effectType === 'primary' || context.effectType === 'final' || context.effectType === 'finalImage') {
+            console.log('✅ getEditingEffectData: Returning primary or final effect');
             return mainEffect;
         } else if (context.effectType === 'secondary') {
             if (!mainEffect.secondaryEffects) {
@@ -1063,9 +1063,9 @@ export default function useEffectManagement(projectState) {
                 effectIndex: effectIndex
             });
 
-        // CRITICAL FIX: Handle both 'primary' and 'finalImage' effect types
+        // CRITICAL FIX: Handle both 'primary' and 'final' effect types
         // Final image effects are top-level effects just like primary effects
-        if (context.effectType === 'primary' || context.effectType === 'finalImage') {
+        if (context.effectType === 'primary' || context.effectType === 'final' || context.effectType === 'finalImage') {
             console.log('🔧 useEffectManagement: Updating effect config (type: ' + context.effectType + ')');
             console.log('🔧 useEffectManagement: Existing config:', mainEffect.config);
             console.log('🔧 useEffectManagement: New config:', newConfig);
@@ -1193,8 +1193,8 @@ export default function useEffectManagement(projectState) {
             return;
         }
 
-        // CRITICAL FIX: Handle both 'primary' and 'finalImage' effect types
-        if (editingEffect.effectType === 'primary' || editingEffect.effectType === 'finalImage') {
+        // CRITICAL FIX: Handle both 'primary' and 'final' effect types
+        if (editingEffect.effectType === 'primary' || editingEffect.effectType === 'final' || editingEffect.effectType === 'finalImage') {
             // CRITICAL FIX: Merge new config with existing config instead of replacing
             const mergedConfig = {
                 ...(mainEffect.config || {}),
