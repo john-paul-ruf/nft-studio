@@ -276,20 +276,36 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                         console.log('🎨 Canvas: Looking for secondary effect at subIndex:', {
                             subIndex: payload.subIndex,
                             found: !!secondaryEffect,
-                            secondaryName: secondaryEffect?.name
+                            secondaryName: secondaryEffect?.name,
+                            secondaryEffectsCount: effect.secondaryEffects?.length
                         });
                         if (secondaryEffect) {
                             effectData = secondaryEffect;
+                            console.log('✅ Canvas: Secondary effect successfully extracted:', {
+                                effectId: secondaryEffect.id,
+                                effectName: secondaryEffect.name,
+                                hasConfig: !!secondaryEffect.config
+                            });
+                        } else {
+                            console.error('❌ Canvas: Secondary effect NOT found at subIndex:', payload.subIndex);
                         }
                     } else if (payload.effectType === 'keyframe' && payload.subIndex !== null && payload.subIndex !== undefined) {
                         const keyframeEffect = effect.keyframeEffects?.[payload.subIndex];
                         console.log('🎨 Canvas: Looking for keyframe effect at subIndex:', {
                             subIndex: payload.subIndex,
                             found: !!keyframeEffect,
-                            keyframeName: keyframeEffect?.name
+                            keyframeName: keyframeEffect?.name,
+                            keyframeEffectsCount: effect.keyframeEffects?.length
                         });
                         if (keyframeEffect) {
                             effectData = keyframeEffect;
+                            console.log('✅ Canvas: Keyframe effect successfully extracted:', {
+                                effectId: keyframeEffect.id,
+                                effectName: keyframeEffect.name,
+                                hasConfig: !!keyframeEffect.config
+                            });
+                        } else {
+                            console.error('❌ Canvas: Keyframe effect NOT found at subIndex:', payload.subIndex);
                         }
                     }
                     
@@ -299,25 +315,63 @@ export default function Canvas({ projectStateManager, projectData, onUpdateConfi
                         effectType: payload.effectType,
                         subIndex: payload.subIndex,
                         effectName: effectData.name || effectData.className,
-                        configKeys: Object.keys(effectData.config || {}).slice(0, 3)
+                        effectDataName: effectData.name,
+                        effectDataClassName: effectData.className,
+                        effectDataId: effectData.id,
+                        configKeys: Object.keys(effectData.config || {}).slice(0, 3),
+                        configType: typeof effectData.config,
+                        hasConfig: !!effectData.config,
+                        fullEffectData: {
+                            name: effectData.name,
+                            className: effectData.className,
+                            registryKey: effectData.registryKey,
+                            id: effectData.id,
+                            config: effectData.config
+                        }
                     });
+                    
+                    // Ensure config is always an object (fallback to empty if missing)
+                    const effectConfig = effectData.config || {};
+                    if (typeof effectConfig !== 'object') {
+                        console.warn('⚠️ Canvas: effectData.config is not an object:', typeof effectConfig);
+                    }
                     
                     // 🔒 CRITICAL: Deep-clone config to prevent multiple effects of same type from sharing references
                     // This prevents "changes in UI affect other effects" bug when toggling effects off/on
-                    setSelectedEffect({
+                    // For nested effects, use the nested effect's registryKey, not parent's
+                    const selectedEffectData = {
                         effectId: payload.effectId,
                         effectIndex: payload.effectIndex,
                         effectType: payload.effectType,
                         subIndex: payload.subIndex,
-                        name: effectData.name || effectData.className,
-                        registryKey: effectData.name || effectData.className,
-                        className: effectData.className,
+                        name: effectData.name || effectData.className || 'Unknown',
+                        registryKey: effectData.registryKey || effectData.name || effectData.className || 'Unknown',
+                        className: effectData.className || 'Unknown',
                         id: effectData.id,
-                        config: ConfigCloner.deepClone(effectData.config || {}),
+                        config: ConfigCloner.deepClone(effectConfig),
+                    };
+                    
+                    console.log('🎨 Canvas: Selected effect data prepared:', {
+                        effectId: selectedEffectData.effectId,
+                        effectType: selectedEffectData.effectType,
+                        subIndex: selectedEffectData.subIndex,
+                        name: selectedEffectData.name,
+                        registryKey: selectedEffectData.registryKey,
+                        className: selectedEffectData.className,
+                        id: selectedEffectData.id,
+                        configIsValid: !!selectedEffectData.config && typeof selectedEffectData.config === 'object',
+                        configKeys: Object.keys(selectedEffectData.config || {})
                     });
+                    
+                    setSelectedEffect(selectedEffectData);
                     // Auto-expand config panel when effect is selected
                     setConfigPanelExpanded(true);
+                    console.log('✅ Canvas: Config panel expanded for effect selection');
+                } else {
+                    console.error('❌ Canvas: Effect not found for effectId:', payload.effectId);
                 }
+            } else {
+                console.error('❌ Canvas: projectState not available for effect selection');
             }
         }, { component: 'Canvas' });
 

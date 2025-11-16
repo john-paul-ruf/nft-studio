@@ -103,8 +103,15 @@ export default function KeyframeEffectsList({
     /**
      * Handle keyframe effect selection
      */
-    const handleSelect = useCallback((keyframeIndex) => {
+    const handleSelect = useCallback((e, keyframeIndex) => {
         try {
+            // 🔒 CRITICAL: Stop propagation to prevent bubbling to parent effect item
+            // Without this, the click also selects the parent primary effect
+            if (e) {
+                e.stopPropagation();
+                e.preventDefault();
+            }
+
             onKeyframeSelect(parentIndex, keyframeIndex);
 
             eventBusService?.emit('effectspanel:log:action', {
@@ -314,8 +321,8 @@ export default function KeyframeEffectsList({
                             >
                                 <div
                                     className={`keyframe-effects-list__item ${isSelected ? 'keyframe-effects-list__item--selected' : ''}`}
-                                    onClick={() => handleSelect(idx)}
-                                    onContextMenu={() => handleSelect(idx)}
+                                    onClick={(e) => handleSelect(e, idx)}
+                                    onContextMenu={(e) => handleSelect(e, idx)}
                                 >
                                     {/* Icon and Name */}
                                     <div className="keyframe-effects-list__item__icon-container">

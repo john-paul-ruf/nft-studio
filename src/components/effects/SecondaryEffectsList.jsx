@@ -90,8 +90,15 @@ export default function SecondaryEffectsList({
     /**
      * Handle secondary effect selection
      */
-    const handleSelect = useCallback((secondaryIndex) => {
+    const handleSelect = useCallback((e, secondaryIndex) => {
         try {
+            // 🔒 CRITICAL: Stop propagation to prevent bubbling to parent effect item
+            // Without this, the click also selects the parent primary effect
+            if (e) {
+                e.stopPropagation();
+                e.preventDefault();
+            }
+
             onSecondarySelect(parentIndex, secondaryIndex);
 
             eventBusService?.emit('effectspanel:log:action', {
@@ -256,8 +263,8 @@ export default function SecondaryEffectsList({
                                 className="secondary-effects-list__item__drag-container"
                             >
                                 <div
-                                    onClick={() => handleSelect(idx)}
-                                    onContextMenu={() => handleSelect(idx)}
+                                    onClick={(e) => handleSelect(e, idx)}
+                                    onContextMenu={(e) => handleSelect(e, idx)}
                                     className={`secondary-effects-list__item ${isSelected ? 'secondary-effects-list__item--selected' : ''}`}
                                 >
                                     {/* Icon and Name */}

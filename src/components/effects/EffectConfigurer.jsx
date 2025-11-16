@@ -309,30 +309,55 @@ function EffectConfigurer({
     useEffect(() => {
         const loadSchema = async () => {
             if (!selectedEffect) {
+                console.log('🔧 EffectConfigurer: No selectedEffect provided, clearing schema');
                 setConfigSchema(null);
                 schemaRef.current = null;
                 return;
             }
 
             try {
+                console.log('🔧 EffectConfigurer: Loading schema for effect:', {
+                    effectId: selectedEffect.effectId,
+                    effectType: selectedEffect.effectType,
+                    subIndex: selectedEffect.subIndex,
+                    name: selectedEffect.name,
+                    registryKey: selectedEffect.registryKey,
+                    className: selectedEffect.className,
+                    hasConfig: !!selectedEffect.config
+                });
 
                 // Use EffectConfigurationManager to load schema
                 const schema = await services.configManager.loadConfigSchema(selectedEffect, projectState);
                 
                 if (schema) {
+                    console.log('✅ EffectConfigurer: Schema loaded successfully:', {
+                        effectName: selectedEffect.name,
+                        fieldsCount: schema.fields ? schema.fields.length : 0,
+                        fieldNames: schema.fields ? schema.fields.map(f => f.name) : []
+                    });
                     setConfigSchema(schema);
                     schemaRef.current = schema;
                     
                     // Validate current configuration against new schema
                     const validation = services.validator.validateConfiguration(effectConfig, schema);
+                    console.log('🔍 EffectConfigurer: Configuration validation:', {
+                        isComplete: validation.isComplete,
+                        errorsCount: Object.keys(validation.errors || {}).length
+                    });
                     setValidationErrors(validation.errors);
                     setIsConfigComplete(validation.isComplete);
                 } else {
+                    console.warn('⚠️ EffectConfigurer: No schema returned for effect:', selectedEffect.name);
                     setConfigSchema(null);
                     schemaRef.current = null;
                 }
             } catch (error) {
-                console.error('❌ Error loading schema:', error);
+                console.error('❌ EffectConfigurer: Error loading schema:', {
+                    error: error.message,
+                    effectName: selectedEffect.name,
+                    registryKey: selectedEffect.registryKey,
+                    fullError: error
+                });
                 setConfigSchema(null);
                 schemaRef.current = null;
             }

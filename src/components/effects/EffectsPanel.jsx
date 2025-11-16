@@ -813,21 +813,28 @@ export default function EffectsPanel({
                 console.log('🎯 EffectsPanel: Secondary effect found:', {
                     parentId: parentEffect.id,
                     secondaryIndex,
-                    secondaryName: secondaryEffect.name
+                    secondaryName: secondaryEffect.name,
+                    secondaryId: secondaryEffect?.id
                 });
                 
                 // Select the secondary effect with the parent ID and subIndex
+                // This updates the selection state in useEffectSelection hook
                 selectEffect(parentEffect.id, 'secondary', secondaryIndex);
                 
+                // Emit effect:selected event with complete nested effect data
+                // This ensures Canvas and other components receive the full context
                 eventBusService?.emit('effect:selected', {
                     effectId: parentEffect.id,
                     effectIndex: parentIndex,
                     effectType: 'secondary',
                     subIndex: secondaryIndex,
+                    nestedEffectId: secondaryEffect?.id,
+                    nestedEffectName: secondaryEffect?.name,
                 }, { component: 'EffectsPanel' });
                 
                 logger.logAction('secondary:effect:selected', 'Secondary effect selected', { 
-                    parentEffectId: parentEffect.id, 
+                    parentEffectId: parentEffect.id,
+                    secondaryEffectId: secondaryEffect?.id,
                     secondaryIndex 
                 });
             } else {
@@ -866,21 +873,28 @@ export default function EffectsPanel({
                 console.log('🎯 EffectsPanel: Keyframe effect found:', {
                     parentId: parentEffect.id,
                     keyframeIndex,
-                    keyframeName: keyframeEffect.name
+                    keyframeName: keyframeEffect.name,
+                    keyframeId: keyframeEffect?.id
                 });
                 
                 // Select the keyframe effect with the parent ID and subIndex
+                // This updates the selection state in useEffectSelection hook
                 selectEffect(parentEffect.id, 'keyframe', keyframeIndex);
                 
+                // Emit effect:selected event with complete nested effect data
+                // This ensures Canvas and other components receive the full context
                 eventBusService?.emit('effect:selected', {
                     effectId: parentEffect.id,
                     effectIndex: parentIndex,
                     effectType: 'keyframe',
                     subIndex: keyframeIndex,
+                    nestedEffectId: keyframeEffect?.id,
+                    nestedEffectName: keyframeEffect?.name,
                 }, { component: 'EffectsPanel' });
                 
                 logger.logAction('keyframe:effect:selected', 'Keyframe effect selected', { 
-                    parentEffectId: parentEffect.id, 
+                    parentEffectId: parentEffect.id,
+                    keyframeEffectId: keyframeEffect?.id,
                     keyframeIndex 
                 });
             } else {

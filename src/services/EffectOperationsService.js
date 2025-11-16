@@ -480,19 +480,29 @@ class EffectOperationsService {
      * @param {Object} params.projectState - Current project state
      * @returns {Promise<void>}
      */
-    async createSecondaryEffect({ parentIndex, effectName, config, projectState }) {
+    async createSecondaryEffect({ parentIndex, effectName, config, projectState, availableEffects = null }) {
         const startTime = Date.now();
         
         try {
             this.logger.info(`Creating secondary effect ${effectName} for parent at index ${parentIndex}`);
 
+            // Lookup the effect in available effects to get proper metadata
+            let effectMetadata = { className: effectName };
+            if (availableEffects) {
+                const secondaryEffects = availableEffects.secondary || [];
+                effectMetadata = secondaryEffects.find(e => e.name === effectName) || { 
+                    className: effectName,
+                    name: effectName
+                };
+            }
+
             const secondaryEffectData = {
                 id: IdGenerator.generateId(),
                 name: effectName,
-                className: effectName,
-                registryKey: effectName,
+                className: effectMetadata.className || effectName,
+                registryKey: effectMetadata.registryKey || effectName,
                 type: 'secondary',
-                config,
+                config: config || {},
                 visible: true
             };
 
@@ -534,20 +544,30 @@ class EffectOperationsService {
      * @param {Object} params.projectState - Current project state
      * @returns {Promise<void>}
      */
-    async createKeyframeEffect({ parentIndex, effectName, frame, config, projectState }) {
+    async createKeyframeEffect({ parentIndex, effectName, frame, config, projectState, availableEffects = null }) {
         const startTime = Date.now();
         
         try {
             this.logger.info(`Creating keyframe effect ${effectName} for frame ${frame} on parent at index ${parentIndex}`);
 
+            // Lookup the effect in available effects to get proper metadata
+            let effectMetadata = { className: effectName };
+            if (availableEffects) {
+                const keyframeEffects = availableEffects.keyframe || [];
+                effectMetadata = keyframeEffects.find(e => e.name === effectName) || { 
+                    className: effectName,
+                    name: effectName
+                };
+            }
+
             const keyframeEffectData = {
                 id: IdGenerator.generateId(),
                 name: effectName,
-                className: effectName,
-                registryKey: effectName,
+                className: effectMetadata.className || effectName,
+                registryKey: effectMetadata.registryKey || effectName,
                 type: 'keyframe',
                 frame: frame,
-                config,
+                config: config || {},
                 visible: true
             };
 
