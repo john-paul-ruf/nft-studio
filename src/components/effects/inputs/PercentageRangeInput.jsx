@@ -222,12 +222,14 @@ function PercentageRangeInput({ field, value, onChange }) {
         if (!isNaN(numValue)) {
             // Debounce the onChange call
             lowerDebounceTimerRef.current = setTimeout(() => {
-                // No validation - accept whatever value the user wants
-                // Get fresh value from ref to avoid stale closure
                 const freshValue = normalizeValue(valueRef.current);
+                const side = freshValue.lower?.side || 'shortest';
+                const __type = side === 'shortest' ? 'PercentageShortestSide' : 'PercentageLongestSide';
                 onChange(field.name, {
                     ...freshValue,
-                    lower: { ...freshValue.lower, percent: numValue / 100 }
+                    __type: 'PercentageRange',
+                    lower: { ...freshValue.lower, percent: numValue / 100, __type },
+                    upper: { ...freshValue.upper, __type: (freshValue.upper?.side || 'longest') === 'shortest' ? 'PercentageShortestSide' : 'PercentageLongestSide' }
                 });
             }, 300);
         }
@@ -251,12 +253,14 @@ function PercentageRangeInput({ field, value, onChange }) {
         if (!isNaN(numValue)) {
             // Debounce the onChange call
             upperDebounceTimerRef.current = setTimeout(() => {
-                // No validation - accept whatever value the user wants
-                // Get fresh value from ref to avoid stale closure
                 const freshValue = normalizeValue(valueRef.current);
+                const side = freshValue.upper?.side || 'longest';
+                const __type = side === 'shortest' ? 'PercentageShortestSide' : 'PercentageLongestSide';
                 onChange(field.name, {
                     ...freshValue,
-                    upper: { ...freshValue.upper, percent: numValue / 100 }
+                    __type: 'PercentageRange',
+                    lower: { ...freshValue.lower, __type: (freshValue.lower?.side || 'shortest') === 'shortest' ? 'PercentageShortestSide' : 'PercentageLongestSide' },
+                    upper: { ...freshValue.upper, percent: numValue / 100, __type }
                 });
             }, 300);
         }
@@ -294,10 +298,15 @@ function PercentageRangeInput({ field, value, onChange }) {
                                 const newType = newSide === 'shortest' ? 'PercentageShortestSide' : 'PercentageLongestSide';
                                 const newValue = {
                                     ...freshValue,
+                                    __type: 'PercentageRange',
                                     lower: { 
                                         ...freshValue.lower, 
                                         side: newSide,
                                         __type: newType
+                                    },
+                                    upper: {
+                                        ...freshValue.upper,
+                                        __type: (freshValue.upper?.side || 'longest') === 'shortest' ? 'PercentageShortestSide' : 'PercentageLongestSide'
                                     }
                                 };
                                 console.log(`[PercentageRangeInput] ${field.name} lower side changed to:`, newSide, 'Full value:', newValue);
@@ -339,6 +348,11 @@ function PercentageRangeInput({ field, value, onChange }) {
                                 const newType = newSide === 'shortest' ? 'PercentageShortestSide' : 'PercentageLongestSide';
                                 const newValue = {
                                     ...freshValue,
+                                    __type: 'PercentageRange',
+                                    lower: {
+                                        ...freshValue.lower,
+                                        __type: (freshValue.lower?.side || 'shortest') === 'shortest' ? 'PercentageShortestSide' : 'PercentageLongestSide'
+                                    },
                                     upper: { 
                                         ...freshValue.upper, 
                                         side: newSide,

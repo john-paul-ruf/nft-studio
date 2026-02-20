@@ -39,27 +39,69 @@ class IPCSerializationService {
                         __className: 'ColorPicker'
                     };
                 }
-                // Recursively serialize nested objects, but extract values from method objects
                 else if (typeof value.lower === 'function' && typeof value.upper === 'function') {
-                    // Range object - safely extract the actual values
                     try {
-                        serialized[key] = {
-                            lower: value.lower(),
-                            upper: value.upper()
-                        };
+                        const lowerResult = value.lower();
+                        const upperResult = value.upper();
+
+                        if (lowerResult && typeof lowerResult === 'object' &&
+                            'percent' in lowerResult && 'side' in lowerResult) {
+                            serialized[key] = {
+                                __className: 'PercentageRange',
+                                lower: {
+                                    __className: lowerResult.side === 'shortest' ? 'PercentageShortestSide' : 'PercentageLongestSide',
+                                    percent: lowerResult.percent,
+                                    side: lowerResult.side
+                                },
+                                upper: {
+                                    __className: upperResult.side === 'shortest' ? 'PercentageShortestSide' : 'PercentageLongestSide',
+                                    percent: upperResult.percent,
+                                    side: upperResult.side
+                                }
+                            };
+                        } else {
+                            serialized[key] = {
+                                lower: lowerResult,
+                                upper: upperResult
+                            };
+                        }
                     } catch (error) {
                         console.warn(`⚠️ Failed to serialize range object ${key}:`, error.message);
-                        // Fallback: try to extract raw numeric properties if methods fail
                         if (typeof value.lowerValue === 'number' && typeof value.upperValue === 'number') {
                             serialized[key] = {
                                 lower: value.lowerValue,
                                 upper: value.upperValue
                             };
                         } else {
-                            // Last resort: serialize as regular object
                             serialized[key] = this.serializeConfigForIPC(value);
                         }
                     }
+                }
+                else if (value.__type === 'ColorPicker' || value.__className === 'ColorPicker') {
+                    serialized[key] = {
+                        selectionType: value.selectionType || 'color-bucket',
+                        colorValue: value.colorValue || null,
+                        __className: 'ColorPicker'
+                    };
+                }
+                else if (value.__type === 'PercentageRange' || value.__className === 'PercentageRange' ||
+                         (value.lower && typeof value.lower === 'object' && 'percent' in value.lower && 'side' in value.lower &&
+                          value.upper && typeof value.upper === 'object' && 'percent' in value.upper && 'side' in value.upper)) {
+                    const lower = value.lower || {};
+                    const upper = value.upper || {};
+                    serialized[key] = {
+                        __className: 'PercentageRange',
+                        lower: {
+                            __className: (lower.side || 'shortest') === 'shortest' ? 'PercentageShortestSide' : 'PercentageLongestSide',
+                            percent: lower.percent ?? 0.5,
+                            side: lower.side || 'shortest'
+                        },
+                        upper: {
+                            __className: (upper.side || 'longest') === 'shortest' ? 'PercentageShortestSide' : 'PercentageLongestSide',
+                            percent: upper.percent ?? 0.5,
+                            side: upper.side || 'longest'
+                        }
+                    };
                 } else {
                     // Regular object - recursively serialize
                     serialized[key] = this.serializeConfigForIPC(value);

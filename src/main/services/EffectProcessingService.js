@@ -229,6 +229,7 @@ class EffectProcessingService {
         // we should use ConfigReconstructor directly instead of SettingsToProjectConverter
         // which requires window.api (frontend IPC)
         let hydratedConfig;
+        const effectName = effect.registryKey;
         try {
             // If config is already properly deserialized, skip ConfigReconstructor to avoid overwriting
             if (isAlreadyDeserialized) {
@@ -236,7 +237,6 @@ class EffectProcessingService {
                 hydratedConfig = userConfig;
             } else {
                 // Try ConfigReconstructor first for proper config reconstruction from my-nft-gen
-                const effectName = effect.registryKey;
                 SafeConsole.log(`🔧 [EffectProcessingService] Calling ConfigReconstructor.reconstruct for ${effectName}`);
                 SafeConsole.log(`🔧 [EffectProcessingService] userConfig before ConfigReconstructor:`, JSON.stringify(userConfig, null, 2));
                 hydratedConfig = await ConfigReconstructor.reconstruct(effectName, userConfig);

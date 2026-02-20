@@ -623,11 +623,10 @@ class EffectRegistryService {
             return result;
         }
 
-        // Check if this object has a __type marker
-        if (config.__type) {
+        const typeMarker = config.__type || config.__className;
+        if (typeMarker) {
             try {
-                // Import the required classes from my-nft-gen with specific paths
-                switch (config.__type) {
+                switch (typeMarker) {
                     case 'ColorPicker': {
                         const { ColorPicker } = await import('my-nft-gen/src/core/layer/configType/ColorPicker.js');
                         // CRITICAL: Pass parameters to constructor, not set afterward
@@ -672,17 +671,15 @@ class EffectRegistryService {
                     }
 
                     default:
-                        SafeConsole.log(`⚠️ [EffectRegistryService] Unknown __type: ${config.__type}, returning as plain object`);
-                        // Remove __type and return as plain object
-                        const { __type, ...rest } = config;
+                        SafeConsole.log(`⚠️ [EffectRegistryService] Unknown type marker: ${typeMarker}, returning as plain object`);
+                        const { __type: _t, __className: _c, ...rest } = config;
                         return await this._deserializeConfig(rest);
                 }
             } catch (error) {
-                SafeConsole.log(`❌ [EffectRegistryService] Failed to deserialize ${config.__type}:`, error.message);
+                SafeConsole.log(`❌ [EffectRegistryService] Failed to deserialize ${typeMarker}:`, error.message);
                 SafeConsole.log(`   Stack:`, error.stack);
-                // Return as plain object if deserialization fails
-                const { __type, ...rest } = config;
-                return rest;
+                const { __type: _t2, __className: _c2, ...rest2 } = config;
+                return rest2;
             }
         }
 

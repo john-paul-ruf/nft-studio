@@ -382,3 +382,169 @@ export async function testEdgeCasesAndErrorHandling() {
         await testEnv.cleanup();
     }
 }
+
+/**
+ * Test 10: PercentageRange method-based object serialization
+ * Regression: PercentageRange objects with lower()/upper() methods returning
+ * PercentageSide instances were serialized as plain Range (losing type info).
+ */
+export async function testPercentageRangeMethodSerialization() {
+    const testEnv = new TestEnvironment();
+    await testEnv.setup();
+
+    try {
+        const mockPercentageRange = {
+            lower: () => ({ percent: 0.1, side: 'shortest' }),
+            upper: () => ({ percent: 0.9, side: 'longest' })
+        };
+
+        const config = {
+            sizeRange: mockPercentageRange
+        };
+
+        const result = IPCSerializationService.serializeConfigForIPC(config);
+
+        if (result.sizeRange.__className !== 'PercentageRange') {
+            throw new Error(`Expected __className 'PercentageRange', got '${result.sizeRange.__className}'`);
+        }
+        if (result.sizeRange.lower.__className !== 'PercentageShortestSide') {
+            throw new Error(`Expected lower __className 'PercentageShortestSide', got '${result.sizeRange.lower.__className}'`);
+        }
+        if (result.sizeRange.lower.percent !== 0.1) {
+            throw new Error(`Expected lower percent 0.1, got ${result.sizeRange.lower.percent}`);
+        }
+        if (result.sizeRange.lower.side !== 'shortest') {
+            throw new Error(`Expected lower side 'shortest', got '${result.sizeRange.lower.side}'`);
+        }
+        if (result.sizeRange.upper.__className !== 'PercentageLongestSide') {
+            throw new Error(`Expected upper __className 'PercentageLongestSide', got '${result.sizeRange.upper.__className}'`);
+        }
+        if (result.sizeRange.upper.percent !== 0.9) {
+            throw new Error(`Expected upper percent 0.9, got ${result.sizeRange.upper.percent}`);
+        }
+        if (result.sizeRange.upper.side !== 'longest') {
+            throw new Error(`Expected upper side 'longest', got '${result.sizeRange.upper.side}'`);
+        }
+
+        console.log('✅ PercentageRange method-based objects serialized with proper __className markers');
+        return { success: true };
+    } finally {
+        await testEnv.cleanup();
+    }
+}
+
+/**
+ * Test 11: Plain PercentageRange object serialization (from UI with __type markers)
+ * Regression: Objects emitted from PercentageRangeInput with __type markers
+ * were not recognized and serialized as generic objects.
+ */
+export async function testPercentageRangePlainObjectSerialization() {
+    const testEnv = new TestEnvironment();
+    await testEnv.setup();
+
+    try {
+        const config = {
+            sizeRange: {
+                __type: 'PercentageRange',
+                lower: { percent: 0.2, side: 'shortest', __type: 'PercentageShortestSide' },
+                upper: { percent: 0.8, side: 'longest', __type: 'PercentageLongestSide' }
+            }
+        };
+
+        const result = IPCSerializationService.serializeConfigForIPC(config);
+
+        if (result.sizeRange.__className !== 'PercentageRange') {
+            throw new Error(`Expected __className 'PercentageRange', got '${result.sizeRange.__className}'`);
+        }
+        if (result.sizeRange.lower.__className !== 'PercentageShortestSide') {
+            throw new Error(`Expected lower __className 'PercentageShortestSide', got '${result.sizeRange.lower.__className}'`);
+        }
+        if (result.sizeRange.lower.percent !== 0.2) {
+            throw new Error(`Expected lower percent 0.2, got ${result.sizeRange.lower.percent}`);
+        }
+        if (result.sizeRange.upper.__className !== 'PercentageLongestSide') {
+            throw new Error(`Expected upper __className 'PercentageLongestSide', got '${result.sizeRange.upper.__className}'`);
+        }
+        if (result.sizeRange.upper.percent !== 0.8) {
+            throw new Error(`Expected upper percent 0.8, got ${result.sizeRange.upper.percent}`);
+        }
+
+        console.log('✅ Plain PercentageRange objects with __type markers serialized correctly');
+        return { success: true };
+    } finally {
+        await testEnv.cleanup();
+    }
+}
+
+/**
+ * Test 12: ColorPicker with __type marker serialization (from UI)
+ * Regression: ColorPicker objects from UI with __type instead of __className
+ * were not recognized by the serializer.
+ */
+export async function testColorPickerWithTypeMarkerSerialization() {
+    const testEnv = new TestEnvironment();
+    await testEnv.setup();
+
+    try {
+        const config = {
+            innerColor: {
+                __type: 'ColorPicker',
+                selectionType: 'color',
+                colorValue: '#ff5500'
+            }
+        };
+
+        const result = IPCSerializationService.serializeConfigForIPC(config);
+
+        if (result.innerColor.__className !== 'ColorPicker') {
+            throw new Error(`Expected __className 'ColorPicker', got '${result.innerColor.__className}'`);
+        }
+        if (result.innerColor.selectionType !== 'color') {
+            throw new Error(`Expected selectionType 'color', got '${result.innerColor.selectionType}'`);
+        }
+        if (result.innerColor.colorValue !== '#ff5500') {
+            throw new Error(`Expected colorValue '#ff5500', got '${result.innerColor.colorValue}'`);
+        }
+
+        console.log('✅ ColorPicker objects with __type marker serialized correctly');
+        return { success: true };
+    } finally {
+        await testEnv.cleanup();
+    }
+}
+
+/**
+ * Test 13: PercentageRange without type markers but with percent/side structure
+ * Regression: Bare PercentageRange objects (no __type, no __className) that have
+ * the percent/side structure should still be detected and serialized properly.
+ */
+export async function testPercentageRangeStructuralDetection() {
+    const testEnv = new TestEnvironment();
+    await testEnv.setup();
+
+    try {
+        const config = {
+            sizeRange: {
+                lower: { percent: 0.3, side: 'shortest' },
+                upper: { percent: 0.7, side: 'longest' }
+            }
+        };
+
+        const result = IPCSerializationService.serializeConfigForIPC(config);
+
+        if (result.sizeRange.__className !== 'PercentageRange') {
+            throw new Error(`Expected __className 'PercentageRange', got '${result.sizeRange.__className}'`);
+        }
+        if (result.sizeRange.lower.__className !== 'PercentageShortestSide') {
+            throw new Error(`Expected lower __className 'PercentageShortestSide', got '${result.sizeRange.lower.__className}'`);
+        }
+        if (result.sizeRange.upper.__className !== 'PercentageLongestSide') {
+            throw new Error(`Expected upper __className 'PercentageLongestSide', got '${result.sizeRange.upper.__className}'`);
+        }
+
+        console.log('✅ PercentageRange objects detected by structure and serialized correctly');
+        return { success: true };
+    } finally {
+        await testEnv.cleanup();
+    }
+}
